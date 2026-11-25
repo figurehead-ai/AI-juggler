@@ -16,7 +16,14 @@ import { FIT, chipWords, memoryWords } from "./models-words";
 const MODEL_JOBS: readonly AiJob[] = ["review", "chat", "feed", "digest", "watches"];
 
 /** Every job's row in Each job uses, in the mock's order. */
-export const JOB_ROWS: readonly ModelJob[] = ["review", "chat", "attention", "feed", "digest", "watches"];
+// AJ-E1548 #4: attention hints are code, not AI: not a job row.
+export const JOB_ROWS: readonly ModelJob[] = ["review", "chat", "feed", "digest", "watches"];
+
+/** AJ-E1548 #3 (D-127): the jobs a model on the list passes today; the
+ * rest appear when one does. */
+export function jobsToday(catalog: ModelsCatalog | null): ModelJob[] {
+  return JOB_ROWS.filter((job) => (catalog?.models ?? []).some((model) => passed(model, job)));
+}
 
 export function verdictOf(model: CatalogModel, job: ModelJob) {
   return model.verdicts.find((verdict) => verdict.job === job) ?? { job, verdict: "not_tested" as const, note: null };

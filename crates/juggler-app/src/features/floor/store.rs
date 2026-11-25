@@ -37,6 +37,9 @@ pub const ARRANGE_KEY: &str = "floor.arrange";
 /// default), `attention` (only what needs you) or `names` (every area's
 /// name).
 pub const LABELS_KEY: &str = "floor.labels";
+/// AJ-E1548 #23: the first-open line, `hidden` once a click hid it (it
+/// shows until then).
+pub const INTRO_KEY: &str = "floor.intro";
 
 /// AJ-E3520: the office's light.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -19,7 +19,7 @@ import { switchBackPlan, switchBackExecute, type SwitchBackPlanData } from "../l
 import { errorText } from "../lib/bridge";
 import { Radio } from "./controls";
 import { Button } from "./primitives";
-import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay } from "./DialogFrame";
+import { DialogFooter, DialogFrame, DialogHeading, DialogOverlay, wrapTab } from "./DialogFrame";
 
 type Phase =
   | { kind: "plan" }
@@ -89,21 +89,7 @@ export function SwitchBackFlow({
         event.preventDefault();
         void execute();
       }
-      if (event.key === "Tab" && node) {
-        const focusables = Array.from(
-          node.querySelectorAll<HTMLElement>("button, input"),
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0]!;
-        const last = focusables[focusables.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
+      if (event.key === "Tab" && node) wrapTab(event, node, "button, input");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -148,7 +134,7 @@ export function SwitchBackFlow({
           <div className="flex flex-col gap-3" data-testid="switch-back-review">
             <DialogHeading className="text-sm font-semibold">
               Switch back to {plan.original_account}
-              <span className="ml-2 rounded border border-accent/50 px-1 text-label text-accent">
+              <span className="ml-2 rounded border border-transparent bg-accent-soft px-1 text-label text-accent-hi">
                 {plan.original_alive ? "Continues, with what changed since" : "Handover notes"}
               </span>
             </DialogHeading>

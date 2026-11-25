@@ -79,7 +79,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(name).toBeFocused();
     await name.fill("work max");
     await page.getByTestId("rename-account-save").click();
-    await expect(page.getByRole("alert")).toHaveText("Another account is already called «Work Max» — pick another name");
+    await expect(page.getByRole("alert")).toHaveText("Another account is already called “Work Max” — pick another name");
     await page.screenshot({ path: resolve(OUT, `rename-duplicate-1280x800-${theme}.png`) });
     await axeClean(page, "rename sheet");
 

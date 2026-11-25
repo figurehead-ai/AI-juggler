@@ -81,7 +81,7 @@ export function ToReviewCaption(): JSX.Element {
  * decoration: its name says the level in words, its visible words first
  * (WCAG 2.5.3): "Needs you 5, 2 stopped with an error, 3 wait on you"
  * (`broken`: each L3 thing's word). */
-export function SectionHead({ id, count, level = 0, broken = [], open, onToggle, extra, testId = SECTION[id].testId }: { id: SectionId; count?: number; level?: AttentionLevel; broken?: readonly string[]; open: boolean; onToggle: () => void; extra?: ReactNode; testId?: string | null }): JSX.Element {
+export function SectionHead({ id, count, level = 0, broken = [], open, onToggle, extra, summary, testId = SECTION[id].testId }: { id: SectionId; count?: number; level?: AttentionLevel; broken?: readonly string[]; open: boolean; onToggle: () => void; extra?: ReactNode; testId?: string | null; /** AJ-E1554 R5: folded, what it holds ("10 apps · 48 sessions") in place of its count. */ summary?: string }): JSX.Element {
   const { label, tone, Icon } = SECTION[id];
   const needs = id === "needs";
   const countTone = needs ? (level === 3 ? "text-danger" : level === 2 ? "text-warning" : "text-muted") : "text-muted";
@@ -94,14 +94,23 @@ export function SectionHead({ id, count, level = 0, broken = [], open, onToggle,
           {/* On Needs you, a space after its label: the visible words read
               "Needs you 5", as its name begins (axe's label-in-name, WCAG
               2.5.3). */}
-          {label}
+          {/* 0.5.1 F22: one line; the label gives way (its full words on
+              hover), never the count or summary ("5 apps · 16 sessi…"). */}
+          <span className="min-w-0 truncate" title={label} data-testid="section-label-words">
+            {label}
+          </span>
           {needs && " "}
-          {count !== undefined && (!needs || count > 0) && (
+          {summary !== undefined && (
+            <span className="shrink-0 whitespace-nowrap font-normal normal-case tracking-normal tabular-nums text-muted" data-testid="section-summary">
+              {summary}
+            </span>
+          )}
+          {summary === undefined && count !== undefined && (!needs || count > 0) && (
             // The level's glyph (⚠ at L2, ✕ at L3) is drawn by
             // `.level-glyph` before the number: decoration, hidden; on
             // Needs you the button's name says the count in words (the
             // heading takes its name from it).
-            <span className={"level-count inline-flex items-center gap-1 font-semibold normal-case tracking-normal tabular-nums " + countTone} data-level={needs ? level : undefined} data-testid="section-count">
+            <span className={"level-count inline-flex shrink-0 items-center gap-1 whitespace-nowrap font-semibold normal-case tracking-normal tabular-nums " + countTone} data-level={needs ? level : undefined} data-testid="section-count">
               {needs && level >= 2 && <span aria-hidden="true" className="level-glyph" data-level={level} />}
               {count}
             </span>

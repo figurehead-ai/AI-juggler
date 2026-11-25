@@ -165,16 +165,26 @@ pub fn cap_mib(size_bytes: u64, host: Host) -> u64 {
     want.min(most).max(BARE_CAP_MIB)
 }
 
+/// The identifier this edition's helper is signed as (AJ-E3822: the
+/// build's identity's prefix and [`protocol::IDENTIFIER_SUFFIX`];
+/// `ai.figurehead.juggler.local-ai` for AI Juggler and Nightly,
+/// `ai.figurehead.juggler.dev.local-ai` for Dev): the app runs no helper
+/// signed as anything else, and Metal names its cache after it.
+#[must_use]
+pub fn identifier() -> String {
+    crate::edition::current().helper_identifier(protocol::IDENTIFIER_SUFFIX)
+}
+
 /// Metal's shader cache for the helper: the user's cache folder (the
 /// sibling `C` of the per-user temporary folder `T` under
-/// `/private/var/folders`) and the helper's identifier; a path that holds
-/// nothing when it can't tell (the helper then compiles its kernels at
-/// every start).
+/// `/private/var/folders`) and the helper's [`identifier`]; a path that
+/// holds nothing when it can't tell (the helper then compiles its kernels
+/// at every start).
 #[must_use]
 pub fn metal_cache() -> PathBuf {
     let tmp = std::fs::canonicalize(std::env::temp_dir()).ok();
     tmp.filter(|t| t.file_name().is_some_and(|n| n == "T") && t.starts_with("/private/var/folders"))
-        .and_then(|t| t.parent().map(|p| p.join("C").join(protocol::IDENTIFIER)))
+        .and_then(|t| t.parent().map(|p| p.join("C").join(identifier())))
         .unwrap_or_else(|| PathBuf::from("/nonexistent/ai-juggler-local-ai-cache"))
 }
 
@@ -380,12 +390,12 @@ impl Local {
 
     /// The helper to run: a test's, or the app's own through the one
     /// resolver (in the app's bundle, ours and writable by no one else,
-    /// signed as [`protocol::IDENTIFIER`] by the app's own team).
+    /// signed as [`identifier`] by the app's own team).
     fn program(&self) -> Option<PathBuf> {
         if let Some(program) = &self.setup.program {
             return program.is_file().then(|| program.clone());
         }
-        juggler_platform::code_trust::own_helper(protocol::PROGRAM, protocol::IDENTIFIER)
+        juggler_platform::code_trust::own_helper(protocol::PROGRAM, &identifier())
     }
 
     /// The helper's command (review M1, L3; re-review N1): `sandbox_tool`

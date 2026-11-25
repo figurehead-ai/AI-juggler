@@ -48,7 +48,7 @@ export function ConfirmSheet({
   return (
     <DialogOverlay ref={boxRef} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-sm"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-sm"
         onKeyDown={(event) => keepTabInside(boxRef.current, event)}
         role="alertdialog"
         aria-modal="true"

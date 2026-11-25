@@ -1,4 +1,4 @@
-<!-- captures: 4b50dd2952ad -->
+<!-- captures: 8b97e3b9d6f7 -->
 # 89-budget-caps: monthly caps, setting one, its alerts on Home, and the caps on Usage
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,39 @@ cap-sheet is a compact dialog (Name, Amount a month, Counts as two radios with a
 - home-needs-1280x800, usage-caps-1280x800 (both themes): the rail's Acme alert row has an empty line under "See the cap", so the Needs you rows are unevenly spaced.
 - usage-caps-1280x800-dark.png, usage-caps-1280x800-light.png: the Monthly caps card takes half the width and leaves the right half of the page empty.
 - usage-caps-1280x800-dark.png, usage-caps-1280x800-light.png: the row above Monthly caps is sliced at the top edge.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: usage-caps-1280x800 light, home-needs-1280x800 dark and cap-sheet-1280x800 dark (two renders), beside the 0.3.2 notes. Home is D-118's two columns in every capture: Needs you now as one card per need (the first card's primary the one filled button), the feed with its chips and Showing:, then Your apps and Runway by account on the right.
+
+- **home-needs:** two cap needs as cards with their mark: "Acme is at 81% of its monthly cap — ≈$243 of $300 this month · ai-juggler, payments-api. Nothing is stopped." (amber) and "Side project is over its monthly cap" (red), each Got it · See usage; the rail says each once, whole ("… of its monthly cap", the 0.3.2 cut is gone).
+- **usage-caps:** Monthly caps in two columns (Acme 81 %, Side project 122 %, Work 27 %), each bar in its meaning's colour, Edit · Remove, and the estimate's honest line; the 0.3.2 half-empty card is gone.
+- **cap-sheet:** "Set a monthly cap — You'll hear at 80 % and 100 %. Nothing is stopped." Name, Amount a month (USD), Counts: One app / A group of projects, in any app (its projects as checkboxes), Save filled. Two renders differ only in the page scrolled behind the sheet; the tracked one kept.
+- **Weak:** the projects' checkboxes sit in a bordered box under the radio (a box under a choice).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Set a monthly money cap, hear at 80 % and 100 %, see it on Usage. |
+| 2 | Prominence | 4 | Caps under Usage's table; their alerts in Needs you. |
+| 3 | Default | 4 | Nothing stopped, said in every place. |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | No mock; Usage's cards and Needs you's. |
+| 6 | Areas | 4 | Two-column caps; the sheet's project box (weak). |
+| 7 | Colour | 4 | Amber at 81 %, red over, accent for under: one meaning each. |
+| 8 | Type | 4 | Amounts tabular; labels 12 px. |
+| 9 | Actions | 5 | Save filled; Got it and See usage tinted. |
+| 10 | Serious | 4 | Remove is reversible by setting again; nothing stops work. |
+| 11 | Doors | 4 | See usage and See the cap open Usage at the caps. |
+| 12 | Words | 4 | ≈ and "Some usage has no price yet, so it isn't counted.": honest numbers. |
+| 13 | States | 4 | Said once in the rail, Home and the bell. |
+| 14 | Consistency | 4 | Usage's card and the sheet kit. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | A newcomer sees it's an estimate and that nothing is stopped. |
+
+Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

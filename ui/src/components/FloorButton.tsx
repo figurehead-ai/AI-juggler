@@ -41,7 +41,7 @@ export function FloorButton(): JSX.Element {
   const close = () => setAt(null);
   return (
     <span className="group/floor flex h-9 items-stretch overflow-hidden rounded-lg transition-colors hover:bg-surface" data-testid="floor-split">
-      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor (${keys.words})`} onClick={open} className={`${PART} w-7 pl-0.5`} data-testid="floor-button">
+      <button type="button" aria-label="The Floor" aria-keyshortcuts={keys.aria} title={`The Floor: your Apps as a live office (${keys.words})`} onClick={open} className={`${PART} w-7 pl-0.5`} data-testid="floor-button">
         <IconFloor width={17} height={17} aria-hidden="true" />
       </button>
       <button

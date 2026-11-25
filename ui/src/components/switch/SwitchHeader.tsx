@@ -11,6 +11,8 @@ import { IconProfiles, IconStateHandover } from "../icons";
 import { LogoTile, ToolLogo } from "../ToolLogo";
 import { toolSpec } from "../../lib/tools";
 import { destinationsOf, type Destination } from "./WhereChoice";
+import { LoadingState } from "../LoadingState";
+import { useLoadDeadline, type LoadState } from "../../lib/loading";
 
 type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -75,6 +77,21 @@ export function SwitchHeader({
   );
 }
 
+/** A copy switch's source side as an App with its logo (DESIGN-SYSTEM §8).
+ * F94 (the AJ-E2317 class): the App it is in, by its id, as its row is (a
+ * desktop App's Code tab conversation is that App's, open or not); a check
+ * that names none goes by where it is open, else its CLI App. */
+function sourceSideOf(preflight: PreflightInfoData | null): { sourceTool: string | null; sourceDesktop: boolean; sourceHost: string | undefined; fromName: string } {
+  const source = preflight?.source_account ?? "this account";
+  const sourceTool = preflight?.source_tool || null;
+  const sourceId = preflight?.source_app_id ?? null;
+  const openOutside = Boolean(sourceTool && preflight?.source_outside && preflight.source_app && preflight.source_app === toolSpec(sourceTool).desktop_app);
+  const sourceDesktop = sourceId ? sourceId.startsWith("app:") : openOutside;
+  const named = preflight?.source_app_name || null;
+  const fromName = named ?? (sourceTool ? sessionAppName({ kind: sourceDesktop ? "desktop" : "cli", provider: sourceTool, account_label: source }) : source);
+  return { sourceTool, sourceDesktop, sourceHost: sourceDesktop && sourceId ? sourceId.split(":")[1] : undefined, fromName };
+}
+
 /** A copy switch's header (the switch's own, where Move doesn't apply):
  * "Switch to Personal", the conversation and the account it is on now,
  * and from → to, the App it continues in following Desktop or CLI as
@@ -83,18 +100,13 @@ function CopyHeader({ preflight, target, destination, marks }: { preflight: Pref
   const desktop = preflight && destination === "desktop" ? destinationsOf(preflight).desktop : null;
   const tool = preflight?.target_tool ?? null;
   const to = desktop?.name ?? (tool ? cliAppName(tool, target) : target);
-  const source = preflight?.source_account ?? "this account";
-  // Both sides as Apps with their logos (DESIGN-SYSTEM §8): the source is
-  // its tool's desktop app when that is where it is open, else its CLI App.
-  const sourceTool = preflight?.source_tool || null;
-  const sourceDesktop = Boolean(sourceTool && preflight?.source_outside && preflight.source_app && preflight.source_app === toolSpec(sourceTool).desktop_app);
-  const fromName = sourceTool ? sessionAppName({ kind: sourceDesktop ? "desktop" : "cli", provider: sourceTool, account_label: source }) : source;
+  const { sourceTool, sourceDesktop, sourceHost, fromName } = sourceSideOf(preflight);
   return (
     <SwitchHeader
       icon={IconStateHandover}
       title={`Switch to ${target}`}
       sub={`${preflight?.source_title ?? "This conversation"} · now on ${fromName}`}
-      from={{ name: fromName, logo: sourceTool ? <ToolLogo tool={sourceTool} kind={sourceDesktop ? "desktop" : "cli"} size={24} /> : <LogoTile icon={IconProfiles} size={24} /> }}
+      from={{ name: fromName, logo: sourceTool ? <ToolLogo tool={sourceTool} kind={sourceDesktop ? "desktop" : "cli"} appId={sourceHost} size={24} /> : <LogoTile icon={IconProfiles} size={24} /> }}
       to={{ name: to, logo: tool ? <ToolLogo tool={tool} kind={destination === "desktop" ? "desktop" : "cli"} appId={desktop?.app_id} size={24} /> : <LogoTile icon={IconProfiles} size={24} on /> }}
       marks={marks}
       testId="switch-copy-header"
@@ -121,18 +133,39 @@ export function FlowHeader({ move, marks, target, preflight, destination }: { mo
 }
 
 /** While the check runs (EMP-2, never a blank body): the words, and the
- * summary panel's shape where its facts will be. */
-export function Checking({ target }: { target: string }): JSX.Element {
+ * summary panel's shape where its facts will be, only while it reads
+ * (AJ-E1552: LoadingState), "Still loading…" after 3 s; a check that
+ * failed says so with Retry; one with nothing to say has its own words.
+ * The switch flow shows it while its check reads (its failure is the
+ * flow's own failed step). */
+export function Checking({ target, state = "loading", failed, onRetry = () => {} }: { target: string; state?: LoadState; failed?: string; onRetry?: () => void }): JSX.Element {
+  const { slow } = useLoadDeadline(state === "loading", `the switch to ${target}`, { timeoutMs: Number.POSITIVE_INFINITY });
   return (
-    <div className="flex flex-col gap-4" aria-busy="true">
-      <p className="text-body text-ink-2" data-testid="switch-preflighting">
-        Checking the switch to {target}…
-      </p>
-      <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4 inset-ring-1 inset-ring-accent/15">
-        {[72, 88, 64].map((width) => (
-          <span key={width} className="h-3 rounded-full bg-skeleton" style={{ width: `${width}%` }} />
-        ))}
-      </div>
-    </div>
+    <LoadingState
+      state={state}
+      slow={slow}
+      what={`the check of the switch to ${target}`}
+      failed={failed}
+      onRetry={onRetry}
+      skeleton={
+        <div className="flex flex-col gap-4" aria-busy="true" data-testid="switch-checking">
+          <p className="text-body text-ink-2" data-testid="switch-preflighting">
+            Checking the switch to {target}…
+          </p>
+          <div aria-hidden="true" className="flex flex-col gap-3 rounded-card bg-accent-soft px-4 py-4">
+            {[72, 88, 64].map((width) => (
+              <span key={width} className="h-3 rounded-full bg-skeleton" style={{ width: `${width}%` }} />
+            ))}
+          </div>
+        </div>
+      }
+      empty={
+        <p className="text-body text-ink-2" data-testid="switch-check-empty">
+          Nothing to check for the switch to {target}.
+        </p>
+      }
+    >
+      {null}
+    </LoadingState>
   );
 }

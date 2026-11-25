@@ -8,11 +8,16 @@ license.workspace = true
 repository.workspace = true
 
 # The workspace lint baseline, restated with ONE change: `unsafe_code` is
-# "deny" here rather than "forbid", because D-131 (2026-11-19) approved one
-# audited carve-out in this crate: `thread::background_io`, the single
-# `setiopolicy_np` call (macOS low-priority disk I/O for model downloads),
-# with its `#[allow(unsafe_code, reason)]`, its SAFETY note and its test.
-# Nothing else here is unsafe: every other seam is built on safe bindings.
+# "deny" here rather than "forbid", because two audited carve-outs are
+# approved in this crate, each with its `#[allow(unsafe_code, reason)]`,
+# its SAFETY note and its test: D-131 (2026-11-19) `thread::background_io`,
+# the single `setiopolicy_np` call (macOS low-priority disk I/O for model
+# downloads), and D-146 (2026-11-23) `room::private_size`, the single
+# read-only `getattrlist(ATTR_CMNEXT_PRIVATESIZE)` call (what deleting a
+# move backup frees on APFS, through nix's re-export of libc's raw FFI
+# types; no new crate). `the_only_unsafe_is_background_io_and_private_size`
+# fails on a third. Nothing else here is unsafe: every other seam is built
+# on safe bindings.
 # Where a platform needs more `unsafe` (a Windows named pipe's client
 # identity, an owner-only ACL), that platform says "not available on this
 # system yet" until a vetted wrapper crate or another recorded decision.
@@ -63,17 +68,32 @@ objc2 = { workspace = true }
 # juggler-account, so no new crate.
 security-framework = "3"
 core-foundation = "0.10"
+# AJ-E1547: the system prompts' gate (`os_prompt`) makes the calls that
+# ask, and nothing else does. Moved here from juggler-app (D-25's safe
+# wrappers; their FFI stays in their own crates): Screen Recording
+# preflight/request, and the Accessibility check with the system prompt
+# that adds AI Juggler to the list.
+core-graphics = "0.25.0"
+macos-accessibility-client = "0.0.2"
+
+# AJ-E1547: the login item's audited shim (D-26), turned on only through
+# the gate (`os_prompt::login_item_on`); it has no dependency back here.
+[dependencies.juggler-login-item]
+version = "0.5.0"
+path = "../juggler-login-item"
 
 [target."cfg(unix)".dependencies]
 # The effective user id (safe bindings; no `unsafe` here); 0.3.8: asking an
 # app that lost its window to quit (`apps::quit`, SIGTERM); AJ-E3013: a
 # local peer's audit token (`LOCAL_PEERTOKEN`) and files opened without
-# following links (`openat`).
-nix = { workspace = true, features = ["user", "fs", "signal", "socket"] }
+# following links (`openat`). AJ-E2324: `event`, the kernel's event
+# queue through nix's safe API (`wait`: a process's exit and a file's
+# change woken, never polled; no `unsafe` here, already in the tree).
+nix = { workspace = true, features = ["user", "fs", "signal", "socket", "event"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-# D-131 (the review's I1): the single-`unsafe` test counts Rust tokens, not
+# D-131 (the review's I1): the `unsafe` count test counts Rust tokens, not
 # text. Already in the tree (serde_derive, tauri's macros).
 proc-macro2 = "1.0.107"
 tokio = { version = "1.53.3", default-features = false, features = ["net", "rt", "macros", "io-util", "time"] }

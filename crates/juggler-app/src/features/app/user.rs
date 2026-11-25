@@ -37,10 +37,20 @@ pub fn user_info(full_name: Option<&str>, nouns: (&str, &str)) -> AppUserInfo {
     }
 }
 
+/// The full name the menu starts from: the system's, except in a lab
+/// (a Dev on a lab HOME, ADR-0027), where the user is a stand-in and the
+/// Mac account's real name has no place on screen or in a walk's capture
+/// (0.5.1 F24; "no real names in outputs").
+#[must_use]
+pub fn shown_full_name(in_a_lab: bool, system: impl FnOnce() -> Option<String>) -> Option<String> {
+    if in_a_lab { None } else { system() }
+}
+
 /// Who the user menu says you are.
 #[tauri::command]
 pub async fn app_user_get() -> AppUserInfo {
-    user_info(user_display_name().as_deref(), computer_noun())
+    let full = shown_full_name(crate::lab_scope::in_a_lab_home(), user_display_name);
+    user_info(full.as_deref(), computer_noun())
 }
 
 /// The user guides, public: where Help and guides goes (a fixed address;
@@ -73,5 +83,23 @@ mod tests {
         assert_eq!(nobody.name, None);
         assert_eq!(nobody.initial, "?");
         assert_eq!(user_info(Some("   "), ("Mac", "Macs")).name, None);
+    }
+
+    /// 0.5.1 F24: in a lab the menu never reads the Mac account's name.
+    #[test]
+    fn a_lab_never_shows_the_mac_accounts_name() {
+        let read = std::cell::Cell::new(false);
+        let system = || {
+            read.set(true);
+            Some("Sam Rivera".to_owned())
+        };
+        assert_eq!(shown_full_name(true, system), None);
+        assert!(!read.get(), "not even read in a lab");
+        assert_eq!(
+            shown_full_name(false, || Some("Sam Rivera".to_owned())).as_deref(),
+            Some("Sam Rivera")
+        );
+        let lab = user_info(shown_full_name(true, || None).as_deref(), ("Mac", "Macs"));
+        assert_eq!((lab.name, lab.initial.as_str()), (None, "?"));
     }
 }

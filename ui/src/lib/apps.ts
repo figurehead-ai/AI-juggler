@@ -98,6 +98,9 @@ export interface FolderTarget {
   folder: string;
   tool: string | null | undefined;
   label: string;
+  /** AJ-E2317: the desktop App the target is, by its place id, when the
+   * switch list says (two on one account are two targets). */
+  placeId?: string | null;
 }
 
 /** D-62 (the 0.4.6 RC walks A8, K3): the App a launch or switch target is
@@ -111,7 +114,7 @@ export interface FolderTarget {
  * CLI App, as before. A target with no tool is its label. */
 export function targetApp(target: FolderTarget, { stored, places, listed }: { stored: readonly StoredAppInfo[]; places: readonly KnownPlaceInfo[]; listed: boolean }): TargetApp {
   const byId = new Map(stored.map((row) => [row.id, row]));
-  const place = listed ? places.find((one) => one.account_id === target.folder) : undefined;
+  const place = !listed ? undefined : ((target.placeId ? places.find((one) => one.id === target.placeId) : undefined) ?? places.find((one) => one.account_id === target.folder));
   if (place && !isCliFolder(target.folder, heldFolders(places), byId)) return { kind: "desktop", name: desktopWords(place, byId.get(place.id)).name, mark: knownPlaceMark(place) };
   if (!target.tool) return { kind: "cli", name: target.label, mark: null };
   return { kind: "cli", name: cliWords(target.tool, target.label, byId.get(cliAppId(target.folder))).name, mark: null };

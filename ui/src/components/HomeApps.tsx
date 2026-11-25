@@ -23,6 +23,7 @@ import { ProfileBadge } from "./ProfileBadge";
 import { HomeSection } from "./HomeSection";
 import { showToast } from "./Toast";
 import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, type AttentionLevel } from "../lib/attention";
+import { toneTip } from "../lib/app-folder";
 import { showGoTo } from "../lib/go-to";
 import { conversationsBringForward } from "../lib/ipc/conversations";
 import { placesOpen, type KnownPlaceInfo } from "../lib/ipc/places";
@@ -34,6 +35,8 @@ import { appIdOfRailKey, openApp, useCliApps, type AppModel } from "../lib/apps"
 import { appName, desktopProfile } from "../lib/app-name";
 import type { RailItem } from "../lib/rail-items";
 import type { AccountInfo } from "../types/generated/AccountInfo";
+import { useBackendNeeds } from "../lib/needs-you";
+import { HOME_APPS_PLACE, keptShape, useKeepShape } from "../lib/needs-place";
 
 /** Rows shown before "Show all". */
 export const ROWS_SHOWN = 8;
@@ -72,7 +75,7 @@ const GHOST = "btn-ghost shrink-0 rounded-md px-2.5 py-1 text-meta font-medium o
  * mark (its level's dot and "n needs you") at the first line's end; the
  * ghost action on the right. Calm (D-117): muted words and the one needs mark, whose
  * loud copy is the pinned need's. The second line's tooltip says it all. */
-function Row({ id, icon, app, profile, slot, line, long, kept = false, needs, level, broken, action, testId, place, lit }: {
+function Row({ id, icon, app, profile, slot, line, long, kept = false, needs, level, broken, action, testId, place, lit, needsKnown }: {
   id: string | null;
   icon: JSX.Element;
   app: string;
@@ -89,13 +92,20 @@ function Row({ id, icon, app, profile, slot, line, long, kept = false, needs, le
   testId: string;
   place: string;
   lit: boolean;
+  /** AJ-E1551: an open App's row, whose need mark comes with the needs:
+   * until they're known it keeps last time's height (a mark that wraps
+   * makes it taller), so the rows under it hold still. */
+  needsKnown?: boolean;
 }): JSX.Element {
+  const rowPlace = `aij.home.open-row:${place}`;
+  const box = useKeepShape<HTMLLIElement>(rowPlace, needsKnown === true, 1);
+  const held = needsKnown === false ? keptShape(rowPlace) : null;
   const name = appName(app, profile);
   const needWords = `${needs} ${needs === 1 ? "needs" : "need"} you`;
   const full = [profile, long ?? line, kept ? "kept alive" : null, needs > 0 ? needWords : null].filter(Boolean).join(" · ");
   const dot = <span aria-hidden="true"> · </span>;
   return (
-    <li className="tone-host flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid={testId} data-place={place} data-level={level} data-lit={lit || undefined}>
+    <li ref={box} style={held && held.height > 0 ? { minHeight: held.height } : undefined} className="tone-host flex min-w-0 items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-surface-2" data-testid={testId} data-place={place} data-level={level} data-lit={lit || undefined}>
       {icon}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         {/* The name and, at the line's end, the needs mark; a name too long
@@ -147,7 +157,7 @@ function Row({ id, icon, app, profile, slot, line, long, kept = false, needs, le
   );
 }
 
-function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | null; kept: boolean }): JSX.Element {
+function OpenRow({ group, appId, kept, needsKnown }: { group: RailGroup; appId: string | null; kept: boolean; needsKnown: boolean }): JSX.Element {
   const place = group.place!;
   // D-117: L2 and L3 counted; its mark takes the highest.
   const loud = group.items.filter((item) => counted(itemLevel(item)));
@@ -157,7 +167,7 @@ function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | nul
   return (
     <Row
       id={appId}
-      icon={<AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={20} className={appTone(level >= 2)} />}
+      icon={<AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={20} className={appTone(level >= 2)} tip={toneTip(level >= 2)} />}
       app={place.app}
       profile={place.profile ?? null}
       slot={place.key}
@@ -169,6 +179,7 @@ function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | nul
       testId="home-app-tile"
       place={place.key}
       lit={level >= 2}
+      needsKnown={needsKnown}
       action={
         place.appPid !== null ? (
           <button type="button" className={GHOST} aria-label={`Open ${name}`} onClick={() => bringForward(place.appPid, name)}>Open</button>
@@ -185,13 +196,15 @@ function OpenRow({ group, appId, kept }: { group: RailGroup; appId: string | nul
 
 /** A CLI App with nothing open (D-100): its page by its name; Start opens
  * New session on it (a CLI App runs in a session), as the rail's idle CLI
- * App does. */
+ * App does: by its own folder, which is how the sheet knows an App
+ * (AJ-E2314 L6: the stored Account it sent matched none, and the sheet
+ * opened on another App). */
 function CliRow({ app }: { app: AppModel }): JSX.Element {
   const name = appName(app.app, app.profile);
   return (
     <Row
       id={app.id}
-      icon={<AppIcon appId={app.appId} appPid={null} name={app.app} size={20} className={appTone(false)} />}
+      icon={<AppIcon appId={app.appId} appPid={null} name={app.app} size={20} className={appTone(false)} tip={toneTip(false)} />}
       app={app.app}
       profile={app.profile}
       slot={app.slot}
@@ -203,7 +216,7 @@ function CliRow({ app }: { app: AppModel }): JSX.Element {
       place={app.railKey}
       lit={false}
       action={
-        <button type="button" className={GHOST} aria-label={`Start a new session in ${name}`} title={`New session in ${name}`} onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: app.accountId } }))}>
+        <button type="button" className={GHOST} aria-label={`Start a new session in ${name}`} title={`New session in ${name}`} onClick={() => window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: app.folder?.id ?? app.accountId } }))}>
           Start
         </button>
       }
@@ -227,7 +240,7 @@ function KeptRow({ place }: { place: KnownPlaceInfo }): JSX.Element {
   return (
     <Row
       id={place.id}
-      icon={<AppIcon appId={place.app_id} appPid={null} name={app} size={20} className={appTone(false)} />}
+      icon={<AppIcon appId={place.app_id} appPid={null} name={app} size={20} className={appTone(false)} tip={toneTip(false, place.folder)} />}
       app={app}
       profile={profile}
       slot={place.colour_slot ?? place.id}
@@ -264,7 +277,7 @@ function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: Known
         return (
           <li key={group.key}>
             <button type="button" className={cell} aria-label={`Open ${name}${page !== null ? "'s page" : ""}${level >= 2 ? ", needs you" : ""}`} title={name} onClick={go} data-testid="home-app-tile" data-place={place.key} data-level={level}>
-              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={24} className={appTone(level >= 2)} />
+              <AppIcon appId={place.appId} appPid={place.appPid} name={place.app} size={24} className={appTone(level >= 2)} tip={toneTip(level >= 2)} />
               {level >= 2 && <span aria-hidden="true" className="level-mark absolute right-0.5 top-0.5" data-level={level} />}
             </button>
           </li>
@@ -275,7 +288,7 @@ function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: Known
         return (
           <li key={place.id}>
             <button type="button" className={cell + " opacity-70"} aria-label={`${place.app_pid !== null ? "Open" : "Start"} ${name}`} title={name} onClick={() => start(place, name)} disabled={place.app_pid === null && place.cannot_start !== null} data-testid={place.app_pid !== null ? "home-app-kept" : "home-app-closed"}>
-              <AppIcon appId={place.app_id} appPid={null} name={knownAppWord(place)} size={24} className={appTone(false)} />
+              <AppIcon appId={place.app_id} appPid={null} name={knownAppWord(place)} size={24} className={appTone(false)} tip={toneTip(false, place.folder)} />
             </button>
           </li>
         );
@@ -283,7 +296,7 @@ function Strip({ places, kept, cli, pageOf }: { places: RailGroup[]; kept: Known
       {cli.map((app) => (
         <li key={app.id}>
           <button type="button" className={cell + " opacity-70"} aria-label={`Open ${app.defaultName}'s page`} title={app.defaultName} onClick={() => openApp(app.id)} data-testid="home-app-cli">
-            <AppIcon appId={app.appId} appPid={null} name={app.app} size={24} className={appTone(false)} />
+            <AppIcon appId={app.appId} appPid={null} name={app.app} size={24} className={appTone(false)} tip={toneTip(false)} />
           </button>
         </li>
       ))}
@@ -312,6 +325,12 @@ export function HomeApps({ items, accounts = NO_ACCOUNTS, strip = false }: { ite
   const openKeys = new Set(places.map((group) => group.key));
   const idleCli = cliApps.filter((app) => !openKeys.has(app.railKey));
   const total = places.length + kept.length + idleCli.length;
+  // AJ-E1551: the rows' need marks arrive with the needs, and a mark that
+  // wraps makes a row taller; until they're known the card keeps the
+  // height it had last time, so Runway below never jumps.
+  const needsKnown = useBackendNeeds().known;
+  const box = useKeepShape<HTMLDivElement>(HOME_APPS_PLACE, needsKnown, total);
+  const held = needsKnown ? null : keptShape(HOME_APPS_PLACE);
   if (total === 0) return null;
   const folderOf = (group: RailGroup) => appFolderOf(group, placeFor(known, group.place?.appPid ?? null));
   const pageOf = (group: RailGroup) => (group.place ? appIdOfRailKey(group.place.key, folderOf(group), known) : null);
@@ -328,11 +347,11 @@ export function HomeApps({ items, accounts = NO_ACCOUNTS, strip = false }: { ite
   const closed = [...down.map((place) => ({ place })), ...idleCli.map((app) => ({ app }))].slice(0, Math.max(0, room - running.length));
   return (
     <HomeSection id="home-apps" label="Your apps" count={total} className="min-w-0">
-      <div data-testid="home-apps" className="flex flex-col gap-1 rounded-xl bg-surface p-2">
+      <div ref={box} data-testid="home-apps" className="flex flex-col gap-1 rounded-xl bg-surface p-2" style={held && held.height > 0 ? { minHeight: held.height } : undefined}>
         <ul className="flex flex-col">
           {running.map((row) =>
             "group" in row ? (
-              <OpenRow key={row.group.key} group={row.group} appId={pageOf(row.group)} kept={placeFor(known, row.group.place?.appPid ?? null)?.keep_alive === true} />
+              <OpenRow key={row.group.key} group={row.group} appId={pageOf(row.group)} kept={placeFor(known, row.group.place?.appPid ?? null)?.keep_alive === true} needsKnown={needsKnown} />
             ) : (
               <KeptRow key={row.place.id} place={row.place} />
             ),

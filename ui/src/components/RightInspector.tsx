@@ -28,16 +28,14 @@ import { IconProjects, IconTerminal } from "./icons";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { FocusOutcomeInfo } from "../types/generated/FocusOutcomeInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { toolSpec } from "../lib/tools";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SessionTab, useSessionTabs, type SessionTabId } from "../pages/session/session-tabs";
 import { WhenShown } from "../pages/PageShell";
 import { QuotaBar } from "./primitives";
-import { useQualitySignals } from "../lib/kept-reads";
 import type { SwitchBackSuggestionData } from "../lib/ipc/switchBack";
 import { errorText, signedIn } from "../lib/bridge";
-import { resourceLine } from "../lib/machine";
-import { modelName } from "./charts/colors";
 import { providerDisplayName } from "../lib/providers";
 import { cliAppName } from "../lib/app-name";
 import { SessionAppLink } from "../pages/session/AccountMenu";
@@ -49,6 +47,11 @@ import { useRuntimeView } from "../lib/ipc/runtime";
 import { launchSettingsName } from "../lib/account-words";
 import { memorySize } from "../lib/compact";
 import { Disclosure } from "./controls";
+import { Alert } from "./Alert";
+import { ArrivingSession } from "./ArrivingSession";
+import { useArrival, type Arrival } from "../lib/arriving";
+import { IconInfo } from "./icons-actions";
+import { QualityTab } from "./InspectorQuality";
 
 /**
  * RightInspector — the page of a session, a project, an account or a
@@ -85,6 +88,12 @@ function HonestEmpty({ tab }: { tab: EmptyTab }) {
   );
 }
 
+/** 0.5.1 F70: a desktop app that signs in to one account at a time, in
+ * plain words (Add an app says the same, 38-flows-cde). */
+const ONE_ACCOUNT_APP = "One account at a time: AI Juggler can't open a second copy of this app, so one session at a time with it.";
+/** 0.5.1 F70: why the session's own window didn't come forward. */
+const A11Y_WHY = "AI Juggler opened the app, but bringing this session's own window forward needs Accessibility permission for AI Juggler.";
+
 /** One resolved selection (the caller owns lookup). */
 export type InspectorData = {
   instance?: InstanceInfo | null;
@@ -101,7 +110,14 @@ export type InspectorData = {
  * (D-103.3: its account's notice is a line under Continue there). */
 function OwnNotices({ id, sessions }: { id: string; sessions: InstanceInfo[] }) {
   const session = sessions.find((s) => s.id === id);
-  return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} switchKey={id} reminderKey={id} parkedId={id} sessions={sessions} />;
+  return <SessionNotices accountId={session?.account_id ?? null} quiet={session !== undefined && !statusLive(session.status)} reminderKey={id} parkedId={id} sessions={sessions} />;
+}
+
+/** 0.5.1 F74: the arrival this page shows in its place: a session of
+ * this Mac a switch just made that the list doesn't hold yet. */
+function useArrivingPage(selection: InspectorSelection, data: InspectorData): Arrival | null {
+  const arrival = useArrival(selection.kind === "instance" ? selection.id : null);
+  return data.remote || data.instance ? null : arrival;
 }
 
 /** The registry's page type for an inspector selection. */
@@ -161,7 +177,7 @@ export function RightInspector({
   onOpenSession: (id: string) => void;
   onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
   onStopped: () => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
   /** AJ-E207: open switch-back suggestions (the reset-trigger
    *  cards). Optional so bare test mounts stay honest (none). */
   switchBackSuggestions?: SwitchBackSuggestionData[];
@@ -189,8 +205,11 @@ export function RightInspector({
   // ⌘[ is the window's Back (walk A3), which leaves a remote session for
   // where you came from, Fleet as a rule; its header's button stays.
   const sessionTabs = useSessionTabs(remote ? null : (data.instance ?? null));
+  // 0.5.1 F74: a session a switch just made, until the list holds it.
+  const arriving = useArrivingPage(selection, data);
   // D-25: with nothing selected the work area is Home (screens/Home).
   if (selection.kind === "none" || selection.kind === "login") return null;
+  if (arriving) return <ArrivingSession arrival={arriving} now={now} />;
   const kind = selection.kind;
   const page = pageKindOf(kind, remote);
   const tabs = pageTabs(page, {
@@ -303,7 +322,7 @@ const INSTANCE_TABS: Partial<Record<PageTabId, (props: PanelProps & { tab: PageT
     props.data.instance ? (
       <div className="flex flex-col gap-grid" data-testid="instance-usage">
         <OwnSessionUsage session={props.data.instance} visible />
-        <QualityTab {...props} />
+        <QualityTab instance={props.data.instance} visible={props.visible} />
       </div>
     ) : (
       <HonestEmpty tab="usage" />
@@ -353,7 +372,7 @@ type PanelProps = {
   onOpenSession: (id: string) => void;
   onLaunch: (recipe: LaunchRecipeInfo, project: ProjectInfo) => void;
   onStopped: () => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
   onFocusTerminal: () => void;
@@ -368,6 +387,17 @@ export type FocusBridge = (sessionId: string) => Promise<FocusOutcomeInfo>;
 
 const defaultFocusBridge: FocusBridge = async (sessionId) =>
   (await import("../lib/ipc/desktop")).desktopFocus(sessionId);
+
+/** 0.5.1 F81: an ended desktop session, said once: how it ended, and
+ * what the header offers (Resume where its tool can resume, else why
+ * not, and Relaunch). */
+function endedWords(session: InstanceInfo): string {
+  const how = session.status === "failed" ? "The app crashed; its exit details are on the Processes tab." : "The app exited.";
+  const tool = toolSpec(session.provider);
+  return tool.supports.resume
+    ? `${how} Resume, above, picks up the same conversation; Relaunch starts a fresh one.`
+    : `${how} ${tool.display_name} can't resume a conversation from AI Juggler, so Relaunch, above, starts a fresh one.`;
+}
 
 function InstanceOverview(props: PanelProps) {
   // AJ-E414: which focus tier the last Open/Focus attempt achieved —
@@ -396,7 +426,8 @@ function InstanceOverview(props: PanelProps) {
     const reported = runtimeView?.model ?? null;
     const running = session.running_model ?? reported;
     // AJ-E413: a desktop Instance has no terminal — the desktop surface
-    // replaces the terminal card, and `Open / Focus window` is primary.
+    // replaces the terminal card, with `Open / Focus window` in it; the
+    // page's one filled button is its head's Go to it (0.5.1 critique).
     const isDesktop = session.kind === "desktop";
     const terminalId = session.id;
     // rc20: a session that waits (asks you, looks stuck, at its limit)
@@ -572,13 +603,17 @@ function InstanceOverview(props: PanelProps) {
             per-Provider isolation claim, and window focus as primary. */}
         {isDesktop ? (
           <Card
-            className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"
+            // 0.5.1 F81: ended, as tall as what it says (no empty half).
+            className={"flex min-h-0 flex-col gap-3 overflow-y-auto p-4 " + (live ? "flex-1" : "")}
             data-testid="desktop-surface"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <Chip tone={statusTone(session.status).tone}>
-                {statusTone(session.status).label}
-              </Chip>
+              {/* Ended, the header says its state (F81: never twice). */}
+              {live && (
+                <Chip tone={statusTone(session.status).tone}>
+                  {statusTone(session.status).label}
+                </Chip>
+              )}
               <span title="desktop app session" className="inline-flex">
                 <Chip tone="neutral">app</Chip>
               </span>
@@ -590,24 +625,27 @@ function InstanceOverview(props: PanelProps) {
                 <SessionAppLink model={fromInstance(session)} />
                 {project ? ` · ${project.name}` : ""}
               </span>
-              <Button
-                size="sm"
-                variant="primary"
-                data-testid="desktop-focus"
-                onClick={async () => {
-                  try {
-                    setFocusOutcome(await props.focusBridge(session.id));
-                  } catch (cause) {
-                    setFocusOutcome({
-                      outcome: `Focus failed: ${errorText(cause)}`,
-                      permission_missing: false,
-                      window_title: null,
-                    });
-                  }
-                }}
-              >
-                Open / Focus window
-              </Button>
+              {/* F81: only an app that runs has a window to bring forward. */}
+              {live && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  data-testid="desktop-focus"
+                  onClick={async () => {
+                    try {
+                      setFocusOutcome(await props.focusBridge(session.id));
+                    } catch (cause) {
+                      setFocusOutcome({
+                        outcome: `Focus failed: ${errorText(cause)}`,
+                        permission_missing: false,
+                        window_title: null,
+                      });
+                    }
+                  }}
+                >
+                  Open / Focus window
+                </Button>
+              )}
             </div>
             {isDesktop && live && (
               <DesktopPreview
@@ -623,33 +661,34 @@ function InstanceOverview(props: PanelProps) {
                 visible={props.visible}
               />
             )}
-            <div
-              className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label tabular-nums text-muted"
-              data-testid="desktop-resources"
-            >
-              <span>
-                cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
-                {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · children{" "}
-                {session.child_count ?? "—"}
-              </span>
-              <span>
-                {session.tokens
-                  ? `tokens ${(
-                      session.tokens.input + session.tokens.output
-                    ).toLocaleString()} (${session.tokens.input.toLocaleString()} in / ${session.tokens.output.toLocaleString()} out)`
-                  : "No usage recorded yet"}
-              </span>
-            </div>
-            {session.isolation_label !== null && (
+            {/* F81: its resources only while it runs. */}
+            {live && (
               <div
-                className="flex items-start gap-2.5 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
-                data-testid="desktop-isolation"
+                className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label tabular-nums text-muted"
+                data-testid="desktop-resources"
               >
-                <Chip tone="warning">isolation</Chip>
-                <p className="text-meta leading-relaxed text-ink">
-                  {session.isolation_label}
-                </p>
+                <span>
+                  cpu {session.cpu_pct !== null ? `${Math.round(session.cpu_pct)}%` : "—"} · ram{" "}
+                  {session.rss_bytes !== null ? memorySize(session.rss_bytes) : "—"} · children{" "}
+                  {session.child_count ?? "—"}
+                </span>
+                <span>
+                  {session.tokens
+                    ? `tokens ${(
+                        session.tokens.input + session.tokens.output
+                      ).toLocaleString()} (${session.tokens.input.toLocaleString()} in / ${session.tokens.output.toLocaleString()} out)`
+                    : "No usage recorded yet"}
+                </span>
               </div>
+            )}
+            {session.isolation_label !== null && (
+              // 0.5.1 F70: a fact, said as one plain line in the panel's
+              // tone (no amber behind words, PAT-COLOR-2; no internal
+              // words): the tool's label only says that it applies.
+              <p className="flex items-start gap-2 text-meta text-ink-2" data-testid="desktop-isolation">
+                <IconInfo aria-hidden="true" width={16} height={16} className="mt-px shrink-0 text-faint" />
+                <span>{ONE_ACCOUNT_APP}</span>
+              </p>
             )}
             {focusOutcome !== null && (
               <p className="text-meta text-ink-2" data-testid="desktop-focus-outcome">
@@ -660,51 +699,55 @@ function InstanceOverview(props: PanelProps) {
               </p>
             )}
             {focusOutcome?.permission_missing === true && !explainerDismissed && (
-              <div
-                role="note"
+              // 0.5.1 F70: the user must act, so a needs-you Alert (an
+              // amber mark, never an amber card), in plain words, and its
+              // action a secondary: the header's Go to it stays the one
+              // filled button (BTN-1).
+              <Alert
+                level="needs-you"
                 aria-label="Accessibility permission explainer"
-                className="flex flex-col gap-2 rounded-lg border border-warning/25 bg-warning-soft p-2.5"
-                data-testid="desktop-a11y-explainer"
+                testId="desktop-a11y-explainer"
+                title="Needs Accessibility"
+                actions={
+                  <>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      data-testid="open-a11y-settings"
+                      onClick={() => {
+                        void import("../lib/ipc/settings").then((bridge) => bridge.openAccessibilitySettings());
+                      }}
+                    >
+                      Open System Settings…
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        localStorage.setItem("aij.a11y-explainer.dismissed", "1");
+                        setExplainerDismissed(true);
+                      }}
+                    >
+                      Don’t show again
+                    </Button>
+                  </>
+                }
               >
-                <p className="text-meta leading-relaxed text-ink">
-                  Juggler can open the app; exact-window focus needs Accessibility permission
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    data-testid="open-a11y-settings"
-                    onClick={() => {
-                      void import("../lib/ipc/settings").then((bridge) => bridge.openAccessibilitySettings());
-                    }}
-                  >
-                    Open System Settings…
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      localStorage.setItem("aij.a11y-explainer.dismissed", "1");
-                      setExplainerDismissed(true);
-                    }}
-                  >
-                    Don’t show again
-                  </Button>
-                </div>
-              </div>
+                {A11Y_WHY}
+              </Alert>
             )}
             {!live && (
-              <p className="text-label text-muted" data-testid="desktop-state-line">
-                {session.status === "failed"
-                  ? "app crashed · exit details on the Processes tab"
-                  : "app exited · Relaunch, above, starts it again"}
+              <p className="text-meta text-ink-2" data-testid="desktop-state-line">
+                {endedWords(session)}
               </p>
             )}
-            <p className="text-label text-muted">
-              The window is the app's own; Juggler tracks the process, never embeds it.
-              Focus matches this session's recorded window — a stale title or a collision is
-              reported, never guessed to a wrong window.
-            </p>
+            {live && (
+              <p className="text-label text-muted">
+                The window is the app's own: AI Juggler follows its process and never draws it here.
+                Focus matches this session's recorded window — a stale title or a collision is
+                reported, never guessed to a wrong window.
+              </p>
+            )}
           </Card>
         ) : null}
       </div>
@@ -866,225 +909,6 @@ function CopyField({ testId, label, value, mono, onOpen }: { testId: string; lab
 // --- AJ-E408: Provider / Account / Project content -----------------------
 
 export { installWords } from "../lib/providers";
-
-// --- AJ-E409: Quality/Performance tab (D-07 — signals, never a score) ---
-
-/** SPEC §6's honesty tiers, each with a plain line beside it (0.0.11
- * walk, Q5): the tag stays, and says what it means. */
-const TIER_WORDS: Record<"Measured" | "Computed" | "Estimated", string> = {
-  Measured: "read from the session",
-  Computed: "worked out from what's measured",
-  Estimated: "a best guess",
-};
-
-function TierTag({ tier }: { tier: "Measured" | "Computed" | "Estimated" }) {
-  return (
-    <span className="mt-auto pt-1 text-label text-muted" data-testid="tier-words" data-tier={tier}>
-      {TIER_WORDS[tier]}
-    </span>
-  );
-}
-
-/** A stuck rule's id in words (the rail's own wording). */
-function stuckRuleWords(rule: string): string {
-  switch (rule) {
-    case "stuck_no_output":
-      return "No output for a while";
-    case "waiting_prompt":
-      return "Waiting for your reply";
-    case "quota_exit": case "limit_hit": // ended, or open at its limit (0.3)
-      return "Hit its limit";
-    default:
-      return "Looks stuck";
-  }
-}
-
-function QualityTab(props: PanelProps) {
-  const instance = props.data.instance;
-  const { quality, loadError } = useQualitySignals(instance?.id ?? null, props.visible);
-  const [asTable, setAsTable] = useState(false);
-
-  if (!instance) return <HonestEmpty tab="quality" />;
-
-  const signals: { testId: string; label: string; body: React.ReactNode; tier: "Measured" | "Computed" | "Estimated"; reason?: string }[] = [];
-  if (loadError) {
-    return (
-      <Card className="flex flex-col gap-1 p-4" data-testid="quality-tab">
-        <p className="text-meta text-ink-2">Signals unavailable right now.</p>
-        <p className="text-label text-muted">{loadError}</p>
-      </Card>
-    );
-  }
-  if (quality) {
-    signals.push({
-      testId: "quality-tokens",
-      label: "Tokens / min",
-      tier: "Measured",
-      body: quality.tokens_bars ? (
-        <div className="flex flex-col gap-1">
-          <span className="tabular-nums text-ink">
-            {Math.round(quality.avg_tokens_per_min)} a minute on average over the last 5 minutes
-          </span>
-          {asTable ? (
-            <table className="text-label">
-              <tbody>
-                <tr>
-                  <td className="pr-2 text-muted">minutes ago</td>
-                  {[5, 4, 3, 2, 1].map((m) => (
-                    <td key={m} className="pr-2 text-muted">{m}</td>
-                  ))}
-                </tr>
-                <tr>
-                  <td className="pr-2 text-muted">tokens</td>
-                  {quality.tokens_bars.map((bar, i) => (
-                    <td key={i} className="pr-2 tabular-nums text-ink">{bar}</td>
-                  ))}
-                </tr>
-              </tbody>
-            </table>
-          ) : (
-            <div className="flex items-end gap-1" aria-hidden="true">
-              {quality.tokens_bars.map((bar, i) => (
-                <span key={i} className="w-3 rounded-sm bg-accent/70" style={{ height: `${Math.max(3, (bar / Math.max(...quality.tokens_bars!)) * 24)}px` }} />
-              ))}
-            </div>
-          )}
-        </div>
-      ) : (
-        <span className="text-muted">Nothing measured yet</span>
-      ),
-    });
-    // AJ-E1533: one source per fact — the same live reading the
-    // session's header shows, kept current by the live updates.
-    const measured = instance.cpu_pct !== null || instance.rss_bytes !== null;
-    signals.push({
-      testId: "quality-cpu",
-      label: "CPU and memory now",
-      tier: "Measured",
-      body: measured ? (
-        <span className="tabular-nums text-ink">{resourceLine(instance.cpu_pct, instance.rss_bytes, instance.child_count)}</span>
-      ) : (
-        <span className="text-muted">Collecting first samples…</span>
-      ),
-    });
-    signals.push({
-      testId: "quality-errors",
-      label: "Errors",
-      tier: "Measured",
-      body: quality.errors_not_measurable ? (
-        <span className="text-muted">Can't be counted in an interactive session</span>
-      ) : (
-        <span className="tabular-nums text-ink">{quality.error_label}</span>
-      ),
-    });
-    signals.push({
-      testId: "quality-context",
-      label: "Context",
-      tier: "Measured",
-      body:
-        quality.context_used !== null && quality.context_window ? (
-          <span className="tabular-nums text-ink">
-            {Math.round((quality.context_used / quality.context_window) * 100)}% ({quality.context_used.toLocaleString()} / {quality.context_window.toLocaleString()})
-          </span>
-        ) : (
-          <span className="text-muted">
-            {providerDisplayName(instance.provider)} doesn't say how full its context is ·{" "}
-            <span className="tabular-nums text-ink">
-              {(quality.cumulative.input + quality.cumulative.output).toLocaleString()}
-            </span>{" "}
-            tokens in and out in this session so far
-          </span>
-        ),
-    });
-    // AJ-E2903: an ended session's context at its end and how often it got stuck, as kept when it ended.
-    if (["finished", "failed", "stopped", "handed_over", "quota_blocked"].includes(instance.status)) {
-      const [used, window] = quality.end_context ?? [0, 0];
-      signals.push({
-        testId: "quality-context-end",
-        label: "Context at finish",
-        tier: "Measured",
-        body: window > 0 ? <span className="tabular-nums text-ink">{Math.round((used / window) * 100)}% ({used.toLocaleString()} / {window.toLocaleString()})</span> : <span className="text-muted">Not reported by {providerDisplayName(instance.provider)}</span>,
-      });
-      signals.push({
-        testId: "quality-stuck-episodes",
-        label: "Times probably stuck",
-        tier: "Computed",
-        body: <span className="text-ink">{quality.stuck_episodes === 0 ? "Not once" : `${quality.stuck_episodes} ${quality.stuck_episodes === 1 ? "time" : "times"}, from the states AI Juggler recorded`}</span>,
-      });
-    }
-    signals.push({
-      testId: "quality-cost",
-      label: "Session cost",
-      tier: "Estimated",
-      body: quality.session_cost_usd !== null ? (
-        <span className="tabular-nums text-ink">
-          ~${quality.session_cost_usd.toFixed(2)}{quality.priced_model ? ` for ${modelName(quality.priced_model)}` : ""} · what the API would charge, not your bill
-        </span>
-      ) : (
-        <span className="text-muted">
-          No price known for this model, so no cost is shown
-        </span>
-      ),
-    });
-    signals.push({
-      testId: "quality-forecast",
-      label: "How long its limit lasts",
-      tier: "Estimated",
-      body: <span className="text-ink">{quality.quota_forecast}</span>,
-    });
-    if (quality.stuck) {
-      signals.push({
-        testId: "quality-stuck",
-        label: "Probably stuck",
-        tier: "Computed",
-        body: (
-          <span className="text-ink">
-            {stuckRuleWords(quality.stuck.rule)} · {quality.stuck.inputs.join(" · ")}
-          </span>
-        ),
-      });
-    }
-  }
-
-  return (
-    <section className="flex flex-col gap-3" data-testid="quality-tab" aria-labelledby="quality-title">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h3 id="quality-title" className="text-section font-semibold text-ink">
-          How it's going
-        </h3>
-        {signals.length > 0 && (
-          <span className="flex items-center gap-3">
-            <span className="text-meta text-muted">every 2 seconds</span>
-            <button
-              type="button"
-              onClick={() => setAsTable((v) => !v)}
-              aria-pressed={asTable}
-              className="rounded-lg border border-hairline px-2 py-0.5 text-label text-muted outline-none transition-colors hover:bg-surface hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-            >
-              {asTable ? "View as chart" : "View as table"}
-            </button>
-          </span>
-        )}
-      </div>
-      {signals.length === 0 ? (
-        <Card className="flex flex-col gap-1 p-5">
-          <p className="text-body text-ink-2">Nothing measured yet — this fills in as the session works.</p>
-        </Card>
-      ) : (
-        // Cards sized to what they say, as many to a row as fit.
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] gap-grid">
-          {signals.map((signal) => (
-            <Card key={signal.testId} className="flex flex-col gap-1.5 p-5 text-body" data-testid={signal.testId}>
-              <p className="text-meta font-medium text-ink-2">{signal.label}</p>
-              {signal.body}
-              <TierTag tier={signal.tier} />
-            </Card>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
 
 /// AJ-E2404/E2407: a session's Processes tab is the Processes view for
 /// that session alone (its tree, what it left behind, its history): one

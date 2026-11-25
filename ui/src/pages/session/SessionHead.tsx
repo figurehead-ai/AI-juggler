@@ -5,7 +5,7 @@
  * One set for every kind of session.
  */
 import { useEffect, useRef, type JSX } from "react";
-import { Button, type ChipTone } from "../../components/primitives";
+import { Button, WARNING_CHIP, type ChipTone } from "../../components/primitives";
 import { ProfileBadge, markPlace } from "../../components/PlaceMarks";
 import { AppIconTile } from "../../components/AppIcon";
 import { IconGoTo } from "../../components/icons-actions";
@@ -75,12 +75,15 @@ export function whereWords(model: SessionModel, now: number): string {
 }
 
 const TONES: Record<ChipTone, string> = {
-  neutral: "border-hairline bg-surface-2 text-ink",
-  success: "border-success/30 bg-success-soft text-success",
-  warning: "border-warning/35 bg-warning-soft text-warning",
-  danger: "border-danger/30 bg-danger-soft text-danger",
-  live: "border-live/30 bg-live-soft text-live",
-  accent: "border-accent/30 bg-accent-soft text-accent-hi",
+  // AJ-E1550 (PAT-SURF): the state is its tint and word; the edge only
+  // under Increase Contrast.
+  neutral: "border-frame bg-surface-2 text-ink",
+  success: "border-frame bg-success-soft text-success",
+  // 0.5.1 F76: the kit's one warning chip (no amber behind words).
+  warning: `border-frame ${WARNING_CHIP}`,
+  danger: "border-frame bg-danger-soft text-danger",
+  live: "border-frame bg-live-soft text-live",
+  accent: "border-frame bg-accent-soft text-accent-hi",
 };
 
 /**

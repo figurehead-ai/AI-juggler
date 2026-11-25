@@ -548,6 +548,19 @@ impl Scene {
             .collect()
     }
 
+    /// AJ-E1548 #24: floor `f` named by what is on it, its Apps' places in
+    /// the office's order ("APPS 1–10", "APPS 11–14", "APP 15"): "FLOOR 2"
+    /// read like a level or an account. "FLOOR n" only for an empty floor.
+    #[must_use]
+    pub fn floor_label(&self, f: usize) -> String {
+        let before: usize = (0..f).map(|g| self.apps_on(g).len()).sum();
+        match self.apps_on(f).len() {
+            0 => format!("FLOOR {}", f + 1),
+            1 => format!("APP {}", before + 1),
+            n => format!("APPS {}–{}", before + 1, before + n),
+        }
+    }
+
     /// Floor `f` in one line for the building view, most urgent first, in
     /// the app's words and counts: sessions waiting, crashed, stuck; Apps
     /// out of usage, low on it, or hot (the app's Out, Low and Hot chips). Empty when
@@ -1098,5 +1111,7 @@ pub type Clicked = HashMap<u32, f32>;
 /// Desk lamps switched off, by pick.
 pub type LampsOff = HashSet<u32>;
 
+#[cfg(test)]
+mod overlay_tests;
 #[cfg(test)]
 mod tests;

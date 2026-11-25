@@ -58,6 +58,8 @@ pub const QUIT_MENU_ID: &str = "aij-quit";
 pub const REPORT_MENU_ID: &str = "aij-report-bug";
 /// The main window's event: open Report a bug.
 pub const EVENT_REPORT_BUG: &str = AppEvent::ReportBug.name();
+/// Help › Take the tour's id (AJ-E1546).
+pub const TOUR_MENU_ID: &str = "aij-take-tour";
 
 /// Set once the user chose to quit: the window closing on the way out
 /// must not ask again.
@@ -645,15 +647,27 @@ pub fn app_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri
     )?;
     // AJ-E2911: Help › Report a bug… (the window opens its sheet).
     let report = MenuItem::with_id(app, REPORT_MENU_ID, "Report a bug…", true, None::<&str>)?;
+    // AJ-E1546: Help › Take the tour (the window starts it).
+    let tour = MenuItem::with_id(app, TOUR_MENU_ID, "Take the tour", true, None::<&str>)?;
     for item in menu.items()? {
         if let MenuItemKind::Submenu(submenu) = item {
             match submenu.text()?.as_str() {
                 "Window" => submenu.append(&floor)?,
-                "Help" => submenu.append(&report)?,
+                "Help" => {
+                    submenu.append(&tour)?;
+                    submenu.append(&report)?;
+                }
                 _ => {}
             }
         }
     }
+    // Its click is this item's alone: handled here, beside the item.
+    app.on_menu_event(|app, event| {
+        if event.id() == TOUR_MENU_ID {
+            crate::main_window::bring_forward(app);
+            app.emit_event_to("main", AppEvent::TakeTour, ());
+        }
+    });
     // macOS: the app submenu comes first and ends with Quit.
     if let Some(MenuItemKind::Submenu(app_submenu)) = menu.items()?.into_iter().next() {
         let items = app_submenu.items()?;

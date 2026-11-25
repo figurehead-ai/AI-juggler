@@ -42,6 +42,14 @@ for (const theme of ["dark", "light"] as const) {
     const line = page.getByTestId("this-mac-page").getByTestId("this-mac-awake");
     await expect(line).toContainText("Kept awake while 1 AI Juggler session works");
     await expect(page.getByTestId("this-mac-own")).toContainText("with its crash watchdog");
+    // The capture shows what it's named for: the line sat below the fold
+    // at 1280x800 (0.5.1 critique), so the page's own scroller brings it
+    // to the middle (scrollIntoView also moved the window's shell).
+    await line.evaluate((el) => {
+      let box = el.parentElement;
+      while (box && !/(auto|scroll)/.test(getComputedStyle(box).overflowY)) box = box.parentElement;
+      if (box) box.scrollTop += el.getBoundingClientRect().top - box.getBoundingClientRect().top - box.clientHeight / 2;
+    });
     await page.mouse.move(0, 0);
     await page.screenshot({ path: resolve(OUT, `this-mac-awake-1280x800-${theme}.png`) });
     await axe(page, `This Mac awake ${theme}`);

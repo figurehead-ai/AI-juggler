@@ -14,6 +14,8 @@ import { useConversations } from "./conversations";
 import { errorText } from "./bridge";
 import { instanceMarkReviewed, instanceUnmarkReviewed } from "./ipc/park";
 import { resetQueueQueue } from "./ipc/alerts";
+import { watchCreate } from "./ipc/watch-view";
+import { openWatches } from "./watches-open";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import { focusTask } from "./ipc/tasks";
 import { focusThread } from "./ipc/messages";
@@ -27,6 +29,7 @@ import { HOUR_MS, tomorrowMorning, type Second } from "./notice-words";
 import { whenWords } from "./time-words";
 import { waitingSince } from "./waiting";
 import { openOnTab, type PageTabId } from "../pages/registry";
+import { placesOpen } from "./ipc/places";
 
 /** Sessions still open (a reminder is for these). */
 const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked"]);
@@ -102,6 +105,8 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
     if (target.page === "diagnostics") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "diagnostics" } }));
     // 0.3.3: keep alive's notices open its switches.
     if (target.page === "desktop_apps") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } }));
+    // AJ-E2325: the low-disk offer opens the moves and their backups.
+    if (target.page === "moves") return void window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "moves" } }));
     if (target.page === "processes") return openScreenOn("cleanup", CLEAN_UP_VIEW);
     if (target.page && SCREENS[target.page]) return openScreen(SCREENS[target.page]!);
     // D-62 (AJ-E3205): a notice about an account's limits or renewal
@@ -154,6 +159,17 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
         return openScreenOn("cleanup", CLEAN_UP_VIEW);
       case "usage":
         return openScreen("usage");
+      // 0.5.1 F92: an App a crashed move had quit: started (the one
+      // launcher every Start uses), what happened told.
+      case "start-app": {
+        const place = notice.target.place_id;
+        if (!place) return open(notice);
+        void placesOpen(place).then(
+          (done) => showToast({ id: `start:${place}`, message: done.outcome }),
+          (cause) => showToast({ tone: "error", message: "Couldn't start it", detail: errorText(cause) }),
+        );
+        return;
+      }
       default:
         return open(notice);
     }
@@ -195,16 +211,19 @@ export function useNoticeActions(sessions: InstanceInfo[]): NoticeActions {
       // offers to open it; nothing restarts by itself.
       const account = notice.target.account_id;
       const at = notice.facts.resets_at_ms;
-      const own = sessions.filter((s) => s.account_id === account && OPEN.has(s.status));
-      const others = conversations.filter((c) => c.account_id === account && c.live && c.session_id === null);
-      if (!account || at === null || own.length + others.length === 0) {
-        showToast({ id: "remind-reset", message: "Nothing to remind you about", detail: "No session is open on it now." });
+      if (!account || at === null) {
+        showToast({ id: "remind-reset", message: "Nothing to remind you about", detail: "It has no reset time on record." });
         return;
       }
+      const own = sessions.filter((s) => s.account_id === account && OPEN.has(s.status));
+      const others = conversations.filter((c) => c.account_id === account && c.live && c.session_id === null);
       const keys = [...own.map((s) => s.id), ...others.map((c) => `${REMINDER_CONVERSATION}${c.id}`)];
-      const what = keys.length === 1 ? "to open its session" : `to open its ${keys.length} sessions`;
-      void Promise.all(keys.map((key) => resetQueueQueue(key, account, at))).then(
-        () => showToast({ id: "remind-reset", message: `Reminder set for ${whenWords(at)}`, detail: `When it has room again, a banner offers ${what}. Nothing restarts by itself.` }),
+      const what = keys.length === 0 ? "" : keys.length === 1 ? " A banner then offers to open its session." : ` A banner then offers to open its ${keys.length} sessions.`;
+      // AJ-E1548 #14: the reminder is a one-time "Room again" watch on the
+      // account, so Watches shows it with Edit and Remove.
+      const watch = watchCreate({ targets: [{ kind: "account", id: account }], matching: "each", conditions: [{ code: "runway_resets" }], lifetime: { kind: "once" }, evenInQuietHours: false });
+      void Promise.all([watch, ...keys.map((key) => resetQueueQueue(key, account, at))]).then(
+        () => showToast({ id: "remind-reset", message: `Watch made: room again at ${whenWords(at)}`, detail: `It tells you once, and shows on the Watches page to edit or remove.${what} Nothing restarts by itself.`, action: { label: "Watches", run: () => openWatches() } }),
         (cause) => showToast({ tone: "error", message: "Couldn't set the reminder", detail: errorText(cause), action: { label: "Retry", run: () => second(notice, which) } }),
       );
     }

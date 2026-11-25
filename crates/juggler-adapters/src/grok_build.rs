@@ -40,6 +40,13 @@ use crate::claude_code::{existing, find_on_path};
 /// Provider id: `grok-build` (the unofficial CLI is also called `grok`).
 pub const GROK_BUILD_ID: &str = "grok-build";
 
+/// AJ-E1545 R8: how Grok Build's sign-in output is read: xAI's page (auth.x.ai), with a one-time code for a device sign-in.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["auth.x.ai", "accounts.x.ai"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -318,6 +325,13 @@ impl ToolDiscovery for GrokBuildAdapter {
 }
 
 impl ToolSignIn for GrokBuildAdapter {
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(GROK_BUILD_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, GROK_BUILD_ID)?;
         Ok(self.pinned_set_env(state_dir))
@@ -614,7 +628,7 @@ pub fn grok_build_spec() -> juggler_adapter::ToolSpec {
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
-        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+        scan_hint: "Your default app and any other that looks like one. Nothing is changed."
             .to_owned(),
         setup_groups: vec![SetupGroup {
             id: GROK_BUILD_ID.to_owned(),

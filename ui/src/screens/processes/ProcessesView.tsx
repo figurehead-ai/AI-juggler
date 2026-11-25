@@ -30,6 +30,8 @@ import { clearProcess, onProcessAsk, openSubagents, peekProcess } from "../../li
 import { RowActions, canStop, isSessionItself, type RowHandlers } from "./RowActions";
 import { FiltersButton, NO_FILTERS, SearchBox, ViewTabs, filterCount, type Choice, type Filters, type ViewId } from "./Toolbar";
 import { useProcessRows } from "./useProcessRows";
+import { LoadingState } from "../../components/LoadingState";
+import { useReadState } from "../../lib/loading";
 import { askRecount } from "../../lib/recount";
 
 /** The Ports view reads the port inventory (the made-up one in the preview). */
@@ -135,6 +137,11 @@ export function ProcessesView({
     [view, sessionId, scope, filters, words, expanded, collapsed],
   );
   const { rows, total, counts, degraded, loading, current, error, hasMore, loadMore, refresh: reread } = useProcessRows(query);
+  // AJ-E1552: the list's skeleton only while it loads; a read that fails
+  // or runs past its deadline is an error with Retry (`round` restarts the
+  // clock). The tree says its own empty words.
+  const [round, setRound] = useState(0);
+  const listRead = useReadState(loading || (error && rows.length === 0) ? null : rows, "the processes", { error: error ?? undefined, round, isEmpty: () => false });
   // SK48-14: what a stop, a clean-up or a mark changed, every count reads
   // with the list (the tile, the top bar's, Needs you), now and a tick on.
   const refresh = useCallback(() => {
@@ -235,7 +242,6 @@ export function ProcessesView({
           <span className="font-medium text-ink">Waiting for its parent</span> means: {ZOMBIE_WORDS}
         </p>
       )}
-      {error && rows.length === 0 && <p className="text-body text-danger">Couldn't read the processes: {error}</p>}
       {view === "ports" ? (
         <section className="flex flex-col gap-2" aria-label="Ports on this computer" data-testid="processes-ports">
           <p className="text-meta text-ink-2">Every port open on this computer: what each is, and whether a session left it running.</p>
@@ -245,8 +251,20 @@ export function ProcessesView({
         </section>
       ) : view === "history" ? (
         <HistoryView sessionId={sessionId} projects={projects} />
-      ) : loading ? (
-        <div className="h-64 animate-pulse rounded-card bg-skeleton" aria-label="Loading the processes" data-testid="processes-loading" />
+      ) : listRead.state === "loading" || listRead.state === "error" ? (
+        <LoadingState
+          state={listRead.state}
+          slow={listRead.slow}
+          what="the processes"
+          skeleton={<output className="block h-64 animate-pulse rounded-card bg-skeleton" aria-label="Loading the processes" data-testid="processes-loading" />}
+          empty={null}
+          onRetry={() => {
+            setRound((n) => n + 1);
+            reread();
+          }}
+        >
+          {null}
+        </LoadingState>
       ) : (
         <ProcessTree
           rows={rows}

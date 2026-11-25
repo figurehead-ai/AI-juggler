@@ -697,9 +697,12 @@ pub fn hand_over(state: &Arc<AppState>, items: Vec<batch::Item>) {
 /// Juggler forward, as an unknown id does).
 const TEST_ID: i32 = 2_904;
 
-/// Sends one system notification now, through the same way real ones go,
-/// whatever the quiet hours and with AI Juggler in front (the user presses
-/// it there); says what to check if none appeared.
+/// Sends one system notification now, through the same way real ones go
+/// (the notifier's sink), whatever the quiet hours and with AI Juggler in
+/// front (the user presses it there); says what to check if none
+/// appeared. The system prompt's sheet comes first at the click
+/// ([`commands::notifications_send_test`], AJ-E1547), as turning a kind
+/// on does at `notifications_set`.
 ///
 /// # Errors
 ///
@@ -894,32 +897,8 @@ pub fn clicked<R: tauri::Runtime>(app: &tauri::AppHandle<R>, state: &Arc<AppStat
     });
 }
 
-/// The system's own notifications (the Tauri plugin), clicks routed back.
+/// The system's own notifications, clicks routed back: behind the gate
+/// for system prompts (AJ-E1547, [`crate::os_prompts::notify`]).
 pub fn connect(app: &tauri::AppHandle, state: &Arc<AppState>) {
-    use tauri_plugin_notification::NotificationExt;
-    let shower = app.clone();
-    state
-        .notifier
-        .set_sink(Box::new(move |outgoing: &Outgoing| {
-            let _ = shower
-                .notification()
-                .builder()
-                .id(outgoing.id)
-                .title(&outgoing.title)
-                .body(&outgoing.body)
-                .show();
-        }));
-    let clicks = app.clone();
-    let click_state = Arc::clone(state);
-    let _ = app.notification().on_action(move |performed| {
-        if performed.action_id() != "tap" {
-            return;
-        }
-        if let Some(id) = performed
-            .notification()
-            .map(tauri_plugin_notification::ActiveNotification::id)
-        {
-            clicked(&clicks, &click_state, id);
-        }
-    });
+    crate::os_prompts::notify::connect(app, state);
 }

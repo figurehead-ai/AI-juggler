@@ -17,6 +17,7 @@ import { asOfWords, limitWindows, measured, oldReadingWords, usedTokensWords, wi
 import { resetsLead, resetsWords } from "../lib/time-words";
 import { LOW_LEFT, rankByRoom } from "../lib/room";
 import { usingCredits, usingCreditsWords, type CreditsCover } from "../lib/credits";
+import { RUNWAY_FILL, runwayState, runwayTrack, runwayWidth } from "../lib/runway-look";
 
 export type RunwayLine = {
   label: string;
@@ -243,12 +244,6 @@ export function paceWords(display: QuotaDisplayData | undefined): string | null 
   return `At this pace it runs out in about ${span}`;
 }
 
-const BAR: Record<RunwayLine["tone"], string> = {
-  ok: "bg-accent",
-  low: "bg-warning",
-  out: "bg-danger",
-  none: "bg-transparent",
-};
 const WORDS: Record<RunwayLine["tone"], string> = {
   ok: "text-muted",
   low: "text-warning",
@@ -276,18 +271,19 @@ export function AccountRunway({
   return (
     <div className="flex flex-col gap-2.5" data-testid="account-runway">
       <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
-        {lines.map((line) => (
-          <div key={line.label} className="flex min-w-0 flex-col gap-1">
-            <span className="text-label font-medium text-ink">{line.label}</span>
-            <span
-              aria-hidden="true"
-              className={"h-1.5 overflow-hidden rounded-full " + (line.left === null ? "border border-dashed border-hairline" : "bg-surface-2")}
-            >
-              <span className={"block h-full rounded-full " + BAR[line.tone]} style={{ width: `${line.left ?? 0}%` }} />
-            </span>
-            <span className={"text-label " + WORDS[line.tone]}>{line.words}</span>
-          </div>
-        ))}
+        {lines.map((line) => {
+          // PAT-COLOR: the bar's colour follows its state (lib/runway-look).
+          const state = runwayState(line.left, line.tone !== "out");
+          return (
+            <div key={line.label} className="flex min-w-0 flex-col gap-1">
+              <span className="text-label font-medium text-ink">{line.label}</span>
+              <span aria-hidden="true" className={"h-1.5 overflow-hidden rounded-full " + runwayTrack(state)} data-state={state}>
+                <span className={"block h-full rounded-full " + RUNWAY_FILL[state]} style={{ width: `${runwayWidth(line.left, state)}%` }} />
+              </span>
+              <span className={"text-label " + WORDS[line.tone]}>{line.words}</span>
+            </div>
+          );
+        })}
       </div>
       {credits && (
         <p className={"text-label " + (usingCredits(display) ? "text-ink" : "text-muted")} data-testid="account-runway-credits">

@@ -15,7 +15,7 @@ import { type Page } from "@playwright/test";
 import { expect, gate, test } from "./axe-gallery";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses, expectRail, railViewAs } from "./fixtures";
+import { allStatuses, expectRail } from "./fixtures";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/88-subagents");
 const T0 = 1_728_800_000_000;
@@ -202,8 +202,8 @@ for (const theme of ["dark", "light"] as const) {
 
   test(`the session's row says three subagents run, and its page's line opens their tab — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await railViewAs(page, { show: { subagents: true } });
-    const count = page.getByRole("button", { name: "Open its subagents: +3 agents" });
+    // AJ-E1554: the row's mark is "3", its name says it whole.
+    const count = page.getByRole("button", { name: "Open its subagents: 3 subagents running" });
     await expect(count).toBeVisible();
     // The rail settled first: Needs you arriving later pushes rows down.
     await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/);

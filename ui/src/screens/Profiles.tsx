@@ -1,4 +1,3 @@
-import { RowPlaceholders } from "../components/Placeholder";
 import { useApps } from "../lib/apps";
 import { useState } from "react";
 import { Button, Card } from "../components/primitives";
@@ -16,6 +15,7 @@ import { withLiveLabels } from "../lib/subscriptions";
 import { useAccountsData, useToolCapabilities } from "./accounts/useAccountsData";
 import { useQuotaDisplays } from "../lib/kept-reads";
 import { AccountCard } from "./accounts/AccountCard";
+import { AccountsLoading } from "./accounts/AccountsLoading";
 import { AppsSection } from "./accounts/AppsSection";
 import { deleteProfile } from "../lib/ipc/manage";
 import { AccountsViewSwitch, useAccountsView } from "./accounts/AccountsView";
@@ -86,7 +86,17 @@ export function ProfilesScreen({
   const { displays } = useQuotaDisplays();
   const { all: conversations } = useConversations();
   const { inPlace, limits } = useToolCapabilities();
-  const { accounts, profiles, subscriptions, refresh } = useAccountsData({ knownAccounts, knownProfiles, onError: setError });
+  // AJ-E1552: a failed first read is an error with Retry, not a skeleton
+  // for ever.
+  const [readFailed, setReadFailed] = useState<string | undefined>(undefined);
+  const { accounts, profiles, subscriptions, refresh } = useAccountsData({
+    knownAccounts,
+    knownProfiles,
+    onError: (words) => {
+      setError(words);
+      setReadFailed(words);
+    },
+  });
   const apps = useApps(accounts ?? []);
   // AJ-E3208: Accounts and Apps side by side, the one last chosen first.
   const [view, choose] = useAccountsView();
@@ -115,12 +125,14 @@ export function ProfilesScreen({
   };
 
   if (accounts === null || profiles === null || subscriptions === null) {
-    // AJ-E1503 Req.4: card-shaped placeholders while the accounts load.
     return (
-      <div className="mx-auto flex w-full max-w-content flex-col gap-5">
-        <span className="block h-6 w-32 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
-        <RowPlaceholders shape="card" rows={3} label="Loading accounts" />
-      </div>
+      <AccountsLoading
+        failed={readFailed}
+        onRetry={() => {
+          setReadFailed(undefined);
+          void refresh();
+        }}
+      />
     );
   }
   // D-62: where to start new work, by Account, as Home's Runway says it.
@@ -129,10 +141,12 @@ export function ProfilesScreen({
   // 0.4.2: an out Account's best action: New session on the one with room.
   const target = outTarget(advice.best);
   // Every profile under its account; one the grouping missed (just added)
-  // stands alone until the next read.
+  // stands alone until the next read. 0.5.1 F36: an Account only a
+  // desktop App's own sign-in names (no folder of its own) has its card
+  // too, with that App.
   const grouped = subscriptions
     .map((sub) => ({ sub: withLiveLabels(sub, accounts), rows: sub.profiles.map((p) => accounts.find((a) => a.id === p.id)).filter((a): a is AccountInfo => a !== undefined) }))
-    .filter((group) => group.rows.length > 0);
+    .filter((group) => group.rows.length > 0 || (group.sub.apps?.length ?? 0) > 0);
   const missed = accounts.filter((a) => !subscriptions.some((sub) => sub.profiles.some((p) => p.id === a.id)));
   for (const a of missed) {
     grouped.push({
@@ -276,7 +290,7 @@ export function ProfilesScreen({
 function EmptyAccounts({ onFind, onAdd }: { onFind: () => void; onAdd: () => void }) {
   return (
     <Card className="flex flex-col items-center justify-center gap-3 py-14" data-testid="accounts-empty">
-      <span className="flex size-11 items-center justify-center rounded-xl border border-accent/20 bg-accent-soft text-accent-hi">
+      <span className="flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent-hi">
         <IconProfiles width={22} height={22} />
       </span>
       <p className="text-section font-semibold text-ink">No accounts yet</p>

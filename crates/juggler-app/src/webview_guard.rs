@@ -11,6 +11,7 @@ use tauri::webview::NewWindowResponse;
 use tauri::{Manager, Runtime, Url, WebviewWindowBuilder};
 
 use crate::error::{AppError, AppResult};
+use crate::window_frame::Choice;
 
 /// Whether a web view may show `url`: only the app's own pages (the
 /// bundled assets; in a debug build, Vite's dev server too).
@@ -25,13 +26,23 @@ pub fn page_allowed(url: &Url) -> bool {
     }
 }
 
-/// `builder`, kept on the app's own pages and with popups refused. Every
-/// window the app makes goes through this.
+/// The colour a window paints before its page does, and wherever the page
+/// has nothing on screen (AJ-E1549): the dark theme's canvas,
+/// `--color-canvas` in `ui/src/styles.css` (dark is the default theme).
+/// Without one, the web view keeps its own opaque white under the
+/// page, and a window shown again, or seen again after the page was
+/// suspended behind another window, flashed white for a frame. The page
+/// sets its theme's own colour at run time (`ui/src/theme.ts`).
+pub const BASE_COLOUR: tauri::window::Color = tauri::window::Color(0x0b, 0x0e, 0x14, 0xff);
+
+/// `builder`, kept on the app's own pages and with popups refused, on the
+/// base colour. Every window the app makes goes through this.
 #[must_use]
 pub fn guarded<R: Runtime, M: Manager<R>>(
     builder: WebviewWindowBuilder<'_, R, M>,
 ) -> WebviewWindowBuilder<'_, R, M> {
     builder
+        .background_color(BASE_COLOUR)
         .on_navigation(page_allowed)
         .on_new_window(|_, _| NewWindowResponse::Deny)
 }
@@ -53,20 +64,54 @@ pub fn create_main<R: Runtime>(app: &tauri::AppHandle<R>) -> AppResult<()> {
             context: "make the window",
             message: "tauri.conf.json has no window".to_owned(),
         })?;
-    let config = main_config(config, crate::test_launch::headless());
-    // rc32: what the window keeps in its storage is this data folder's
-    let scope = app
-        .try_state::<std::sync::Arc<crate::state::AppState>>()
-        .map_or_else(
-            || "window.__AIJ_STORE_SCOPE__ = \"\";".to_owned(),
-            |state| crate::lab_scope::store_scope_script(&state.data_dir),
+    let mut config = main_config(config, crate::test_launch::headless());
+    let state = app.try_state::<std::sync::Arc<crate::state::AppState>>();
+    // 0.5.1 F21: the theme the user chose and the frame it was left at.
+    let (choice, frame) = state.as_ref().map_or((Choice::Dark, None), |state| {
+        crate::window_frame::kept(state)
+    });
+    if let Some(saved) = frame {
+        let least = (
+            config.min_width.unwrap_or(0.0),
+            config.min_height.unwrap_or(0.0),
         );
-    let made = WebviewWindowBuilder::from_config(app, &config)
-        .and_then(|b| guarded(b).initialization_script(&scope).build());
-    made.map(|_| ()).map_err(|error| AppError::Io {
+        let screens = crate::window_frame::screens(app);
+        let (width, height, at) = crate::window_frame::placed(saved, least, &screens);
+        (config.width, config.height) = (width, height);
+        if let Some((x, y)) = at {
+            (config.x, config.y, config.center) = (Some(x), Some(y), false);
+        }
+    }
+    // "As macOS shows": the window is made hidden, given the system's
+    // colour, then shown, so its first frame is that colour too.
+    let show_after = choice == Choice::System && config.visible;
+    if show_after {
+        config.visible = false;
+    }
+    // rc32: what the window keeps in its storage is this data folder's
+    let scope = state.map_or_else(
+        || "window.__AIJ_STORE_SCOPE__ = \"\";".to_owned(),
+        |state| crate::lab_scope::store_scope_script(&state.data_dir),
+    );
+    let made = WebviewWindowBuilder::from_config(app, &config).and_then(|b| {
+        guarded(b)
+            .background_color(choice.colour(tauri::Theme::Dark))
+            .initialization_script(&scope)
+            .build()
+    });
+    let window = made.map_err(|error| AppError::Io {
         context: "make the window",
         message: error.to_string(),
-    })
+    })?;
+    if choice == Choice::System {
+        let system = window.theme().unwrap_or(tauri::Theme::Dark);
+        let _ = window.set_background_color(Some(choice.colour(system)));
+        if show_after {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+    Ok(())
 }
 
 /// The main window's settings from `tauri.conf.json`'s entry, as it's
@@ -116,18 +161,19 @@ pub fn refusal(url: &str, opened: Opened) -> Option<&'static str> {
     (!web).then_some("Only web addresses open in the browser.")
 }
 
-/// Opens `url` in the browser, after [`refusal`] lets it through.
+/// Opens `url` in the browser, after [`refusal`] lets it through (F67:
+/// by `juggler_adapter::apps::open`, so the browser gets none of AI
+/// Juggler's environment; `_app` stays for the callers).
 ///
 /// # Errors
 ///
 /// [`AppError::Validation`] for an address that may not be opened;
 /// [`AppError::Io`] when the system can't open the browser.
 pub fn open_web<R: Runtime>(
-    app: &tauri::AppHandle<R>,
+    _app: &tauri::AppHandle<R>,
     url: impl AsRef<str>,
     opened: Opened,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
     let url = url.as_ref();
     if let Some(message) = refusal(url, opened) {
         return Err(AppError::Validation {
@@ -135,12 +181,12 @@ pub fn open_web<R: Runtime>(
             message: message.to_owned(),
         });
     }
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|error| AppError::Io {
+    juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(url)).map_err(|error| {
+        AppError::Io {
             context: "open the browser",
             message: error.to_string(),
-        })
+        }
+    })
 }
 
 #[cfg(test)]
@@ -187,6 +233,18 @@ mod tests {
         assert!(made.visible && made.focus, "shown, outside a test launch");
         let hidden = main_config(made, true);
         assert!(hidden.accept_first_mouse && !hidden.visible && !hidden.focus);
+    }
+
+    /// AJ-E1549: the main window is made on the base colour (its config
+    /// entry, which the page's tokens are checked against in
+    /// `ui/tests/bundle/theme-base.test.ts`), so nothing under the page is white.
+    #[test]
+    fn the_main_window_is_made_on_the_base_colour() {
+        let config: tauri::utils::config::Config =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("the app's config");
+        let entry = config.app.windows.first().expect("a window entry");
+        assert_eq!(entry.background_color, Some(BASE_COLOUR));
+        assert_eq!(BASE_COLOUR.3, 0xff, "opaque: nothing behind it shows");
     }
 
     #[test]

@@ -17,6 +17,10 @@
 //! - [`process`]: AI Juggler's own helper processes, with only what they need.
 //! - [`transfer`]: a file's identity on disk, clones, and renames that never
 //!   cross a disk (ADR-0031: a switch by move).
+//! - [`os_prompt`] (AJ-E1547): the one gate every system prompt goes
+//!   through, told first and never raised by background work.
+//! - [`real_path`]: a path's one real spelling (links, `..`, case), so two
+//!   spellings of one folder compare alike (AJ-E2315).
 //!
 //! Each seam has one implementation per platform. Where a platform has no
 //! honest implementation yet, the seam says so (an `Unsupported` error, or
@@ -45,14 +49,18 @@ pub mod code_trust;
 pub mod file_trust;
 pub mod keychain;
 pub mod local_ipc;
+pub mod open_files;
+pub mod os_prompt;
 pub mod private_fs;
 pub mod process;
+pub mod real_path;
 pub mod room;
 pub mod safe_fs;
 pub mod system;
 pub mod thread;
 pub mod transfer;
 pub mod user;
+pub mod wait;
 
 /// The error a seam returns where this system has no implementation yet:
 /// `what` isn't available here, said plainly.

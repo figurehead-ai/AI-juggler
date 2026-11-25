@@ -26,7 +26,7 @@ import { runwayOf } from "../components/AccountRunway";
 import { useMachineLevel, type ThisMacInfo } from "../lib/machine";
 import { LegendPopover } from "../components/LegendPopover";
 import { sessionLabel } from "../lib/stop";
-import { RowPlaceholders } from "../components/Placeholder";
+import { HomeLoading } from "./HomeLoading";
 import { Welcome } from "../components/Welcome";
 import { useKnownPlaces } from "../lib/places";
 import { HomeFeed } from "../components/HomeFeed";
@@ -293,25 +293,19 @@ export function HomeScreen({
   };
   // The one runway decides, a tool that doesn't report its limits
   // included (the backend's unavailable reason, from the same capability).
+  const firstLoad = loading && accounts.length === 0 && sessions.length === 0;
   const runway = accounts.map((account) => ({
     account,
     ...runwayOf(quota.find((q) => q.account === account.id), sessions.filter((s) => s.account_id === account.id)),
   }));
 
-  // AJ-E1503 Req.4: rows shaped like Home's while the first load answers.
-  if (loading && accounts.length === 0 && sessions.length === 0) {
-    return (
-      <div className="mx-auto flex w-full max-w-content flex-col gap-6 pb-10" data-testid="home-loading">
-        <span className="block h-7 w-64 rounded bg-skeleton motion-safe:animate-pulse" aria-hidden="true" />
-        <RowPlaceholders shape="home" rows={3} label="Loading Home" />
-      </div>
-    );
-  }
+  // AJ-E1503 Req.4 / AJ-E1552: rows shaped like Home's, then Still loading.
+  if (firstLoad) return <HomeLoading />;
 
   // AJ-E1524: a new install is welcomed — what it's for, what's on this
   // Mac, the way in.
   if (accounts.length === 0) {
-    return <Welcome onFindAccounts={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
+    return <Welcome onGetStarted={onAddAccounts} onFreshAccount={onFreshAccount ?? onAddAccounts} />;
   }
 
   const allNeeds = homeNeedsOf(needsNow.rows, items, accounts, sessions, macLevel, now, known ?? []);

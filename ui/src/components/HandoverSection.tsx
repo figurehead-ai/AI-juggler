@@ -98,7 +98,7 @@ export function HandoverSection({
   session: InstanceInfo;
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
 }): JSX.Element {
   // At its limit only: past its reset it resumes where it is (AJ-E2312 1).
   const [switchOpen, setSwitchOpen] = useState(() => session.status === "quota_blocked" && session.needs_attention !== "limit_reset");
@@ -179,7 +179,7 @@ export function HandoverSection({
           type="button"
           onClick={() => onSwitchBack?.(suggestion.session_id)}
           data-testid="switch-back-card"
-          className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi transition-colors hover:border-accent/60"
+          className="rounded-lg border border-transparent bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi transition-colors hover:bg-accent/15"
         >
           <span className="block" data-testid="switch-back-card-copy">
             {suggestion.copy}
@@ -194,7 +194,7 @@ export function HandoverSection({
           data-testid={divergence ? "cross-back-diverged-card" : "cross-back-card"}
           className={
             "rounded-lg border px-3 py-2 text-left text-meta transition-colors " +
-            (divergence ? "border-warning/50 text-ink hover:border-warning" : "border-accent/40 bg-accent-soft text-accent-hi hover:border-accent/60")
+            (divergence ? "border-warning/50 text-ink hover:border-warning" : "border-transparent bg-accent-soft text-accent-hi hover:bg-accent/15")
           }
         >
           <span className="block">
@@ -222,7 +222,7 @@ export function HandoverSection({
           Add another app to juggle between them.
         </p>
       ) : (
-        <SwitchTargetRows targets={targets} onPick={(target) => (setDialog(false), onHandover(session.id, target.recipe_id, target.account_label))} />
+        <SwitchTargetRows targets={targets} onPick={(target) => (setDialog(false), onHandover(session.id, target.recipe_id, target.account_label, target.place_id ?? null))} />
       )}
       {remoteTargets.length > 0 && (
         <>

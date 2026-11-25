@@ -5,7 +5,7 @@
  * it couldn't read is found: Add account asks which tool, and first run
  * names it — "found; couldn't check its version", never "not installed".
  */
-import { cleanup, render, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import App from "./App";
@@ -77,7 +77,9 @@ it("first run lists that tool's setups and doesn't call it missing", async () =>
   };
   const view = render(<FirstRun mode="first-run" onDone={() => null} openLoginTerminal={() => null} />);
   const group = await view.findByTestId("first-run-group-codex");
-  expect(within(group).getByTestId("first-run-row").textContent).toContain("~/.codex");
+  // Its folder is a detail now (AJ-E1545's Your apps).
+  fireEvent.click(within(group).getByTestId("first-run-details-toggle"));
+  expect(within(group).getByTestId("first-run-folder").textContent).toContain("~/.codex");
   expect((await view.findByTestId("first-run-cli-codex")).textContent).toBe("Codex found; couldn't check its version");
   expect(view.queryByTestId("first-run-no-codex")).toBeNull();
 });

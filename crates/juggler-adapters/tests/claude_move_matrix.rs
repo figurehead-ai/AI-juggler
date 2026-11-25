@@ -72,7 +72,7 @@ impl Lab {
         let side = |a: &Account| MoveSide {
             tool_dir: a.code.clone(),
             host_dir: Some(a.host.clone()),
-            version: Some("4.16336.0".into()),
+            version: Some("5.11492.5".into()),
         };
         MoveRequest {
             conversation: conversation.into(),
@@ -1164,4 +1164,568 @@ fn a_second_parent_outside_the_family_refuses() {
         "{:?}",
         plan.refusals
     );
+}
+
+// ---- AJ-E2328: a move carries the worktree's ownership ------------------
+
+/// A worktree of the lab's repo, made as git makes one: `<repo>/.git/
+/// worktrees/<name>/HEAD` on `branch`, and the worktree's `.git` file
+/// naming it. Returns the worktree's folder.
+fn worktree(lab: &Lab, name: &str, branch: &str) -> PathBuf {
+    let repo = lab.tmp.path().join("work/repo");
+    let git = repo.join(".git/worktrees").join(name);
+    std::fs::create_dir_all(&git).unwrap();
+    std::fs::write(git.join("HEAD"), format!("ref: refs/heads/{branch}\n")).unwrap();
+    let folder = repo.join(".claude/worktrees").join(name);
+    std::fs::create_dir_all(folder.join("src")).unwrap();
+    std::fs::write(folder.join(".git"), format!("gitdir: {}\n", git.display())).unwrap();
+    std::fs::write(folder.join("src/work.rs"), b"fn main() {}\n").unwrap();
+    folder
+}
+
+/// Points `folder`'s HEAD at `branch` (the work moved on, as git does).
+fn checkout(lab: &Lab, name: &str, branch: &str) {
+    let git = lab.tmp.path().join("work/repo/.git/worktrees").join(name);
+    std::fs::write(git.join("HEAD"), format!("ref: refs/heads/{branch}\n")).unwrap();
+}
+
+/// A record of `cli` working in worktree `folder` on `branch`, granted
+/// `grants` and with `shell` folders.
+fn worktree_record(
+    account: &Account,
+    local: &str,
+    cli: &str,
+    parent: Option<&str>,
+    folder: &Path,
+    branch: &str,
+    grants: &[String],
+) {
+    let mut value = serde_json::json!({
+        "sessionId": local, "cliSessionId": cli, "title": format!("T {cli}"),
+        "isArchived": false, "cwd": folder.display().to_string(), "lastActivityAt": 1000,
+        "worktreeName": folder.file_name().unwrap().to_string_lossy(),
+        "worktreePath": folder.display().to_string(), "branch": branch,
+        "sessionPermissionUpdates": [{"type": "addDirectories", "destination": "session", "directories": grants}],
+        "shellFolders": [folder.join("src").display().to_string()],
+    });
+    if let Some(parent) = parent {
+        value["spawnedFrom"] = serde_json::json!({"sessionId": parent, "sideSession": true});
+    }
+    std::fs::write(
+        account.folder.join(format!("{local}.json")),
+        serde_json::to_vec(&value).unwrap(),
+    )
+    .unwrap();
+}
+
+/// `host`'s worktree file, owning `leases` (name, folder, record, branch)
+/// and having seen `seen`; with fields the move must keep as they are.
+fn worktree_file(host: &Path, leases: &[(&str, &Path, &str, &str)], seen: &[&Path]) {
+    let mut worktrees = serde_json::Map::new();
+    for (name, folder, by, branch) in leases {
+        worktrees.insert(
+            (*name).to_owned(),
+            serde_json::json!({
+                "name": name, "path": folder.display().to_string(), "leasedBy": by,
+                "branch": branch, "sourceBranch": "main", "createdAt": 1,
+                "anchors": [{"gitRoot": "/Users/someone/repo"}], "autoTrusted": true,
+                "futureLeaseField": {"kept": 1},
+            }),
+        );
+    }
+    let root = seen
+        .first()
+        .and_then(|p| p.parent())
+        .map(|p| p.display().to_string());
+    let mut roots = serde_json::Map::new();
+    if let Some(root) = root {
+        roots.insert(root, serde_json::json!(5));
+    }
+    let sightings: serde_json::Map<String, serde_json::Value> = seen
+        .iter()
+        .map(|p| (p.display().to_string(), serde_json::json!(7)))
+        .collect();
+    std::fs::write(
+        host.join("git-worktrees.json"),
+        serde_json::to_vec_pretty(&serde_json::json!({
+            "schemaVersion": 2, "originUrls": {"x": "y"}, "originPins": {},
+            "worktrees": worktrees,
+            "untrackedDirGc": {"sightings": sightings, "roots": roots, "cwds": {"/Users/someone/repo": 3}},
+            "pendingTombstones": [],
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+}
+
+/// What the app's cleanup of `host` would remove of `folder`: one it has
+/// seen in a folder it looks after, without owning it (the rule its logs
+/// show: "Removed untracked worktree dir").
+fn sweep_would_remove(host: &Path, folder: &Path) -> bool {
+    let file = read(&host.join("git-worktrees.json"));
+    let key = folder.display().to_string();
+    let seen = file["untrackedDirGc"]["sightings"].get(&key).is_some();
+    let owned = file["worktrees"]
+        .as_object()
+        .is_some_and(|w| w.values().any(|e| e["path"] == key.as_str()));
+    seen && !owned
+}
+
+fn hash_tree(dir: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    files(dir)
+        .into_iter()
+        .map(|rel| {
+            let bytes = std::fs::read(dir.join(&rel)).unwrap();
+            (rel, bytes)
+        })
+        .collect()
+}
+
+/// R8: a session in its own worktree moves with its ownership: the target
+/// owns the worktree (every unknown field kept), the source forgets it and
+/// its cleanup's sighting of it, so the old profile's sweep removes
+/// nothing; the new profile resumes in the same tree on the branch the
+/// worktree is on; nothing inside the worktree changes. Undo restores both
+/// profiles' files byte for byte.
+#[test]
+fn e2328_a_worktree_moves_with_its_session_and_the_old_sweep_removes_nothing() {
+    needs_clones!();
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-1", "claude/wt-1");
+    let other = worktree(&lab, "wt-other", "claude/other");
+    worktree_record(&a, "local_main", "main", None, &wt, "claude/wt-1", &[]);
+    history(&a, SLUG, "main", 2, "a");
+    worktree_file(
+        &a.host,
+        &[
+            ("wt-1", &wt, "local_main", "claude/wt-1"),
+            ("wt-other", &other, "local_someone_else", "claude/other"),
+        ],
+        &[&wt],
+    );
+    let a_before = std::fs::read(a.host.join("git-worktrees.json")).unwrap();
+    let tree_before = hash_tree(&wt);
+    let (mut txn, plan) = run(&lab, &lab.request(&a, &b, "main"), "e2328-a");
+    assert!(
+        plan.carried.iter().any(|c| matches!(c,
+            juggler_adapter::moving::Carried::Worktree { name, branch }
+                if name == "wt-1" && branch.as_deref() == Some("claude/wt-1"))),
+        "{:?}",
+        plan.carried
+    );
+    let theirs = read(&b.host.join("git-worktrees.json"));
+    assert_eq!(theirs["worktrees"]["wt-1"]["leasedBy"], "local_main");
+    assert_eq!(theirs["worktrees"]["wt-1"]["futureLeaseField"]["kept"], 1);
+    assert_eq!(theirs["schemaVersion"], 2);
+    let ours = read(&a.host.join("git-worktrees.json"));
+    assert!(
+        ours["worktrees"].get("wt-1").is_none(),
+        "the source owns it no more"
+    );
+    assert_eq!(
+        ours["worktrees"]["wt-other"]["leasedBy"], "local_someone_else",
+        "others stay"
+    );
+    assert_eq!(
+        ours["originUrls"]["x"], "y",
+        "unknown top-level fields kept"
+    );
+    assert!(ours["pendingTombstones"].is_array());
+    assert!(
+        !sweep_would_remove(&a.host, &wt),
+        "the old profile's sweep removes nothing"
+    );
+    // The new profile resumes in the same tree: it owns it, on its branch.
+    let record = read(&b.folder.join("local_main.json"));
+    assert_eq!(record["worktreePath"], theirs["worktrees"]["wt-1"]["path"]);
+    assert_eq!(record["branch"], theirs["worktrees"]["wt-1"]["branch"]);
+    assert_eq!(
+        hash_tree(&wt),
+        tree_before,
+        "nothing inside the worktree changed"
+    );
+    // Undo: both files back byte for byte, and no lease left in each.
+    txn.undo(&Stopped::checked(), 9).unwrap();
+    assert_eq!(
+        std::fs::read(a.host.join("git-worktrees.json")).unwrap(),
+        a_before
+    );
+    assert!(
+        !b.host.join("git-worktrees.json").exists(),
+        "the target had none; Undo leaves none"
+    );
+    assert_eq!(hash_tree(&wt), tree_before);
+}
+
+/// R8: the worktree's HEAD moved on from the branch the app had: the
+/// carried entry and the record name the real branch (never a checkout),
+/// and the plan says so; a worktree on no branch waits for the user.
+#[test]
+fn e2328_a_diverged_head_is_recorded_never_checked_out() {
+    needs_clones!();
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-2", "claude/wt-2");
+    worktree_record(&a, "local_main", "main", None, &wt, "claude/wt-2", &[]);
+    history(&a, SLUG, "main", 2, "a");
+    worktree_file(&b.host, &[], &[]);
+    worktree_file(&a.host, &[("wt-2", &wt, "local_main", "claude/wt-2")], &[]);
+    checkout(&lab, "wt-2", "release/0.5.1");
+    let head = lab.tmp.path().join("work/repo/.git/worktrees/wt-2/HEAD");
+    let head_before = std::fs::read(&head).unwrap();
+    let request = lab.request(&a, &b, "main");
+    let plan = ClaudeMove.plan(&request).unwrap();
+    assert!(
+        plan.notes
+            .iter()
+            .any(|n| n.contains("release/0.5.1") && n.contains("nothing is checked out")),
+        "{:?}",
+        plan.notes
+    );
+    run(&lab, &request, "e2328-b");
+    let theirs = read(&b.host.join("git-worktrees.json"));
+    assert_eq!(theirs["worktrees"]["wt-2"]["branch"], "release/0.5.1");
+    assert_eq!(
+        read(&b.folder.join("local_main.json"))["branch"],
+        "release/0.5.1"
+    );
+    assert_eq!(
+        std::fs::read(&head).unwrap(),
+        head_before,
+        "HEAD never moved"
+    );
+
+    // On no branch: the user's to clear, nothing planned to change it.
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-3", "claude/wt-3");
+    worktree_record(&a, "local_main", "main", None, &wt, "claude/wt-3", &[]);
+    history(&a, SLUG, "main", 2, "a");
+    worktree_file(&a.host, &[("wt-3", &wt, "local_main", "claude/wt-3")], &[]);
+    std::fs::write(
+        lab.tmp.path().join("work/repo/.git/worktrees/wt-3/HEAD"),
+        format!("{}\n", "c".repeat(40)),
+    )
+    .unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(
+        plan.refusals
+            .iter()
+            .any(|r| r.kind == RefusalKind::UserCanClear && r.words.contains("isn't on a branch")),
+        "{:?}",
+        plan.refusals
+    );
+}
+
+/// R8: the conversation's side-session notes move beside its record, its
+/// side session's grant to them points into the target, and Undo brings
+/// the notes back where they were.
+#[test]
+fn e2328_the_notes_folder_and_its_grants_move() {
+    needs_clones!();
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-4", "claude/wt-4");
+    let notes = a.host.join("side-session-notes/local_main");
+    std::fs::create_dir_all(notes.join("deep")).unwrap();
+    std::fs::write(notes.join("plan.md"), b"the plan").unwrap();
+    std::fs::write(notes.join("deep/log.txt"), b"a log").unwrap();
+    let grant = notes.display().to_string();
+    worktree_record(&a, "local_main", "main", None, &wt, "claude/wt-4", &[]);
+    worktree_record(
+        &a,
+        "local_side",
+        "side",
+        Some("local_main"),
+        &wt,
+        "claude/wt-4",
+        &[grant],
+    );
+    history(&a, SLUG, "main", 2, "a");
+    history(&a, SLUG, "side", 2, "s");
+    let request = lab.request(&a, &b, "main");
+    let plan = ClaudeMove.plan(&request).unwrap();
+    assert!(
+        plan.carried
+            .iter()
+            .any(|c| matches!(c, juggler_adapter::moving::Carried::Notes { files: 2, .. })),
+        "{:?}",
+        plan.carried
+    );
+    let (mut txn, _) = run(&lab, &request, "e2328-c");
+    let moved = b.host.join("side-session-notes/local_main");
+    assert_eq!(std::fs::read(moved.join("plan.md")).unwrap(), b"the plan");
+    assert!(!notes.exists(), "the notes left the source");
+    let side = read(&b.folder.join("local_side.json"));
+    assert_eq!(
+        side["sessionPermissionUpdates"][0]["directories"][0],
+        moved.display().to_string(),
+        "the grant follows the notes"
+    );
+    txn.undo(&Stopped::checked(), 9).unwrap();
+    assert_eq!(std::fs::read(notes.join("deep/log.txt")).unwrap(), b"a log");
+    assert!(!moved.exists());
+}
+
+/// R8: Undo restores both profiles' ownership: the source owns the
+/// worktree again, the target's own entries are as they were, byte for
+/// byte, never one entry in each.
+#[test]
+fn e2328_undo_restores_both_leases() {
+    needs_clones!();
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-5", "claude/wt-5");
+    let theirs = worktree(&lab, "wt-b", "claude/b");
+    worktree_record(&a, "local_main", "main", None, &wt, "claude/wt-5", &[]);
+    history(&a, SLUG, "main", 2, "a");
+    worktree_file(
+        &a.host,
+        &[("wt-5", &wt, "local_main", "claude/wt-5")],
+        &[&wt],
+    );
+    worktree_file(
+        &b.host,
+        &[("wt-b", &theirs, "local_b_own", "claude/b")],
+        &[&wt],
+    );
+    let (a_before, b_before) = (
+        std::fs::read(a.host.join("git-worktrees.json")).unwrap(),
+        std::fs::read(b.host.join("git-worktrees.json")).unwrap(),
+    );
+    let (mut txn, _) = run(&lab, &lab.request(&a, &b, "main"), "e2328-d");
+    let both = read(&b.host.join("git-worktrees.json"));
+    assert_eq!(both["worktrees"]["wt-5"]["leasedBy"], "local_main");
+    assert_eq!(both["worktrees"]["wt-b"]["leasedBy"], "local_b_own");
+    txn.undo(&Stopped::checked(), 9).unwrap();
+    assert_eq!(
+        std::fs::read(a.host.join("git-worktrees.json")).unwrap(),
+        a_before
+    );
+    assert_eq!(
+        std::fs::read(b.host.join("git-worktrees.json")).unwrap(),
+        b_before
+    );
+}
+
+/// R8/R1/R9: a worktree file of a schema it doesn't know, or a Claude app
+/// version the known formats weren't checked on, refuses the move before
+/// anything, in words that say to update AI Juggler (never a half-carried
+/// move).
+#[test]
+fn e2328_the_format_gate_refuses_an_unknown_schema_and_version() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-6", "claude/wt-6");
+    worktree_record(&a, "local_main", "main", None, &wt, "claude/wt-6", &[]);
+    history(&a, SLUG, "main", 2, "a");
+    std::fs::write(
+        a.host.join("git-worktrees.json"),
+        br#"{"schemaVersion": 3, "leases": {"wt-6": "local_main"}}"#,
+    )
+    .unwrap();
+    let plan = ClaudeMove.plan(&lab.request(&a, &b, "main")).unwrap();
+    assert!(!plan.can_move());
+    assert!(
+        plan.refusals.iter().any(|r| r.kind == RefusalKind::Setup
+            && r.words.contains("worktrees")
+            && r.words.contains("update AI Juggler")),
+        "{:?}",
+        plan.refusals
+    );
+    assert!(!plan.shape.is_empty(), "named for the gate watch");
+    assert!(
+        !plan
+            .steps
+            .iter()
+            .any(|s| matches!(s, MoveStep::WriteAppFile { .. })),
+        "nothing of the worktree carried"
+    );
+    // A version the formats weren't checked on.
+    std::fs::remove_file(a.host.join("git-worktrees.json")).unwrap();
+    let mut request = lab.request(&a, &b, "main");
+    request.target.version = Some("5.11610.2".into());
+    let plan = ClaudeMove.plan(&request).unwrap();
+    assert!(
+        plan.refusals
+            .iter()
+            .any(|r| r.words.contains("5.11610.2") && r.words.contains("update AI Juggler")),
+        "{:?}",
+        plan.refusals
+    );
+}
+
+/// R8/R7: a session a 0.4.x move left split (its record in profile B, its
+/// worktree still owned by profile A, the branch moved on): the health
+/// check finds it; the repair moves the ownership to B, drops A's sighting,
+/// records the real branch, never touches the worktree's files, and is
+/// undone byte for byte.
+#[test]
+fn e2328_the_repair_puts_a_04x_split_right() {
+    needs_clones!();
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let wt = worktree(&lab, "wt-7", "claude/wt-7");
+    // As the 0.4.x move left it: the record in B, the lease in A.
+    worktree_record(&b, "local_main", "main", None, &wt, "claude/wt-7", &[]);
+    worktree_file(
+        &a.host,
+        &[("wt-7", &wt, "local_main", "claude/wt-7")],
+        &[&wt],
+    );
+    worktree_file(&b.host, &[], &[]);
+    checkout(&lab, "wt-7", "release/0.5.1");
+    let tree_before = hash_tree(&wt);
+    let hosts = vec![a.host.clone(), b.host.clone()];
+    let found = ClaudeMove.splits(&hosts).unwrap();
+    assert_eq!(found.len(), 1, "{found:?}");
+    let split = &found[0];
+    assert_eq!(split.owner, a.host);
+    assert_eq!(split.holder, b.host);
+    assert_eq!(split.conversation, "main");
+    assert!(split.branch_differs);
+    assert_eq!(split.branch.as_deref(), Some("release/0.5.1"));
+    // The repair refuses an unchecked version, plainly.
+    let refused = ClaudeMove.repair(split, Some("5.11610.2"));
+    assert!(!refused.can_move());
+    assert!(
+        refused.refusals[0]
+            .words
+            .contains("Repair becomes available")
+    );
+    let plan = ClaudeMove.repair(split, Some("5.11492.5"));
+    assert!(plan.can_move(), "{:?}", plan.refusals);
+    for step in &plan.steps {
+        for path in step.paths() {
+            assert!(
+                !path.starts_with(&wt),
+                "never a step inside the worktree: {path:?}"
+            );
+        }
+    }
+    let a_before = std::fs::read(a.host.join("git-worktrees.json")).unwrap();
+    let mut txn = Transaction::begin(
+        &lab.moves,
+        "e2328-repair",
+        "claude-code",
+        lab.request(&a, &b, "main"),
+        plan,
+        None,
+        1,
+    )
+    .unwrap();
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    assert!(txn.verify_cold(Vec::new()).unwrap().passed());
+    let owner = read(&b.host.join("git-worktrees.json"));
+    assert_eq!(owner["worktrees"]["wt-7"]["leasedBy"], "local_main");
+    assert_eq!(owner["worktrees"]["wt-7"]["branch"], "release/0.5.1");
+    assert_eq!(
+        read(&b.folder.join("local_main.json"))["branch"],
+        "release/0.5.1"
+    );
+    assert!(
+        read(&a.host.join("git-worktrees.json"))["worktrees"]
+            .get("wt-7")
+            .is_none()
+    );
+    assert!(!sweep_would_remove(&a.host, &wt));
+    assert!(
+        ClaudeMove.splits(&hosts).unwrap().is_empty(),
+        "nothing left to repair"
+    );
+    assert_eq!(
+        hash_tree(&wt),
+        tree_before,
+        "the worktree's files never touched"
+    );
+    txn.undo(&stopped, 9).unwrap();
+    assert_eq!(
+        std::fs::read(a.host.join("git-worktrees.json")).unwrap(),
+        a_before
+    );
+    assert_eq!(
+        ClaudeMove.splits(&hosts).unwrap().len(),
+        1,
+        "undone: as it was"
+    );
+}
+
+/// R7 (the maintainer's ruling): one conversation, two worktrees. The
+/// stale claim in profile A is on wt-old, while B's record now names a
+/// fresh wt-new B owns: the check still finds wt-old, and the repair moves
+/// that claim to B too (never drops it: a folder no profile owns is
+/// removed by a cleanup) and says both are kept.
+#[test]
+fn e2328_the_repair_keeps_a_conversations_two_worktrees() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let old = worktree(&lab, "wt-old", "claude/wt-old");
+    let new = worktree(&lab, "wt-new", "claude/wt-new");
+    worktree_record(&b, "local_main", "main", None, &new, "claude/wt-new", &[]);
+    worktree_file(
+        &a.host,
+        &[("wt-old", &old, "local_main", "claude/wt-old")],
+        &[],
+    );
+    worktree_file(
+        &b.host,
+        &[("wt-new", &new, "local_main", "claude/wt-new")],
+        &[],
+    );
+    let hosts = vec![a.host.clone(), b.host.clone()];
+    let found = ClaudeMove.splits(&hosts).unwrap();
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].worktree, "wt-old");
+    assert_eq!(found[0].other_worktree.as_deref(), Some("wt-new"));
+    let plan = ClaudeMove.repair(&found[0], Some("5.11492.5"));
+    assert!(plan.can_move(), "{:?}", plan.refusals);
+    assert!(
+        plan.notes
+            .iter()
+            .any(|n| n == "This conversation has two worktrees; both are kept"),
+        "{:?}",
+        plan.notes
+    );
+    let holder = plan
+        .steps
+        .iter()
+        .find_map(|s| match s {
+            MoveStep::WriteAppFile { path, value } if path.starts_with(&b.host) => Some(value),
+            _ => None,
+        })
+        .expect("B's worktree file is written");
+    assert_eq!(holder["worktrees"]["wt-old"]["leasedBy"], "local_main");
+    assert_eq!(holder["worktrees"]["wt-new"]["leasedBy"], "local_main");
+}
+
+/// R7 (the maintainer's ruling): a worktree B owns that A's cleanup has
+/// seen is told (A may remove it once it looks unused there); one no other
+/// profile has seen isn't.
+#[test]
+fn e2328_a_worktree_another_profile_tidies_is_told() {
+    let lab = Lab::new();
+    let (a, b) = (lab.account("a"), lab.account("b"));
+    let seen = worktree(&lab, "wt-seen", "claude/wt-seen");
+    let alone = worktree(&lab, "wt-alone", "claude/wt-alone");
+    worktree_file(&a.host, &[], &[&seen]);
+    worktree_file(
+        &b.host,
+        &[
+            ("wt-seen", &seen, "local_main", "claude/wt-seen"),
+            ("wt-alone", &alone, "local_other", "claude/wt-alone"),
+        ],
+        &[],
+    );
+    let tidied = ClaudeMove
+        .also_tidied(&[a.host.clone(), b.host.clone()])
+        .unwrap();
+    assert_eq!(tidied.len(), 1, "{tidied:?}");
+    assert_eq!(tidied[0].worktree, "wt-seen");
+    assert_eq!(tidied[0].owner, b.host);
+    assert_eq!(tidied[0].by, vec![a.host.clone()]);
+    assert_eq!(ClaudeMove.moves_checked(Some("5.11492.5")), Some(true));
+    assert_eq!(ClaudeMove.moves_checked(Some("5.11610.2")), Some(false));
 }

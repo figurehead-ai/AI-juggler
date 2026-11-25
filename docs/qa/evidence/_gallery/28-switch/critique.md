@@ -1,4 +1,4 @@
-<!-- captures: e46fc7ce5979 -->
+<!-- captures: ff7afec8df84 -->
 # 28-switch: switching a conversation to another account: the "Continue on another account" list, the 3-step switch dialog's Confirm step in its variants, the running and failed states, and the notes and switch-anyway prompts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -80,3 +80,44 @@ Why not 5 still:
 ### Weak (0.5.0)
 
 - A step heading that takes focus after a keyboard press shows the global focus ring (50-cross-switch progress-1280x800-dark: the ring around "Switching to Team on Mac mini…"): the heading's `outline-none` loses to the unlayered `:focus-visible` rule.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B2)
+
+Re-captured (`pnpm visual:capture`, local, after F53): every state at 1280×800 (800×600 and 1280×900 where the family has them), both themes, opened as dark|light pairs; set beside the d126 kit and review references and the calm mock (r2). Since the 0.5.0 notes only the rail behind the dialogs changed: the lens switch's chosen segment is F53's solid fill, and targets-out-of-room's rail rows keep a readable title (F55). The dialogs are as built in 0.5.0: Switch account's ranked cards (logo, App, room and Suggested tags, how much carries as a quiet line), the wizard's icon-tile header with the from → to strip and step marks, Move or Copy as §8 (Move · Recommended with its two tags, the restart as a needs-you Alert with its amber bar, What happens as fact rows, the four conversations behind their disclosure), the stage list while running, and the failure's broken Alert. The page behind targets-out-of-room shows "Switch account…" first in the side column, accented (PAT-SW-1, -2); the dialog is titled "Switch account" (PAT-SW-3); Move is a choice inside it (D-143). Also opened: AJ-E2323's PL1 Dev captures of the move on the lab (S-I2-preview, S-I4-refused).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | Pick where it continues, see what moves and what stops, switch; Move and Copy in one dialog. |
+| 2 | Prominence | 5 | The suggested App first; the choice before the facts. |
+| 3 | Default | 5 | Move preselected when nothing blocks it; Let it finish recommended; the primary takes Return. |
+| 4 | Mode | 5 | Rich: icon tile, logos, choice cards, tinted fact panel. |
+| 5 | Mock-up | 4 | §8 as drawn; the header's "from" still the account's mark, not the source App's logo. |
+| 6 | Areas | 4 | Header, choice, Alert, What happens, details; the Copy card's lower half is empty beside Move's tags (cards share a height). |
+| 7 | Colour | 5 | Amber only as the restart Alert's bar; one accent tag (Recommended, Suggested); room tags by status. |
+| 8 | Type | 4 | Card titles 14 semibold, sub-lines 13 ink-2, fact labels muted; Move's sentence "Work no longer lists it." wraps to a one-word line at 1280. |
+| 9 | Actions | 5 | One filled primary naming its outcome ("Move to Personal", "Switch to CLI", "Retry"), last; Back and Cancel quiet. |
+| 10 | Serious | 5 | The restart's consequence first, Undo said ("Undo puts both back exactly"), What does this mean? and the guide. |
+| 11 | Doors | 4 | Failed says "resume it on Work where you left it" with no door to do it (Retry and Report only). |
+| 12 | Words | 4 | Plain; "Desktop" greyed with how to clear it; on the lab the profile names start sentences in lower case ("work no longer lists it"). |
+| 13 | States | 4 | Running, done, failed and out of room each drawn; the refusal frames (needs you, setup, bug) only in vitest, no capture. |
+| 14 | Consistency | 4 | The kit's RadioCards, Alert, FactPanel; a keyboard open starts on the chosen card, no heading ring (F75, 5192775f5). |
+| 15 | Accessibility | 4 | Dialog-fit (N1) holds; focus on the first choice (keyboard-flows checks no heading has it, F75); not re-walked at 200 % or Increase Contrast. |
+| 16 | Hand walk | 4 | Preview walk (Playwright); the move walked in the Dev app on the lab (PL1 I2–I4). |
+| 17 | System prompts | 5 | Quitting and reopening the Apps uses the Automation entry primed in setup (AJ-E1547); none new. |
+| 18 | Usability | 4 | The move tasks' answers below; one mismatch on the Copy path (F69). |
+
+**Move tasks' answers on the built screens:**
+- AJ-E2319 (typed refusals): the blocked Move (PL1 S-I4) is faded with its reason and Check again, Copy preselected (D-127); the refusal frames ("Holding the files: …" with Go to, Retry only for transient, Copy instead for setup) are in `switch-move-stops.test.tsx`, not captured. The blocked card's reason doesn't name the holder ("1 session … open outside the app (in a terminal, say)"): F72.
+- AJ-E2322 (Opened): Move's done row says Opened only when seen (tests); the Copy switch's done step (96-switch-setup where-done-desktop) says "Opened in Claude app · Personal" without that check: F69.
+- AJ-E2326 (two places): Move has its own icon in the header, card and list (S-I2), never Continue's arrow; Continue in AI Juggler is not in the move panel. "Open in two places" lives on the rail rows (not in this family).
+- AJ-E2328 ("Also moves"): S-I2 shows "Also moves: Its worktree lab-wt-1 (branch lab/wt-1): Claude app · personal owns it after the move; its files stay where they are." in plain words, no internal terms; the gallery's fixture carries none, so no capture here shows it. Match.
+
+Lowest: 4. No fix in this family; logged F69, F72, F75.
+
+**Fixed after the critique (F72, F75), re-captured:** the new move-waits (1280×800 and 800×600, both themes) is Move waiting on a session open in a terminal: the faded Move card says "“Fix the login test” in Terminal is open outside the app; Move becomes available once you end it.", then Go to “Fix the login test” in Terminal (secondary) and Check again; Copy chosen (F72, 8f1f64835; a stop names its holders the same way). The other states re-captured identical. Lowest: 4.
+
+**0.5.1 F94 re-capture (Opus, 2026-11-24):** the whole family re-captured after F94 (f2dc62851, 503afb7f4: the dialog's source is the App the conversation is in, by its id; each target is its App by its own id). The gallery's fixtures name no source App and no target App ids, so the dialog reads as before: every capture is pixel for pixel the same except `targets-out-of-room` (both themes), where the rail's "Port the settings parser" row behind the dialog shows F77's model-changed mark as the small chip icon (about 12×10 px at the row's end). Nothing broken; the source naming itself is checked in vitest `components/switch-source-app.test.tsx` and cargo `switch::source_app::tests`.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -9,6 +9,8 @@
  */
 import { useEffect, useRef, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { LoadingState } from "../../components/LoadingState";
+import { useReadState } from "../../lib/loading";
 import { Pill } from "../../components/Pill";
 import { Disclosure } from "../../components/controls";
 import { IconBackground } from "../../components/icons-controls";
@@ -48,6 +50,10 @@ export function SubagentDetail({
   now?: number;
 }): JSX.Element {
   const [detail, setDetail] = useState<SubagentDetailInfo | null>(null);
+  // AJ-E1552: the read's failure, and its Retry.
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
+  const load = useReadState(detail, "this subagent", { error: failed, round, isEmpty: (info) => !info.agent });
   const { profileId, conversationId, subagentId } = target;
   const top = useRef<HTMLDivElement | null>(null);
   // Another subagent's page starts at its top.
@@ -59,8 +65,8 @@ export function SubagentDetail({
     setDetail(null);
     const read = () =>
       void subagentsDetail(profileId, conversationId, subagentId).then(
-        (info) => alive && setDetail(info),
-        () => undefined,
+        (info) => alive && (setFailed(undefined), setDetail(info)),
+        (cause: unknown) => alive && setFailed(cause),
       );
     read();
     const timer = window.setInterval(() => {
@@ -70,7 +76,9 @@ export function SubagentDetail({
       alive = false;
       window.clearInterval(timer);
     };
-  }, [profileId, conversationId, subagentId, visible]);
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileId, conversationId, subagentId, visible, round]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !event.defaultPrevented && !document.querySelector('[role="menu"]')) onBack();
@@ -102,15 +110,29 @@ export function SubagentDetail({
         </span>
         <span className="ml-auto hidden shrink-0 sm:inline">Esc to go back</span>
       </nav>
-      {detail === null ? (
-        <div className="flex flex-col gap-3" role="status" aria-label="Loading the subagent">
-          <span className="h-8 w-2/3 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-          <span className="h-40 rounded-card bg-skeleton motion-safe:animate-pulse" />
-        </div>
-      ) : !agent ? (
-        <p className="text-body text-ink-2" data-testid="subagent-detail-missing">
-          {detail.reason ?? "This subagent isn't in the session's records any more."}
-        </p>
+      {detail === null || !agent ? (
+        <LoadingState
+          state={load.state}
+          slow={load.slow}
+          what="this subagent"
+          skeleton={
+            <output className="flex flex-col gap-3" aria-label="Loading the subagent" data-testid="subagent-detail-skeleton">
+              <span className="h-8 w-2/3 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+              <span className="h-40 rounded-card bg-skeleton motion-safe:animate-pulse" />
+            </output>
+          }
+          empty={
+            <p className="text-body text-ink-2" data-testid="subagent-detail-missing">
+              {detail?.reason ?? "This subagent isn't in the session's records any more."}
+            </p>
+          }
+          onRetry={() => {
+            setFailed(undefined);
+            setRound((was) => was + 1);
+          }}
+        >
+          {null}
+        </LoadingState>
       ) : (
         <>
           <Head detail={detail} agent={agent} onConversation={onConversation} now={now} />

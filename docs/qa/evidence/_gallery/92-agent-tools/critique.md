@@ -1,4 +1,4 @@
-<!-- captures: 45f1f59ec58e -->
+<!-- captures: 3a6dd29ea2bb -->
 # 92-agent-tools: agent tools, the question on a pool's canvas and the setting with where they are off
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -47,3 +47,9 @@ agent-tools-question (both themes): the card's cost line reads "It costs nothing
 Section titles re-rendered (6db085536): a colour token named like a type size (`--color-section` beside `--text-section`) had Tailwind build `.text-section` as a colour only, so every section title in the captures from 56f98a514 on was about 13 px regular grey. Re-captured and checked by eye against the earlier captures:
 
 - agent-tools-question (both themes): the inspector's title is 15 px semibold ink again, its sections a couple of pixels higher. Nothing else changed. Pass.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the pool setup panel and Settings > Agent access use tonal cards with filled checkboxes (F53's chosen fill) and soft shadows in light; the ring is only on focus. Layout did not change.
+
+Nothing broken (checked both themes).

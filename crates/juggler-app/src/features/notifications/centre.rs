@@ -195,6 +195,10 @@ pub struct NoticeTarget {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub thread_id: Option<String>,
+    /// 0.5.1 F92: an App or profile, by its place id (Start starts it).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub place_id: Option<String>,
 }
 
 /// The facts a line is drawn from, so the window can say them in the

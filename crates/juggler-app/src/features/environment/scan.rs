@@ -16,22 +16,31 @@ pub(crate) static SCAN_CANCEL: AtomicBool = AtomicBool::new(false);
 
 /// The ten probe labels (progress: "n of 10 checks").
 const PROBE_LABELS: [(&str, &str); 10] = [
-    ("s1-config-dirs", "Folders named .claude…"),
+    (
+        "s1-config-dirs",
+        "Each tool's folders in your home folder (.claude, .codex…)",
+    ),
     (
         "s2-env-overrides",
-        "A config folder set for this app (CLAUDE_CONFIG_DIR)",
+        "A tool folder set when AI Juggler started",
     ),
-    ("s3-manager-t3", "Claude profiles (ClaudeCodeProfiles)"),
-    ("s4-manager-cc-switch", "cc-switch profiles"),
+    (
+        "s3-manager-t3",
+        "Claude profiles made by t3 (the ClaudeCodeProfiles folder)",
+    ),
+    ("s4-manager-cc-switch", "Profiles made by cc-switch"),
     (
         "s5-shell-aliases",
-        "Your shell settings (aliases, CLAUDE_CONFIG_DIR)",
+        "Your shell settings (shortcuts that start a tool with its own folder)",
     ),
-    ("s6-installed-clis", "Claude Code installed"),
-    ("s7-login-metadata", "Sign-in status"),
+    (
+        "s6-installed-clis",
+        "The AI tools installed on this computer",
+    ),
+    ("s7-login-metadata", "Which ones are signed in"),
     ("s8-usage-recency", "When each was last used"),
     ("s9-projects", "Recent projects"),
-    ("s10-desktop", "Desktop apps"),
+    ("s10-desktop", "Desktop apps in Applications"),
 ];
 
 #[allow(
@@ -192,7 +201,7 @@ pub fn environment_scan_full_impl(
         dangling,
         &managers,
         cc_health,
-        &discoveries,
+        &named_discoveries(state, &discoveries),
         &seeds,
         &desktop_apps,
         cancelled,
@@ -230,6 +239,23 @@ pub fn not_set_up(
         .filter(|tool| !installs.iter().any(|install| install.harness == **tool))
         .filter(|tool| !account_tools.contains(tool))
         .cloned()
+        .collect()
+}
+
+/// S6's rows for "Where we looked": each tool by its name, never its id
+/// (F33).
+fn named_discoveries(
+    state: &Arc<AppState>,
+    discoveries: &[(String, &'static str)],
+) -> Vec<(String, &'static str)> {
+    discoveries
+        .iter()
+        .map(|(id, words)| {
+            (
+                crate::features::tools::display_name(&state.registry, id),
+                *words,
+            )
+        })
         .collect()
 }
 
@@ -397,7 +423,10 @@ fn scan_probe_rows(
         probe(
             "s1-config-dirs",
             installs_health.clone(),
-            format!("{} candidate setup(s)", count(installs)),
+            match count(installs) {
+                1 => "1 found".to_owned(),
+                found => format!("{found} found"),
+            },
         ),
         probe(
             "s2-env-overrides",
@@ -418,20 +447,20 @@ fn scan_probe_rows(
             "s5-shell-aliases",
             if dangling > 0 {
                 juggler_adapter::environment::ScanHealth::Partial(format!(
-                    "{dangling} assignment(s) point at directories that no longer exist"
+                    "{dangling} point at folders that are gone"
                 ))
             } else {
                 juggler_adapter::environment::ScanHealth::Ok
             },
             format!(
-                "{} assignment(s){}",
+                "{} found{}",
                 // The shell's own: other managers' profiles aren't shell settings.
                 alias_rows
                     .iter()
                     .filter(|hint| hint.set_by.is_none())
                     .count(),
                 if dangling > 0 {
-                    format!(" ({dangling} dangling)")
+                    format!(" ({dangling} point at folders that are gone)")
                 } else {
                     String::new()
                 }
@@ -442,7 +471,7 @@ fn scan_probe_rows(
             juggler_adapter::environment::ScanHealth::Ok,
             discoveries
                 .iter()
-                .map(|(id, words)| format!("{id}: {words}"))
+                .map(|(name, words)| format!("{name}: {words}"))
                 .collect::<Vec<_>>()
                 .join(", "),
         ),
@@ -458,18 +487,18 @@ fn scan_probe_rows(
                 .iter()
                 .filter(|install| install.last_used_secs.is_some())
                 .count();
-            format!("{active} setup(s) with recent activity")
+            format!("{active} used lately")
         }),
         probe(
             "s9-projects",
             juggler_adapter::environment::ScanHealth::Ok,
-            format!("{} project name(s)", seeds.len()),
+            format!("{} found", seeds.len()),
         ),
         probe(
             "s10-desktop",
             juggler_adapter::environment::ScanHealth::Ok,
             if desktop_apps.is_empty() {
-                "none of the known desktop apps present".to_owned()
+                "none found".to_owned()
             } else {
                 desktop_apps.join(", ")
             },
@@ -486,7 +515,7 @@ fn env_override_detail() -> String {
         .copied()
         .collect();
     if set.is_empty() {
-        "none set in this app's environment".to_owned()
+        "none set".to_owned()
     } else {
         format!("set: {}", set.join(", "))
     }
@@ -499,12 +528,12 @@ fn manager_detail(managers: &[juggler_adapter::environment::ManagerHint], manage
         .iter()
         .find(|hint| hint.manager == manager)
         .map_or_else(
-            || "not present".to_owned(),
+            || "not on this computer".to_owned(),
             |hint| {
                 if hint.present {
                     hint.detail.clone()
                 } else {
-                    "not present".to_owned()
+                    "not on this computer".to_owned()
                 }
             },
         )

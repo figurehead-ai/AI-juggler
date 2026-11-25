@@ -6,6 +6,7 @@
  * `onOpen` it opens the This Mac page (AJ-E1528).
  */
 import { IconComputer } from "./icons-actions";
+import { TipButton } from "./NameTip";
 import { useContext, type JSX } from "react";
 import { ThisMacContext, machineStatus } from "../lib/machine";
 import { PRESSURE_SHORT, underPressure } from "../lib/machine-memory";
@@ -24,9 +25,13 @@ type Status = NonNullable<ReturnType<typeof machineStatus>>;
  * rc29: "Plenty of room" with swap at 39 of 40 GB): in full ("Getting
  * tight: swap almost full") and for the top bar ("Tight: swap almost
  * full"). */
-function levelWords(status: Status): { full: string; brief: string } {
-  if (!status.cause) return { full: status.words, brief: SHORT_WORDS[status.words] ?? status.words };
-  return { full: `${status.words}: ${status.cause}`, brief: `${SHORT_LEVEL[status.level] ?? status.words}: ${status.cause}` };
+export function levelWords(status: Pick<Status, "level" | "words" | "cause" | "calm">): { full: string; brief: string } {
+  // AJ-E1548 #11: the top bar names its subject ("This Mac: fine"), so
+  // "room" stays the accounts' word and never sits beside "1 account low".
+  const subject = (state: string) => `${THIS_MACHINE}: ${state}`;
+  if (status.calm) return { full: status.words, brief: subject("fine") };
+  if (!status.cause) return { full: status.words, brief: subject((SHORT_WORDS[status.words] ?? status.words).toLowerCase()) };
+  return { full: `${status.words}: ${status.cause}`, brief: subject(`${(SHORT_LEVEL[status.level] ?? status.words).toLowerCase()}, ${status.cause}`) };
 }
 
 /** D1: the line's help says what room counts and when it turns tight,
@@ -35,6 +40,22 @@ function levelWords(status: Status): { full: string; brief: string } {
 function roomHelp(info: React.ContextType<typeof ThisMacContext> | null, words: string): string | undefined {
   const room = info ? [info.machine.summary.counts, info.machine.summary.measures].filter(Boolean).join(" ") : "";
   return room ? `${words}. ${room}` : undefined;
+}
+
+/** The folded rail's dot: its words in a drawn tip when it opens This
+ * Mac (0.5.1 F61: on hover and keyboard focus, never a title alone). */
+function FoldedDot({ words, dot, breath, onOpen }: { words: string; dot: string; breath: string; onOpen?: () => void }): JSX.Element {
+  return (
+    <div className="flex justify-center py-2" title={onOpen ? undefined : words} data-testid="machine-status-dot" data-level={breath}>
+      {onOpen ? (
+        <TipButton onClick={onOpen} aria-label={words} tip={words} data-testid="machine-status-dot-open" className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+          <span key={breath} aria-hidden="true" className={`dot-live size-1.5 rounded-full ${dot}`} />
+        </TipButton>
+      ) : (
+        <span key={breath} className={`dot-live size-1.5 rounded-full ${dot}`} aria-label={words} role="img" />
+      )}
+    </div>
+  );
 }
 
 export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal: boolean; onOpen?: () => void; short?: boolean }): JSX.Element {
@@ -52,7 +73,8 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // Its spoken name holds the words it shows ("Under pressure", not only
   // "Under memory pressure"): a voice user says what they see (axe,
   // label-content-name-mismatch).
-  const spoken = shown === words ? undefined : `${name} · ${shown}`;
+  // The brief words name This Mac already ("This Mac: fine").
+  const spoken = shown === words ? undefined : shown;
   const help = why ?? roomHelp(status ? info : null, words);
   // D-117: calm (plenty of room) is a neutral faint dot; amber when
   // tight (L2), red under pressure (L3).
@@ -60,19 +82,7 @@ export function MachineStatusLine({ minimal, onOpen, short = false }: { minimal:
   // The level, by which the dot breathes when it changes, then rests
   // (styles.css).
   const breath = status?.level ?? "unsampled";
-  if (minimal) {
-    return (
-      <div className="flex justify-center py-2" title={words} data-testid="machine-status-dot" data-level={breath}>
-        {onOpen ? (
-          <button type="button" onClick={onOpen} aria-label={words} className="flex size-6 items-center justify-center rounded-md outline-none hover:bg-surface/60 focus-visible:ring-1 focus-visible:ring-accent/60">
-            <span key={breath} aria-hidden="true" className={`dot-live size-1.5 rounded-full ${dot}`} />
-          </button>
-        ) : (
-          <span key={breath} className={`dot-live size-1.5 rounded-full ${dot}`} aria-label={words} role="img" />
-        )}
-      </div>
-    );
-  }
+  if (minimal) return <FoldedDot words={words} dot={dot} breath={breath} onOpen={onOpen} />;
   // The top bar's line is snug (its words fit at 1280 with the list open).
   const gap = short ? "gap-1.5" : "gap-2";
   const line = (

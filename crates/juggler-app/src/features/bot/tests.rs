@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use super::commands::{
     bot_ask_impl, bot_clear_impl, bot_count_impl, bot_find_impl, bot_new_topic_impl, bot_page_impl,
+    bot_wrong_impl,
 };
 use super::dto::{
     BotAskInput, BotOutcome, BotRowInfo, BotRowKind, BotScope, BotScopeKind, BotState, BotUnknown,
@@ -225,13 +226,7 @@ fn a_named_record_answers_with_its_own_state() {
 
 fn state() -> (tempfile::TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap();
-    let state = Arc::new(
-        AppState::init_with_registry(
-            dir.path().to_path_buf(),
-            juggler_adapter::AdapterRegistry::new(),
-        )
-        .unwrap(),
-    );
+    let state = crate::test_support::bare_state(dir.path().to_path_buf());
     (dir, state)
 }
 
@@ -241,6 +236,7 @@ fn ask(state: &Arc<AppState>, question: &str) -> super::dto::BotTurnInfo {
         &BotAskInput {
             question: question.into(),
             scope: None,
+            again: None,
         },
     )
     .unwrap()
@@ -275,6 +271,17 @@ fn asking_keeps_turns_that_page_find_and_clear() {
     let count = bot_count_impl(&state).unwrap();
     assert_eq!(count.questions, 4);
     assert_eq!(bot_clear_impl(&state).unwrap(), 4);
+    assert!(bot_page_impl(&state, None, 20).unwrap().turns.is_empty());
+}
+
+/// D-144: Bot takes a question only while its AI is ready (here there is
+/// none), and Search's entry finds the records without writing a turn.
+#[test]
+fn without_an_ai_bot_takes_no_question_and_search_writes_nothing() {
+    let (_dir, state) = state();
+    assert!(super::commands::ai_ready_or_refuse(&state).is_err());
+    let found = super::lookup::find_records(&state, "What needs me?", None).unwrap();
+    assert!(found.unknown.is_none() || found.rows.is_empty());
     assert!(bot_page_impl(&state, None, 20).unwrap().turns.is_empty());
 }
 
@@ -529,4 +536,43 @@ fn a_branch_that_is_an_order_never_reaches_a_row() {
     assert_eq!(api.branch, None, "{:?}", api.branch);
     assert!(!world.removed.is_empty());
     assert!(!super::written::frame(&world.sessions).contains("ignore"));
+}
+
+/// AJ-E1548 #2 (F9): "This is wrong" marks the turn's answer wrong in
+/// Bot's history and Undo clears it, each kept on the turn; Ask again
+/// takes the same question again, naming the turn marked wrong (its note
+/// is `written::request`'s, tested there); a turn that isn't there is
+/// refused.
+#[test]
+fn this_is_wrong_marks_the_answer_undo_clears_it_and_ask_again_asks_once_more() {
+    let (_dir, state) = state();
+    let asked = ask(&state, "Did the deploy to staging work?");
+    let flagged = |state: &Arc<AppState>| {
+        bot_page_impl(state, None, 20)
+            .unwrap()
+            .turns
+            .iter()
+            .find(|t| t.id == asked.id)
+            .unwrap()
+            .flagged
+    };
+    assert!(!flagged(&state));
+    bot_wrong_impl(&state, &asked.id, true).unwrap();
+    assert!(flagged(&state), "marked wrong in Bot's history");
+    bot_wrong_impl(&state, &asked.id, false).unwrap();
+    assert!(!flagged(&state), "Undo");
+    bot_wrong_impl(&state, &asked.id, true).unwrap();
+    let again = bot_ask_impl(
+        &state,
+        &BotAskInput {
+            question: asked.question.clone(),
+            scope: None,
+            again: Some(asked.id.clone()),
+        },
+    )
+    .unwrap();
+    assert_eq!(again.question, asked.question);
+    assert_ne!(again.id, asked.id);
+    assert!(flagged(&state), "the first stays marked wrong");
+    assert!(bot_wrong_impl(&state, "no-such-turn", true).is_err());
 }

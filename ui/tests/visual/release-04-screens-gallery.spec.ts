@@ -187,6 +187,9 @@ test("AJ-E2910: no chip changes the rail; Mark all and its toast; at 1440", asyn
   // D-118: "Mark all N reviewed" is in the Finished chip's ⋯ menu (feed-review-all).
   await page.getByTestId("feed-chip-finished").click();
   await page.getByTestId("feed-more").click();
+  // 0.5.1 F60: the menu as it opens, every line with its icon.
+  await expect(page.getByTestId("feed-review-all-label")).toHaveText(/Mark all \d+ reviewed/);
+  await shot(page, CHIPS, `feed-menu-1440x900-dark`);
   await page.getByTestId("feed-review-all").click();
   await expect(page.getByRole("status").filter({ hasText: /reviewed/i }).first()).toBeVisible();
   await shot(page, CHIPS, `marked-all-1440x900-dark`);

@@ -700,3 +700,211 @@ What the code does today (mapped 2026-10-22 on release/0.1): a same-tool switch 
 **Files to touch**: `crates/juggler-stats/`, `docs/usage-stats.md`.
 **Research basis**: Max-Depth report (north star).
 **Handover note**: —
+
+### AJ-E1545 Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | Status: DONE (0.5.1) | Priority P0 | Effort L | Depends: AJ-E1524, AJ-E1527
+**Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): the Welcome left a newcomer on their own, "Make it smoother" sat on it as a card, and the logo on it was the small three-dot IconJuggler rather than the app's real icon.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) A newcomer on first launch, often running several AI subscriptions, who knows neither AI Juggler's words nor macOS's privacy settings. "Get started" promises a guided path with an end; the step indicator says how long. The app icon must look like the one in the Dock, so the window reads as this app.
+(2) Each step says what it does and why in one sentence before any control. Each permission card shows the dialog macOS will show and what to click. Bot's step names both AIs, the size (1.8 GB), the free disk, and a recommended choice. Nothing assumes they know "profile", "instance", "TCC" or "model".
+(3) Setup and first value in one place: apps found, access granted, Bot ready, kept running. It replaces the Welcome's scattered cards (Make it smoother moves in), never a second copy of Settings: each step links to where it lives later.
+(4) A step with nothing to do here (no apps found, no permission this setup can use, no AI possible) says so in one line with Skip, or is left out (D-127). Every step has Skip for now, and the wizard can be left and resumed.
+(5) Accessibility, Automation per target app, Notifications, the login item, app-data access for the tools' folders, the Apple helper's first start: each primed on its card before Allow (PAT-OSP, AJ-E1547's gate).
+Step 1, "Your apps" (the coordinator's reasoning, 2026-11-23): (1) people think in apps, not "setups" or "profiles", and expect each app they use once, with its own icon; (2) one row per recognisable app, Desktop and Terminal as chips, plain status words, no badges or monospace paths up front; (3) it replaces 0.5.0's "Find my apps" wholly (its "Desktop apps" section merges into the rows); (4) tools installed but not set up are a collapsed, unticked group; (5) reading the installed apps' icons and folders is primed by AJ-E1547; (6) in 0.5.0 the same profile appeared twice looking unrelated, "Bring in 13" didn't match "11 setups", not-set-up tools were ticked by default (creating folders), and a terms wall scared people; providers' terms stay a closed disclosure the user opens.
+Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, not a terminal; (2) one primary ("Open <provider>'s sign-in page"), the code large, one line on what to check; (3) the terminal stays reachable under Show details, not repeated; (4) a sign-in that can't be read keeps the terminal with a plain line; (5) opening the browser goes through AJ-E1547's gate; (6) in 0.5.0 raw terminal output with Find, A−/A+ and Maximize read as technical and risky.
+(6) Watch for: a system dialog appearing before its card; Allow showing nothing because macOS's dialog went behind the window; a step that can't be skipped; a download starting without a click; "done" before the grant is seen; the brand mark looking unlike the Dock icon.
+**Requirements**:
+1. The Welcome leads with "Let's get you set up"; its primary "Get started" opens a step-by-step wizard (rich mode of the design system: sticky header and footer, a step indicator). Nobody is left on their own.
+2. **Step 1, "Your apps"** (the coordinator's redesign of 0.5.0's "Find my apps", 2026-11-23): title "Which AI apps do you use?", with "We found these on your Mac. Tick the ones AI Juggler should show. Nothing is copied or changed: they keep working exactly as now." Grouped by tool (Claude, Codex, Grok Build, ZCode, Muse Code…), each group's header with the tool's official icon read at run time from the installed app (a CLI-only tool uses its vendor's app icon if installed, else a terminal glyph). One row per thing the user recognises, with a Desktop chip and/or a Terminal chip: a desktop profile and its Claude Code folder are ONE row ("Claude app · <profile>" [Desktop], its sessions' folder as a detail, [Terminal] when terminal use of that folder is seen), paired by AJ-E2327's evidence, never by name; the default Claude app and `~/.claude` are one row, "Claude app (main)"; the Codex app and CLI sharing `~/.codex` are one row with both chips. No separate "Desktop apps" section. Status in plain words ("Signed in", "Used today", "Not signed in: you can sign in later"), no Guessed/Likely/Found badges; an uncertain pairing shows only "Is this right? Change". "Installed, not set up yet" is a collapsed group, unticked, saying what ticking does. "Use them where they are" is the default, said once in the subtitle; "Make separate copies" moves under More options. No terms wall and no terms note opened for the user (the maintainer's correction, 2026-11-23: "It is not our responsibility to shove that in user face"): one collapsed disclosure at the screen's foot, "Providers' terms", closed by default, nothing ever opens it automatically (not even with two Accounts of one provider ticked); opened, it shows a line per provider with its link (PAT-SER-7). A sticky footer: "Bring in N apps" with N exactly the ticked rows; secondary "Look again", "Add from another folder…", "Set up a new app instead"; select-all per group. The step indicator: Your apps · Sign in · Mac access · Meet Bot · Keep running.
+3. Step 2, "Let AI Juggler work with your Mac": each permission its own card (what it does, a short clip of the effect, "macOS will ask you; optional; change it later in Settings"); Allow opens the system prompt and the step sees the grant live (✓); Skip for now always there. Only the permissions this setup can use (D-127). "Make it smoother" leaves the Welcome: its card becomes this step.
+4. Step 3, Keep it running: the login item and keep awake, by the always-on rules, only where they apply.
+5. **Bot, front and centre (the maintainer's amendment, 2026-11-23).** Bot (E38) is the lead card of the Welcome's "What it does for you": full width above the four, its own loop (asking Bot about your sessions and getting a cited answer, fixture data) and a "Beta" chip. A wizard step "Meet Bot", after the permissions and before Keep it running, says in plain words what Bot does (answers about your sessions, usage and apps; cites every answer; never acts) and sets it up by the router's own availability: Apple's model ready → one click "Turn on Bot"; no Apple model → the local model offer with its real size and the free disk, started only on the user's explicit yes (D-131, the disk rules); no engine possible → one line saying what it needs, and Skip, never a broken option (D-127). Skip for now always there; Settings › Models can do it later.
+6. The last step offers the guided tour (AJ-E1546).
+7. Every large brand mark is one SVG of the real app icon (three balls on the arc, lavender top, indigo left, cyan right, with the glow; `crates/juggler-app/icons/icon.png`); small sizes a simplified arc and balls that stays the same mark.
+8. **Step 2, "Sign in"** (the coordinator's usability call, 2026-11-23): a tool whose sign-in is a device code or a URL shows a friendly card, not its terminal: "Open <provider>'s sign-in page" as the primary, the code large with Copy, one line "Check the page shows this code, then approve", and a calm "Waiting for you to approve…" that turns into ✓ Signed in when it is seen. The live terminal moves under "Show details", collapsed. A tool whose sign-in can't be read keeps its terminal, with one plain line above it. Each row has the tool's official icon and a Terminal chip. The header says "Sign in to N apps. Each opens its own sign-in page; AI Juggler never sees your password". Each tool's sign-in output is read in its adapter (no per-tool branch outside adapters), with a fixture test per tool; opening the browser is ours, so AJ-E1547's gate applies to any prompt it can raise.
+**Quality gates**: `just keep-going verify-static`; unit tests for the steps, the live grant and Skip; the a11y gate; an Opus side-by-side critique in both themes against the design system and the mock-ups before any baseline; a Sonnet newcomer-persona walk of first launch on a fresh Dev data folder, through "Meet Bot"'s three branches (Apple ready; the local offer, declined, no real download; no engine).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1545/manifest.md`.
+
+### AJ-E1546 A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | Status: DONE (0.5.1) | Priority P1 | Effort L | Depends: AJ-E1545
+**Found** by the maintainer testing the 0.5.0 nightly (2026-11-23): nothing showed a newcomer around, and the "What it does for you" and "How it works" words had nothing to show the effect.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) A newcomer just after setup, or an existing user after an update. "Take the tour" promises a short, skippable walk over the real screens, with Bot as the guide; "New in 0.5.x" promises only what changed.
+(2) Each stop names the thing and says what it is for in plain words. A clip shows the effect where words aren't enough. Back, Next, Skip, the progress and Esc are always visible.
+(3) It teaches where things are, once, on the real UI rather than in a separate help page. Clips are the same assets the Welcome's cards and How it works use, no second set.
+(4) A stop whose target isn't on screen (an empty state) shows its clip instead. Bot's stop shows "Set up Bot" when no AI is ready (D-144), and "Ask Bot about this" is hidden then. A finished tour is never offered again.
+(5) None: it calls no system API. Clips play inline and muted.
+(6) Watch for: a coach mark pointing at nothing; focus lost when the tour ends; a clip autoplaying with sound or under Reduce Motion; the tour offered again after it was finished; a step that only works with an AI set up.
+**Requirements**:
+1. The tour is offered at the end of setup and from Help › "Take the tour": coach marks anchored by element id to the real UI (Open now, Needs you, a session page, usage and runway, Continue in another app and Move, Pools, Processes, Settings). A step whose target isn't on screen (an empty state) shows its clip instead. Back, Next, Skip, a progress bar, Esc ends it.
+2. The steps live in a registry, each with a feature id and the version it came in; completion is stored per id. A completed tour is never offered again; after an update, only the new features' steps are offered, once, as a calm "New in 0.5.x · Show me".
+3. Keyboard and a focus trap, reduced motion honoured, the a11y gate.
+5. **Bot is the tour's guide (the maintainer's amendment, 2026-11-23).** Coach marks carry Bot's mark and voice; the first stop is the Bot panel. Every step is scripted, so the tour works with no engine; "Ask Bot about this" shows on a step only when Bot is ready.
+4. Clips: a 3–6 s loop for every "What it does for you" card and every "How it works" step; muted, inline, paused off screen, a still poster under prefers-reduced-motion; lazy-loaded, about 400 KB or less each, in both themes. Recorded from generic fixtures only (never real names), with what is already installed (Playwright's cached ffmpeg); anything that needs a download is asked first.
+**Quality gates**: `just keep-going verify-static`; unit tests for the registry, per-id completion and the "New in" offer; the a11y gate; clip size budget; an Opus side-by-side critique in both themes; the newcomer-persona walk through the tour, covering Bot's three branches (Apple ready; the local offer, declined, no real download; no engine).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1546/manifest.md`.
+
+### AJ-E1547 No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | Status: DONE (0.5.1) | Priority P0 | Effort L | Depends: AJ-E1545, AJ-E3822
+**The maintainer's rule (2026-11-23)**: AI Juggler never raises a system prompt the user wasn't told about first ("users will think it's a bug or their Mac is crashing").
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, the first time AI Juggler needs something from macOS. They expect our app, not macOS, to tell them what is coming and why, so a system dialog never feels like a crash or a bug.
+(2) Our sheet names the dialog in macOS's own words, shows a picture of it, says which button to click and what happens if they decline. Afterwards it says plainly whether access was granted, and if not, where to change it later.
+(3) One gate and one registry instead of each feature asking on its own. Setup primes what this setup needs; the gate covers anything later.
+(4) An entry this setup can't use is never primed or shown (D-127). Background work never prompts: it waits, or raises a calm needs-you item.
+(5) This item is the answer for every other item: the registry lists each prompt, its trigger and its words.
+(6) Watch for: a dialog appearing with no sheet before it (the walk logs each one); a sheet with no dialog after it, because access was already granted; Not now treated as a decline forever; the same sheet shown twice.
+**Requirements**:
+1. **One registry of every OS prompt AI Juggler can cause**, built by code audit and Apple's documentation, never by resetting privacy settings (no `tccutil`: a security setting). Each entry: id, the code path that triggers it, what the system shows in its words, why we need it, what to click, what happens when declined. Expected: Accessibility; Automation per target app (System Events, Terminal, iTerm and the others we script); Notifications; the login item's banner; "would like to access data from other apps" (app-data protection when reading the tools' folders); Documents, Desktop and Downloads for projects there; "differs from previously opened versions" (AJ-E3822); whatever the Apple-model helper or the local model can raise. Undocumented ones researched too.
+2. **Priming in setup**: AJ-E1545's "Let AI Juggler work with your Mac" step primes every entry this setup needs, each card showing what the system will show (a picture of the dialog) and what to click.
+3. **One just-in-time gate**, an OS seam (`juggler_platform`; Windows UAC and SmartScreen fit later), that every triggering code path goes through. An entry not primed yet gets our own sheet first ("macOS will now ask… here's why, click X", Continue and Not now) before the call; afterwards the outcome is detected and said (granted, or declined with how to change it later). Bot's first open shows "Setting up Bot" before its helper starts.
+4. **Enforcement**: a lint or test so a prompt-triggering API (TCC-guarded calls, AppleScript to other apps, notification authorisation, SMAppService, a helper's first start) can't be called outside the gate.
+5. **Validation**: the newcomer-persona walk notes every system dialog that appears; one with no priming sheet before it is a blocker.
+**Quality gates**: `just keep-going verify-static` with the new lint; registry tests (every entry complete, every gated path named); the gate's sheet and outcome tests; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1547/manifest.md` with the registry and the walk's dialog log.
+
+### AJ-E1548 The 0.5.0 usability audit's findings, fixed in 0.5.1: one name per thing, no rows nobody can use, every mark and limit said plainly | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: AJ-E3823
+**Found** by the PAT-USE audit of every feature 0.5.0 shipped (`docs/qa/0.5.1-usability-audit.md`, Opus, 2026-11-23): 28 findings, none a blocker. The 21 below change words or looks only and go in under the continuous-train rule. Seven change behaviour (#2, #5, #9, #13, #14, #15, #27); the coordinator ruled on them (requirement 10), so all are built in 0.5.1.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Daily users of Bot, Models, Watches, Home's feed and digest, the bell and header, the Floor, Processes and Unlink this computer, who read each name as meaning one thing everywhere.
+(2) Every term means one thing (Finishes, Needs you, room, sessions not "agents"), every mark is explained (the level marks, the three "mark all" actions), and every limit shows only when it matters.
+(3) The same surfaces, made clearer; nothing added, no second door.
+(4) Rows nobody can use are hidden until a model passes (#3), and the not-yet-shipped toggle is hidden (#18), both D-127.
+(5) Keychain access for the device token (#16) and the first watch alert's notification permission join AJ-E1547's registry, primed at the Watches form's Watch button.
+(6) Watch for: a count that disagrees with its list (#1); one switch with two names (#6); "Plenty of room" next to "1 account low" (#11); twin rows that can't be told apart (#20).
+**Requirements** (the audit's numbers):
+1. #1 the Bot page's memory count matches its list (one read, refreshed on Remember and Forget; a test), confirmed on the 0.5.1 build.
+2. #3 #4 #7 Models and AI › Jobs list only jobs a model can do here today, with one quiet line for the rest; Attention hints leaves AI › Jobs; the Models lead says only what ships (with AJ-E3823).
+3. #6 one name for Bot's written-answers switch in Bot and Settings (with AJ-E3823).
+4. #8 "Finishes" means one event across Watches, Notifications and the feed, with a vocabulary test; #10 the bell says "Needs you · N"; #28 Processes' tab says "Needs you".
+5. #11 the header's machine chip names its subject ("This Mac: fine"), "room" kept for Accounts; #12 the level marks read plainly and the legend draws exactly the rail's marks.
+6. #16 Keychain access in AJ-E1547's registry (done there: `secrets.rs:quietly` is the one door, `keychain_lint` keeps it so); the first watch alert's notification permission primed at the Watches form's Watch button (`await osPromptRequest("notifications")` before saving; on Not now the watch is still saved). AJ-E1547's three calls left to route, each in `scripts/os_prompts.allow` (which only shrinks): `conversations/goto.rs` `Real::osascript_with` through `os_prompt::script(…, Presence::Background, …)`; `goto.rs` `Real::send_link_to` and `places/handoff.rs` `Real::send` through `os_prompt::send_link(APP_LINKS, os_prompt::user(), pid, link)`; their allowlist lines removed.
+7. #17 one machine word in the Unlink sheet (`machine-words.ts`); #18 the not-yet-shipped toggle hidden.
+8. #19 each "mark all" says what it clears; #20 the digest counts sessions and names twins as everywhere else; #21 the feed's scope picker says what it narrows; #22 "While you were away" and "the digest" kept apart in the notes and the guide.
+9. #23 #24 the Floor says what it is (tooltip, a first-open line) and names its floors by what is on them; #25 the watch limit shows only near it; #26 Bot's memory says which watches it counts and links to them.
+11. **Providers' terms are never shown open** (the maintainer's correction, 2026-11-23; PAT-SER-7): every place the terms text appears (the switch and move dialogs, adding an Account, an App's terms, Settings, the in-app docs pages) shows it collapsed behind "Providers' terms", or as a link, never as an open block, and nothing opens it automatically. A test that each such place renders it closed.
+10. **The seven behaviour changes, ruled by the coordinator (design calls, 2026-11-23; none reverses a D-ruling):**
+   - #15: Settings › Privacy gets "Check for configuration updates" (on by default, D-129) with a line saying what it fetches and when (AJ-E2023 Req 3, built here); Privacy also gets lines for Bot's history and notes and for watches ("kept on this Mac; Clear deletes them"); each line tested.
+   - #5: the AI job switches live on Models beside the model they use; the Jobs sub-pane is dropped.
+   - #9: the bell holds Needs you, the latest few events and "See all on Home"; the 30-day history lives only in Home's feed.
+   - #13: on session pages the account banner keeps its facts and Remind/Snooze; the side column's "Switch account…" is the door (D-143); the rail's row stays.
+   - #14: "Remind me" makes a one-time "Room again" watch, shown on Watches with Edit and Remove; the button says a watch is made.
+   - #2: Bot's "This is wrong" stays and does something real: marking an answer wrong removes it from the conversation's context so follow-ups don't build on it; the answer collapses to "Marked wrong: Bot won't use it in this conversation", with Undo and Ask again; nothing else is stored. Tests for the context removal and Undo.
+   - #27: while a pool's setup is open its checklist owns the rules; the header's dropdown and the lead card come back when setup is done.
+   Their usability reasoning: (1) each surface's user expects one door per action and one history; (2) each control says what it makes (a watch, a context change); (3) the duplicates go (#5, #9, #13, #27); (4) n/a; (5) none new; (6) a thumbs-down that did nothing, a reminder nowhere to be seen, a fetch nobody was told about.
+**Quality gates**: `just keep-going verify-static`; a test per wording rule (vocabulary, counts, hidden rows) and per behaviour change; the visual gate with Opus's critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1548/manifest.md`, one row per finding.
+
+### AJ-E1549 No white flash, ever: the window, the page and every loading boundary paint the theme's base colour from the first frame | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: none
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): a very short full-window white flash at random moments, among them the import wizard's sign-in step with a live terminal panel on screen. The coordinating session found no WebContent crash, reload or WebGL context loss in the system log (the wizard's state survived), so it is a paint gap, not a restart; the main window sets no background colour and nothing sets the webview's, so the native window is white behind the page.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, in both themes; a white flash in a dark app reads as a glitch or a crash.
+(2) Nothing to explain: the fix is that it never happens.
+(3) A calm, trustworthy app; no new surface.
+(4) Every loading state is a skeleton inside the layout, never an empty root (instant and paged).
+(5) None.
+(6) The flash itself: a sensible person thinks the app restarted or broke.
+**Requirements**:
+1. The native window's background is the theme's base colour, set in the configuration and again at run time whenever the theme changes (dark and light).
+2. `html` and `body` take their background from the tokens in `index.html`'s inline CSS, with both `prefers-color-scheme` cases, before any script runs.
+3. No Suspense fallback or screen boundary renders an empty root: each renders a skeleton inside the layout.
+4. The specific trigger is root-caused (candidates: a lazy screen's empty fallback while the page background lives on an inner element; the theme class applied after first paint; the embedded terminal's canvas being re-created; the Floor's surface reconfiguring) and fixed where it is.
+**Quality gates**: `just keep-going verify-static`; a Playwright check sampling frames while switching screens, stepping through the wizard and opening the terminal panel, in the dark theme, failing on any frame mostly near white; a unit check that `index.html` carries the background before its scripts.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1549/manifest.md`.
+
+### AJ-E1550 Calm surfaces: separation by tone, never bright borders; a bright line only for focus, hover or real attention (PAT-SURF, app-wide) | Status: IN-PROGRESS (0.5.1: built; open: R4's Happo diffs, checked by eye on the release PR) | Priority P0 | Effort L | Depends: none
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): "what is with all of these highlighted borders… it looks ugly… does that look like peace and calm?", with the Claude app's Code view as the reference (no visible borders, panels told apart by tone, the selected row a soft fill). Their rule: "Only time you can ever use a bright border is on highlight or mouse over or to really really bring attention to the user." Seen: the selected tab and the App/Project/Account segmented control outlined; "This session" boxed; every card outlined (Conversation, Where it runs, Runway, Apps that can take it over); "Switch account…" bordered; the "Suggested" target card ringed in accent; the rail's selected row outlined.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, all day: AI Juggler is a calm monitoring surface left open beside the user's real work; they expect it to recede, like the Claude app's Code view.
+(2) Hierarchy comes from tone and type, so nothing needs explaining; what is selected or needs them stands out because little else does.
+(3) Calm monitoring is tone hierarchy, not lines: the same screens, quieter, and attention kept for what deserves it (calm attention, D-117).
+(4) n/a.
+(5) None.
+(6) Lines everywhere make every box look equally urgent; an accent ring on "Suggested" reads as an alert.
+**Requirements**:
+1. Research first, written into the design system: how Linear, Vercel Geist, Radix Themes, Apple's macOS HIG and the Claude and ChatGPT desktop apps separate surfaces; then the tokens (PAT-SURF): `border.subtle`, a near-invisible hairline (about 6–8 % of the foreground on dark, 8–10 % on light) used only where tone can't separate; no outline on cards or sections, separation by three or four surface steps (base, raised, overlay) and very soft shadows on floating layers only (menus, popovers, dialogs); selected (tabs, segmented controls, rail rows, the subagent tree) a soft fill and stronger text, never an outline; hover a subtle fill step; an accent border or ring only for `:focus-visible` and rare true-attention states (a Needs-you item, a destructive confirm), never for "Suggested" (a small tag); inputs and secondary buttons a fill, not a bright stroke, the ring on focus; `prefers-contrast: more` brings stronger borders back.
+2. Applied app-wide through the tokens and the shared components (Card, Section, Tabs, Segmented, Button, Input, List row, the rail), every screen.
+3. A lint: no component uses the accent or bright border colours outside the focus, hover or attention tokens.
+4. Baselines (gallery and Happo) re-shot once, at the end of the 0.5.1 batch, after an Opus side-by-side against the Claude app's reference in both themes; every Happo diff verified by eye.
+5. **Balance, not monochrome (the maintainer's amendment, 2026-11-23: "You keep going from one extreme to another. I want balance… Choose select colours and keep using them to always mean one same thing"; PAT-COLOR).** Calm tones down bright colour and keeps colour where it carries meaning. Seen on the 0.5.0 Nightly: greyed App icons looked broken; Runway's "Out" was plain white text over an empty white bar; every usage bar was white. A semantic vocabulary, one hue one meaning everywhere: critical red (out, blocked, failed); amber (needs you, running low); green (healthy, done, ready, signed in); teal (working, live, activity); brand violet (primary actions, selection, navigation); neutral greys for the text hierarchy only; the eight identity colours (Apps, Accounts) only on small identity marks (dots, avatars, chart series), never for status. Each semantic hue has a soft step (calm states: a muted tint and text) and a strong step (attention: the chip, the bar fill, the rail mark). Runway's bar follows its state: green while healthy (above about 50 %), a soft neutral-teal in between, amber when low (at or under 25 %, `LOW_LEFT`, everywhere: D-145), red with an "Out · resets <day time>" chip when out (D-145) (and Out still raises the header's attention count); unknown or not measured, a neutral dashed bar and plain words. App icons are always in full colour: idle and not running are shown by the status dot (hollow grey not running, soft idle, teal working), muted words ("Not running") and row order, never by desaturating the icon. The palette validator (the bundled dataviz `validate_palette.js`, run locally) checks the identity slots and the semantic set in both themes for colour-vision separation and contrast; status never relies on colour alone (a chip word or icon goes with it). A lint: status colours only through semantic tokens, identity tokens only on identity marks, no grayscale filter on icons. Usability: "can a newcomer tell, in one glance, which account is out, which is low and which is fine?", scored in the persona walk.
+**Quality gates**: `just keep-going verify-static` with the new lint; the a11y gate (focus visible, contrast, Increase Contrast); the visual gate once; Opus's critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1550/manifest.md` with the research table and before/after captures.
+
+### AJ-E1551 Nothing moves after it appears: every column, header, rail and badge has its place from the first paint (layout shift near zero) | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: none
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): opening a session, the left subagent tree appears a split second later and pushes the whole layout over.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone opening a session or switching screens; they expect what they aimed at to stay where it is.
+(2) Nothing to explain: the page holds still.
+(3) Instant and paged: a skeleton at the final size on the first frame, the real content filling it.
+(4) A column with nothing in it is decided from cached data before the first paint, never by a late fetch.
+(5) None.
+(6) A layout that jumps makes people click the wrong thing and feels unfinished.
+**Requirements**:
+1. The session page's columns are reserved from the first paint, the subagent tree as a skeleton at its final width; whether a column shows is decided from cached data, not after a fetch.
+2. A sweep of every screen for the same pattern (side columns, headers, rails, badges that mount late), each fixed the same way.
+3. A Playwright layout-shift check (a cumulative layout shift budget of about 0) on opening a session, switching tabs and opening Home.
+**Quality gates**: `just keep-going verify-static`; the layout-shift check; the visual gate.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1551/manifest.md`.
+
+### AJ-E1552 Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E2327
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): "We need much more reliable loading and delayed loading systems. We can't leave them in these forever loading states." On Accounts (filter "Out"), one Account card's Apps row stayed a skeleton bar for over a minute and never resolved; the other cards showed their App rows. The coordinating session's suspicion, to be confirmed: that Account has no added App on the fresh install (its desktop app sat in "Running, not added", AJ-E2327) and the card treats an empty list as still loading.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, on every screen; a skeleton promises "coming in a moment".
+(2) A skeleton shows only while something really loads; after about 3 s it says "Still loading…"; after its timeout, an error in plain words with Retry.
+(3) One loading system for the whole app instead of each screen's own guess.
+(4) Empty is its own state with a guided next step (for this card: "No app uses this account yet · Add its app", into AJ-E2327's Add); an error says what failed and offers Retry (D-127).
+(5) None.
+(6) A bar that never resolves reads as a hang or a broken app.
+**Requirements**:
+1. Root cause the stuck card first (file:line), then one shared loading primitive (extending `use-resource`) with explicit states: loading, ready, empty, error and stale-while-revalidate. Every skeleton in the app renders only in loading, never because a list is empty or a value is null.
+2. A deadline per resource: "Still loading…" after about 3 s; after the resource's own timeout (about 10–15 s) an error row in plain words with Retry, the cause logged. Nothing stays a skeleton forever.
+3. An empty state everywhere there is a skeleton; the Account card's is "No app uses this account yet · Add its app", opening AJ-E2327's Add.
+4. A lint or test: no component renders a skeleton outside the primitive's loading state; every skeleton site has an empty-state and an error-state test; a Playwright sweep opens every screen and filter and fails if any skeleton is still visible after 15 s.
+5. The backend: every query a screen waits on returns within its budget (a typed empty or error included); no IPC hangs; a call over its budget is logged.
+6. The same card's cramped wrapping (the "…has 100% left." line squeezed between the Out chip and the button) is fixed in AJ-E1550's pass.
+**Quality gates**: `just keep-going verify-static` with the new lint; the skeleton sweep; the per-site empty and error tests.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1552/manifest.md`.
+
+### AJ-E1553 A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1545
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23), after finishing a tool's sign-in in the import wizard: the tool's sign-in file was written and no process of it ran (checked by name, date and size only), yet the rail still showed a "Sign-ins · Sign in · <tool>" entry; opening it showed an empty terminal (the process had ended and its scrollback was gone); and the footer asked for a manual re-check ("…then check the app again from Accounts — it flips to ready").
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone signing in to a tool from the wizard or the rail; they expect AI Juggler to notice when they're done.
+(2) "✓ <tool> is signed in" the moment it is; an early end says "Sign-in ended before it finished" with the last lines and Try again.
+(3) The same detection as AJ-E1545's sign-in card ("Waiting for you to approve…" → ✓ Signed in), in one place for the wizard and the rail.
+(4) A finished or stale sign-in entry leaves the rail by itself, also after a restart.
+(5) None new (the browser was opened through AJ-E1547's gate).
+(6) An empty terminal and a "check again from Accounts" instruction read as broken.
+**Requirements**:
+1. While a sign-in runs, AI Juggler watches the adapter's "signed in?" signal (file events plus the adapter's own check; metadata or status only, never a credential's contents). On success it ends the sign-in session, shows "✓ <tool> is signed in", flips the Account and App to ready by themselves, removes the rail's entry and ticks the wizard's row.
+2. A process that ends without success leaves an outcome card ("Sign-in ended before it finished") with its last lines kept (scrollback retained) and Try again; never an empty terminal.
+3. On restart, sign-in entries whose Account is already signed in are cleared.
+4. The "check again from Accounts" words go.
+5. Through the adapters' sign-in hooks only (no per-tool code outside them).
+**Quality gates**: `just keep-going verify-static`; per-adapter tests for success detection, an early exit and stale-entry cleanup; the persona walk signs in through the wizard and sees the rail's entry leave.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1553/manifest.md`.
+
+### AJ-E1554 The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | Status: DONE (0.5.1) | Priority P1 | Effort M | Depends: AJ-E1550, AJ-E2327
+**Found** by the maintainer on the 0.5.0 Nightly (2026-11-23): on hover a session row's actions (grip, pin, open) cover its title and a handle mark slides under the status dot, which looks broken; and the rail, calm with only open sessions, gave no sign of what else exists (a main session with 6 subagents running and 220 in all showed nothing of them).
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Everyone, all day: the rail is the map of what is open; they expect rows to stay put under the pointer and the map to hint at what lies beyond it.
+(2) Counts are small, muted and summarised, non-zero only, each with a tooltip saying what it counts ("3 sessions need you"); a "+12 more · 3 idle today" footer says what opening it shows.
+(3) The rail stays calm (open sessions only) while every group says what else exists; each count is a door to exactly those items, so nothing needs a second list.
+(4) Zero values are hidden; a group with nothing more has no footer; inactive Apps collapse to one summary line.
+(5) None.
+(6) Actions covering the title; a dot that moves; a bare "2" with no meaning; 220 subagents invisible.
+**Requirements**:
+1. Every rail row type (session, App header, sign-in, not-added) has fixed slots: a leading gutter (the status dot, or the grip on hover in the same slot), the title (truncating), and a trailing slot (the state label, which hover and keyboard focus swap for the action icons). Actions never overlap the title or move the dot. A visual test per row type for rest, hover and focus.
+2. An App header shows a compact status cluster on its right, non-zero values only, tabular numbers and tooltips: working (n), needs you (n, amber), done to review (n), subagents running (branch icon + n), replacing the bare count.
+3. A session row shows a small branch icon + n when it has running subagents, opening its Subagents tab.
+4. An App group with more sessions than shown has a quiet footer row ("+12 more · 3 idle today") opening that App's page filtered.
+5. The collapsed inactive Apps header carries a summary ("10 apps · 48 sessions"); expanded, the list as today. A collapsed Needs you keeps its count chip.
+6. Every count opens exactly those items, by id; every count comes from the cached relation counts (instant, no new scan). AJ-E1550's tokens throughout (calm, no bright borders).
+**Quality gates**: `just keep-going verify-static`; tests for counts against fixtures, zero values hidden, a click target per count, the layout unchanged under hover; the persona walk asks "can a newcomer tell there is more, and get to it in one click?".
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1554/manifest.md`.

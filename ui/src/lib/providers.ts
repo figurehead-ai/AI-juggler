@@ -16,11 +16,6 @@ export function ownSignIn(id: string): string {
   return toolSpec(id).sign_in_own;
 }
 
-/** A tool's sign-in in a list of tools ("Codex's (OpenAI)"). */
-export function shortSignIn(id: string): string {
-  return toolSpec(id).sign_in_short;
-}
-
 /**
  * ADR-0018: which tools' setups AI Juggler can use where they are, as
  * the backend reports them (`providers_capabilities` — the adapter adopts
@@ -81,7 +76,7 @@ export function versionNotAsked(row: InstallRow): boolean {
 }
 
 /** The words for a tool whose version wasn't asked. */
-export const VERSION_NOT_KNOWN = "Installed; its version isn't known (this build doesn't start tools to ask)";
+const VERSION_NOT_KNOWN = "Installed; its version isn't known (this build doesn't start tools to ask)";
 
 /** Found, but its version couldn't be read. */
 export function versionUnchecked(row: InstallRow): boolean {

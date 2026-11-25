@@ -99,9 +99,9 @@ async function toInactive(page: Page) {
 }
 
 for (const theme of ["dark", "light"] as const) {
-  test(`the rail: an open App's +N recent on its header, then Inactive apps — ${theme}`, async ({ page }) => {
+  test(`the rail: an open App's +N recent in its footer, then Inactive apps — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    // D-102: an App with something open counts its past ones on its header (shown on hover and focus).
+    // D-102: an App with something open counts its past ones (AJ-E1554: in its footer).
     await expect(page.getByTestId("place-recent").first()).toBeAttached();
     const head = await toInactive(page);
     await expect(head).toContainText("Inactive apps");
@@ -117,10 +117,8 @@ for (const theme of ["dark", "light"] as const) {
     // Once the remembered apps are in (their groups keyed as Apps), so
     // the unfold isn't kept under a key that's about to change.
     await expect(page.getByTestId("rail-inactive-apps")).toBeVisible();
-    // "+N recent" shows on hover and focus; a click shows them in place.
-    const header = page.getByTestId("place-header").filter({ has: page.getByTestId("place-recent") }).first();
-    await header.hover();
-    const recent = header.getByTestId("place-recent");
+    // AJ-E1554 R4: "+N recent" is in its group's footer, always shown; a click shows them in place.
+    const recent = page.getByTestId("place-recent").first();
     await recent.click();
     await expect(recent).toHaveAttribute("aria-expanded", "true");
     await toInactive(page);

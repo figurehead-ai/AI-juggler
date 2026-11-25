@@ -339,9 +339,25 @@ export async function goTo(page: import("@playwright/test").Page, name: string):
   // absent and fell to your menu (the 0.4.1 gate's timeouts).
   await main.getByRole("button", { name: "Home", exact: true }).waitFor();
   const direct = main.getByRole("button", { name, exact: true });
-  if ((await direct.count()) > 0) {
-    await direct.first().click();
-    return;
+  // 0.5.1 F57: in a narrow bar the last tabs are behind More (its menu
+  // says each by name), and the bar folds as its counts land: a tab seen
+  // a moment ago may have gone behind More, so each way is tried in turn.
+  const more = main.getByTestId("nav-more");
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if ((await direct.count()) > 0) {
+      const clicked = await direct.first().click({ timeout: 3000 }).then(() => true, () => false);
+      if (clicked) return;
+    }
+    if ((await more.count()) > 0) {
+      await more.click();
+      const line = page.getByTestId("nav-more-menu").getByRole("menuitem").filter({ has: page.locator("[data-label]", { hasText: new RegExp(`^${name}$`) }) });
+      if ((await line.count()) > 0) {
+        await line.first().click();
+        return;
+      }
+      await page.keyboard.press("Escape");
+    }
+    if ((await direct.count()) === 0 && (await more.count()) === 0) break;
   }
   // AJ-E2507: Settings and the old More (This Mac, Processes, Privacy)
   // are in your menu, behind the avatar. D-49: Fleet ("My Macs") is in it
@@ -405,6 +421,32 @@ export async function openRailGroup(page: import("@playwright/test").Page, name:
     await door.click({ timeout: 2_000 });
     await expect(opened).toBeVisible({ timeout: 2_000 });
   }).toPass({ timeout: 20_000 });
+}
+
+/** AJ-E2316: the rail at rest before a capture: no "N new above" pill, and
+ * every line's place unchanged across several checks (a late notice drawn,
+ * a reorder held while the pointer was in the list applied). The gallery
+ * waits on `data-loading-parts` the same way; a capture taken while lines
+ * still moved differed by thousands of pixels (CI, bde5fa4d8, 91-pools). */
+export async function railStill(page: import("@playwright/test").Page): Promise<void> {
+  const rail = page.getByTestId("rail");
+  let last = "";
+  await expect
+    .poll(
+      async () => {
+        const now = await rail.evaluate((el) =>
+          Array.from(el.querySelectorAll<HTMLElement>("[data-line-key]"))
+            .map((line) => `${line.dataset.lineKey}:${Math.round(line.getBoundingClientRect().top)}`)
+            .join("|"),
+        );
+        const same = now === last;
+        last = now;
+        return same;
+      },
+      { intervals: [200, 250, 250, 300, 400, 500], timeout: 10_000 },
+    )
+    .toBe(true);
+  await expect(page.getByTestId("rail-new-above")).toHaveCount(0);
 }
 
 /** A rail group's Open door, shown by hovering it (for a capture of it). */

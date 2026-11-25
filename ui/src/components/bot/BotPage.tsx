@@ -13,7 +13,7 @@ import { IconMore } from "../icons-canvas";
 import { Segmented } from "../controls";
 import { BotConversation } from "./BotConversation";
 import { BotComposer } from "./BotComposer";
-import { BotEmpty, BotNoModel } from "./BotEmpty";
+import { BotEmpty, BotSetup } from "./BotEmpty";
 import { BotFindBar, BotMenu } from "./BotHead";
 import { BotMemories } from "./BotMemories";
 import { BotClearSheet, BotForgetHost } from "./BotSheets";
@@ -21,7 +21,7 @@ import { IconBookmark, IconBot, IconCollapse, IconEye, IconFolder, IconSearch } 
 import { WORDS } from "../../lib/bot-words";
 import { backToPanel, leftPage, openFind, pageOpened, useBot } from "../../lib/bot-store";
 import { useMemories } from "../../lib/bot-memory";
-import { useAiJob } from "../../lib/ai-availability";
+import { isShown, useAiJob } from "../../lib/ai-availability";
 import { watchesNewest, type WatchLine } from "../../lib/ipc/watches";
 
 type Tab = "conversation" | "memory";
@@ -96,7 +96,7 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
   const [menu, setMenu] = useState(false);
   const [clearing, setClearing] = useState(false);
   const { info } = useMemories();
-  const noModel = job?.state === "no_engine";
+  const ready = isShown(job);
   useEffect(() => {
     pageOpened();
     const toMemory = () => setTab("memory");
@@ -132,7 +132,7 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
           testId="bot-tabs"
         />
         <span className="grow" />
-        {tab === "conversation" && (
+        {tab === "conversation" && ready && (
           <button type="button" className="flex h-8 w-[190px] items-center gap-2 rounded-[10px] max-[1100px]:hidden bg-fill px-2.5 text-meta text-faint inset-ring-1 inset-ring-hairline/75 outline-none focus-visible:ring-2 focus-visible:ring-accent/60" onClick={openFind} data-testid="bot-page-search">
             <IconSearch width={14} height={14} aria-hidden="true" />
             Search
@@ -145,18 +145,24 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
         <button type="button" className="grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60" aria-label={WORDS.moreLabel} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
           <IconMore width={16} height={16} aria-hidden="true" />
         </button>
-        {menu && <BotMenu job={job} at="right-0 top-12" onClose={() => setMenu(false)} onClear={() => setClearing(true)} onMemories={() => setTab("memory")} />}
+        {menu && <BotMenu job={job} at="right-0 top-12" onClose={() => setMenu(false)} onClear={() => setClearing(true)} onMemories={() => setTab("memory")} setup={!ready} />}
       </div>
       {tab === "memory" ? (
         <BotMemories />
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_308px] gap-x-7 max-[1180px]:grid-cols-1">
           <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl bg-surface inset-ring-1 inset-ring-hairline/75" aria-label={WORDS.tabConversation}>
-            {bot.find && <BotFindBar />}
-            <BotConversation now={now} wide empty={noModel ? <BotNoModel /> : <BotEmpty job={job} />} />
-            <div className="px-3 pb-1">
-              <BotComposer />
-            </div>
+            {ready && bot.find && <BotFindBar />}
+            {ready ? (
+              <>
+                <BotConversation now={now} wide empty={<BotEmpty />} />
+                <div className="px-3 pb-1">
+                  <BotComposer />
+                </div>
+              </>
+            ) : (
+              <BotSetup />
+            )}
           </section>
           <div className="max-[1180px]:hidden">
             <Side onMemories={() => setTab("memory")} />

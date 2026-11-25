@@ -1,4 +1,4 @@
-<!-- captures: e693d2c5e20e -->
+<!-- captures: 73944533b23e -->
 # 22-recovery: after AI Juggler restarts: the summary of what kept running, a session picked up again, and the Processes list with the picked-up processes
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,11 @@ summary-dialog-* say what happened in one bold line ("2 sessions picked up again
 - adopted-panel-1440x900-*: header "172 MB · 2 more processes" vs the table's "6 processes · 1.4 GB"; the node (vite) owner line still cuts the subagent's name ("subagent 'Run the f…").
 - cleanup-readopted-1440x900-*: the row actions don't line up: Clean up (4)… and Go to session end further right than the Stop… buttons.
 - summary-dialog-*: a long small grey paragraph in the first dialog after a restart.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Processes page and the restart dialog read the same; the session header behind gained Watch…
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

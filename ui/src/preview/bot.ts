@@ -8,6 +8,7 @@
  * vendor's mark. Used by the component tests and the gallery.
  */
 import type { AiJobInfo } from "../lib/ipc/ai";
+import type { ModelsCatalog } from "../lib/ipc/models";
 import type { BotSeam } from "../lib/ipc/bot";
 import type { WatchesSeam } from "../lib/ipc/watches";
 import { made } from "./watches";
@@ -70,7 +71,8 @@ const MEMORIES: BotMemoryInfo[] = [
   { key: "note:a2", slot: "note", text: "Leave docs-site alone this week", about: null, about_kind: null, at_ms: BOT_NOW - 6 * DAY, used: 0, versions: 0 },
 ];
 
-/** Bot's answer: Beta off where Apple's model passes (the default). */
+/** Bot's answer: Beta off where Apple's model passes: "Set up Bot"
+ * offers it (D-144). */
 const BETA_OFF = modelJobs({ chat: { state: "beta_off", model_id: "apple-on-device", model_name: "Apple’s built-in AI" } });
 const BETA_ON = modelJobs({ chat: { state: "ready", beta: true, beta_on: true, model_id: "apple-on-device", model_name: "Apple’s built-in AI", why: "recommended" } });
 const NO_ENGINE = modelJobs({ chat: { state: "no_engine", why: "not_this_computer" } });
@@ -82,7 +84,7 @@ export interface BotPreviewState {
   jobs: AiJobInfo[];
   watches?: WatchesSeam;
   /** The models catalog (the no-model offer). */
-  catalog?: unknown;
+  catalog?: ModelsCatalog;
   /** Where Bot is: the panel, the page, or closed (the door's page). */
   open: "panel" | "page" | "closed";
   /** The window's width. */
@@ -105,10 +107,10 @@ const WATCHES: WatchesSeam = {
 const newest = (...turns: BotTurnInfo[]) => [...turns].reverse();
 
 export const STATES: Record<string, BotPreviewState> = {
-  icon: { name: "icon", bot: { turns: [] }, jobs: BETA_OFF, open: "closed", width: 1280 },
-  narrow: { name: "narrow", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1024 },
-  empty: { name: "empty", bot: { turns: [] }, jobs: BETA_OFF, open: "panel", width: 1280 },
-  lookup: { name: "lookup", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
+  icon: { name: "icon", bot: { turns: [] }, jobs: BETA_ON, open: "closed", width: 1280 },
+  narrow: { name: "narrow", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_ON, open: "panel", width: 1024 },
+  empty: { name: "empty", bot: { turns: [] }, jobs: BETA_ON, open: "panel", width: 1280 },
+  lookup: { name: "lookup", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_ON, open: "panel", width: 1280 },
   scope: {
     name: "scope",
     bot: {
@@ -116,11 +118,11 @@ export const STATES: Record<string, BotPreviewState> = {
       turns: newest(turn("t3", "What did it change today?", at(11, 22), { scope: { kind: "session", id: "s-api", name: "api", sessions: [] }, rows: [R.apiRun], looked: { reach: "scope", scope: { kind: "session", id: "s-api", name: "api", sessions: [] }, memories: 0 } })),
       count: COUNT,
     },
-    jobs: BETA_OFF,
+    jobs: BETA_ON,
     open: "panel",
     width: 1280,
   },
-  doors: { name: "doors", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "closed", width: 1280 },
+  doors: { name: "doors", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_ON, open: "closed", width: 1280 },
   dontknow: {
     name: "dontknow",
     bot: {
@@ -130,7 +132,7 @@ export const STATES: Record<string, BotPreviewState> = {
       ),
       count: COUNT,
     },
-    jobs: BETA_OFF,
+    jobs: BETA_ON,
     open: "panel",
     width: 1280,
   },
@@ -151,7 +153,12 @@ export const STATES: Record<string, BotPreviewState> = {
     open: "panel",
     width: 1280,
   },
+  // D-144: with no AI ready, only "Set up Bot" (AJ-E3823's guide).
   nomodel: { name: "nomodel", bot: { turns: [] }, jobs: NO_ENGINE, catalog: MODEL_STATES.noapple?.catalog, open: "panel", width: 1280 },
+  setupready: { name: "setupready", bot: { turns: [] }, jobs: BETA_OFF, catalog: MODEL_STATES.models?.catalog, open: "panel", width: 1280 },
+  setupoff: { name: "setupoff", bot: { turns: [] }, jobs: NO_ENGINE, catalog: MODEL_STATES.appleoff?.catalog, open: "panel", width: 1280 },
+  setupblocked: { name: "setupblocked", bot: { turns: [] }, jobs: NO_ENGINE, catalog: MODEL_STATES.blocked?.catalog, open: "panel", width: 1280 },
+  setuppage: { name: "setuppage", bot: { turns: [] }, jobs: NO_ENGINE, catalog: MODEL_STATES.noanswer?.catalog, open: "page", width: 1280 },
   remember: {
     name: "remember",
     bot: {
@@ -162,15 +169,15 @@ export const STATES: Record<string, BotPreviewState> = {
       count: COUNT,
       memories,
     },
-    jobs: BETA_OFF,
+    jobs: BETA_ON,
     open: "panel",
     width: 1280,
   },
-  watch: { name: "watch", bot: { turns: newest(turn("t9", "What’s running in shop?", at(11, 10), { rows: [R.apiRun, R.webRun], looked: { reach: "subject", scope: { kind: "project", id: "p-shop", name: "shop", sessions: [] }, memories: 0 } })), count: COUNT }, jobs: BETA_OFF, watches: WATCHES, open: "panel", width: 1280 },
+  watch: { name: "watch", bot: { turns: newest(turn("t9", "What’s running in shop?", at(11, 10), { rows: [R.apiRun, R.webRun], looked: { reach: "subject", scope: { kind: "project", id: "p-shop", name: "shop", sessions: [] }, memories: 0 } })), count: COUNT }, jobs: BETA_ON, watches: WATCHES, open: "panel", width: 1280 },
   newtopic: {
     name: "newtopic",
     bot: { turns: newest(BLOCKED, turn("t10", "How much of Work did I use this week?", at(11, 21), { rows: [R.work], looked: { reach: "accounts", scope: null, memories: 0 } })), topics: [{ id: "topic-2", started_ms: at(11, 20), first: false }], count: COUNT },
-    jobs: BETA_OFF,
+    jobs: BETA_ON,
     open: "panel",
     width: 1280,
   },
@@ -184,7 +191,7 @@ export const STATES: Record<string, BotPreviewState> = {
       ),
       count: COUNT,
     },
-    jobs: BETA_OFF,
+    jobs: BETA_ON,
     open: "panel",
     width: 1280,
   },
@@ -201,14 +208,14 @@ export const STATES: Record<string, BotPreviewState> = {
       topics: [{ id: "topic-3", started_ms: at(11, 12), first: false }],
       count: COUNT,
     },
-    jobs: BETA_OFF,
+    jobs: BETA_ON,
     open: "panel",
     width: 1280,
   },
-  settings: { name: "settings", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
-  clear: { name: "clear", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
-  menu: { name: "menu", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_OFF, open: "panel", width: 1280 },
-  full: { name: "full", bot: { turns: newest(BLOCKED, SHOP_YESTERDAY), count: COUNT, memories }, jobs: BETA_OFF, watches: WATCHES, open: "page", width: 1280 },
-  memories: { name: "memories", bot: { turns: newest(BLOCKED), count: COUNT, memories }, jobs: BETA_OFF, open: "page", tab: "memory", width: 1280 },
-  forget: { name: "forget", bot: { turns: newest(BLOCKED), count: COUNT, memories }, jobs: BETA_OFF, open: "page", tab: "memory", width: 1280 },
+  settings: { name: "settings", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_ON, open: "panel", width: 1280 },
+  clear: { name: "clear", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_ON, open: "panel", width: 1280 },
+  menu: { name: "menu", bot: { turns: newest(BLOCKED_NOW), count: COUNT }, jobs: BETA_ON, open: "panel", width: 1280 },
+  full: { name: "full", bot: { turns: newest(BLOCKED, SHOP_YESTERDAY), count: COUNT, memories }, jobs: BETA_ON, watches: WATCHES, open: "page", width: 1280 },
+  memories: { name: "memories", bot: { turns: newest(BLOCKED), count: COUNT, memories }, jobs: BETA_ON, open: "page", tab: "memory", width: 1280 },
+  forget: { name: "forget", bot: { turns: newest(BLOCKED), count: COUNT, memories }, jobs: BETA_ON, open: "page", tab: "memory", width: 1280 },
 };

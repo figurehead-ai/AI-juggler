@@ -43,6 +43,8 @@ verify-static:
     python3 scripts/spawn_lint.py
     python3 scripts/cleartext_lint.py --selftest
     python3 scripts/cleartext_lint.py
+    python3 scripts/helper_identity_lint.py --selftest
+    python3 scripts/helper_identity_lint.py
     python3 scripts/migration_clash.py --selftest
     python3 scripts/migration_clash.py
     python3 scripts/js_number_lint.py --selftest
@@ -58,6 +60,7 @@ verify-static:
     just release-selftest
     python3 scripts/capabilities.py check
     python3 scripts/tool_versions.py --selftest
+    python3 scripts/claude_compat_check.py --selftest
     LC_ALL=en_US.UTF-8 ./scripts/qa/runtime_lab_snapshot.sh selftest
     just qa-kit
     python3 scripts/ci_parity.py --selftest
@@ -130,6 +133,12 @@ hooks:
 # D-20 / D-24: the release scripts' self-tests (versions, what ships,
 # nightly notes, channel requirements, usage stats collected). A release
 # only runs them for real once a night.
+# AJ-E2323 R2: the move's full-disk faults on a real (temporary) 400 MB disk
+# image; opt-in, so routine test runs on a shared Mac stay light. Run once
+# per release candidate.
+move-faults:
+    cargo test --offline -p juggler-handover --test move_faults -- --ignored --test-threads=1
+
 release-selftest:
     python3 scripts/gate_passed.py --selftest
     python3 scripts/keep_going.py --selftest
@@ -216,13 +225,16 @@ evidence:
 
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
 # AJ-E1535: nor can developer words on screen (its allowlist only shrinks);
-# AJ-E2801: nor a system select, checkbox or radio outside the shared controls.
+# AJ-E2801: nor a system select, checkbox or radio outside the shared controls;
+# AJ-E1550: nor a bright line outside focus, hover or attention (PAT-SURF).
 terminology:
     ./scripts/terminology_lint.sh
     python3 scripts/plain_words_lint.py --selftest
     python3 scripts/plain_words_lint.py
     python3 scripts/native_controls_lint.py --selftest
     python3 scripts/native_controls_lint.py
+    python3 scripts/design_tokens_lint.py --selftest
+    python3 scripts/design_tokens_lint.py
     python3 scripts/text_input_lint.py --selftest
     python3 scripts/text_input_lint.py
     python3 scripts/private_data_lint.py --selftest
@@ -230,6 +242,7 @@ terminology:
     python3 scripts/hooks/private_terms.py --selftest
     python3 scripts/qa/anonymize.py --selftest
     python3 scripts/qa/presence_check.py --selftest
+    python3 -I scripts/qa/lab_seed_worktrees.py --selftest
     python3 scripts/png_metadata_lint.py --selftest
     python3 scripts/png_metadata_lint.py
     python3 scripts/docs_links_check.py
@@ -254,6 +267,8 @@ platform:
     python3 scripts/platform_lint.py
     python3 scripts/keychain_lint.py --selftest
     python3 scripts/keychain_lint.py
+    python3 scripts/os_prompt_lint.py --selftest
+    python3 scripts/os_prompt_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget; and no new direct read of the

@@ -19,11 +19,19 @@
 #       re-signed it without its hardened runtime: `codesign --deep`).
 #   scripts/build_local_ai_helper.sh check <helper> [<app>]
 #       checks a built or bundled helper; with <app>, that it is signed by
-#       the app's own team (the same TeamIdentifier, or none for both).
+#       the app's own team (the same TeamIdentifier, or none for both) and
+#       as the identifier the app's edition requires.
+#
+# AJ-E3822: its identifier is the build's identity's
+# (scripts/helper_identity.sh), passed to its build.rs as
+# AIJ_HELPER_IDENTIFIER: AIJ_EDITION=main or nightly (the release
+# workflow) builds it as ai.figurehead.juggler.local-ai; dev, or nothing
+# set (Dev and lab builds), as ai.figurehead.juggler.dev.local-ai, so an
+# ad-hoc build never shares an identifier with the team-signed one.
 #
 # What a helper must be (the app refuses anything else at run time,
 # juggler_platform::code_trust): arm64 only (Apple silicon, ADR-0033 §4.2);
-# signed as ai.figurehead.juggler.local-ai (its embedded Info.plist);
+# signed as its identity's identifier (its embedded Info.plist);
 # hardened runtime; NO entitlements (its sandbox isn't the App Sandbox but
 # its own deny-by-default profile, juggler_local_ai_protocol::SANDBOX_PROFILE,
 # which the app applies with /usr/bin/sandbox-exec at every start: the
@@ -43,8 +51,10 @@ cd "$(dirname "$0")/.."
 
 [ "$(uname)" = Darwin ] || { echo "build_local_ai_helper: macOS only; skipped"; exit 0; }
 
+# shellcheck source=scripts/helper_identity.sh
+. scripts/helper_identity.sh
 crate=crates/juggler-local-ai
-identifier=ai.figurehead.juggler.local-ai
+identifier="$(helper_identifier local-ai)"
 
 fail() { echo "build_local_ai_helper: $*" >&2; exit 1; }
 
@@ -55,10 +65,13 @@ team_of() {
 check() {
   local bin="$1" app="${2:-}"
   [ -f "$bin" ] && [ -x "$bin" ] || fail "no helper at $bin"
+  # Bundled: the identifier the app's own edition requires.
+  if [ -n "$app" ]; then identifier="$(helper_identifier_for_app "$app" local-ai)"; fi
   [ "$(lipo -archs "$bin")" = arm64 ] || fail "$bin isn't arm64 only: $(lipo -archs "$bin")"
   codesign --verify --strict "$bin" || fail "$bin: invalid signature"
   codesign --verify --strict -R="identifier \"$identifier\"" "$bin" \
     || fail "$bin isn't signed as $identifier"
+  helper_plist_check "$bin" "$identifier" || fail "$bin doesn't name itself as $identifier"
   # Each tool's whole output first: `grep -q` stops reading early, and
   # under pipefail the writer's SIGPIPE would turn a match into a miss.
   local info imports got
@@ -83,7 +96,7 @@ check() {
     [ "$(team_of "$bin")" = "$(team_of "$app")" ] \
       || fail "$bin's team ($(team_of "$bin")) isn't the app's ($(team_of "$app"))"
   fi
-  echo "build_local_ai_helper: $bin checked (arm64, $identifier, runtime, no entitlements, no network imports, team $(team_of "$bin"))"
+  echo "build_local_ai_helper: $bin checked (arm64, $identifier, named, runtime, no entitlements, no network imports, team $(team_of "$bin"))"
 }
 
 # Ad hoc; the release signs it again with the Developer ID.
@@ -110,7 +123,7 @@ build=(cargo build)
 if cargo auditable --version > /dev/null 2>&1; then build=(cargo auditable build); fi
 (
   cd "$crate"
-  CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE CARGO_TARGET_DIR="$target" \
+  CMAKE_DISABLE_FIND_PACKAGE_OpenSSL=TRUE CARGO_TARGET_DIR="$target" AIJ_HELPER_IDENTIFIER="$identifier" \
     "${build[@]}" --offline --locked --release --target aarch64-apple-darwin
 )
 built="$target/aarch64-apple-darwin/release/juggler-local-ai"

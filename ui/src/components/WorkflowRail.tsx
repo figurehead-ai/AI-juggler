@@ -2,21 +2,16 @@ import { ListBuilding } from "./ListBuilding";
 import { RailSplitter, readWidth } from "./RailSplitter";
 import { useRailAccountOf } from "../lib/rail-accounts";
 import { ProjectMark } from "./ProjectMark";
-import { AppIcon } from "./AppIcon";
-import { appOfSession } from "../lib/app-of";
 import { markOf, swatchColor } from "../lib/palette";
-import { RailQuietNotes } from "./RailNotes";
-import { parkedWords } from "../lib/parked";
-import { providerDisplayName } from "../lib/providers";
 import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { IconProjects, IconTerminal } from "./icons";
 import { IconHistory } from "./icons-places";
-import { PinMark, ProjectRow, RailProjectHeader } from "./RailProjectRows";
+import { ProjectRow, RailProjectHeader } from "./RailProjectRows";
 import { FoldedRail } from "./RailFolded";
 import { useRoving } from "../lib/roving";
+import { RailLoading } from "./RailLoading";
 import { useRailListScroll } from "./rail-list-scroll";
 import { FoldButton, FoldedNeeds, HISTORY_GROUP, HISTORY_SHOWN, readFolded, repoGroups, safeId, writeFolded } from "./rail-groups";
-import { RowPlaceholders } from "./Placeholder";
 import { showToast } from "./Toast";
 import { sessionLabel } from "../lib/stop";
 
@@ -31,8 +26,7 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
-import { shortHeavy, useHeavyNote } from "../lib/machine";
-import { REFRESH_INTERVALS, staleCaption, type Density } from "../lib/density";
+import type { Density } from "../lib/density";
 import {
   NO_CHIP_FILTERS,
   isSnoozed,
@@ -46,7 +40,6 @@ import {
 } from "../lib/railview";
 import { Button } from "./primitives";
 import { sessionTitle, useSessionManage } from "./ManageWork";
-import { shortName } from "../lib/session-titles";
 import { ActionHostProvider, useItemMenu } from "./ItemMenu";
 import { narrowOutside, OutsideRows, outsideScope, railSlice, withOutsideGroups } from "./OutsideConversations";
 import { AlsoLine, NeedsYouSection, OPEN_NOW, OpenNowLabel, openGroups, railOrder } from "./RailSections";
@@ -56,25 +49,22 @@ import { PlaceBoard } from "./PlaceBoard";
 import { RailNoMatch } from "./PlaceBoardParts";
 import { useBackendNeeds, useRailSnoozes } from "../lib/needs-you";
 import { OtherMacs } from "./RemoteBoard";
-import { modelDrift } from "./SessionCards";
 import { FOCUS_SEARCH_EVENT, parseQuery, useRailView } from "../lib/rail-view";
-import { goToWhere, itemsOf, sessionAppKey, sessionItem, sessionState } from "../lib/rail-items";
+import { goToWhere, itemsOf, sessionItem } from "../lib/rail-items";
 import { groupNeeds } from "../lib/rail-lines";
 // AJ-E2104: the indicator row and card moved to their own files.
 export { SessionRow, modelDrift } from "./SessionCards";
 export { SessionCard } from "./SessionCard";
+export { RailRow } from "./RailRow";
+import { RailRow } from "./RailRow";
 import { useConversations } from "../lib/conversations";
-import { sessionWhen } from "../lib/time-words";
 import type { ActionHost } from "../lib/actions";
-import { StaleChip, attentionTooltip, isActiveStatus, lowLeftWords } from "./indicator";
-import { StateMark, rowState } from "./row/SessionRow";
-import { appTone } from "../lib/attention";
 
 /** Freshness timestamps per Instance id (epoch ms) driving the stale rule. */
 export type { Freshness } from "../lib/live-deltas";
 import type { Freshness } from "../lib/live-deltas";
-import { ProfileBadge } from "./ProfileBadge";
-import { SELECTED_FILL } from "./controls/selected";
+import { TipButton } from "./NameTip";
+import { driftOf, ModelDriftMark } from "./ModelDriftMark";
 
 /**
  * The workflow navigator (ADR-0007): one rail, three tabs, and the live
@@ -190,38 +180,36 @@ export function WorkflowRail({
           the foot has no rule, and its buttons are ghost buttons (the
           header's New session keeps the accent). */}
       <div className={"flex gap-1.5 p-2 " + (minimal ? "flex-col" : "")}>
-        <button
-          type="button"
+        {/* 0.5.1 F61: an icon's name drawn on hover and keyboard focus. */}
+        <TipButton
           onClick={onNewSession}
-          title={minimal ? "New session" : undefined}
+          tip={minimal ? "New session" : null}
           aria-label={minimal ? "New session" : undefined}
           data-testid="rail-new-session"
           className="btn-ghost flex min-w-0 flex-1 items-center justify-center gap-2 overflow-hidden rounded-lg px-3 py-[7px] text-meta font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconTerminal width={14} height={14} />
           {!minimal && <span className="truncate">New session</span>}
-        </button>
+        </TipButton>
         {/* AJ-E2104: History, one click from the list's foot. */}
-        <button
-          type="button"
+        <TipButton
           onClick={() => window.dispatchEvent(new CustomEvent("aij:open-screen", { detail: { id: "history" } }))}
           aria-label="History"
-          title="History"
+          tip="History"
           data-testid="rail-history"
           className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconHistory width={14} height={14} />
-        </button>
-        <button
-          type="button"
+        </TipButton>
+        <TipButton
           onClick={onNewProject}
           aria-label="New project"
-          title="New project"
+          tip="New project"
           data-testid="rail-new-project"
           className="btn-ghost flex shrink-0 items-center justify-center rounded-lg px-2.5 py-[7px] text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
         >
           <IconProjects width={14} height={14} />
-        </button>
+        </TipButton>
       </div>
 
       {footer(minimal)}
@@ -440,13 +428,13 @@ export function InstanceBoard({
             This Mac
           </p>
         )}
-        {showLocal && !byProject && (loading && sessions.length === 0 ? <RowPlaceholders shape="rail" rows={4} label="Loading sessions" /> :
+        {showLocal && !byProject && (loading && sessions.length === 0 ? <RailLoading /> :
           <PlaceBoard sessions={sessions} projects={projects} accounts={accounts} snooze={snooze} now={now} selectedId={selectedId} onSelect={onSelect} query={query} scroll={{ top: scrollTop, height: viewportH, box: scrollRef.current }} density={effectiveDensity} cueSlot={cueSlot} />
         )}
         {byProject && <>
         {showLocal && order && !holding && <NeedsYouSection rows={order.needs} sessions={sessions} projects={projects} onSelect={onSelect} selectedId={selectedId} density={effectiveDensity} now={now} />}
         {!showLocal ? null : (loading && sessions.length === 0) || holding ? (
-          <RowPlaceholders shape="rail" rows={4} label="Loading sessions" />
+          <RailLoading />
         ) : sorted.length === 0 && idleProjects.length === 0 && !groups.some((g) => railSlice(conversations, g.id, scope).shown.length > 0) ? (
           sessions.length === 0 ? (
             /* D-25: empty means "start here" — the legend lives behind
@@ -664,165 +652,22 @@ function BoardRow({
   const menu = useItemMenu("session", row, sessionTitle(row));
   // Its ↗ while it runs in another app's window (always shown when it needs you).
   const where = goToWhere(sessionItem(row, () => null, false)), needs = row.needs_attention !== null && !isSnoozed(row, snooze, now);
+  const drift = density === "comfortable" ? driftOf(row) : null;
   return (
     <div className="group relative" data-rail-row {...menu.triggerProps}>
-      {caption && (
-        <span className="absolute -top-0.5 right-2 z-10 rounded bg-surface-3 px-1 text-label font-medium text-muted" title={caption}>
-          {caption}
-        </span>
-      )}
-      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} />
-      {where !== null && menu.goTo({ where, shown: needs, className: "absolute right-1 top-1/2 -translate-y-1/2" })}
-      {/* I-03: a drifted model, a calm focusable note beside the row (level 1, never amber; AJ-E3603 R2); compact rows say it in the session view. */}
-      {density === "comfortable" && modelDrift(row) && (
-        <span
-          title={modelDrift(row)!}
-          aria-label={modelDrift(row)!}
-          tabIndex={0}
-          data-testid="model-drift"
-          className="absolute right-12 top-1.5 z-10 rounded-full border border-hairline px-1 text-label font-medium text-muted outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-        >
-          ⇄
-        </span>
-      )}
-      {/* The ⋯ button for pointer-free access: 24 px square, the WCAG
-          2.2 minimum target (AJ-E804). */}
-      {menu.button({ label: `Session actions for ${sessionTitle(row)}`, className: "absolute bottom-0 left-0" })}
+      {/* Its snooze is said in its own line, never over the row above
+          (0.5.1 critique: the badge sat on the row's title). */}
+      <RailRow session={row} showProject={showProject} selected={selected} onSelect={onSelect} density={density} now={now} freshness={freshness} trailing={where !== null && needs} note={caption} />
+      {/* AJ-E1554 R1: its tools at its end, over its App's marks (never the
+          title, never the dot); always up while it needs you. */}
+      <span className={"absolute right-1 top-1/2 z-10 flex -translate-y-1/2 items-center rounded-md bg-surface " + (where !== null && needs ? "" : "opacity-0 transition-opacity group-hover:opacity-100 group-has-[:focus-visible]:opacity-100 motion-reduce:transition-none")} data-testid="row-tools">
+        {menu.button({ label: `Session actions for ${sessionTitle(row)}`, shown: true })}
+        {where !== null && menu.goTo({ where, shown: true })}
+      </span>
+      {/* I-03: a drifted model, a calm focusable mark beside the row (level 1, never amber; AJ-E3603 R2), its own icon and the drawn tip (F77), its 24 px hit box centred where the 18 px chip was; compact rows say it in the session view. */}
+      {drift !== null && <ModelDriftMark drift={drift} onOpen={() => onSelect(row.id)} className="absolute right-[45px] top-px z-10" />}
       {menu.element}
     </div>
-  );
-}
-
-/**
- * D-25 — the rail row: a state shape, what it is (the branch, else the
- * folder), one line of state and time, and the Account's colour. Quota
- * shows only when it's low (25 % or less left). Everything else — model,
- * tokens, processes, resources — is one click away in the session view.
- * Comfortable is two lines; compact is one.
- */
-export function RailRow({
-  session,
-  showProject = false,
-  selected,
-  onSelect,
-  density,
-  now,
-  freshness = {},
-  trailing = false,
-}: {
-  /** Room for an always-shown ↗ at its end. */
-  trailing?: boolean;
-  session: InstanceInfo;
-  showProject?: boolean;
-  selected: boolean;
-  onSelect: (id: string) => void;
-  density: "comfortable" | "compact";
-  now: number;
-  freshness?: Freshness;
-}) {
-  // AJ-E1502: the user's name for it shows over its own title; untitled,
-  // its facts (D-96), by the rail's one rule.
-  const title = shortName(session, now);
-  const ended = ["finished", "stopped", "handed_over"].includes(session.status);
-  const parked = parkedWords(session, now);
-  // AJ-E2104 Req.3: the place rows' words (Asks you, Working, Idle,
-  // Ended; why it needs you when it does), the glyph a detail beside them.
-  const said = sessionState(session);
-  const state = parked ? parked.chip : said.word;
-  // D-117: the App lens's calm look, from its parts: its state's mark (a
-  // level's dot, a ring for a guess, a calm dot, a review's ✓), its word
-  // in ink-2 at L2/L3 and muted below (the loud copy is its Needs you
-  // row), and its App's icon muted unless it needs you or is current.
-  const item = sessionItem(session, () => null, false);
-  const look = rowState(item);
-  const lit = look.level >= 2 || selected;
-  // AJ-E3603: its state already says "Limit reached"; "0% left" beside it said it twice.
-  const low = item.need === "limit" ? null : lowLeftWords(session);
-  const when = sessionWhen(session, now);
-  // D-25: the row stays calm — these markers appear only when they are
-  // the exception worth a glance (a sign-in to check, uncommitted work,
-  // a value that stopped updating); the session view has the rest.
-  // E14 (AJ-E1405): resources show only when the session is heavy.
-  const heavyNote = useHeavyNote(session.id);
-  const heavy = heavyNote ? shortHeavy(heavyNote) : null;
-  const sampled = freshness[session.id];
-  const stale = sampled && isActiveStatus(session.status)
-    ? ((session.quota !== null ? staleCaption(sampled.quota, REFRESH_INTERVALS.quota, now) : null) ??
-      (session.cpu_pct !== null ? staleCaption(sampled.resources, REFRESH_INTERVALS.resources, now) : null))
-    : null;
-  return (
-    <button
-      type="button"
-      data-instance-id={session.id}
-      aria-current={selected ? "true" : undefined}
-      data-rail-selected={selected ? "true" : undefined}
-      onClick={() => onSelect(session.id)}
-      className={
-        "tone-host relative flex w-full min-w-0 items-center gap-2.5 rounded-lg pl-2.5 text-left outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " + (trailing ? "pr-9 " : "pr-2 ") +
-        (density === "compact" ? "py-1.5 " : "py-2 ") +
-        (selected ? SELECTED_FILL : "hover:bg-surface/60") +
-        // Ended rows are quieter by their title colour, never by opacity:
-        // faded small text would fall below 4.5:1 (WCAG 1.4.3).
-        ""
-      }
-    >
-      <span aria-hidden="true" className="flex w-4 shrink-0 justify-center">
-        <StateMark item={item} level={look.level} dot={look.dot} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          {showProject && session.project_id && <ProjectMark projectId={session.project_id} size={12} />}
-          <span className={"min-w-0 truncate text-meta " + (selected ? "font-semibold text-ink" : "font-medium " + (ended ? "text-muted" : "text-ink-2"))}>{title}</span>
-          {session.pinned && <PinMark />}
-          {session.kind === "desktop" && (
-            <span title="Runs in the Claude desktop app" data-testid="rail-app-chip" className="shrink-0 rounded border border-hairline px-1 text-label font-medium text-muted">
-              app
-            </span>
-          )}
-          {density === "compact" && <span className="ml-auto shrink-0 text-label tabular-nums text-muted">{when}</span>}
-        </span>
-        {density === "comfortable" && (
-          // One line: what doesn't fit wraps onto a second, hidden line,
-          // so the time shows whole or not at all (0.3.2: never "· 7 …").
-          <span className="flex h-[1.4em] min-w-0 flex-wrap items-center gap-x-1 overflow-hidden text-label text-muted">
-            <span
-              title={parked ? parked.long : attentionTooltip(session)}
-              data-testid={parked ? "rail-parked" : "rail-state-word"}
-              className={"shrink-0 whitespace-nowrap " + (parked ? "text-ink" : look.level >= 2 ? "font-medium text-ink-2" : "text-muted")}
-            >
-              {state}
-            </span>
-            {/* AJ-E3603: low room and a heavy load are facts here, muted
-                (their loud copy is the Needs you row, as in the App lens). */}
-            {low && <span className="shrink-0 whitespace-nowrap">· {low}</span>}
-            {heavy && (
-              <span title={`Working your Mac hard: ${heavyNote}`} data-testid="rail-heavy" className="shrink-0 whitespace-nowrap">
-                · {heavy}
-              </span>
-            )}
-            <RailQuietNotes session={session} />
-            <StaleChip caption={stale} />
-            {/* The time yields first: the notes above matter more. */}
-            <span className="whitespace-nowrap">· {when}</span>
-          </span>
-        )}
-        <span className="sr-only">
-          {session.pinned ? ", pinned" : ""}, {state}, {providerDisplayName(session.provider)} on {session.account_label}
-          {low ? `, ${low}` : ""}
-          {heavyNote ? `, working your Mac hard: ${heavyNote}` : ""}
-        </span>
-      </span>
-      {density === "compact" && low && <span className="shrink-0 text-label tabular-nums text-muted">{low}</span>}
-      {density === "compact" && !low && heavy && (
-        <span data-testid="rail-heavy" className="shrink-0 font-mono text-label text-muted">
-          {heavy}
-        </span>
-      )}
-      {/* AJ-E1532 with D-38: the tool (its own app's icon), and the account serving it now (its avatar
-          follows the session when it switches accounts). */}
-      <AppIcon {...appOfSession(session)} size={16} className={appTone(lit)} />
-      <ProfileBadge app={sessionAppKey(session)} name={session.account_label} className={appTone(lit)} />
-    </button>
   );
 }
 
@@ -830,6 +675,3 @@ export function RailRow({
 function quietView(group: GroupBy, filters: ChipFilters, query: string): boolean {
   return group === "project" && filters.chips.length === 0 && filters.provider === null && filters.account === null && filters.project === null && query.trim() === "";
 }
-
-/** The rail's stored width (kept here for its callers). */
-export { readWidth } from "./RailSplitter";

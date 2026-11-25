@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
+use juggler_adapter::apps::{Opening, open};
 use juggler_core::model::SessionId;
-use tauri_plugin_opener::OpenerExt;
 
 use super::links::{self, LinkTarget};
 use crate::error::{AppError, AppResult};
@@ -46,15 +46,17 @@ pub async fn terminal_open_link(
             ))
         })
         .await?;
-    let opener = app.opener();
+    // F67: through the launcher, so the editor gets none of our
+    // environment.
     let result = match (&found, editor) {
         (LinkTarget::Web(url), _) => {
             return crate::webview_guard::open_web(&app, url, crate::webview_guard::Opened::ByUser);
         }
-        (LinkTarget::File(path), Some(editor)) => {
-            opener.open_path(path.to_string_lossy(), Some(editor))
-        }
-        (LinkTarget::File(path) | LinkTarget::Folder(path), _) => opener.reveal_item_in_dir(path),
+        (LinkTarget::File(path), Some(editor)) => open(Opening::Path {
+            path,
+            app: Some(&editor),
+        }),
+        (LinkTarget::File(path) | LinkTarget::Folder(path), _) => open(Opening::Reveal(path)),
     };
     result.map_err(|error| AppError::Io {
         context: "open the terminal's link",

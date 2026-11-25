@@ -110,8 +110,10 @@ export function SessionUsageTab({
               <IconUsage width={18} height={18} />
             </span>
             <div className="flex min-w-0 flex-col gap-0.5" data-testid="session-usage-none">
-              <p className="text-body font-semibold text-ink">No token counts for it yet</p>
-              <p className="text-meta leading-[1.5] text-ink-2">They show here once its app writes them on this computer: input, output and what came from the cache.</p>
+              {/* 0.5.1 B3: the totals its app writes, not "no token counts" above a
+                  live tokens-a-minute card (07-inspector-content, 09-quality). */}
+              <p className="text-body font-semibold text-ink">No token totals from its app yet</p>
+              <p className="text-meta leading-[1.5] text-ink-2">Input, output and what came from the cache show here once its app writes them on this computer. How it's going, below, is read from the session itself.</p>
             </div>
           </Card>
           <div className="grid grid-cols-1 items-start gap-4 @4xl:grid-cols-2">{side}</div>

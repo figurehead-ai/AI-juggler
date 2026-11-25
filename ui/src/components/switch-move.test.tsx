@@ -18,9 +18,9 @@ vi.mock("../lib/ipc/switch-move", async (original) => {
   const real = await original<typeof import("../lib/ipc/switch-move")>();
   return {
     ...real,
-    switchMoveExecute: (sessionId: string, targetProfileId: string, takeNotes: boolean) => {
-      executed.push([sessionId, targetProfileId, takeNotes]);
-      return real.switchMoveExecute(sessionId, targetProfileId, takeNotes);
+    switchMoveExecute: (sessionId: string, targetProfileId: string, takeNotes: boolean, targetPlaceId: string | null = null) => {
+      executed.push([sessionId, targetProfileId, takeNotes, targetPlaceId]);
+      return real.switchMoveExecute(sessionId, targetProfileId, takeNotes, targetPlaceId);
     },
     onMoveProgress: (handler: (progress: MoveProgressInfo) => void) => {
       listeners.push(handler);
@@ -35,7 +35,7 @@ vi.mock("../lib/ipc/switch-move", async (original) => {
 
 const OFFER: MoveOfferInfo = {
   applies: true,
-  blocks: [],
+  blocks: [], holders: [],
   members: [
     { title: "Refunds API", archived: false, side: "moves", folder_missing: false },
     { title: "Webhook tests", archived: false, side: "moves", folder_missing: false },
@@ -46,16 +46,19 @@ const OFFER: MoveOfferInfo = {
   notes_conflict: null,
   kept_outputs: 2,
   bytes: 1_200_000_000,
-  app: true,
+  app: true, prompts: [],
+  carried: [],
 };
 
 const DONE: MoveDoneInfo = {
   move_id: "1762600000000-0a1b2c3d",
   payload: { state: "verified", detail: "every byte of 2 conversation(s) is in Personal, checked before and after it opened" },
   catalog: { state: "verified", detail: "Claude app · Personal lists the conversation and its family as they were nested" },
-  opened: { state: "verified", detail: "opened in Claude app · Personal (process 4242), signed in as that account" },
+  opened: { state: "verified", detail: "opened in Claude app · Personal" },
   model: { state: "pending", detail: "send a message to check it answers on Personal; AI Juggler never sends one for you" },
   notes: [],
+  open_place_id: null,
+  conversation: "main",
 };
 
 afterEach(() => {
@@ -81,8 +84,8 @@ async function oneClick(): Promise<void> {
 
 beforeEach(oneClick);
 
-function mount(onClose: () => void = vi.fn()) {
-  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" onClose={onClose} onSwitched={vi.fn()} />);
+function mount(onClose: () => void = vi.fn(), targetPlaceId: string | null = null) {
+  return render(<SwitchFlow sessionId="sess-1" targetProfileId="p-1" targetLabel="Personal" targetPlaceId={targetPlaceId} onClose={onClose} onSwitched={vi.fn()} />);
 }
 
 /** 0.4.9: the maintainer's refusal, as the backend sends it now: plain
@@ -127,6 +130,27 @@ describe("Move to account", () => {
     expect(executed).toHaveLength(0);
   });
 
+  it("AJ-E2328: names the worktree and notes that go with it, in plain words, and nothing when there are none", async () => {
+    window.__AIJ_MOVE_OFFER__ = {
+      ...OFFER,
+      carried: [
+        "Its worktree fix-login (branch main): Claude app · Personal owns it after the move; its files stay where they are",
+        "The side-session notes of “Refunds API” (3 files)",
+      ],
+    };
+    const view = mount();
+    await waitFor(() => expect(view.getByTestId("switch-move-carried")).toBeTruthy());
+    const text = view.getByTestId("switch-move-carried").textContent ?? "";
+    expect(text).toContain("Its worktree fix-login (branch main): Claude app · Personal owns it after the move; its files stay where they are.");
+    expect(text).toContain("The side-session notes of “Refunds API” (3 files).");
+    expect(text).not.toMatch(/lease|sighting|untracked/i);
+    cleanup();
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    const plain = mount();
+    await waitFor(() => expect(plain.getByTestId("switch-move")).toBeTruthy());
+    expect(plain.queryByTestId("switch-move-carried")).toBeNull();
+  });
+
   it("keeps Copy one click away", async () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     const view = mount();
@@ -148,6 +172,16 @@ describe("Move to account", () => {
     expect(view.getByTestId("switch-original").textContent).toMatch(/^The original /);
   });
 
+  it("AJ-E2317: moves into the App picked in the switch list, by its id", async () => {
+    window.__AIJ_MOVE_OFFER__ = OFFER;
+    window.__AIJ_MOVE_DONE__ = DONE;
+    const view = mount(vi.fn(), "app:claude-app:/Users/you/Profiles/team-b");
+    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
+    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
+    await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
+    expect(executed).toEqual([["sess-1", "p-1", false, "app:claude-app:/Users/you/Profiles/team-b"]]);
+  });
+
   it("moves on the click and keeps the four outcomes apart, a reply the user's to check", async () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     window.__AIJ_MOVE_DONE__ = DONE;
@@ -155,7 +189,7 @@ describe("Move to account", () => {
     await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
     fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
     await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
-    expect(executed).toEqual([["sess-1", "p-1", false]]);
+    expect(executed).toEqual([["sess-1", "p-1", false, null]]);
     for (const key of ["payload", "catalog", "opened"]) expect(view.getByTestId(`switch-moved-${key}`).getAttribute("data-state")).toBe("verified");
     expect(view.getByTestId("switch-moved-model").getAttribute("data-state")).toBe("pending");
     fireEvent.click(view.getByTestId("switch-moved-undo"));
@@ -167,7 +201,7 @@ describe("Move to account", () => {
   it("Undo ends under its own heading, in words, the path only in Copy details", async () => {
     window.__AIJ_MOVE_OFFER__ = OFFER;
     window.__AIJ_MOVE_DONE__ = DONE;
-    window.__AIJ_MOVE_UNDONE__ = { words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.", kept: "/tmp/lab/moves/1-aa/preserved" };
+    window.__AIJ_MOVE_UNDONE__ = { words: "Undone: the conversation is back where it was. Anything done since the move is kept aside; Copy details says where.", kept: "/tmp/lab/moves/1-aa/preserved", notes: [] };
     const written: string[] = [];
     Object.defineProperty(navigator, "clipboard", { value: { writeText: (text: string) => (written.push(text), Promise.resolve()) }, configurable: true });
     const view = mount();
@@ -231,7 +265,7 @@ describe("Move to account", () => {
     fireEvent.click(view.getByTestId("switch-move-take-notes"));
     fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
     await waitFor(() => expect(view.getByTestId("switch-moved")).toBeTruthy());
-    expect(executed).toEqual([["sess-1", "p-1", true]]);
+    expect(executed).toEqual([["sess-1", "p-1", true, null]]);
   });
 
   it("says why when the move stops, nothing half moved", async () => {
@@ -243,18 +277,6 @@ describe("Move to account", () => {
     await waitFor(() => expect(view.getByTestId("switch-flow").textContent).toContain("didn't quit within 30 seconds"));
     expect(view.getByTestId("switch-cancel")).toBeTruthy();
     expect(view.queryByTestId("switch-moved-undo")).toBeNull();
-  });
-
-  it("offers Undo when a move stopped part way", async () => {
-    window.__AIJ_MOVE_OFFER__ = OFFER;
-    window.__AIJ_MOVE_ERROR__ = "a check before reopening failed. Undoing it didn't finish";
-    window.__AIJ_MOVES__ = [{ move_id: "1-aa", conversation: "c", state: "interrupted", at_ms: 1, detail: null, kept: [] }];
-    const view = mount();
-    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-move-confirm"), { detail: 1 });
-    await waitFor(() => expect(view.getByTestId("switch-moved-undo")).toBeTruthy());
-    fireEvent.click(view.getByTestId("switch-moved-undo"));
-    await waitFor(() => expect(view.getByTestId("switch-moved-undo-said").textContent).toContain("Undone"));
   });
 
   // D-142 (DESIGN-SYSTEM §8): the header names the App, from → to; the
@@ -332,12 +354,11 @@ describe("Move to account", () => {
     expect(view.queryByTestId("switch-moved-undo")).toBeNull();
   });
 
-  it("tries again from Move after a refusal, its offer read again", async () => {
+  it("Retry runs the move again after a refusal that can clear by itself", async () => {
     const view = await refused(vi.fn());
     expect(view.getByTestId("switch-move-again").textContent).toBe("Retry");
     fireEvent.click(view.getByTestId("switch-move-again"));
-    await waitFor(() => expect(view.getByTestId("switch-move-confirm")).toBeTruthy());
-    expect(view.queryByTestId("switch-failed")).toBeNull();
+    await waitFor(() => expect(executed).toHaveLength(2));
   });
 
   it("closes with Done after a move (the same busy mark held it)", async () => {

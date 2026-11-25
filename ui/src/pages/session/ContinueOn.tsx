@@ -2,13 +2,11 @@
  * AJ-E2108 — Continue in another app (D-62), on a session's page: the
  * accounts with their profiles beneath, of every tool, how much each has
  * left, the move's badge and a one-line check of what the profile lacks.
- * A profile on the session's own account gives no new room (one runway),
- * so it isn't offered. The click opens the switch screen and its checks
- * (AJ-E1542/1543), never a copy of them. The same for a session AI
- * Juggler runs and one another app runs: that one is read, never touched,
- * and continues on the other account, on Desktop or the CLI, while it
- * stays open in its app.
- * 0.3: Save handover… at its foot, ending with Reveal in Finder.
+ * A profile on the session's own account gives no new room (one runway);
+ * only another App on its own folder is offered (F94, by its App id). The click opens the switch screen (AJ-E1542/1543).
+ * Another app's session is read, never touched, and continues on the
+ * other account while it stays open in its app. 0.3: Save handover… at
+ * its foot. F40: the dialog's "Now in" is its App by id (ADR-0032).
  * D-103.3: reading an ended session stays quiet. The card is folded, as
  * a terminal session's is: its account's notice one quiet line under its
  * title, and the search for room starts only when the user opens it (or
@@ -24,13 +22,14 @@ import { Pill } from "../../components/Pill";
 import { WhyButton } from "../../components/WhyTip";
 import { RoomLine, StartThereLink } from "../../components/SwitchTargetRows";
 import { BadgeLine, RoomTag, SuggestedTag, TargetButton, TargetLogo } from "../../components/switch/TargetCard";
-import { switchTargets, type SwitchTargetData } from "../../lib/ipc/switch-targets";
+import { switchTargets, type PickTarget, type SwitchTargetData } from "../../lib/ipc/switch-targets";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
 import { switchSetupCheck, type SetupCheckInfo } from "../../lib/ipc/switchSetup";
 import { NOT_SIGNED_IN, rankTargets, roomless, signInWords, type RoomTarget, type TargetRoom } from "../../lib/room-targets";
 import { accountNamesApart, accountOfProfile, type SubscriptionInfo } from "../../lib/subscriptions";
 import { appWords, sessionAppName, type SessionModel } from "./model";
+import { useSessionApp } from "./AccountMenu";
 import { targetApp, useTargetApp, type FolderTarget, type TargetApp } from "../../lib/apps";
 import type { RailPlace } from "../../lib/rail-items";
 import { CardTitle } from "./CardTitle";
@@ -40,8 +39,7 @@ import { ContinueDialog } from "../../components/ContinueDialog";
 import { ContinueFold } from "../../components/ContinueSummary";
 import { FoldedLines, useFold } from "./ContinueFold";
 
-/** A target App (D-62: a tool on one of its folders), as the page shows
- * it. */
+/** A target App (D-62: a tool on one of its folders), as the page shows it; AJ-E2317: `placeId`, the desktop App it is. */
 export type Target = {
   profileId: string;
   label: string;
@@ -49,6 +47,7 @@ export type Target = {
    * label when its tool isn't known. */
   name?: string;
   recipeId: string;
+  placeId?: string | null;
   blocked: string | null;
   /** 0.3.4: held back because its tool's first-run setup isn't done there
    * ("Start a session on it" does it). */
@@ -104,7 +103,7 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   const groups = new Map<string, { account: SubscriptionInfo | undefined; targets: Target[] }>();
   for (const target of targets) {
     const account = accountOfProfile(accounts, target.profileId);
-    const key = account?.key ?? `profile:${target.profileId}`;
+    const key = target.profileId === sourceProfile ? `own:${sourceProfile}` : (account?.key ?? `profile:${target.profileId}`);
     const group = groups.get(key) ?? { account, targets: [] };
     group.targets.push(target);
     groups.set(key, group);
@@ -117,16 +116,15 @@ export function byAccount(targets: Target[], accounts: SubscriptionInfo[], sourc
   return { others, sameAccount: same };
 }
 
-/** The backend's rows as the page's targets: never its own profile, which
- * is where it is already. Ranked rows (`rankTargets`) keep their order,
+/** The backend's rows as the page's targets: never the App it is in (F94: `sourceApp`, by its id; its own folder in a terminal is
+ * Continue in AI Juggler), but its own folder's other desktop App is one. Ranked rows (`rankTargets`) keep their order,
  * room and suggestion. */
-export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string, appOf: (target: FolderTarget) => TargetApp = (target) => targetApp(target, { stored: [], places: [], listed: false })): Target[] {
+export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile: string, appOf: (target: FolderTarget) => TargetApp = (target) => targetApp(target, { stored: [], places: [], listed: false }), sourceApp: string | null = null): Target[] {
   return rows
-    .filter((row) => row.account_id !== ownProfile)
+    .filter((row) => (row.place_id ? row.place_id !== sourceApp : row.account_id !== ownProfile))
     .map((row) => {
-      // The App it's reached through (the 0.4.6 RC walk K3): a Claude app
-      // profile's folder is that profile's, its mark the app's own.
-      const app = appOf({ folder: row.account_id, tool: row.provider, label: row.account_label });
+      // The App it's reached through (K3: a profile's folder is that profile's; AJ-E2317: by its place id).
+      const app = appOf({ folder: row.account_id, tool: row.provider, label: row.account_label, placeId: row.place_id ?? null });
       return {
         room: "room" in row ? row.room : null,
         suggested: "room" in row ? row.suggested : false,
@@ -135,6 +133,7 @@ export function targetsOf(rows: Array<SwitchTargetData | RoomTarget>, ownProfile
         name: app.name,
         mark: app.mark,
         recipeId: row.recipe_id,
+        placeId: row.place_id ?? null,
         blocked: row.filtered_reason,
         setupNeeded: row.held_back === "set_up",
         firstRun: row.first_run === true,
@@ -162,7 +161,7 @@ export function ContinueOn({
   displays: QuotaDisplayData[];
   /** Opens the switch screen from `model.switchSource`: AI Juggler's
    * session, or the session another app runs, alike. */
-  onPick?: (recipeId: string, label: string) => void;
+  onPick?: PickTarget;
   /** Continues a session another app runs here, on its own profile. */
   onCarryIn?: () => void;
   /** rc21: why it can't continue here (its tool won't open it by its id). */
@@ -210,8 +209,8 @@ export function ContinueOn({
   // Each named by the App it's reached through (the 0.4.6 RC walk K3).
   const appOf = useTargetApp();
   const targets = useMemo(
-    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId, appOf),
-    [rows, accounts, displays, model.profileId, appOf],
+    () => targetsOf(rankTargets(rows ?? [], accounts, displays, model.profileId), model.profileId, appOf, model.owner ?? null),
+    [rows, accounts, displays, model.profileId, appOf, model.owner],
   );
   const { others, sameAccount } = byAccount(targets, accounts, model.profileId);
   const notYet = rows?.find((row) => row.not_yet)?.not_yet ?? null;
@@ -234,13 +233,14 @@ export function ContinueOn({
   }, [source, others.length]);
 
   useHandoverFocus(() => setDialog(true), source);
-  const pick = onPick && ((recipeId: string, label: string) => (setDialog(false), onPick(recipeId, label)));
+  const pick = onPick && ((recipeId: string, label: string, placeId: string | null) => (setDialog(false), onPick(recipeId, label, placeId)));
   // Where the original stays, for a session another app runs.
   const app = appWords(model.places[0], model.tool);
+  const nowIn = useSessionApp(model).name;
   const list = (
     <>
     {switchBack && onSwitchBack && (
-      <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-accent/40 bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60">
+      <button type="button" onClick={onSwitchBack} data-testid="continue-switch-back" className="rounded-lg border border-transparent bg-accent-soft px-3 py-2 text-left text-meta text-accent-hi outline-none hover:bg-accent/15 focus-visible:ring-1 focus-visible:ring-accent/60">
         <span className="block">{switchBack.copy}</span>
         <span className="text-muted">Go back to where it came from ▸</span>
       </button>
@@ -271,7 +271,7 @@ export function ContinueOn({
               </span>
               {room && room.kind !== "blocked" && <RoomLine name={name} room={room} testId="continue-room" chip={false} />}
               {group.targets.map((target) => (
-                <ContinueTarget key={target.profileId + target.recipeId} target={target} saidOnce={notYet} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
+                <ContinueTarget key={`${target.profileId}${target.recipeId}${target.placeId ?? ""}`} target={target} saidOnce={notYet} accountRoom={room} check={target.recipeId in checks ? checks[target.recipeId] : undefined} pick={pick} onStart={() => setDialog(false)} />
               ))}
             </li>
           );
@@ -310,7 +310,7 @@ export function ContinueOn({
           another app runs is only read for it). */}
       <SaveHandover sessionId={source} />
       {dialog && (
-        <ContinueDialog title="Switch account" detail={`Now in ${sessionAppName(model)}`} onClose={() => setDialog(false)}>
+        <ContinueDialog title="Switch account" detail={`Now in ${nowIn}`} onClose={() => setDialog(false)}>
           {list}
         </ContinueDialog>
       )}
@@ -353,7 +353,7 @@ function OutsideNote({ model, app, onCarryIn, carryInWhy }: { model: SessionMode
 /** One App to continue in, as a target card (D-142): its logo and badge,
  * its name, Suggested and how much carries as tags, and its one-line
  * check (its own sign-in, or what it lacks) under them. */
-function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string) => void) | undefined; onStart: () => void }): JSX.Element {
+function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onStart }: { target: Target; saidOnce?: string | null; accountRoom: TargetRoom | null; check: SetupCheckInfo | null | undefined; pick: ((recipeId: string, label: string, placeId: string | null) => void) | undefined; onStart: () => void }): JSX.Element {
   const words = targetWords(target, saidOnce, accountRoom, check);
   const badge = target.crossTool ? target.badge : null;
   return (
@@ -361,7 +361,7 @@ function ContinueTarget({ target, saidOnce = null, accountRoom, check, pick, onS
       <TargetButton
         disabled={!pick || target.blocked !== null}
         title={target.blocked ?? `Continue in ${target.name ?? target.label}`}
-        onClick={() => pick?.(target.recipeId, target.label)}
+        onClick={() => pick?.(target.recipeId, target.label, target.placeId ?? null)}
         data-testid="continue-target"
         data-cross-tool={target.crossTool ? "true" : undefined}
         data-suggested={target.suggested ? "true" : undefined}

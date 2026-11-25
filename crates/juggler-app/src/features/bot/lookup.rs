@@ -19,6 +19,23 @@ use super::dto::{
 use super::question::{Reading, When};
 use super::world::World;
 
+/// The records `text` asks about, looked up now and kept nowhere: the
+/// public entry for Search (⌘K, AJ-E3824, D-144), which shows the rows
+/// themselves, while Bot's AI uses the same look-up only to ground and
+/// cite its answers. Nothing is written: no turn, no memory, no log.
+///
+/// # Errors
+///
+/// The records can't be read.
+pub fn find_records(
+    state: &std::sync::Arc<crate::state::AppState>,
+    text: &str,
+    scope: Option<&BotScope>,
+) -> crate::error::AppResult<Found> {
+    let world = super::world::gather(state)?;
+    Ok(look_up(&super::question::read(text), &world, scope))
+}
+
 /// The most rows an answer shows (ADR-0034 §6.2).
 pub const SHOWN: usize = 8;
 

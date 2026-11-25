@@ -62,6 +62,16 @@ source_outside: boolean,
  */
 source_app: string | null, 
 /**
+ * F94 (the AJ-E2317 class): the App the conversation is in, by its
+ * App id (`app:<host>:<instance folder>` or `cli:<folder>`), as its
+ * row is: a desktop App's Code tab conversation is that desktop App's.
+ */
+source_app_id: string, 
+/**
+ * That App's name ("Claude app · Work"): the header's source side.
+ */
+source_app_name: string, 
+/**
  * The F1-experimental transplant copy (until E210 proves pairs).
  */
 experimental_copy: string, 

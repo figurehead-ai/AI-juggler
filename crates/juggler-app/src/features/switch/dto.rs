@@ -44,6 +44,12 @@ pub struct PreflightInfo {
     /// The app that source is open in now ("Claude", "Terminal"), when it
     /// is open and the app is known.
     pub source_app: Option<String>,
+    /// F94 (the AJ-E2317 class): the App the conversation is in, by its
+    /// App id (`app:<host>:<instance folder>` or `cli:<folder>`), as its
+    /// row is: a desktop App's Code tab conversation is that desktop App's.
+    pub source_app_id: String,
+    /// That App's name ("Claude app · Work"): the header's source side.
+    pub source_app_name: String,
     /// The F1-experimental transplant copy (until E210 proves pairs).
     pub experimental_copy: String,
     /// AJ-E206 §8 door verdict: `one-click` or `wizard`.
@@ -139,6 +145,14 @@ pub struct SwitchExecutedInfo {
     /// What stays with the original (the switch went to a terminal), in
     /// words.
     pub automation_kept: Vec<String>,
+    /// 0.5.1 F69: in Desktop, whether the app showed the conversation
+    /// open after the link, by Move's own check (AJ-E2322): a session of
+    /// it running there, or the app adding to its history. False: sent,
+    /// not seen open (the done step says so and offers Open).
+    pub opened_seen: bool,
+    /// 0.5.1 F69: the App to open it in when it wasn't seen open (its
+    /// place id); none otherwise.
+    pub open_place_id: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -323,6 +337,15 @@ pub struct SwitchTargetInfo {
     /// switch (Desktop), whatever the terminal's sign-in: its row shows
     /// the account's room, and "Terminal: not signed in" beside.
     pub desktop: bool,
+    /// AJ-E2317: the desktop App this row is (its place id), when it is
+    /// one: Move goes into that App, by this id, never one found again
+    /// from the account. An account with two such Apps lists one row each.
+    #[ts(optional = nullable)]
+    pub place_id: Option<String>,
+    /// F94: the App this row is, by its own App id (a desktop App's place
+    /// id, else its folder's CLI App, `cli:<folder>`): the source's own App
+    /// is never a row, another App on its folder can be.
+    pub app_id: String,
     /// Top-2 contributing factors in words.
     pub top_factors: Vec<String>,
     /// All inputs for the "Why this order?" expander.

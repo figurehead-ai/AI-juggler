@@ -36,6 +36,11 @@ export interface PreflightInfoData {
   source_outside?: boolean;
   /** The app it's open in now ("Claude", "Terminal"), when known. */
   source_app?: string | null;
+  /** F94 (the AJ-E2317 class): the App it is in, by its App id (`app:…` a
+   * desktop App, `cli:…` a folder's CLI App), as its row is, and that App's
+   * name: the header's source side. */
+  source_app_id?: string;
+  source_app_name?: string;
   experimental_copy: string;
   /** AJ-E206 §8 door verdict: "one-click" | "wizard". */
   door: "one-click" | "wizard";
@@ -100,6 +105,11 @@ export interface SwitchExecutedData {
   continued_in?: string;
   conversation_key?: string | null;
   /** ADR-0028: the sessions started from it that moved with it, and where they nest ("now" | "restart" | ""). */ family_moved?: number; family_nests?: string; family_place?: string | null; /** ADR-0028: the automation handed over, the copy's app to restart for it, whether the original's is off only once its app closes, and what stayed. */ automation_moved?: string[]; automation_copy_place?: string | null; automation_original_waits?: boolean; automation_kept?: string[];
+  /** 0.5.1 F69: in Desktop, whether the app showed it open after the
+   * link (Move's own check); false: sent, not seen open. */
+  opened_seen?: boolean;
+  /** 0.5.1 F69: the App to offer Open in when it wasn't seen open. */
+  open_place_id?: string | null;
 }
 
 /** AJ-E206 §5: the switch screen counts the door it shows (local
@@ -115,10 +125,13 @@ export async function switchDoorCount(door: string, steps: string[]): Promise<vo
 }
 
 /** AJ-E205: preflight — ordered checks stop BEFORE any byte moves;
- * warnings render in the freeze dialog. */
+ * warnings render in the freeze dialog. `targetPlaceId` (AJ-E2317): the
+ * desktop App picked in the switch list, by its place id; its Desktop is
+ * that App. */
 export async function switchPreflight(
   sessionId: string,
   targetProfileId: string,
+  targetPlaceId: string | null = null,
 ): Promise<PreflightInfoData> {
   if (!hasBackend) {
     const seam = (window as unknown as { __AIJ_SWITCH_PREFLIGHT__?: Partial<PreflightInfoData> })
@@ -138,7 +151,7 @@ export async function switchPreflight(
     }
     return base;
   }
-  return call("switch_preflight", { sessionId, targetProfileId });
+  return call("switch_preflight", { sessionId, targetProfileId, targetPlaceId });
 }
 
 /** AJ-E206 §8.2: undoes a completed switch — stops the continuation

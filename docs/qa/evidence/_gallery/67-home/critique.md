@@ -1,4 +1,4 @@
-<!-- captures: fc8fe3c4c974 -->
+<!-- captures: 5933d5d787a9 -->
 # 67-home: Home in its states (welcome, no sessions, all clear, sessions that need you) with the legend, the account menu and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -53,3 +53,44 @@ Accepted deviations from the mock, with reasons:
 - A session need whose app doesn't say what it asks reads "— open it to see what it asks" (E3703: no adapter reports the ask yet).
 
 Not re-baselined, left as they were: chrome-nav-button-* (the top bar's History button crop) and loading-accounts-*, which the re-render also changes; they belong to other screens and wait for their own review.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: welcome-1440x900 light, no-sessions-1280x800 dark, apps-out-1192x800 light and more-menu-1280x800 dark (52d7fa7b2's and d86510acc's renders), beside the calm references (`calm-ui/shots/67-home_*`, `home-feed/mock-home-feed-*`) and the 0.5 rounds above. The approved target is the home-feed design (2026-11-14): pinned needs over a narrated, chronological, paged feed on the left; Your apps then Runway by account on the right, each column scrolling on its own.
+
+- **Since 0.5:** the calm surfaces (cards by tone, no borders), F22's rail head, AJ-E1554's rows; Your apps lists running Apps then "Not running" with Start; Runway's out account has a red "Out" chip over a full red bar with its reset said once under it (F43: at 1192 the name shows whole, "w…@example.com"); the feed's Showing: picker under its chips.
+- **welcome:** "Let's get you set up" with what AI Juggler does, "We found Claude Code on this computer.", Get started (filled) and Add a fresh app, then the What it does for you cards (Bot first); the rail says "No apps open yet" and how to start one (F20, F49's re-render).
+- **more-menu:** the account menu with an icon on every line, Appearance as a segmented Light · Dark · Auto, the version and channel at its foot.
+- **Weak:** no-sessions shows the feed's chips, Showing: and ⋯ over "Quiet so far…" with nothing to filter: **F56** (logged in 55-triage). The feed's "Needs you" chip and "Everything ▾" stay the accepted deviations listed above.
+- These captures predate F53 (1432a68d9); the chosen lens and chip are a solid neutral fill since, re-rendered with F53's round.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | What needs you, what happened, what runs and how much room is left, in one place (the approved design). |
+| 2 | Prominence | 4 | Pinned needs first, the feed under them; apps and runway on the right. |
+| 3 | Default | 4 | The first need's primary is Enter; the feed's All chip by default. |
+| 4 | Mode | 4 | Calm dashboard (D-117): cards by tone, one accent. |
+| 5 | Mock-up | 4 | Matches the home-feed mock; deviations reasoned in the 0.5 section above. |
+| 6 | Areas | 4 | Two columns, each scrolling on its own; areas obvious when blurred. |
+| 7 | Colour | 4 | Status hues only on needs; runway bars by meaning (green, amber low, red out). |
+| 8 | Type | 4 | Heading 22 px, card titles 13 px semibold, facts 12 px muted; tabular percentages. |
+| 9 | Actions | 5 | One filled button per state (Open its page, Get started, New session when quiet). |
+| 10 | Serious | n/a | Nothing destructive on Home. |
+| 11 | Doors | 4 | Every card, App and account opens its page; How it's measured › explains. |
+| 12 | Words | 4 | F56 fixed: the empty feed's card stands alone, with Include my actions in it. |
+| 13 | States | 4 | Welcome, no sessions, all clear, needs: each said once; skeleton aside (F64, 75-feedback). |
+| 14 | Consistency | 4 | Home's cards are the kit's; the menus carry icons. |
+| 15 | Accessibility | 4 | Not re-walked by hand this round; keyboard names and focus as the a11y gate checks them. |
+| 16 | Hand walk | 4 | The PL1 walk (AJ-E2323) drove Home and the rail in Dev; not re-walked here. |
+| 17 | System prompts | 4 | The permission card primes Accessibility and Automation (PAT-OSP); Welcome asks nothing of the OS. |
+| 18 | Usability | 4 | A newcomer starts from Get started; a busy user sees the one thing to do first. |
+
+Lowest as first scored: 3 (line 12, F56 logged).
+
+**Re-captured after F56 (2026-11-24, Opus):** the family re-rendered; opened no-sessions (1280 and 390, both themes) and a populated one. The empty feed is its card alone: "Quiet so far…", New session and Open an app, then a muted line "Your own actions aren't shown. Include my actions" (the switch the hidden ⋯ held, the one thing that can change an empty feed). The chips, Showing: and ⋯ are gone above it; with anything in the feed, or a filter on, they are as before. The chosen segment is F53's solid fill.
+
+Lowest: 4 (line 12 was 3: F56 fixed).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); at 390 px the words wrap cleanly. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

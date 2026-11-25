@@ -65,7 +65,7 @@ export function othersFillIt(base: MachineHealthInfo): MachineHealthInfo {
       counts: COUNTS,
       measures: MEASURES,
       reasons: [
-        { kind: "swap", level: "pressure", words: "swap is growing — 3004 MB a minute" },
+        { kind: "swap", level: "pressure", words: "swap is growing — 2.9 GB a minute" },
         { kind: "pressure", level: "tight", words: "macOS reports memory pressure" },
       ],
     },
@@ -98,7 +98,7 @@ export function othersPreview(fixture: unknown): { apps: OtherAppInfo[]; alerts:
     apps: OTHERS_APPS,
     alerts: [
       alert("memory_pressure", "Your Mac is under memory pressure", "macOS reports memory pressure"),
-      alert("swap", "Your Mac is swapping hard", "swap is growing — 3004 MB a minute"),
+      alert("swap", "Your Mac is swapping hard", "swap is growing — 2.9 GB a minute"),
     ],
     observed: [4_100_000_000, 3_600_000_000, 2_900_000_000, 2_300_000_000, 1_800_000_000, 1_300_000_000].map((rss, at) => ({
       ...PREVIEW_OBSERVED[0]!,

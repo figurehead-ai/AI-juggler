@@ -5,14 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'" />
     <title>AI Juggler</title>
+    <!-- AJ-E1549: the page's base colour (--color-canvas) before any
+         script runs and under everything it draws: the stored theme once
+         theme-boot.js has set data-theme, macOS's until then. In a layer
+         of its own, the lowest: styles.css's body (its canvas gradient)
+         still wins once it loads. Kept in step with the tokens by
+         tests/bundle/theme-base.test.ts. -->
+    <style>
+      @layer aij-base {
+        html, body { background: #0b0e14; }
+        @media (prefers-color-scheme: light) { html:not([data-theme]), html:not([data-theme]) body { background: #eceef3; } }
+        @media (prefers-color-scheme: dark) { html:not([data-theme]), html:not([data-theme]) body { background: #0b0e14; } }
+        html[data-theme="dark"], html[data-theme="dark"] body { background: #0b0e14; }
+        html[data-theme="light"], html[data-theme="light"] body { background: #eceef3; }
+      }
+    </style>
     <script src="/theme-boot.js"></script>
     <script src="/boot-watch.js"></script>
     <style>
       /* While the app's code loads: its mark and one line, in the window's
          theme. It fades in only after a moment, so a fast Mac never sees
          it; the app replaces it as soon as it starts. */
-      html { background: #0b0e14; }
-      html[data-theme="light"] { background: #eceef3; }
       #boot {
         position: fixed; inset: 0; display: flex; flex-direction: column;
         align-items: center; justify-content: center; gap: 14px;

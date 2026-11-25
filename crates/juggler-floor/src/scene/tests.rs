@@ -18,7 +18,7 @@ use crate::state::FloorState;
 const NOW: i64 = 1_800_000_000_000;
 const DAY: i64 = 24 * 60 * 60 * 1000;
 
-fn session(key: &str, state: FloorState, subagents: u32) -> FloorSession {
+pub(super) fn session(key: &str, state: FloorState, subagents: u32) -> FloorSession {
     FloorSession {
         key: key.into(),
         title: format!("Task {key}"),
@@ -34,7 +34,7 @@ fn session(key: &str, state: FloorState, subagents: u32) -> FloorSession {
     }
 }
 
-fn app(id: &str, family: &str, sessions: Vec<FloorSession>) -> FloorApp {
+pub(super) fn app(id: &str, family: &str, sessions: Vec<FloorSession>) -> FloorApp {
     FloorApp {
         id: id.into(),
         name: format!("Tool {id} · Work"),
@@ -58,7 +58,7 @@ fn app(id: &str, family: &str, sessions: Vec<FloorSession>) -> FloorApp {
     }
 }
 
-fn snapshot(apps: Vec<FloorApp>) -> FloorSnapshot {
+pub(super) fn snapshot(apps: Vec<FloorApp>) -> FloorSnapshot {
     FloorSnapshot {
         at_ms: NOW,
         apps,
@@ -114,8 +114,43 @@ fn office_seeded(
     (office, seats)
 }
 
-fn build(snap: &FloorSnapshot) -> Scene {
+pub(super) fn build(snap: &FloorSnapshot) -> Scene {
     build_seeded(snap, 7)
+}
+
+/// One app ("cli:a", a workshop) with one session in `state`.
+pub(super) fn one_session(state: FloorState) -> FloorSnapshot {
+    snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", state, 0)],
+    )])
+}
+
+/// The overlay's inputs over `view` at `size`, calm: no alert, hover,
+/// card or first-open line, flags at middle distance.
+pub(super) fn calm_inputs<'a>(
+    view: &'a crate::camera::View,
+    vp: &'a crate::math::M4,
+    size: (u32, u32),
+    marks: &'a [super::Mark],
+) -> crate::overlay::Inputs<'a> {
+    crate::overlay::Inputs {
+        view,
+        vp,
+        size,
+        scale: 2.0,
+        marks,
+        hover: 0,
+        mouse: None,
+        alert: None,
+        hint: "Drag to pan",
+        band: crate::flags::Band::Middle,
+        labels: crate::flags::Labels::Smart,
+        card: None,
+        opened: None,
+        intro: false,
+    }
 }
 
 fn build_seeded(snap: &FloorSnapshot, seed: u32) -> Scene {
@@ -426,127 +461,11 @@ fn building_twenty_apps_and_a_hundred_and_fifty_sessions_is_quick() {
     );
 }
 
-/// 0.4.2 (the maintainer: "we shouldn't overtake the whole screen in red
-/// … why are all of the offices flashing red"): a Mac alert is one still
-/// chip under View, amber or red by level, that opens This Mac; the rooms
-/// draw exactly what they draw without it, and nothing ticks for it.
-#[test]
-fn a_mac_alert_is_one_calm_chip_never_a_change_in_the_rooms() {
-    use crate::camera::View;
-    use crate::flags::Need;
-    use crate::overlay::{Inputs as Over, MacAlert, build_placed, mac_chip_words};
-    let snap = snapshot(vec![app(
-        "cli:a",
-        "workshop",
-        vec![session("s:1", FloorState::Working, 0)],
-    )]);
-    let scene = build(&snap);
-    let frame = scene.frame_size();
-    let view = View {
-        focus: Some(0),
-        cam: frame.home(Some(0), 1.6),
-    };
-    let vp = view.cam.vp(1.6);
-    let mut out = Vec::new();
-    let drawn = scene.frame(&Live::default(), &view.floors(&frame), &mut out);
-    let calm = Over {
-        view: &view,
-        vp: &vp,
-        size: (1600, 1000),
-        scale: 2.0,
-        marks: &drawn.marks,
-        hover: 0,
-        mouse: None,
-        alert: None,
-        hint: "Drag to pan",
-        band: crate::flags::Band::Middle,
-        labels: crate::flags::Labels::Smart,
-        card: None,
-        opened: None,
-    };
-    let (without, _, placed) = build_placed(&scene, &calm);
-    assert!(placed.banner.is_none());
-    for critical in [false, true] {
-        let alert = MacAlert {
-            kind: "memory_pressure",
-            critical,
-        };
-        let (with, _, placed) = build_placed(
-            &scene,
-            &Over {
-                alert: Some(alert),
-                ..calm
-            },
-        );
-        let chip = placed.banner.expect("the Mac chip");
-        // small, in the controls' row under View, on screen
-        let view_r = placed.view.unwrap();
-        assert!(chip[2] < 1600.0 / 3.0 && chip[3] <= view_r[3], "{chip:?}");
-        assert!(
-            chip[1] > view_r[1] && chip[0] + chip[2] <= 1600.0,
-            "{chip:?}"
-        );
-        // it opens This Mac
-        let mac = scene.pick_of_mac().unwrap();
-        assert!(placed.doors.contains(&(chip, mac)));
-        assert!(matches!(
-            scene.pick_of(mac).map(|p| &p.target),
-            Some(Target::ThisMac)
-        ));
-        // amber at warning, red only when critical
-        let tone = if critical { Need::Crashed } else { Need::Low }.colour();
-        let same = |a: [f32; 4]| a.iter().zip(tone).all(|(x, y)| (x - y).abs() < 1e-6);
-        assert!(with.iter().any(|q| same(q.tint)));
-        let words = mac_chip_words(alert);
-        assert_eq!(words.0, "MAC MEMORY");
-        assert_eq!(words.1, if critical { "CRITICAL" } else { "HIGH" });
-        // nothing else in the overlay changed size or tint: only the
-        // chip's quads were added, all inside it
-        let extra: Vec<_> = with.iter().filter(|q| !without.contains(q)).collect();
-        assert_ne!(extra.len(), 0);
-        for q in extra {
-            let d = q.dst;
-            assert!(
-                d[0] >= chip[0] - 0.01
-                    && d[1] >= chip[1] - 0.01
-                    && d[0] + d[2] <= chip[0] + chip[2] + 0.01
-                    && d[1] + d[3] <= chip[1] + chip[3] + crate::overlay::unit(2.0) + 0.01, // its underline
-                "{d:?} outside the chip {chip:?}"
-            );
-        }
-    }
-    // every kind has short words, and only the levels that mean danger
-    // are red
-    for kind in [
-        "memory_pressure",
-        "swap",
-        "cpu",
-        "thermal",
-        "disk",
-        "heavy",
-        "new",
-    ] {
-        let (what, state, _) = mac_chip_words(MacAlert {
-            kind,
-            critical: false,
-        });
-        assert!(
-            what.starts_with("MAC") && what.len() + state.len() <= 22,
-            "{kind}"
-        );
-    }
-}
-
 #[test]
 fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
     use crate::camera::View;
     use crate::overlay::{Inputs as Over, build as overlay};
-    let snap = snapshot(vec![app(
-        "cli:a",
-        "workshop",
-        vec![session("s:1", FloorState::Asks, 0)],
-    )]);
-    let scene = build(&snap);
+    let scene = build(&one_session(FloorState::Asks));
     let frame = scene.frame_size();
     let building = View {
         focus: None,
@@ -556,22 +475,12 @@ fn the_overlay_has_a_chip_per_floor_and_area_chips_from_afar() {
     let mut out = Vec::new();
     let drawn = scene.frame(&Live::default(), &building.floors(&frame), &mut out);
     let inputs = Over {
-        view: &building,
-        vp: &vp,
-        size: (1600, 1000),
-        scale: 2.0,
-        marks: &drawn.marks,
-        hover: 0,
-        mouse: None,
         alert: Some(crate::overlay::MacAlert {
             kind: "cpu",
             critical: false,
         }),
-        hint: "Drag to pan",
         band: crate::flags::Band::Far,
-        labels: crate::flags::Labels::Smart,
-        card: None,
-        opened: None,
+        ..calm_inputs(&building, &vp, (1600, 1000), &drawn.marks)
     };
     let (quads, chips, _, view) = overlay(&scene, &inputs);
     assert!(view.is_some(), "the View button");
@@ -1493,4 +1402,29 @@ fn a_flag_opens_what_it_names() {
         "{:?}",
         frame.marks
     );
+}
+
+#[test]
+fn a_floor_is_named_by_the_apps_on_it() {
+    // AJ-E1548 #24: "FLOOR 2" read like a level or an account; a floor is
+    // a page of Apps, named by their places in the office's order.
+    let apps: Vec<FloorApp> = (0..12)
+        .map(|n| {
+            app(
+                &format!("cli:{n}"),
+                "workshop",
+                vec![session(&format!("s:{n}"), FloorState::Asks, 0)],
+            )
+        })
+        .collect();
+    let scene = build(&snapshot(apps));
+    assert_eq!(scene.floors, 2);
+    assert_eq!(scene.floor_label(0), "APPS 1–10");
+    assert_eq!(scene.floor_label(1), "APPS 11–12");
+    let one = build(&snapshot(vec![app(
+        "cli:a",
+        "workshop",
+        vec![session("s:1", FloorState::Asks, 0)],
+    )]));
+    assert_eq!(one.floor_label(0), "APP 1");
 }

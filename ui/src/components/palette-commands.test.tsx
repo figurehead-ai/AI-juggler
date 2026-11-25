@@ -122,3 +122,19 @@ describe("App's actions as data", () => {
     expect(commandsFor(appCommands(doings()), "", doings()).map((command) => command.id)).toEqual(["new-session"]);
   });
 });
+
+describe("F19 (0.5.1 PL1 D4): ⌘K's add", () => {
+  it("typing \"add\" finds Find my apps…, and Enter opens it", () => {
+    const findApps = vi.fn();
+    const { type, options, input, onClose } = open({ app: { ...doings(), findApps } });
+    type("add");
+    const labels = options().map((option) => option.textContent ?? "");
+    expect(labels.some((label) => label.includes("Find my apps…"))).toBe(true);
+    // Also by the words people use for it.
+    expect(commandMatches(appCommands({ ...doings(), findApps }).find((command) => command.id === "find-apps")!, "add app")).toBe(true);
+    type("find my apps");
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(findApps).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalled();
+  });
+});

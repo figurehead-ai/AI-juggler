@@ -63,13 +63,19 @@ for (const theme of ["dark", "light"] as const) {
     // The tools' terms, at the end.
     const terms = page.getByTestId("privacy-terms");
     await terms.scrollIntoViewIfNeeded();
+    // AJ-E1548 R11: closed until opened.
+    await expect(page.getByTestId("privacy-terms-disclosure-toggle")).toHaveAttribute("aria-expanded", "false");
+    await page.getByTestId("privacy-terms-disclosure-toggle").click();
     // One row per tool in the catalog that has terms (a new tool adds one).
     await expect(page.getByTestId("privacy-terms-row")).toHaveCount(PREVIEW_TOOLS.filter((tool) => tool.terms !== null).length);
     // The last row whole at the screen's foot (a new tool makes the list
     // longer; scrolled to the list's top, its last row was cut mid-line).
     await page.getByTestId("privacy-terms-row").last().evaluate((row) => row.scrollIntoView({ block: "end" }));
-    // Painted where it scrolled to, not mid-scroll.
-    await expect(page.getByTestId("privacy-terms-row").last()).toBeInViewport({ ratio: 1 });
+    // Painted where it scrolled to, not mid-scroll. Whole to the pixel: the
+    // scroller moves by whole pixels and the row's foot can sit at a
+    // fraction (0.5.1: 780.42 in a scroller ending at 780, 99.5 % shown),
+    // so 99 %; a row cut mid-line shows well under 80 %.
+    await expect(page.getByTestId("privacy-terms-row").last()).toBeInViewport({ ratio: 0.99 });
     await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
     await page.screenshot({ path: resolve(OUT, `terms-${theme}.png`) });
   });
@@ -81,6 +87,9 @@ for (const theme of ["dark", "light"] as const) {
     // AJ-E1601: with a service a found tool runs through, Add account asks which tool first.
     const chooser = page.getByRole("dialog", { name: "Add an app: which tool?" });
     await chooser.getByTestId("provider-card").filter({ hasText: "Claude Code" }).getByTestId("provider-choose").click();
+    // AJ-E1548 R11: the terms closed until opened.
+    await expect(page.getByTestId("first-run-terms-toggle")).toHaveAttribute("aria-expanded", "false");
+    await page.getByTestId("first-run-terms-toggle").click();
     const line = page.getByTestId("terms-line");
     await expect(line).toBeVisible();
     // The setups found, not the look for them.

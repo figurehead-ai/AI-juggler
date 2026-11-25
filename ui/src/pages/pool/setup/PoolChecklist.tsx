@@ -31,7 +31,7 @@ import { revealInList } from "../../../lib/reveal";
 type Step = (typeof SETUP_STEPS)[number];
 
 /** The open item: its accent edge on a tinted surface (the mock-up's). */
-const OPEN = "rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_8%,var(--color-surface))] p-3 inset-ring-[1.5px] inset-ring-accent";
+const OPEN = "rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_8%,var(--color-surface))] p-3";
 const ROW = "grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-x-3 rounded-[10px] px-2.5 py-2 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/60";
 
 /** A row's mark: a tick when done, its number when open. */

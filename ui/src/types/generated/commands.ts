@@ -120,7 +120,9 @@ import type { MessageInfo } from "./MessageInfo";
 import type { MessageNeedInfo } from "./MessageNeedInfo";
 import type { ModelsCatalog } from "./ModelsCatalog";
 import type { ModelsInfo } from "./ModelsInfo";
+import type { MoveBackupsInfo } from "./MoveBackupsInfo";
 import type { MoveDoneInfo } from "./MoveDoneInfo";
+import type { MoveFinishedInfo } from "./MoveFinishedInfo";
 import type { MoveOfferInfo } from "./MoveOfferInfo";
 import type { MoveRecordInfo } from "./MoveRecordInfo";
 import type { MoveUndoneInfo } from "./MoveUndoneInfo";
@@ -131,9 +133,13 @@ import type { NoticeMuteInfo } from "./NoticeMuteInfo";
 import type { NoticeSummaryInfo } from "./NoticeSummaryInfo";
 import type { NotificationPrefsInfo } from "./NotificationPrefsInfo";
 import type { OsAccessInfo } from "./OsAccessInfo";
+import type { OsPromptInfo } from "./OsPromptInfo";
+import type { OsPromptOutcomeInfo } from "./OsPromptOutcomeInfo";
 import type { OutsideSearchEstimateInfo } from "./OutsideSearchEstimateInfo";
 import type { OutsideSearchInfo } from "./OutsideSearchInfo";
 import type { OvernightSummaryInfo } from "./OvernightSummaryInfo";
+import type { OwnershipInfo } from "./OwnershipInfo";
+import type { OwnershipRepairedInfo } from "./OwnershipRepairedInfo";
 import type { PackOpenInfo } from "./PackOpenInfo";
 import type { PackStartedInfo } from "./PackStartedInfo";
 import type { Page } from "./Page";
@@ -142,7 +148,9 @@ import type { PairingStateInfo } from "./PairingStateInfo";
 import type { ParkedInfo } from "./ParkedInfo";
 import type { ParkedOfferInfo } from "./ParkedOfferInfo";
 import type { PickKind } from "./PickKind";
+import type { PlaceAddedInfo } from "./PlaceAddedInfo";
 import type { PlaceOfferInfo } from "./PlaceOfferInfo";
+import type { PlacePairingInfo } from "./PlacePairingInfo";
 import type { PoolCanvasInfo } from "./PoolCanvasInfo";
 import type { PoolMemberInfo } from "./PoolMemberInfo";
 import type { PoolMemberRow } from "./PoolMemberRow";
@@ -196,6 +204,7 @@ import type { RuntimeChoicesInfo } from "./RuntimeChoicesInfo";
 import type { RuntimeViewInfo } from "./RuntimeViewInfo";
 import type { SavedHandoverInfo } from "./SavedHandoverInfo";
 import type { ScanReportInfo } from "./ScanReportInfo";
+import type { SearchRecordsInfo } from "./SearchRecordsInfo";
 import type { ServersSyncInfo } from "./ServersSyncInfo";
 import type { ServiceAccountRequest } from "./ServiceAccountRequest";
 import type { ServiceInfo } from "./ServiceInfo";
@@ -208,6 +217,7 @@ import type { SessionsFacetsInfo } from "./SessionsFacetsInfo";
 import type { SessionsQuery } from "./SessionsQuery";
 import type { SetUpInfo } from "./SetUpInfo";
 import type { SetupCheckInfo } from "./SetupCheckInfo";
+import type { SignInInfo } from "./SignInInfo";
 import type { SourceHealthInfo } from "./SourceHealthInfo";
 import type { SourceInspectInfo } from "./SourceInspectInfo";
 import type { StagedSwitchInfo } from "./StagedSwitchInfo";
@@ -317,6 +327,8 @@ export interface Commands {
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
   /** Write features::ai::commands::ai_beta_set */
   ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Read features::ai::models::commands::ai_engines_check */
+  ai_engines_check: { args: Record<string, never>; result: ModelsCatalog };
   /** Write features::ai::commands::ai_job_pick_set */
   ai_job_pick_set: { args: { job: AiJob; modelId?: string | null }; result: AiJobInfo[] };
   /** Read features::ai::commands::ai_jobs */
@@ -419,8 +431,10 @@ export interface Commands {
   bot_new_topic: { args: Record<string, never>; result: BotTopicInfo };
   /** Read features::bot::commands::bot_page */
   bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
+  /** Read features::bot::search::bot_search */
+  bot_search: { args: { text: string }; result: SearchRecordsInfo };
   /** Write features::bot::commands::bot_wrong */
-  bot_wrong: { args: { turn: string }; result: void };
+  bot_wrong: { args: { turn: string; wrong?: boolean | null }; result: void };
   /** Read features::budgets::commands::budgets_list */
   budgets_list: { args: { monthStartMs: number }; result: BudgetInfo[] };
   /** Write features::budgets::commands::budgets_remove */
@@ -793,6 +807,16 @@ export interface Commands {
   os_access_open_settings: { args: { id: string }; result: void };
   /** Write os_access::os_access_request */
   os_access_request: { args: { id: string }; result: OsAccessInfo[] };
+  /** Write os_prompts::os_prompt_answer */
+  os_prompt_answer: { args: { id: string; go: boolean }; result: void };
+  /** Write os_prompts::os_prompt_prime */
+  os_prompt_prime: { args: { id: string }; result: OsPromptOutcomeInfo };
+  /** Write os_prompts::os_prompt_request */
+  os_prompt_request: { args: { id: string }; result: OsPromptOutcomeInfo };
+  /** Read os_prompts::os_prompt_status */
+  os_prompt_status: { args: { id: string }; result: OsPromptInfo };
+  /** Read os_prompts::os_prompts_list */
+  os_prompts_list: { args: Record<string, never>; result: OsPromptInfo[] };
   /** Read features::outside_search::commands::outside_search_estimate */
   outside_search_estimate: { args: Record<string, never>; result: OutsideSearchEstimateInfo };
   /** Write features::outside_search::commands::outside_search_set */
@@ -839,6 +863,8 @@ export interface Commands {
   parked_resume: { args: { sessionId: string }; result: LaunchResult };
   /** Write picked::pick_path */
   pick_path: { args: { kind: PickKind; fileName?: string | null }; result: string | null };
+  /** Write features::places::commands::places_choose_folder */
+  places_choose_folder: { args: { id: string; folder: string }; result: PlaceAddedInfo };
   /** Read features::places::commands::places_find */
   places_find: { args: { tool: string; conversationId: string; account?: string | null; app?: string | null }; result: KnownPlaceInfo | null };
   /** Write features::places::commands::places_forget */
@@ -848,15 +874,19 @@ export interface Commands {
   /** Read features::places::commands::places_list */
   places_list: { args: { page?: PageRequest | null }; result: Page<KnownPlaceInfo> };
   /** Write features::places::commands::places_offer_answer */
-  places_offer_answer: { args: { id: string; add: boolean }; result: void };
+  places_offer_answer: { args: { id: string; add: boolean }; result: PlaceAddedInfo };
   /** Read features::places::commands::places_offers */
   places_offers: { args: Record<string, never>; result: PlaceOfferInfo[] };
   /** Write features::places::commands::places_open */
   places_open: { args: { id: string; conversationId?: string | null; action?: string | null; folder?: string | null }; result: GoToOutcomeInfo };
+  /** Read features::places::commands::places_pairings */
+  places_pairings: { args: Record<string, never>; result: PlacePairingInfo[] };
   /** Read features::places::commands::places_profiles */
   places_profiles: { args: Record<string, never>; result: FindProfilesInfo };
   /** Write features::places::commands::places_profiles_set */
   places_profiles_set: { args: { on: boolean }; result: FindProfilesInfo };
+  /** Write features::places::commands::places_quit */
+  places_quit: { args: { id: string }; result: GoToOutcomeInfo };
   /** Write features::places::commands::places_restart */
   places_restart: { args: { id: string; confirmed?: boolean | null }; result: GoToOutcomeInfo };
   /** Read features::pools::commands::pools_canvas */
@@ -1038,7 +1068,7 @@ export interface Commands {
   /** Read features::remote_config::commands::remote_config_about */
   remote_config_about: { args: Record<string, never>; result: RemoteAboutInfo };
   /** Write features::remote_config::commands::remote_config_set_check */
-  remote_config_set_check: { args: { enabled: boolean }; result: void };
+  remote_config_set_check: { args: { on: boolean }; result: void };
   /** Read features::remote_config::commands::remote_config_values */
   remote_config_values: { args: { section: RemoteSection }; result: RemoteValuesInfo };
   /** Write features::reset_queue::commands::reset_queue_dismiss */
@@ -1119,6 +1149,12 @@ export interface Commands {
   sessions_resume_command: { args: { sessionId: string }; result: string };
   /** Write lifecycle::sessions_unmark_reviewed */
   sessions_unmark_reviewed: { args: { atMs: number }; result: number };
+  /** Write features::sign_ins::commands::sign_ins_dismiss */
+  sign_ins_dismiss: { args: { id: string }; result: void };
+  /** Read features::sign_ins::commands::sign_ins_list */
+  sign_ins_list: { args: Record<string, never>; result: SignInInfo[] };
+  /** Write features::sign_ins::commands::sign_ins_open_page */
+  sign_ins_open_page: { args: { id: string }; result: void };
   /** Write features::account::commands::source_inspect */
   source_inspect: { args: { harness: string; sourcePath: string }; result: SourceInspectInfo };
   /** Read features::staging::staging_ready */
@@ -1152,19 +1188,31 @@ export interface Commands {
   /** Write features::switch::commands::switch_door_count */
   switch_door_count: { args: { door: string; steps: string[] }; result: void };
   /** Write features::switch::commands::switch_execute */
-  switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
+  switch_execute: { args: { sessionId: string; targetProfileId: string; freezeChoice: string; redactionChoice?: string | null; redactionUnredact?: number[] | null; trigger?: string | null; approved?: string[] | null; destination?: string | null; targetPlaceId?: string | null; cut?: SwitchCutArgs | null }; result: SwitchExecutedInfo };
   /** Read features::switch::commands::switch_graph_overview */
   switch_graph_overview: { args: { projectId: string }; result: WorkGraphInfo[] };
+  /** Read features::switch::moves::switch_move_backups */
+  switch_move_backups: { args: Record<string, never>; result: MoveBackupsInfo };
+  /** Write features::switch::moves::switch_move_clear_old */
+  switch_move_clear_old: { args: Record<string, never>; result: string };
+  /** Write features::switch::moves::switch_move_delete_backup */
+  switch_move_delete_backup: { args: { moveId: string }; result: string };
   /** Write features::switch::moves::switch_move_execute */
-  switch_move_execute: { args: { sessionId: string; targetProfileId: string; takeNotes?: boolean | null }; result: MoveDoneInfo };
+  switch_move_execute: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null; takeNotes?: boolean | null }; result: MoveDoneInfo };
+  /** Write features::switch::moves::switch_move_finish */
+  switch_move_finish: { args: { moveId: string }; result: MoveFinishedInfo };
   /** Read features::switch::moves::switch_move_offer */
-  switch_move_offer: { args: { sessionId: string; targetProfileId: string }; result: MoveOfferInfo };
+  switch_move_offer: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null }; result: MoveOfferInfo };
   /** Write features::switch::moves::switch_move_undo */
   switch_move_undo: { args: { moveId: string }; result: MoveUndoneInfo };
   /** Read features::switch::moves::switch_moves */
   switch_moves: { args: { page?: PageRequest | null }; result: Page<MoveRecordInfo> };
+  /** Read features::switch::moves::switch_ownership */
+  switch_ownership: { args: Record<string, never>; result: OwnershipInfo };
+  /** Write features::switch::moves::switch_ownership_repair */
+  switch_ownership_repair: { args: { key: string }; result: OwnershipRepairedInfo };
   /** Read features::switch::commands::switch_preflight */
-  switch_preflight: { args: { sessionId: string; targetProfileId: string }; result: PreflightInfo };
+  switch_preflight: { args: { sessionId: string; targetProfileId: string; targetPlaceId?: string | null }; result: PreflightInfo };
   /** Write features::switch_setup::switch_setup_apply */
   switch_setup_apply: { args: { sessionId: string; targetProfileId: string; offers: string[] }; result: AppliedInfo[] };
   /** Read features::switch_setup::switch_setup_check */

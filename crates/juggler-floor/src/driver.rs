@@ -157,6 +157,9 @@ pub enum Effect {
     /// AJ-E3519: open the View menu under its button, its top left at
     /// this point (device pixels): inside the window ([`view_menu_at`]).
     ViewMenu((f32, f32)),
+    /// AJ-E1548 #23: the first-open line was clicked: hide it, and keep
+    /// it hidden on this Mac.
+    HideIntro,
 }
 
 /// How wide the View menu is, in points: its widest item ("Active Apps
@@ -279,6 +282,9 @@ pub struct Driver {
     pub card_buttons: Vec<([f32; 4], CardButton)>,
     /// AJ-E3519: the View button, from the last frame.
     pub view_button: Option<[f32; 4]>,
+    /// AJ-E1548 #23: the first-open line, from the last frame (while it
+    /// shows).
+    pub intro: Option<[f32; 4]>,
     /// FL1 (rc31): the flags that open something (an area's name, a
     /// badge), and the pick each opens, from the last frame.
     pub doors: Vec<([f32; 4], u32)>,
@@ -337,6 +343,7 @@ impl Driver {
             card_area: None,
             card_buttons: Vec::new(),
             view_button: None,
+            intro: None,
             doors: Vec::new(),
             opened: None,
             resting: None,
@@ -533,9 +540,11 @@ impl Driver {
         };
         let on_button = self.card_buttons.iter().any(|(r, _)| inside(r, px, py));
         let on_view = self.view_button.is_some_and(|r| inside(&r, px, py));
+        let on_intro = self.intro.is_some_and(|r| inside(&r, px, py));
         self.hand = on_tab
             || on_button
             || on_view
+            || on_intro
             || door.is_some()
             || picker.kind(id) != PickKind::Nothing;
         // AJ-E3517: resting on a person opens their card; it
@@ -611,6 +620,11 @@ impl Driver {
             #[allow(clippy::cast_precision_loss, reason = "a window's width in pixels")]
             let window_w = self.size.0 as f32;
             return Some(Effect::ViewMenu(view_menu_at(r, window_w, self.size.2)));
+        }
+        if self.intro.is_some_and(|r| inside(&r, px, py)) {
+            self.intro = None;
+            self.dirty = true;
+            return Some(Effect::HideIntro);
         }
         if let (Some((card, _)), Some((_, button))) = (
             self.card,
@@ -1087,6 +1101,26 @@ mod tests {
         run(&mut d, at, at + 100, false);
         assert_eq!(d.view.cam, home);
         assert_eq!(d.view.focus, floor, "home on the same floor");
+    }
+
+    /// AJ-E1548 #23: a click on the first-open line hides it (the app
+    /// keeps that); a click elsewhere leaves it.
+    #[test]
+    fn a_click_on_the_first_open_line_hides_it() {
+        let mut d = driver(Motion::Off);
+        let t = Duration::from_secs(1);
+        // device pixels; clicks in points (scale 2)
+        d.intro = Some([24.0, 880.0, 600.0, 60.0]);
+        assert_ne!(
+            d.input(Input::Click { x: 700.0, y: 100.0 }, t, &mut Office),
+            Some(Effect::HideIntro)
+        );
+        assert!(d.intro.is_some(), "a click elsewhere leaves it");
+        assert_eq!(
+            d.input(Input::Click { x: 100.0, y: 450.0 }, t, &mut Office),
+            Some(Effect::HideIntro)
+        );
+        assert_eq!(d.intro, None);
     }
 
     /// AJ-E3516, AJ-E3519: a lift button rides to its floor; Page Up

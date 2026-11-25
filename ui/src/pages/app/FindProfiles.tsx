@@ -51,7 +51,7 @@ export function FindProfiles({ app }: { app: AppModel }): JSX.Element | null {
         {offers.length > 0 && (
           <ul className="-mx-4 divide-y divide-hairline border-t border-hairline" aria-label="Profiles found">
             {offers.map((offer) => (
-              <OfferRow key={offer.id} offer={offer} onAnswer={(add) => found.answer(offer, add)} />
+              <OfferRow key={offer.id} offer={offer} onAnswer={(add) => void found.answer(offer, add)} />
             ))}
           </ul>
         )}

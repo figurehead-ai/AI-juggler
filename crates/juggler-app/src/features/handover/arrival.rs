@@ -137,15 +137,11 @@ fn tell(state: &Arc<AppState>, target: &str, session: &SessionId, seen: &Arrival
         action: Some("open".to_owned()),
         ..NewNotice::default()
     };
-    let now = crate::commands::now_millis();
-    let recorded = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| centre::record(&storage, &notice, now).ok().flatten());
-    if recorded.is_some() {
-        crate::features::notifications::changed(state);
-    }
+    crate::features::notifications::sources::record_notice(
+        state,
+        &notice,
+        crate::commands::now_millis(),
+    );
 }
 
 #[cfg(test)]

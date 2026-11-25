@@ -176,7 +176,7 @@ export function FleetScreen({
           onClick={() => void toggleLink()}
           className={
             "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
-            (link?.enabled ? "border-accent bg-accent" : "border-muted/60 bg-surface-3")
+            (link?.enabled ? "border-accent bg-accent" : "border-faint bg-surface-3")
           }
           data-testid="fleet-link-switch"
         >
@@ -566,7 +566,7 @@ export function AccessSheet({
   return (
     <DialogOverlay className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-md"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-md"
         role="dialog"
         aria-modal="true"
         aria-labelledby="fleet-access-title"

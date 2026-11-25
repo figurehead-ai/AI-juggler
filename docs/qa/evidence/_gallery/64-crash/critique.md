@@ -1,4 +1,4 @@
-<!-- captures: e622223035d6 -->
+<!-- captures: e701b92325b6 -->
 # 64-crash: the crash-report ask after a crash, and the crash-report setting in Privacy
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -11,3 +11,13 @@ In ask, the dialog puts the whole report in a dark code box under a short plain 
 
 - ask-1280x800-dark/light: the report box ends mid-report, with the "app_version" line half cut and no scroll hint.
 - setting-1280x800-dark/light: the view opens on a sliced line ("days, then only totals.") above Crash reports, with no section heading in view.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the next-launch question keeps its scrubbed report in a dark well with Send focused, and the Privacy rows are calm tonal cards; the setting reads Ask me each time with the kept-report note under it. Content did not change.
+
+Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

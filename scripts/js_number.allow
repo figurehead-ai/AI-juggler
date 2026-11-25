@@ -157,9 +157,13 @@ MachineUsageInfo.used_units                        # tokens, < 2^53 is 9e15 toke
 MessageInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
 MessageNeedInfo.at_ms                              # ms epoch, < 2^53 until year 287396
 ModelsInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
+MoveBackupsInfo.bytes                              # bytes, < 2^53 is 8 PiB
+MoveBackupsInfo.old_bytes                          # bytes, < 2^53 is 8 PiB
 MoveOfferInfo.bytes                                # bytes, < 2^53 is 8 PiB
 MoveOfferInfo.kept_outputs                         # a count of things on this Mac, far below 2^53
 MoveRecordInfo.at_ms                               # ms epoch, < 2^53 until year 287396
+MoveRecordInfo.backup_bytes                        # bytes, < 2^53 is 8 PiB
+MoveRecordInfo.kept_until_ms                       # ms epoch, < 2^53 until year 287396
 NeedSnoozeInfo.until_ms                            # ms epoch, < 2^53 until year 287396
 NodeAskInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
 NoticeDigestInfo.next_reset_ms                     # ms epoch, < 2^53 until year 287396
@@ -269,6 +273,7 @@ SessionsCountsInfo.ended                           # a count of things on this M
 SessionsCountsInfo.open                            # a count of things on this Mac, far below 2^53
 SessionsQuery.since_ms                             # ms epoch, < 2^53 until year 287396
 SetUpInfo.at_ms                                    # ms epoch, < 2^53 until year 287396
+SignInInfo.started_at                              # ms epoch, < 2^53 until year 287396
 SourceHealthInfo.last_event_at                     # ms epoch, < 2^53 until year 287396
 SourceHealthInfo.parse_errors                      # a count of things on this Mac, far below 2^53
 SourceInspectInfo.ceiling_bytes                    # bytes, < 2^53 is 8 PiB

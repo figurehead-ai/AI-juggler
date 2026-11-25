@@ -50,6 +50,9 @@ export type SessionModel = {
   opening?: string | null;
   /** 0.4.1: its running app lists it, with no turn running now. */
   inactive?: boolean;
+  /** AJ-E2326 R6: AI Juggler's session on a conversation that began
+   * before it (it continued one): its page says where it came from. */
+  carriedIn?: boolean;
   /** The desktop app its tool's files say it was started in (`claude-app`). */
   startedIn?: string | null;
   /** rc22 (A3): the desktop App AI Juggler launched it in, stored at launch. */
@@ -136,6 +139,7 @@ export function fromInstance(s: InstanceInfo, seen?: ConversationInfo, reported?
         { words: s.ending ? endedWord(s.ending.how) : tone.label, tone: tone.tone, asks: false, working: false, since: s.last_activity_ms ?? s.started_at_ms },
     places: seen?.places ?? [],
     viewedMs: seen?.viewed_ms ?? null,
+    carriedIn: s.kind !== "desktop" && s.conversation_id !== null && seen?.started_ms != null && seen.started_ms < s.started_at_ms,
     cwd: s.cwd,
     // The rc3g walk: its card said the model its tool reported while this
     // row was left out ("not reported") until its transcript was read.

@@ -21,10 +21,12 @@ import { HomeFeedFilters, type Facets } from "./HomeFeedFilters";
 import { Button } from "./primitives";
 import { cardsOf, dayStarts, splitAway, type FeedCard } from "../lib/feed-rollup";
 import { dayLabel, EMPTY_FEED } from "../lib/feed-words";
-import { markAllRead, markRead, readHorizon, readIds, unread, useFeedFilters } from "../lib/feed-state";
+import { filtered, markAllRead, markRead, readHorizon, readIds, unread, useFeedFilters } from "../lib/feed-state";
 import { clock } from "../lib/time-words";
+import { usePagedState } from "../lib/paged-state";
+import { LoadingState } from "./LoadingState";
 import { useFeedStream, type FeedStream } from "../lib/use-feed-stream";
-import type { FeedItemInfo } from "../lib/ipc/feed";
+import type { FeedFiltersInfo, FeedItemInfo } from "../lib/ipc/feed";
 
 /** Pages that load by themselves before Load more (NN/g). */
 const AUTO_PAGES = 3;
@@ -33,6 +35,7 @@ const STACKED_CARDS = 12;
 
 const GHOST = "btn-ghost self-start rounded-md px-3 py-1 text-meta font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60";
 
+/** The feed's rows while its first page is read. */
 function Skeleton(): JSX.Element {
   return (
     <div aria-hidden="true" className="flex flex-col gap-1" data-testid="feed-skeleton">
@@ -69,11 +72,23 @@ function useAutoPage(active: boolean, loadMore: () => void, read: number): (node
   );
 }
 
-/** Loading, a failed read, or nothing yet (R8, R12). */
-function States({ stream, quiet, onNewSession, onOpenApp }: { stream: FeedStream; quiet: boolean; onNewSession: () => void; onOpenApp: () => void }): JSX.Element | null {
+/** Whether the feed has nothing to show, read and unfiltered (0.5.1 F56,
+ * D-127): its filters would have nothing to filter, so they hide, and
+ * "Include my actions" moves into the empty card. A filtered empty feed
+ * keeps them (the way back is there); so does one still loading. */
+function feedIsEmpty(stream: Pick<FeedStream, "list" | "waiting">, filters: FeedFiltersInfo, away: boolean): boolean {
   const { list } = stream;
+  return !list.loading && list.error === null && list.items.length === 0 && stream.waiting === 0 && !away && !filtered(filters);
+}
+
+/** Loading, a failed read, or nothing yet (R8, R12). */
+function States({ stream, quiet, onNewSession, onOpenApp, includeMine }: { stream: FeedStream; quiet: boolean; onNewSession: () => void; onOpenApp: () => void; includeMine: (() => void) | null }): JSX.Element | null {
+  const { list } = stream;
+  // AJ-E1552: the skeleton only while the first page is read, Still
+  // loading after 3 s; the error keeps its own words (what was loaded).
+  const { state, slow } = usePagedState(list, "the activity feed");
   const retry = <button type="button" onClick={list.refresh} className="btn-ghost rounded-md px-2 py-0.5 font-medium outline-none focus-visible:ring-1 focus-visible:ring-accent/60">Retry</button>;
-  if (list.loading) return <Skeleton />;
+  if (state === "loading") return <LoadingState state={state} slow={slow} what="the activity feed" skeleton={<Skeleton />} empty={null} onRetry={list.refresh}>{null}</LoadingState>;
   if (list.error !== null) {
     return (
       <output className="flex items-center gap-2 rounded-lg bg-surface px-3 py-2 text-meta text-ink-2" data-testid="feed-error">
@@ -90,6 +105,15 @@ function States({ stream, quiet, onNewSession, onOpenApp }: { stream: FeedStream
         <Button size="sm" variant={quiet ? "primary" : "secondary"} onClick={onNewSession}>New session</Button>
         <Button size="sm" variant="ghost" onClick={onOpenApp}>Open an app</Button>
       </div>
+      {/* F56: the hidden filters' one switch that can change an empty feed. */}
+      {includeMine && (
+        <p className="text-meta text-muted" data-testid="feed-empty-mine">
+          {"Your own actions aren't shown. "}
+          <button type="button" onClick={includeMine} className="rounded font-medium text-ink-2 underline decoration-hairline underline-offset-2 outline-none hover:text-ink hover:decoration-current focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-empty-include-mine">
+            Include my actions
+          </button>
+        </p>
+      )}
     </div>
   );
 }
@@ -148,6 +172,7 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
   // R5: what happened while away is the digest's, never a card as well.
   const { stream: cards, away } = useMemo(() => splitAway(all, lastLook, stream.list.hasMore), [all, lastLook, stream.list.hasMore]);
   const days = dayStarts(cards);
+  const empty = feedIsEmpty(stream, filters, away !== null);
   const shownCards: FeedCard[] = stacked && !more ? cards.slice(0, STACKED_CARDS) : cards;
   const open = (item: FeedItemInfo): boolean => {
     markRead([item.id]);
@@ -163,13 +188,13 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
   return (
     <section aria-labelledby="activity-h" className="flex min-w-0 flex-col gap-3" data-testid="home-feed">
       <h2 id="activity-h" className="sr-only">Activity</h2>
-      <HomeFeedFilters filters={filters} onChange={setFilters} facets={facets} toReview={toReview} onReviewAll={onReviewAll} onReadAll={readAll} />
+      {!empty && <HomeFeedFilters filters={filters} onChange={setFilters} facets={facets} toReview={toReview} onReviewAll={onReviewAll} onReadAll={readAll} />}
       {stream.waiting > 0 && (
         <button type="button" onClick={stream.showNew} className="sticky top-1 z-10 self-center rounded-full bg-surface-3 px-3 py-1 text-meta font-medium text-ink shadow-card outline-none hover:bg-selected focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-new-pill">
           ↑ {stream.waiting} new {stream.waiting === 1 ? "update" : "updates"}
         </button>
       )}
-      <States stream={stream} quiet={quiet} onNewSession={onNewSession} onOpenApp={onOpenApp} />
+      <States stream={stream} quiet={quiet} onNewSession={onNewSession} onOpenApp={onOpenApp} includeMine={empty && !filters.include_mine ? () => setFilters({ ...filters, include_mine: true }) : null} />
       {(cards.length > 0 || away) && (
         <div role="feed" aria-busy={stream.list.loadingMore || stream.list.stale} aria-labelledby="activity-h" className="flex flex-col gap-0.5" data-testid="feed">
           {shownCards.map((card, index) => (

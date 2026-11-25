@@ -13,10 +13,11 @@
  * remembered between visits; Ended is read a page at a time once opened.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-import { Button } from "../primitives";
 import { showToast } from "../Toast";
 import { usePagedList, refreshPaged } from "../../lib/paged";
 import { errorText } from "../../lib/bridge";
+import { useLoadDeadline, type LoadState } from "../../lib/loading";
+import { LoadingState } from "../LoadingState";
 import { notificationPrefsGet } from "../../lib/ipc/settings";
 import { onWatchesIntent, takeWatchesIntent, type WatchesIntent } from "../../lib/watches-open";
 import { watchCreate, watchesPage, watchesSummary, watchPause, watchRemove, watchRestore, watchUpdate, type WatchDraftInfo, type WatchInfo, type WatchSummaryInfo } from "../../lib/ipc/watch-view";
@@ -184,16 +185,8 @@ function FormView({ view, book, quiet, count, limit, now, onClose, onSaved, remo
   );
 }
 
-function LoadState({ live }: { live: { error: unknown; loading: boolean; refresh: () => void } }): JSX.Element | null {
-  if (live.error !== null)
-    return (
-      <div className="flex items-center gap-3 rounded-xl bg-surface-2 px-3.5 py-3 text-meta text-ink-2" role="alert">
-        <span className="flex-1">{errorText(live.error).includes("unavailable") ? PAGE.unavailable : PAGE.failed}</span>
-        <Button size="sm" onClick={live.refresh}>
-          {PAGE.retry}
-        </Button>
-      </div>
-    );
+/** The watch rows' skeleton, drawn only while the first page is read. */
+function WatchesSkeleton(): JSX.Element {
   return (
     <output aria-label={PAGE.loading} className="flex flex-col gap-2" data-testid="watches-skeleton">
       {[0, 1, 2, 3].map((i) => (
@@ -235,6 +228,10 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
   const empty = !live.loading && live.items.length === 0 && countsOf(summary, []).ended === 0;
   const starters = useStarters(empty, book);
   const counts = countsOf(summary, live.items);
+  // AJ-E1552: the skeleton only while the first page is read, Still
+  // loading after 3 s (the list's read has its own deadline).
+  const { slow } = useLoadDeadline(live.loading, "the watches", { timeoutMs: Number.POSITIVE_INFINITY });
+  const liveState: LoadState = live.loading ? "loading" : live.error !== null && live.items.length === 0 ? "error" : empty ? "empty" : "ready";
   const { count, limit } = counts;
   const refresh = () => {
     refreshPaged("watches:");
@@ -265,12 +262,15 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
             }}
           />
         )}
-        {(live.error !== null && live.items.length === 0) || live.loading ? (
-          <LoadState live={live} />
-        ) : empty ? (
-          <WatchesEmpty starters={starters} onNew={() => openNew()} onAskBot={onAskBot} onStarter={(draft) => openNew(draft)} />
-        ) : (
-          <>
+        <LoadingState
+          state={liveState}
+          slow={slow}
+          what="the watches"
+          failed={live.error !== null && errorText(live.error).includes("unavailable") ? PAGE.unavailable : PAGE.failed}
+          skeleton={<WatchesSkeleton />}
+          empty={<WatchesEmpty starters={starters} onNew={() => openNew()} onAskBot={onAskBot} onStarter={(draft) => openNew(draft)} />}
+          onRetry={live.refresh}
+        >
             {quiet && <QuietLine from={quiet.from} to={quiet.to} breakThrough={counts.breakThrough} onOpen={onQuietHours} />}
             <WatchingSection
               live={live.items}
@@ -285,8 +285,7 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
               quietTo={quiet?.to ?? null}
             />
             {counts.ended > 0 && <EndedSection count={counts.ended} open={endedOpen} onToggle={() => setEndedOpen((open) => !open)} book={book} now={now} appOf={appOf} actions={acts.ended} />}
-          </>
-        )}
+        </LoadingState>
       </div>
     </div>
   );

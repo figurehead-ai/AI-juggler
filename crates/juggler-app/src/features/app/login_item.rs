@@ -61,14 +61,43 @@ pub async fn app_login_item_get() -> LoginItemInfo {
     }
 }
 
-/// Turns opening at login on or off.
+/// Turns opening at login on (AJ-E1547: through the gate, our sheet first
+/// when it isn't primed, since the system shows its "login item added"
+/// notice) or off (nothing is shown).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] with the system's words when it refuses.
+pub fn set_impl(on: bool) -> AppResult<LoginItem> {
+    if !on {
+        return juggler_platform::os_prompt::login_item_off().map_err(AppError::Refused);
+    }
+    match juggler_platform::os_prompt::login_item_on(
+        crate::os_prompts::registry::LOGIN_ITEM,
+        juggler_platform::os_prompt::user(),
+    ) {
+        juggler_platform::os_prompt::Gated::Called { value, .. } => {
+            value.map_err(AppError::Refused)
+        }
+        // Not now: it stays as it was, and the next click asks again.
+        _ => Ok(juggler_platform::os_prompt::login_item_status()),
+    }
+}
+
+/// Turns opening at login on or off (off the main thread: the sheet may
+/// wait for the user).
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] with the system's words when it refuses.
 #[tauri::command]
 pub async fn app_login_item_set(on: bool) -> AppResult<LoginItemInfo> {
-    let item = juggler_login_item::set(on).map_err(AppError::Refused)?;
+    let item = tauri::async_runtime::spawn_blocking(move || set_impl(on))
+        .await
+        .map_err(|error| AppError::Io {
+            context: "turn opening at login on or off",
+            message: error.to_string(),
+        })??;
     if let Ok(mut last) = LAST.lock() {
         *last = Some((Instant::now(), item));
     }

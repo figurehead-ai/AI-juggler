@@ -16,12 +16,14 @@ import { useNewSessionSheet } from "../lib/new-session-sheet";
 import { toolFound } from "../lib/providers";
 import { readInspectorFolded, storeInspectorFolded } from "../lib/shortcuts";
 import { primaryToolId } from "../lib/tools";
-import { ADD_APP } from "../lib/found-tools";
+import { ADD_APP, FIND_APPS } from "../lib/found-tools";
 import type { RemoteCommandOutcomeInfo } from "../types/generated/RemoteCommandOutcomeInfo";
 import type { RemoteMachineInfo } from "../types/generated/RemoteMachineInfo";
 
 /** A switch to run (the freeze dialog → stages → source-safe banner). */
-export type SwitchFlowRequest = { sessionId: string; targetProfileId: string; targetLabel: string };
+/** AJ-E2317: `targetPlaceId`, the desktop App picked (its place id): a
+ * move goes into it, by that id. */
+export type SwitchFlowRequest = { sessionId: string; targetProfileId: string; targetLabel: string; targetPlaceId?: string | null };
 
 export function useDialogs() {
   const newSheet = useNewSessionSheet();
@@ -79,6 +81,12 @@ export function useDialogs() {
   // D-25: a fresh install opens on first run (what's here → sign in →
   // computer access); a fresh account and a folder import are its steps.
   const [firstRun, setFirstRun, firstRunAtAccess, setFirstRunAtAccess] = useFirstRun();
+  // F19 (0.5.1): Settings › Desktop apps' Find my apps… opens it too.
+  useEffect(() => {
+    const open = () => setFirstRun(true);
+    window.addEventListener(FIND_APPS, open);
+    return () => window.removeEventListener(FIND_APPS, open);
+  }, [setFirstRun]);
   // AJ-E305 flow (b): the New project sheet. Null = closed; a string
   // pre-selects that directory (the Summary's Start here).
   const [newProjectDir, setNewProjectDir] = useState<string | null>(null);

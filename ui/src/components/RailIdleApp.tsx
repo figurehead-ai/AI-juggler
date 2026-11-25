@@ -10,15 +10,15 @@
  * Show its last 3.
  */
 import { useState, type JSX, type MouseEvent } from "react";
-import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { ProfileBadge } from "./ProfileBadge";
 import { AppIcon } from "./AppIcon";
 import { AppKindBadge } from "./AppKindBadge";
 import { appKindWords } from "../lib/app-kind";
 import { FoldButton } from "./rail-groups";
-import { IconUpRight } from "./icons-places";
-import { IconStateRunning } from "./icons";
-import { IconPlus } from "./icons-actions";
+import { IconHistory, IconUpRight } from "./icons-places";
+import { IconShield, IconStateRunning } from "./icons";
+import { IconPage, IconPlus, IconReplay, IconStop } from "./icons-actions";
 import { showToast } from "./Toast";
 import { showGoTo } from "../lib/go-to";
 import { placesOpen } from "../lib/ipc/places";
@@ -26,7 +26,7 @@ import { openApp } from "../lib/apps";
 import { agoWords } from "../lib/time-words";
 import { cliAppId } from "../lib/app-name";
 import { RECENT_INLINE, type IdleApp } from "../lib/rail-apps";
-import { askRestart } from "./RestartApp";
+import { askQuit, askRestart } from "./RestartApp";
 import { hasLiveBackend } from "../lib/bridge";
 import { useRelationCounts } from "../lib/relation-counts";
 import { RoomChip, useRoomMark } from "./RoomChip";
@@ -181,6 +181,8 @@ export function RailIdleApp({
           <RoomChip mark={mark} iconOnly testId="rail-idle-room" />
         </span>
       )}
+      {/* 0.5.1 F26: its ring sat against its own hairline and read as a
+          tinted border; focused, the border is the focus line too. */}
       <button
         type="button"
         onClick={act}
@@ -189,39 +191,42 @@ export function RailIdleApp({
         title={blocked ?? `${words}: ${app.name}`}
         data-testid="rail-idle-action"
         data-action={words}
-        className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
+        className="flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline text-muted outline-none hover:border-accent/40 hover:text-ink focus-visible:border-focus focus-visible:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:opacity-50"
       >
         <Icon width={12} height={12} />
       </button>
       {menu && (
         <RowMenu heading={app.name} ariaLabel={`Actions for ${app.name}`} at={menu} onClose={() => setMenu(null)} testId="rail-idle-menu">
+          {/* 0.5.1 F60 (N8): every line carries its icon, as every menu's;
+              the first is its row's own button's. */}
           <MenuItem onClick={run(act)} disabled={blocked !== null} title={blocked ?? undefined} testId="rail-idle-menu-act">
-            {words}
+            <MenuLine icon={Icon} label={words} />
           </MenuItem>
           {/* 0.4.1: a running app here restarts from its own row too. */}
           {restartable(app) && (
             <MenuItem onClick={run(() => askRestart({ placeId: app.placeId ?? "", name: app.name, open: 0, working: 0 }))} testId="rail-idle-menu-restart">
-              Restart…
+              <MenuLine icon={IconReplay} label="Restart…" />
+            </MenuItem>
+          )}
+          {/* 0.5.1 F98: closed and left closed. */}
+          {restartable(app) && (
+            <MenuItem onClick={run(() => askQuit({ placeId: app.placeId ?? "", name: app.name, open: 0, working: 0, keepAlive: keepAlive?.on }))} testId="rail-idle-menu-quit">
+              <MenuLine icon={IconStop} label="Quit…" />
             </MenuItem>
           )}
           {keepAlive && (
             <MenuItem onClick={run(keepAlive.toggle)} checked={keepAlive.on} multi testId="rail-idle-menu-keep">
-              <span className="flex items-center gap-2">
-                <span className="flex-1">Keep alive</span>
-                <span aria-hidden="true" className={"shrink-0 text-accent-hi " + (keepAlive.on ? "" : "invisible")}>
-                  ✓
-                </span>
-              </span>
+              <MenuLine icon={IconShield} label="Keep alive" tick={keepAlive.on} />
             </MenuItem>
           )}
           {openPage && (
             <MenuItem onClick={run(openPage)} testId="rail-idle-menu-page">
-              Open its page
+              <MenuLine icon={IconPage} label="Open its page" />
             </MenuItem>
           )}
           {has && (
             <MenuItem onClick={run(onToggle)} testId="rail-idle-menu-fold">
-              {open ? "Hide its last ones" : lastWords}
+              <MenuLine icon={IconHistory} label={open ? "Hide its last ones" : lastWords} />
             </MenuItem>
           )}
         </RowMenu>

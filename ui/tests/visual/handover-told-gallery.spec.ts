@@ -127,7 +127,7 @@ for (const theme of ["dark", "light"] as const) {
       { fixture: structuredClone(allStatuses), workGraph: graph, theme },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
-    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.setViewportSize({ width: 1280, height: 1400 });
     await page.goto("/");
     await openRailList(page);
     // A project's header is the Project grouping's (D-54).
@@ -137,6 +137,16 @@ for (const theme of ["dark", "light"] as const) {
     await page.locator("[data-testid='switch-graph-edge'][data-handover='true']").click();
     const detail = page.getByTestId("switch-graph-edge-detail");
     await expect(detail.getByTestId("handover-line")).toHaveText(LINE);
+    // The page's footer sticks to its scroller's bottom edge: scrolled to
+    // its end, the footer sits below the graph instead of over its last row.
+    await page.getByTestId("switch-graph").evaluate((graph) => {
+      for (let el = graph.parentElement; el; el = el.parentElement) {
+        if (el.scrollHeight > el.clientHeight && /auto|scroll/.test(getComputedStyle(el).overflowY)) {
+          el.scrollTop = el.scrollHeight;
+          break;
+        }
+      }
+    });
     await page.getByTestId("switch-graph").screenshot({ path: resolve(OUT, `graph-edge-${theme}.png`) });
     await axeClean(page, "[data-testid='switch-graph']", "the graph's edge opened");
   });

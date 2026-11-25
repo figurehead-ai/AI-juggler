@@ -32,6 +32,8 @@
  * scrolls back up; the top one goes when the pointer and focus leave.
  * Nothing animates but the pill's scroll, and that only without reduced
  * motion.
+ * AJ-E2327: the user's own change (Add) isn't held (`ownChange`): it
+ * scrolled the rail's top out of view on every Add.
  */
 import { useEffect, useLayoutEffect, useRef, useState, type JSX, type RefObject } from "react";
 import { createPortal } from "react-dom";
@@ -110,7 +112,10 @@ interface HoldStill {
   before: JSX.Element;
   /** Drawn last: the spacer below. */
   after: JSX.Element;
+  /** AJ-E2327: the user's own change is coming: not held for `ms`. */
+  ownChange: (ms?: number) => void;
 }
+const OWN_CHANGE_MS = 4000; // its answer and the lists' read come well within it
 
 /** Keeps the line under the pointer or focus still in `root`; `enter` and
  * `leave` are told when the pointer or focus comes in and goes (`leave` a
@@ -125,6 +130,7 @@ export function useHoldStill(
   const pads = useRef<Pads>({ top: 0, bottom: 0 });
   const pointer = useRef<{ x: number; y: number; key: string | null } | null>(null);
   const anchor = useRef<Anchor | null>(null);
+  const through = useRef(0); // AJ-E2327: until when the user's own change goes through
   // The new lines above (the pill's), kept in a ref too for the handlers.
   const [fresh, setFreshState] = useState<readonly string[]>([]);
   const freshRef = useRef<readonly string[]>([]);
@@ -206,6 +212,8 @@ export function useHoldStill(
   const hold = () => {
     const was = anchor.current;
     if (!inside() || !root.current) return;
+    // The user's own change: nothing to undo, only a new place to hold.
+    if (Date.now() < through.current) return record();
     if (!was) return record();
     const line = lineOf(was.key);
     if (!line) return record();
@@ -363,7 +371,7 @@ export function useHoldStill(
             type="button"
             data-testid="rail-new-above"
             onClick={(event) => showAbove(event.detail === 0)}
-            className="inline-flex min-h-6 items-center gap-1 rounded-full border border-accent/40 bg-surface px-2.5 text-label font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 motion-safe:animate-[aij-fade-in_140ms_ease-out]"
+            className="inline-flex min-h-6 items-center gap-1 rounded-full border border-transparent bg-control px-2.5 text-label font-medium text-ink outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-accent/60 motion-safe:animate-[aij-fade-in_140ms_ease-out]"
           >
             <IconChevronDown width={12} height={12} strokeWidth={2} aria-hidden="true" className="rotate-180" />
             {fresh.length} new above
@@ -373,8 +381,10 @@ export function useHoldStill(
       )
     ) : null;
 
+  const ownChange = (ms = OWN_CHANGE_MS) => void (through.current = Date.now() + ms);
   return {
     props,
+    ownChange,
     before: (
       <>
         <div ref={topPad} aria-hidden="true" data-testid="rail-hold-top" />

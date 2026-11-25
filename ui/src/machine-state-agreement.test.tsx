@@ -129,7 +129,7 @@ describe("every surface says the same state", () => {
  * header said "Plenty of room"; the backend now says "Getting tight" with
  * its cause, and every line names it. */
 describe("a level says what put it there", () => {
-  it("swap almost full reads Tight: swap almost full", () => {
+  it("swap almost full reads This Mac: tight, swap almost full", () => {
     const base = state("tight");
     const info: ThisMacInfo = {
       ...base,
@@ -153,8 +153,8 @@ describe("a level says what put it there", () => {
     );
     const [line, top] = screen.getAllByTestId("machine-status");
     expect(line!.textContent).toBe("This Mac · Getting tight: swap almost full");
-    expect(top!.textContent).toBe("Tight: swap almost full");
-    expect(top!.getAttribute("aria-label")).toBe("This Mac · Tight: swap almost full");
+    expect(top!.textContent).toBe("This Mac: tight, swap almost full");
+    expect(top!.getAttribute("aria-label")).toBe("This Mac: tight, swap almost full");
     expect(document.body.textContent).not.toContain("Plenty");
   });
 });

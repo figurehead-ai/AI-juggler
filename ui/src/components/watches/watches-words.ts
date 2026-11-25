@@ -12,11 +12,15 @@ export const PAGE = {
   how: "How watches work",
   newWatch: "New watch",
   askBot: "Ask Bot",
-  of: (n: number, limit: number) => `${n} of ${limit}`,
+  // AJ-E1548 #25: the limit shows only near it ("40 of 50 watches").
+  of: (n: number, limit: number) => `${n} of ${limit} watches`,
+  /** From how many watches the limit shows (four fifths of it). */
+  nearLimit: (limit: number) => Math.ceil(limit * 0.8),
   watching: "Watching",
   watchingLine: (active: number, paused: number) => [active > 0 || paused === 0 ? `${active} active` : null, paused > 0 ? `${paused} paused` : null].filter(Boolean).join(" · "),
   ended: "Ended",
   endedLine: (n: number) => `${n} · kept for 30 days`,
+  endedNone: "No ended watches in the last 30 days.",
   more: (n: number) => `${n} more`,
   show: "Show",
   shown: (shown: number, total: number) => `${shown} of ${total} shown`,
@@ -119,7 +123,7 @@ export const ENDED = {
 
 export const EMPTY = {
   eyebrow: "No watches yet",
-  heading: "Get told when an agent finishes, asks you or gets stuck",
+  heading: "Get told when a session finishes its turn, asks you or gets stuck",
   body: "Pick a session, an app, a project or an account, and what to watch it for. AI Juggler tells you once, the way it tells you everything else, and keeps your quiet hours.",
   orAskBot: "or ask Bot: “tell me when api finishes”",
   orAskBotNamed: (name: string) => `or ask Bot: “tell me when ${name} finishes”`,
@@ -277,7 +281,7 @@ export const DOORS = {
 
 /** Each condition as a thing that happens, for the preview's lines. */
 export const NOUN: Record<string, string> = {
-  finishes: "A finish",
+  finishes: "A turn ending",
   ends: "An ending",
   fails: "A failure",
   asks_you: "A question",
@@ -296,7 +300,7 @@ export const NOUN: Record<string, string> = {
 
 /** Each condition's line on its choice card. */
 export const CONDITION_LINE: Record<string, string> = {
-  finishes: "A turn ends and it waits for you",
+  finishes: "Its turn ends and it waits for you",
   asks_you: "A question, or an OK to go on",
   stuck: "Working, but nothing moves",
   fails: "A turn or the session stops with an error",

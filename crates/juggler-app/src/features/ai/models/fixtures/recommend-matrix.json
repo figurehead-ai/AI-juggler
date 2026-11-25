@@ -136,7 +136,7 @@
       }
     },
     {
-      "name": "8 GB, Apple Intelligence off: nothing fits the memory",
+      "name": "8 GB, Apple Intelligence off: turn it on, nothing to download (AJ-E3823)",
       "mac": {
         "chip": "m1",
         "memory_gb": 8,
@@ -144,8 +144,7 @@
         "apple_ai": "off"
       },
       "expect": {
-        "none": "not_enough_memory",
-        "apple_ai_off": true
+        "none": "turn_on_apple_ai"
       }
     },
     {
@@ -175,7 +174,7 @@
       }
     },
     {
-      "name": "16 GB, off: the smallest of the best, Qwen3 1.7B",
+      "name": "16 GB, off: turn Apple Intelligence on, never a download first (AJ-E3823)",
       "mac": {
         "chip": "m2",
         "memory_gb": 16,
@@ -183,8 +182,7 @@
         "apple_ai": "off"
       },
       "expect": {
-        "id": "qwen3-1-7b-q8",
-        "why": "fits"
+        "none": "turn_on_apple_ai"
       }
     },
     {
@@ -272,7 +270,7 @@
       }
     },
     {
-      "name": "An empty list, Apple Intelligence off: nothing listed",
+      "name": "An empty list, Apple Intelligence off: turn it on (the built-in Apple entry)",
       "mac": {
         "chip": "m2",
         "memory_gb": 16,
@@ -281,7 +279,7 @@
         "list": "empty"
       },
       "expect": {
-        "none": "nothing_listed"
+        "none": "turn_on_apple_ai"
       }
     },
     {
@@ -319,6 +317,101 @@
         "memory_gb": 16,
         "free_gb": 50,
         "apple_ai": "on",
+        "narrow_apple": true
+      },
+      "expect": {
+        "id": "qwen3-1-7b-q8",
+        "why": "fits"
+      }
+    },
+    {
+      "name": "16 GB, macOS still getting Apple's model: wait, nothing to download",
+      "mac": {
+        "chip": "m2",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "preparing"
+      },
+      "expect": {
+        "none": "turn_on_apple_ai",
+        "preparing": true
+      }
+    },
+    {
+      "name": "16 GB, Apple's state couldn't be checked: check again, never a download (AJ-E3823)",
+      "mac": {
+        "chip": "m2",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "unchecked"
+      },
+      "expect": {
+        "none": "apple_ai_unknown"
+      }
+    },
+    {
+      "name": "16 GB, the helper never answered: check again, never a download",
+      "mac": {
+        "chip": "m3",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "no_answer"
+      },
+      "expect": {
+        "none": "apple_ai_unknown"
+      }
+    },
+    {
+      "name": "16 GB, macOS blocked the helper: fix it, never a download",
+      "mac": {
+        "chip": "m4",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "blocked"
+      },
+      "expect": {
+        "none": "apple_ai_unknown"
+      }
+    },
+    {
+      "name": "16 GB, off, Qwen3 1.7B already installed: it keeps working",
+      "mac": {
+        "chip": "m2",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "off",
+        "installed": [
+          "qwen3-1-7b-q8"
+        ]
+      },
+      "expect": {
+        "id": "qwen3-1-7b-q8",
+        "why": "installed"
+      }
+    },
+    {
+      "name": "16 GB, blocked, Granite already installed: it keeps working",
+      "mac": {
+        "chip": "m2",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "blocked",
+        "installed": [
+          "granite-4-1-3b-q4km"
+        ]
+      },
+      "expect": {
+        "id": "granite-4-1-3b-q4km",
+        "why": "installed"
+      }
+    },
+    {
+      "name": "Apple's entry narrowed to no pass, unchecked, 16 GB: Qwen3 1.7B",
+      "mac": {
+        "chip": "m2",
+        "memory_gb": 16,
+        "free_gb": 50,
+        "apple_ai": "unchecked",
         "narrow_apple": true
       },
       "expect": {

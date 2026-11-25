@@ -65,6 +65,7 @@ pub mod main_window;
 pub mod manage;
 pub mod newer_data;
 pub mod os_access;
+pub mod os_prompts;
 pub mod overnight;
 pub mod paging;
 pub mod parked;
@@ -85,6 +86,7 @@ pub mod usage_pipeline;
 pub mod usage_stats;
 pub mod vault;
 pub mod webview_guard;
+pub mod window_frame;
 pub mod worktree;
 
 // Never in a release build: with the feature on, it doesn't compile.
@@ -258,6 +260,7 @@ macro_rules! app_commands {
             Write features::bot::commands::bot_wrong,
             Read  features::bot::commands::bot_memories,
             Write features::bot::commands::bot_forget,
+            Read  features::bot::search::bot_search,
             Read  features::watches::commands::watches_list,
             Read  features::watches::commands::watches_catalogue,
             Read  features::watches::commands::watches_preview,
@@ -345,7 +348,13 @@ macro_rules! app_commands {
             Read  features::switch::moves::switch_move_offer,
             Write features::switch::moves::switch_move_execute,
             Write features::switch::moves::switch_move_undo,
+            Write features::switch::moves::switch_move_finish,
+            Write features::switch::moves::switch_move_delete_backup,
+            Write features::switch::moves::switch_move_clear_old,
+            Read  features::switch::moves::switch_move_backups,
             Read  features::switch::moves::switch_moves,
+            Read  features::switch::moves::switch_ownership,
+            Write features::switch::moves::switch_ownership_repair,
             Write features::switch::commands::switch_door_count,
             Read  features::switch_setup::switch_setup_check,
             Read  features::switch_space::switch_space_check,
@@ -487,6 +496,7 @@ macro_rules! app_commands {
             Write features::ai::commands::ai_job_pick_set,
             Read  features::ai::models::commands::ai_models_installed,
             Read  features::ai::models::commands::ai_models_catalog,
+            Read  features::ai::models::commands::ai_engines_check,
             Write features::ai::models::commands::ai_open_system_page,
             Write features::ai::models::commands::ai_model_download_start,
             Write features::ai::models::commands::ai_model_download_cancel,
@@ -517,6 +527,10 @@ macro_rules! app_commands {
             Write features::sessions::commands::stop_session,
             Read  features::dashboard::commands::dashboard_stats,
             Write features::terminal::commands::terminal_spawn_login,
+            // AJ-E1553: the sign-ins, their pages and their outcomes.
+            Read  features::sign_ins::commands::sign_ins_list,
+            Write features::sign_ins::commands::sign_ins_open_page,
+            Write features::sign_ins::commands::sign_ins_dismiss,
             Write features::terminal::commands::terminal_attach,
             Write features::terminal::commands::terminal_write,
             Write features::terminal::commands::terminal_resize,
@@ -555,6 +569,11 @@ macro_rules! app_commands {
             Read  os_access::os_access_list,
             Write os_access::os_access_request,
             Write os_access::os_access_open_settings,
+            Read  os_prompts::os_prompts_list,
+            Read  os_prompts::os_prompt_status,
+            Write os_prompts::os_prompt_prime,
+            Write os_prompts::os_prompt_request,
+            Write os_prompts::os_prompt_answer,
             // Relaunches the app: never from the read-only bridge.
             Write app_relaunch::app_relaunch,
             Read  settings_policy::notification_prefs_get,
@@ -653,10 +672,16 @@ macro_rules! app_commands {
             // D-84: what AI Juggler found running, offered, never added by itself.
             Read  features::places::commands::places_offers,
             Write features::places::commands::places_offer_answer,
+            // AJ-E2327: Choose its folder… (a picked folder only), and each
+            // profile paired with its folder by evidence (first run's apps).
+            Write features::places::commands::places_choose_folder,
+            Read  features::places::commands::places_pairings,
             Write features::places::commands::places_open,
             // 0.3.8: quits and starts again one that lost its window when
             // macOS restarted its display (asked first, in the toast).
             Write features::places::commands::places_restart,
+            // 0.5.1 F98: Quit…, a running App closed and left closed.
+            Write features::places::commands::places_quit,
             Write features::places::commands::places_keep_alive,
             Write features::places::commands::places_forget,
             // AJ-E3203: the user's yes to reading the folder names beside
@@ -968,7 +993,6 @@ pub fn run() {
         }))
     };
     let mut app = builder
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         // AJ-E1510: system notifications; the webview gets no permission
         // for them (the backend shows them, and only when asked).
@@ -1101,6 +1125,11 @@ pub fn run() {
             features::tasks::start_emitter(
                 &tauri::Manager::state::<Arc<state::AppState>>(app),
                 app.handle().clone(),
+            );
+            // AJ-E1547: the system prompts' gate, before anything can ask.
+            os_prompts::install(
+                app.handle(),
+                &tauri::Manager::state::<Arc<state::AppState>>(app),
             );
             features::notifications::connect(
                 app.handle(),

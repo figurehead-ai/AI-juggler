@@ -303,6 +303,9 @@ test("switch, 1-click — popover, confirm, undo window", async ({ page }) => {
   stops.push(await focused(page));
   const inPopover = () => page.evaluate(() => !!document.querySelector("[data-testid='switch-flow']")?.contains(document.activeElement));
   expect(await inPopover(), "opening the switch moves focus into it").toBe(true);
+  // 0.5.1 F75: opened from the keyboard, the dialog starts on its first
+  // choice, never on a heading (a ring round words that aren't a control).
+  expect(await page.evaluate(() => /^H[1-6]$/.test(document.activeElement?.tagName ?? "")), "focus on a control, not a heading").toBe(false);
   await tabToEl(page, stops, "[data-testid='switch-confirm']", { max: 20 });
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("switch-undo-toast")).toBeVisible();
@@ -410,8 +413,30 @@ const FIRST_RUN = {
   },
 };
 
+/** AJ-E1545: one Mac permission not asked yet, so the wizard has its Mac
+ * access step (with none missing it goes from Your apps to Meet Bot). */
+const ACCESS_PROMPT = {
+  id: "accessibility",
+  title: "Jump to a session's own window",
+  why: "Brings the right terminal window to the front when you open a session.",
+  system_says: "“AI Juggler” would like to control this computer using accessibility features.",
+  click: "Open System Settings",
+  if_declined: "Opening a session still brings its app forward; you pick the window yourself.",
+  offered_again: "You can turn this on later in Settings › Desktop apps.",
+  needed: true,
+  status: "not_asked",
+  primed: false,
+  change_later: "System Settings › Privacy & Security",
+  background: "waits",
+  never_shown: false,
+  dialog: { style: "alert", title: "“AI Juggler” would like to control this computer using accessibility features.", body: "Grant access to this application in Privacy & Security settings, located in System Settings.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
+};
+
 test("onboarding — first run end to end by keyboard", async ({ page }) => {
-  await open(page, honestEmpty, FIRST_RUN, false);
+  await open(page, honestEmpty, { ...FIRST_RUN, __AIJ_OS_PROMPTS__: [ACCESS_PROMPT] }, false);
+  // F20 (0.5.1): the Welcome first; its Get started, by keyboard, opens the wizard.
+  await page.getByTestId("welcome-get-started").focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByTestId("first-run-found")).toBeVisible();
   const stops: Stop[] = [];
   const press = async (selector: string, then: string) => {
@@ -421,11 +446,24 @@ test("onboarding — first run end to end by keyboard", async ({ page }) => {
   };
   // The found setup is preselected; Tab reaches its checkbox and the button.
   await tabToEl(page, stops, "[data-testid='first-run-row'] input[type='checkbox']", { max: 40 });
-  // ADR-0018: used where it is, a signed-in setup needs no sign-in step.
-  await press("[data-testid='first-run-bring-in']", "first-run-access");
-  await press("[data-testid='first-run-start']", "home-empty-accounts");
+  // AJ-E1545 (0.5.1 F47): Bring in, in the setup wizard's foot, goes on to
+  // Mac access, Meet Bot, Keep it running and the tour, each step's Next
+  // reached by Tab; Finish without it closes the wizard (the old first
+  // run's own access step and its Continue are gone).
+  const wizard = page.getByTestId("setup-wizard");
+  await tabToEl(page, stops, "[data-testid='first-run-bring-in']", { max: 40 });
+  await page.keyboard.press("Enter");
+  await expect(wizard).toHaveAttribute("data-step", "access");
+  for (const step of ["bot", "keep", "tour"] as const) {
+    await press("[data-testid='setup-next']", "setup-wizard");
+    await expect(wizard).toHaveAttribute("data-step", step);
+  }
+  await tabToEl(page, stops, "[data-testid='setup-finish']", { max: 40 });
+  await page.keyboard.press("Enter");
+  await expect(wizard).toHaveCount(0);
+  await expect(page.getByTestId("home-empty-accounts")).toBeVisible();
   record("onboarding", stops, [
-    "First run: the found setup's checkbox → the placement choice → Bring in → computer access → Continue → Home (D-97: no account step); every control reached by Tab.",
+    "First run: Get started → the found setup's checkbox → Bring in → Mac access's Next → Meet Bot's Next → Keep it running's Next → Finish without it → Home (D-97: no account step); every control reached by Tab.",
   ]);
 });
 

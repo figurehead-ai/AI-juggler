@@ -8,11 +8,13 @@
 //! names is never run on its word alone).
 
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use juggler_platform::apps::Start;
 
 use super::book::KnownPlace;
 use crate::features::conversations::places::HostRegistry;
+use crate::state::AppState;
 
 /// What starting an app needs from the system, and (0.3.8) restarting one
 /// that lost its window (a seam: the tests script it).
@@ -40,6 +42,13 @@ pub trait Starter: Send + Sync {
     fn quit(&self, pid: u32) -> Result<(), String>;
     /// Whether `pid` is still the process that started at `start`.
     fn alive(&self, pid: u32, start: Option<i64>) -> bool;
+    /// AJ-E2320: the process at `pid` now, by its pid and start to the
+    /// microsecond (the kernel's listing); `None`: none runs there.
+    fn identify(&self, pid: u32) -> Option<crate::features::ownership::ProcId> {
+        crate::features::ownership::signal::identify(&[pid])
+            .get(&pid)
+            .copied()
+    }
 }
 
 /// How a place starts: its bundle, how, the one environment variable a
@@ -56,7 +65,9 @@ pub struct Launch {
     pub args: Vec<String>,
 }
 
-/// The real system.
+/// The real system: an app starts through `juggler_platform::apps::open_app`
+/// (Launch Services, with only the launch's own settings and none of AI
+/// Juggler's environment, F65).
 #[derive(Clone, Copy, Debug, Default)]
 pub struct System;
 
@@ -170,6 +181,57 @@ pub fn start(
     starter
         .start(&launch)
         .map_err(|why| format!("{} didn't start: {why}", place.name))
+}
+
+/// Starts `place` (its tool's folder found here), and on success has
+/// the live view look for it every tick for a while: every door's Start,
+/// Restart and Keep alive says it runs within seconds.
+///
+/// AJ-E2318 (the start/move race): never a profile a move holds closed,
+/// checked and started under the lock a move takes its hold by
+/// ([`super::MoveHold::take`]): a move holds it before this check (the
+/// start is refused) or after the start (the move sees it running and
+/// closes it), never between the check and the start.
+pub(crate) fn start_place(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    hosts: &HostRegistry,
+    starter: &dyn Starter,
+    background: bool,
+) -> Result<(), String> {
+    let folder = super::tool_folder(state, place);
+    let id = super::book::place_id(&place.app_id, place.instance_dir.as_deref());
+    let launched = {
+        let moving = state
+            .places
+            .moving
+            .lock()
+            .map_err(|_| super::HELD.to_owned())?;
+        if moving.contains(&id) {
+            return Err(super::HELD.to_owned());
+        }
+        // AJ-E2320: a move of another AI Juggler (or one that crashed).
+        if let Some(why) = super::why_held_on_disk(state, &id) {
+            return Err(why.to_owned());
+        }
+        start(place, hosts, folder.as_deref(), starter, background)
+    };
+    launched.inspect(|()| crate::features::conversations::look_for_started(state))
+}
+
+/// Starts `place` for the move that holds it closed
+/// ([`super::MoveHold`]): its own restarts (after a move, its undo, a
+/// repair, a crashed move's recovery), as a Desktop hand-off starts a
+/// profile: the one [`start`] every door uses (F65).
+pub(crate) fn start_held(
+    state: &Arc<AppState>,
+    place: &KnownPlace,
+    starter: &dyn Starter,
+) -> Result<(), String> {
+    let hosts = HostRegistry::of(&state.registry);
+    let folder = super::tool_folder(state, place);
+    start(place, &hosts, folder.as_deref(), starter, false)
+        .inspect(|()| crate::features::conversations::look_for_started(state))
 }
 
 #[cfg(test)]

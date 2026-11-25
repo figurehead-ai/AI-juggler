@@ -147,11 +147,10 @@ pub(super) fn describe_action(
     action: &proto::control_command::Action,
 ) -> String {
     match action {
-        proto::control_command::Action::StopInstance(stop) => {
-            let label = session_row(state, &stop.instance_id)
-                .map(|row| format!("{} ({})", row.account_label, row.provider));
-            format!("stop {}", label.unwrap_or_else(|| "a session".to_owned()))
-        }
+        proto::control_command::Action::StopInstance(stop) => format!(
+            "stop {}",
+            session_label(state, &stop.instance_id).unwrap_or_else(|| "a session".to_owned())
+        ),
         proto::control_command::Action::LaunchRecipe(_) => {
             "start a session from your Launch settings".to_owned()
         }
@@ -169,15 +168,42 @@ pub(super) fn describe_action(
         proto::control_command::Action::SwitchBack(_) => {
             "bring work back to its original session here".to_owned()
         }
-        proto::control_command::Action::FocusInstance(focus) => {
-            let label = session_row(state, &focus.instance_id)
-                .map(|row| format!("{} ({})", row.account_label, row.provider));
-            format!(
-                "bring {}'s window to the front",
-                label.unwrap_or_else(|| "a session".to_owned())
-            )
-        }
+        proto::control_command::Action::FocusInstance(focus) => format!(
+            "bring the window of {} to the front",
+            session_label(state, &focus.instance_id).unwrap_or_else(|| "a session".to_owned())
+        ),
     }
+}
+
+/// 0.5.1 F58: a session as the prompt names it: its name as every list
+/// says it, in its App (“Fix the flaky login test” in Claude Code CLI ·
+/// Work Max); never the tool's id.
+fn session_label(state: &Arc<AppState>, id: &str) -> Option<String> {
+    let row = session_row(state, id)?;
+    let tool = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new(row.provider.as_str()))
+        .map(|adapter| adapter.spec().display_name);
+    let name = crate::features::notifications::needs::session_name(&row, super::now_ms());
+    Some(session_words(
+        &name,
+        tool.as_deref(),
+        row.kind == "desktop" || row.app_id.is_some(),
+        &row.account_label,
+    ))
+}
+
+/// The words of [`session_label`]: “name” in its App. A tool no adapter
+/// names keeps its Account alone, never its id.
+fn session_words(name: &str, tool: Option<&str>, desktop: bool, account: &str) -> String {
+    let app = if desktop {
+        format!("its desktop app · {account}")
+    } else if let Some(tool) = tool {
+        crate::features::presence::cli_label(tool, account)
+    } else {
+        account.to_owned()
+    };
+    format!("“{name}” in {app}")
 }
 
 /// AJ-E711: runs the SAME tiered focus as a local click (AJ-E414), on
@@ -232,4 +258,34 @@ pub(super) fn focus_here(
         return Ok(format!("Permission needed on {here}"));
     }
     Ok(outcome.outcome)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::session_words;
+
+    #[test]
+    fn a_prompt_names_the_session_and_its_app_never_the_tools_id() {
+        assert_eq!(
+            session_words(
+                "Fix the flaky login test",
+                Some("Claude Code"),
+                false,
+                "Work Max"
+            ),
+            "“Fix the flaky login test” in Claude Code CLI · Work Max"
+        );
+        assert_eq!(
+            session_words(
+                "Tidy the blog's images",
+                Some("Claude Code"),
+                true,
+                "Personal"
+            ),
+            "“Tidy the blog's images” in its desktop app · Personal"
+        );
+        let unknown = session_words("Port the parser", None, false, "Work Max");
+        assert_eq!(unknown, "“Port the parser” in Work Max");
+        assert!(!unknown.contains("claude-code"));
+    }
 }

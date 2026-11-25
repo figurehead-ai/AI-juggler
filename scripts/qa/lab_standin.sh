@@ -23,6 +23,21 @@
 # Asking now, without a line typed: `$HOME/.aij-lab-bin/asks-at-start`
 # (a scenario's `standin = "asks"`, K3), or `--lab-ask`.
 #
+# A sign-in (AJ-E1553, the 0.5.1 PL1 walk's G2): started as AI Juggler
+# starts Claude Code's sign-in (no arguments, in its own `sign-in` folder or
+# the config folder itself), `claude` shows Claude's sign-in page (a
+# claude.ai address and "Paste code here if prompted") and waits. The lab's
+# approval, `$HOME/.aij-lab-bin/approve-sign-in` (its text: the lab
+# Account's name, default "Lab New"), stands in for the person approving in
+# the browser: the stand-in then writes the folder's signed-in signal as
+# the adapter checks it (a non-empty `.credentials.json`, a placeholder
+# that signs nothing in, and the lab's made-up `oauthAccount` in
+# `.claude.json`: `lab-account-<slug>` in `lab-org-<slug>`, the names a lab
+# Claude app profile's records folder on that Account has, as real Claude
+# Code records its organisation, F37), says "Login successful" and goes on
+# to its prompt. The approval file is used once. Nothing real is signed in,
+# read or sent.
+#
 # A turn that never ends (AJ-E2312, K3's "may be stuck"): `--lab-open-turn`
 # runs SessionStart, then UserPromptSubmit and a tool call that never
 # returns (its record `busy`), and never Stop: what a hung Claude Code turn
@@ -143,6 +158,25 @@ if [ "${1:-}" = "--selftest" ]; then
   for _ in $(seq 50); do grep -q '"status":"idle"' "$tmp/home/.claude-work/sessions/$pid3.json" 2>/dev/null && break; sleep 0.1; done
   grep -q '"status":"idle"' "$tmp/home/.claude-work/sessions/$pid3.json" || fail "--lab-idle isn't idle"
   kill "$pid3"
+  # AJ-E1553 (G2): a sign-in shows Claude's page and waits; the lab's
+  # approval signs the folder in by the adapter's signal, once.
+  mkdir -p "$tmp/home/sign-in" "$tmp/home/.aij-lab-bin"
+  (cd "$tmp/home/sign-in" || exit 1
+   HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/new" AIJ_LAB_STANDIN_SECS=20 "$tmp/claude" < /dev/null > "$tmp/out6" 2>&1 &
+   echo $! > "$tmp/pid6")
+  pid6="$(cat "$tmp/pid6")"
+  for _ in $(seq 50); do grep -q 'https://claude.ai/' "$tmp/out6" 2>/dev/null && break; sleep 0.1; done
+  grep -q 'https://claude.ai/' "$tmp/out6" && grep -q 'Paste code here if prompted' "$tmp/out6" || fail "no sign-in page: $(cat "$tmp/out6")"
+  sleep 1
+  [ ! -e "$tmp/home/new/.credentials.json" ] || fail "signed in before the approval"
+  echo "Lab New" > "$tmp/home/.aij-lab-bin/approve-sign-in"
+  for _ in $(seq 50); do [ -s "$tmp/home/new/.credentials.json" ] && grep -q 'Login successful' "$tmp/out6" && break; sleep 0.1; done
+  [ -s "$tmp/home/new/.credentials.json" ] || fail "the approval didn't sign the folder in"
+  grep -q '"accountUuid": "lab-account-lab-new"' "$tmp/home/new/.claude.json" || fail "no lab oauthAccount"
+  # F37: its organisation, named as the lab's records folders are.
+  grep -q '"organizationUuid": "lab-org-lab-new"' "$tmp/home/new/.claude.json" || fail "no lab organizationUuid"
+  [ ! -e "$tmp/home/.aij-lab-bin/approve-sign-in" ] || fail "the approval was kept"
+  kill "$pid6"
   # Never outside a lab: a real HOME, or a folder outside its HOME.
   HOME=/Users/you "$tmp/claude" < /dev/null > /dev/null 2>&1 && fail "ran on a real HOME"
   HOME="$tmp/home" CLAUDE_CONFIG_DIR=/Users/you/.claude "$tmp/claude" < /dev/null > /dev/null 2>&1 && fail "wrote outside its HOME"
@@ -260,6 +294,32 @@ ask() {
   hook PermissionRequest ',"tool_name":"Bash","tool_input":{"command":"npm test","description":"Run the project'"'"'s tests"}'
   hook Notification ',"message":"Claude needs your permission to use Bash","notification_type":"permission_prompt"'
 }
+
+# A sign-in (see the header): no arguments, in AI Juggler's sign-in folder.
+if [ "$name" != codex ] && [ "$#" -eq 0 ] && { [ "$(basename "$PWD")" = sign-in ] || [ "$PWD" = "$folder" ]; }; then
+  note idle
+  printf '\n ✻ Welcome to Claude Code (lab stand-in)\n\n Browser didn'"'"'t open? Use the url below to sign in:\n\n'
+  printf ' https://claude.ai/oauth/authorize?code=true&client_id=lab-stand-in&state=lab\n\n Paste code here if prompted > '
+  approve="$HOME/.aij-lab-bin/approve-sign-in"
+  deadline=$((SECONDS + secs))
+  while [ "$SECONDS" -lt "$deadline" ] && [ ! -f "$approve" ]; do sleep 1 & wait $!; done
+  [ -f "$approve" ] || finish other
+  who="$(head -c 64 "$approve" | tr -cd 'A-Za-z0-9 -')"
+  rm -f "$approve"
+  /usr/bin/python3 -I -c 'import json, re, sys
+folder, who = sys.argv[1], sys.argv[2] or "Lab New"
+slug = re.sub("[^a-z0-9]", "-", who.lower())
+path = folder + "/.claude.json"
+try:
+    state = json.load(open(path))
+except (OSError, ValueError):
+    state = {}
+state["oauthAccount"] = {"accountUuid": "lab-account-" + slug, "organizationUuid": "lab-org-" + slug,
+                         "emailAddress": slug + "@example.invalid"}
+json.dump(state, open(path, "w"), indent=2)' "$folder" "$who"
+  printf '{"lab": "not a sign-in"}' > "$folder/.credentials.json"
+  printf '\n\n Login successful. Press Enter to continue\n'
+fi
 
 hook SessionStart ',"source":"startup"'
 if [ "$name" = codex ]; then

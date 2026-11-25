@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GoToPalette, toAccelerator } from "./GoToPalette";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -122,7 +122,7 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     expect(onOpenSession).toHaveBeenCalledWith("sess-term-1");
   });
 
-  it("filter narrows the list (account/provider text)", () => {
+  it("filter narrows the list (account/provider text)", async () => {
     shell();
     const input = document.body.querySelector("input")!;
     fireEvent.change(input, { target: { value: "work" } });
@@ -130,7 +130,8 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     expect(palette.querySelector('[data-testid="goto-row-sess-term-1"]')).not.toBeNull();
     expect(palette.querySelector('[data-testid="goto-row-sess-desk-1"]')).toBeNull();
     fireEvent.change(input, { target: { value: "nothing-matches" } });
-    expect(palette.textContent).toContain("No matches for “nothing-matches”.");
+    // AJ-E3824: said once the records have answered too.
+    await waitFor(() => expect(palette.textContent).toContain("No matches for “nothing-matches”."));
   });
 
   it("combobox a11y: aria-expanded/activedescendant/roles wired", () => {
@@ -160,7 +161,7 @@ describe("AJ-E414 Go to instance… palette (Req.4)", () => {
     fireEvent.click(document.body.querySelector('[data-testid="goto-change-hotkey"]')!);
     fireEvent.keyDown(input, { key: "Escape" });
     expect(onHotkeyChange).not.toHaveBeenCalled();
-    expect(document.body.querySelector("input")!.getAttribute("placeholder")).toContain("Search sessions, apps, projects and accounts");
+    expect(document.body.querySelector("input")!.getAttribute("placeholder")).toContain("Search sessions, tasks, pools, usage, apps and projects");
   });
 
   it("capture failures surface inline, never silently", async () => {

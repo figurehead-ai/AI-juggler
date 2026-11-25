@@ -5,7 +5,10 @@
  * who did it).
  */
 import type { JSX, ReactNode } from "react";
+import { useLoadDeadline, type LoadState } from "../../lib/loading";
+import { LoadingState } from "../LoadingState";
 import { change, exact, short, type Unit } from "./scale";
+import { WARNING_CHIP } from "../primitives";
 
 /** A tiny trend line: an area wash, a 2 px line, the newest point marked. */
 export function Sparkline({ values, label, color = "var(--color-accent)", height = 36 }: { values: number[]; label: string; color?: string; height?: number }): JSX.Element {
@@ -35,7 +38,7 @@ export type Better = "up" | "down" | "neither";
 export function Delta({ now, before, better, period }: { now: number; before: number; better: Better; period: string }): JSX.Element {
   const { dir, words } = change(now, before);
   const good = better === "neither" || dir === "same" || dir === "new" ? null : (dir === "up") === (better === "up");
-  const tone = good === null ? "bg-surface-2 text-muted" : good ? "bg-success-soft text-success" : "bg-warning-soft text-warning";
+  const tone = good === null ? "bg-surface-2 text-muted" : good ? "bg-success-soft text-success" : WARNING_CHIP; // 0.5.1 F76: no amber behind words
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "•";
   const said = dir === "same" ? `the same as ${period}` : dir === "new" ? `none ${period}` : `${dir} ${words} on ${period}`;
   return (
@@ -68,6 +71,7 @@ export function StatTile({
   atLeast = false,
   estimate = false,
   holdSpace = false,
+  onRetry,
   testId,
 }: {
   label: string;
@@ -99,10 +103,17 @@ export function StatTile({
    * sparkline keep their space meanwhile (0.3.4: the tiles grew a read
    * later, pushing the page down). */
   holdSpace?: boolean;
+  /** AJ-E1552: reads its figures again; with it, figures past their
+   * deadline are an error with Retry, without it the held space ends. */
+  onRetry?: () => void;
   testId?: string;
 }): JSX.Element {
+  // AJ-E1552: the held space is a skeleton only while the figures come.
+  const waiting = holdSpace && value === null;
+  const { slow, timedOut } = useLoadDeadline(waiting, label);
+  const hold: LoadState = !waiting ? "ready" : !timedOut ? "loading" : onRetry ? "error" : "empty";
   return (
-    <div className="sheen flex min-w-0 flex-col gap-1.5 rounded-card border border-hairline bg-surface px-5 pb-3.5 pt-4 shadow-card" data-testid={testId ?? "stat-tile"}>
+    <div className="flex min-w-0 flex-col gap-1.5 rounded-card border border-frame bg-surface px-5 pb-3.5 pt-4" data-testid={testId ?? "stat-tile"}>
       <span className="flex items-center gap-1.5 text-meta text-muted">
         {icon && <span aria-hidden="true">{icon}</span>}
         {label}
@@ -114,13 +125,28 @@ export function StatTile({
         {suffix && value !== null && <span className="ml-1 text-section font-medium text-muted">{suffix}</span>}
       </span>
       {before != null && period && value !== null && <Delta now={value} before={before} better={better} period={period} />}
-      {holdSpace && value === null && <span aria-hidden="true" className="w-16 rounded-md bg-skeleton px-1.5 py-0.5 text-label motion-safe:animate-pulse">&nbsp;</span>}
+      {waiting && (
+        <LoadingState
+          state={hold}
+          slow={slow}
+          what={label.toLowerCase()}
+          skeleton={
+            <span aria-hidden="true" className="w-16 rounded-md bg-skeleton px-1.5 py-0.5 text-label motion-safe:animate-pulse" data-testid="stat-hold">
+              &nbsp;
+            </span>
+          }
+          empty={null}
+          onRetry={onRetry ?? (() => undefined)}
+        >
+          {null}
+        </LoadingState>
+      )}
       {note && <span className="text-label text-muted">{note}</span>}
       {trend && trend.length > 1 ? (
         <div className="mt-auto pt-1">
           <Sparkline values={trend} label={`${label}, over the range`} />
         </div>
-      ) : holdSpace && value === null ? (
+      ) : hold === "loading" ? (
         <div className="mt-auto pt-1" aria-hidden="true">
           <Sparkline values={[]} label={label} />
         </div>

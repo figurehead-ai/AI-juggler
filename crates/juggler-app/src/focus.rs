@@ -8,7 +8,7 @@
 //! app runs several (all six of the maintainer's Claude profiles share
 //! one, AJ-E2102). AI Juggler hands activation over first and checks the
 //! app is frontmost afterwards ([`crate::activation`], 0.1.5). Tiers (b)
-//! and (c) go through `/usr/bin/osascript` +
+//! and (c) go through `AppleScript` (the system prompts' gate) +
 //! System Events (AX), and run ONLY when the user turned window focus on
 //! in Settings: a click never raises a permission prompt (D-37).
 //! Scriptable through the [`ScriptRunner`] seam so the tier logic is
@@ -102,7 +102,11 @@ pub fn filled_in(source: &str, args: &[&str]) -> String {
         })
 }
 
-/// The real runner: `/usr/bin/osascript -e` and [`activation::Mac`].
+/// What a script the gate held says (System Events isn't allowed yet).
+const WAITING: &str = "not authorized yet: turn on window focus in Settings";
+
+/// The real runner: `AppleScript` through the system prompts' gate and
+/// [`activation::Mac`].
 #[derive(Debug, Default, Clone, Copy)]
 pub struct OsascriptRunner;
 
@@ -121,19 +125,18 @@ impl ScriptRunner for OsascriptRunner {
         self.osascript_with(source, &[])
     }
 
+    /// AJ-E1547: through the gate, as background work: it runs only
+    /// once System Events' entry is primed or already allowed, so a click
+    /// on Go to it never raises a prompt nobody was told about.
     fn osascript_with(&self, source: &str, args: &[&str]) -> Result<String, String> {
-        let out = juggler_adapter::process::helper("/usr/bin/osascript")
-            .arg("-e")
-            .arg(source)
-            .arg("--")
-            .args(args)
-            .output()
-            .map_err(|e| e.to_string())?;
-        if out.status.success() {
-            Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-        } else {
-            Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
-        }
+        juggler_platform::os_prompt::script(
+            crate::os_prompts::registry::SYSTEM_EVENTS,
+            juggler_platform::os_prompt::Presence::Background,
+            source,
+            args,
+        )
+        .value()
+        .unwrap_or_else(|| Err(WAITING.to_owned()))
     }
 }
 

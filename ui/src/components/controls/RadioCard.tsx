@@ -98,7 +98,7 @@ function Body({ logo, title, sub, children, layout = "row", align = "center", ti
 const hasMore = (children: ReactNode): boolean => Children.toArray(children).length > 0;
 
 const CARD = "relative flex w-full min-w-0 rounded-card px-4 py-3.5 text-left transition-[background-color,box-shadow] ";
-const AT_REST = "bg-surface inset-ring-1 inset-ring-hairline/75 hover:inset-ring-faint/60";
+const AT_REST = "bg-surface inset-ring-1 inset-ring-hairline hover:bg-hover";
 /** CARD_FOCUS, on the card while its (unseen) input has keyboard focus. */
 const FOCUS_INSIDE = "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-ink-2";
 

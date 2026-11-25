@@ -24,6 +24,7 @@ import { shortName, tellFactsApart } from "./session-titles";
 import { waitingSince, type NeedRow } from "./waiting";
 import { endedWord } from "./ended-how";
 import { attentionLevel, itemLevel, levelTone } from "./attention";
+import { withEveryPlace, type TwoPlaces } from "./two-places";
 export { goToWhere } from "./go-to-where"; // moved out, so this list stays within its size
 
 export type RailState = "asks_you" | "working" | "idle" | "done_review" | "ended";
@@ -101,6 +102,7 @@ export interface RailItem {
   place: RailPlace;
   /** The other places it's open in (one row that says so). */
   alsoIn: string[];
+  twoPlaces?: TwoPlaces | null; // AJ-E2326 R4: live in AI Juggler's session and another app (`lib/two-places`)
   accountId: string | null;
   accountLabel: string;
   tool: string;
@@ -325,15 +327,11 @@ export interface ItemInputs {
 export function itemsOf({ sessions, conversations, projects, seen, snoozed = () => false, pins, needOf }: ItemInputs): RailItem[] {
   const names = new Map(projects.map((p) => [p.id, p.name]));
   const projectName = (id: string | null) => (id === null ? null : (names.get(id) ?? null));
-  const items = tellFactsApart([
+  const rowOf = (c: ConversationInfo) => conversationItem(c, projectName, seen[`c:${c.account_id}/${c.id}`] ?? null, pins?.has(`c:${c.account_id}/${c.id}`) === true);
+  const items = tellFactsApart(withEveryPlace([ // AJ-E2326 R5: and under the desktop App whose Code child holds one of ours
     ...sessions.filter((row) => !row.went_on_in /* AJ-E2311 item 1: a hand-over is one row, its successor's */).map((row) => sessionItem(row, projectName, snoozed(row))),
-    ...conversations
-      .filter((c) => c.session_id === null)
-      .map((c) => {
-        const key = `c:${c.account_id}/${c.id}`;
-        return conversationItem(c, projectName, seen[key] ?? null, pins?.has(key) === true);
-      }),
-  ]);
+    ...conversations.filter((c) => c.session_id === null).map(rowOf),
+  ], sessions, conversations, rowOf, OWN_APP));
   // D-49: what is in Needs you is the backend's (one list, one count).
   if (!needOf) return items;
   return items.map((item) => {

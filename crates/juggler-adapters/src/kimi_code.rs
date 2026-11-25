@@ -48,6 +48,13 @@ use crate::claude_code::{existing, find_on_path};
 /// called that too).
 pub const KIMI_CODE_ID: &str = "kimi-code";
 
+/// AJ-E1545 R8: how Kimi Code's sign-in output is read: Kimi's page (auth.kimi.com or auth.kimi.ai) and its device code.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["kimi.com", "kimi.ai", "moonshot.cn"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -314,6 +321,13 @@ impl ToolDiscovery for KimiCodeAdapter {
 }
 
 impl ToolSignIn for KimiCodeAdapter {
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(KIMI_CODE_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, KIMI_CODE_ID)?;
         Ok(self.pinned_set_env(state_dir))
@@ -626,7 +640,7 @@ pub fn kimi_code_spec() -> juggler_adapter::ToolSpec {
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
-        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+        scan_hint: "Your default app and any other that looks like one. Nothing is changed."
             .to_owned(),
         setup_groups: vec![SetupGroup {
             id: KIMI_CODE_ID.to_owned(),

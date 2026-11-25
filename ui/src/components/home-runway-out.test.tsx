@@ -48,9 +48,13 @@ describe("Home's runway says Out", () => {
     expect(within(work).getByTestId("home-runway-out").textContent).toContain(
       "Out",
     );
-    // The figure gives way to the word (no pill, D-118's mock); the line
-    // below still names the window. Nothing runs on it: not red (D-117).
-    expect(within(work).getByTestId("home-runway-out").className).not.toContain("text-danger");
+    // AJ-E1550 req 5 (PAT-COLOR): Out is the red chip with when it's back,
+    // and its bar a full red one, whatever runs on it (one hue, one meaning).
+    expect(within(work).getByTestId("home-runway-out").className).toContain("text-danger");
+    expect(within(work).getByTestId("home-runway-out").getAttribute("data-kind")).toBe("out");
+    expect(within(work).getByRole("meter").firstElementChild!.getAttribute("data-state")).toBe("out");
+    // Low is amber: its bar in the strong amber.
+    expect(within(side).getByRole("meter").firstElementChild!.getAttribute("data-state")).toBe("low");
     expect(within(work).queryByText("0% left", { exact: true })).toBeNull();
     expect(within(side).queryByTestId("home-runway-out")).toBeNull();
     expect(side.textContent).toContain("15% left");
@@ -66,5 +70,21 @@ describe("the runway's facts line (D-118's mock)", () => {
     expect(runwayFacts({ left: 64, words: "64% left in the 5-hour window", resets: "Resets at 8:13 PM" }, 0)).toBe("Resets at 8:13 PM");
     expect(runwayFacts({ left: 58, words: "58% left, from its latest session", resets: null }, 1)).toBe("From its latest session · 1 session on it");
     expect(runwayFacts({ left: 0, words: "0% left in the 5-hour window", resets: "Resets at 4:13 AM" }, 0)).toBe("Resets at 4:13 AM");
+  });
+});
+
+describe("0.5.1 F43: the Out chip never says its reset twice", () => {
+  it('says "Out" alone when the line under it says when it resets, the whole of it in its tooltip; its words when the line can\'t', async () => {
+    const { outChipBrief } = await import("./HomeRunway");
+    expect(outChipBrief({ resets: "5-hour window resets at 10:00 AM tomorrow" })).toBe(true);
+    expect(outChipBrief({ resets: null })).toBe(false);
+    const { RoomChip } = await import("./RoomChip");
+    const { roomMarkFrom } = await import("../lib/room-mark");
+    const now = Date.now();
+    const mark = roomMarkFrom(0, now + 3_600_000, false, now)!;
+    render(<RoomChip mark={mark} brief testId="brief" />);
+    const chip = screen.getByTestId("brief");
+    expect(chip.querySelector("[aria-hidden='true'].min-w-0")?.textContent).toBe("Out");
+    expect(chip.getAttribute("title")).toMatch(/^Out of room until /);
   });
 });

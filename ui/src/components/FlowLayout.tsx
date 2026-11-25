@@ -9,7 +9,8 @@
  * - `FlowSteps`: the steps, in groups, each with its value under its
  *   name; done ones go back, the current one is marked.
  * - `FlowFoot`: Cancel on the left; Back, a secondary, then the view's
- *   one filled primary on the right (D-126: one primary per view).
+ *   one filled primary on the right (D-126: one primary per view), or
+ *   the step's own primary in its `end` slot, last (BTN-3).
  */
 import { forwardRef, useId, useLayoutEffect, useRef, type JSX, type ReactNode, type Ref } from "react";
 import { Button } from "./primitives";
@@ -213,19 +214,29 @@ export const FlowFoot = forwardRef(function FlowFoot(
     secondary,
     primary,
     note,
+    middle,
+    end,
   }: {
     cancel?: FlowAction;
     back?: FlowAction;
     secondary?: FlowAction;
-    /** The view's one filled primary. */
-    primary: FlowAction;
+    /** The view's one filled primary; left out when the step's own
+     * content holds it (the setup wizard's Find your apps). */
+    primary?: FlowAction;
     /** A line before the actions ("The rest is prefilled…"). */
     note?: ReactNode;
+    /** Between Cancel and the rest, in place of the space (the setup
+     * wizard's first run puts its own links there). */
+    middle?: ReactNode;
+    /** After the secondary, last: the place of a step's own primary when
+     * its content holds it (first run's Bring in N), so it still ends
+     * the row (BTN-3, 0.5.1 F50). */
+    end?: ReactNode;
   },
   primaryRef: Ref<HTMLButtonElement>,
 ): JSX.Element {
   const whyId = useId();
-  const why = primary.disabled && primary.reason ? primary.reason : null;
+  const why = primary?.disabled && primary.reason ? primary.reason : null;
   return (
     <footer className="flex min-h-[68px] shrink-0 flex-wrap items-center gap-2 border-t border-divider bg-surface px-6 py-3" data-toast-avoid data-testid="flow-foot">
       {cancel && (
@@ -233,7 +244,7 @@ export const FlowFoot = forwardRef(function FlowFoot(
           {cancel.label}
         </Button>
       )}
-      <span className="flex-1" />
+      {middle ?? <span className="flex-1" />}
       {why ? (
         <p id={whyId} className="mr-3 min-w-0 text-meta text-ink-2" data-testid="flow-foot-why">
           {why}
@@ -251,9 +262,12 @@ export const FlowFoot = forwardRef(function FlowFoot(
           {secondary.label}
         </Button>
       )}
-      <Button ref={primaryRef} variant="primary" onClick={primary.onClick} disabled={primary.disabled} aria-describedby={why ? whyId : undefined} data-testid={primary.testId}>
-        {primary.label}
-      </Button>
+      {primary && (
+        <Button ref={primaryRef} variant="primary" onClick={primary.onClick} disabled={primary.disabled} aria-describedby={why ? whyId : undefined} data-testid={primary.testId}>
+          {primary.label}
+        </Button>
+      )}
+      {end}
     </footer>
   );
 });

@@ -7,11 +7,10 @@
  * would refuse, every door says so up front, in the switch's own words.
  */
 import { SwitchAccountButton } from "./SwitchAccountButton";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as notices from "../lib/ipc/notices";
-import * as focus from "../lib/handover-focus";
-import { switchTargets, type SwitchTargetData } from "../lib/ipc/switch-targets";
+import type { SwitchTargetData } from "../lib/ipc/switch-targets";
 import { noteSwitchTargets, resetSwitchNotYet, useSwitchNotYet } from "../lib/switch-not-yet";
 import { clearSeams, instance, setSeam } from "../test/fixtures";
 import { SessionNotices } from "./SessionNotices";
@@ -62,28 +61,12 @@ afterEach(() => {
 });
 
 describe("rc33 M4: a switch that would refuse says so on every door", () => {
-  it("the out-of-room notice's Continue is greyed with the switch's words once its list has asked", async () => {
+  it("AJ-E1548 #13: the out-of-room notice on a session's page has no switch of its own (the side column's is the door)", async () => {
     setSeam("__AIJ_NOTICES__", { app: [outOfRoom] });
     setSeam("__AIJ_SWITCH_TARGETS__", [row()]);
-    const opened = vi.spyOn(focus, "focusHandoverSoon").mockImplementation(() => undefined);
-    render(<SessionNotices accountId="acc-work" switchKey="writer" reminderKey="writer" parkedId="writer" sessions={[WRITER]} />);
-    const go = await screen.findByTestId("session-notice-hand-over");
-    expect(go.getAttribute("aria-disabled")).toBeNull();
-    // The page's switch list asks (HandoverSection, ContinueOn).
-    await act(async () => void (await switchTargets("writer")));
-    await waitFor(() => expect(screen.getByTestId("session-notice-hand-over").getAttribute("aria-disabled")).toBe("true"));
-    expect(screen.getByTestId("session-notice-hand-over").getAttribute("aria-description")).toBe(NO_TURN);
-    screen.getByTestId("session-notice-hand-over").click();
-    expect(opened).not.toHaveBeenCalled();
-  });
-
-  it("a session that has talked keeps the notice's Continue live", async () => {
-    setSeam("__AIJ_NOTICES__", { app: [outOfRoom] });
-    setSeam("__AIJ_SWITCH_TARGETS__", [row({ filtered_reason: null, not_yet: null })]);
-    await switchTargets("writer");
-    render(<SessionNotices accountId="acc-work" switchKey="writer" reminderKey="writer" parkedId="writer" sessions={[WRITER]} />);
-    const go = await screen.findByTestId("session-notice-hand-over");
-    expect(go.getAttribute("aria-disabled")).toBeNull();
+    render(<SessionNotices accountId="acc-work" reminderKey="writer" parkedId="writer" sessions={[WRITER]} />);
+    await screen.findByTestId("session-notice-quota");
+    expect(screen.queryByTestId("session-notice-hand-over")).toBeNull();
   });
 
   it("the side column's Switch account… greys with the same words, and stays focusable (D-143, BTN-5)", () => {

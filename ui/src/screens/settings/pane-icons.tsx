@@ -53,7 +53,6 @@ const PANE_ICONS: Record<PaneId, (props: SVGProps<SVGSVGElement>) => JSX.Element
   "the-floor": IconFloor,
   advanced: IconSliders,
   // AJ-E3812: the AI group's row draws the chip; its sub-rows draw none.
-  "ai-jobs": IconChip,
   "ai-models": IconChip,
 };
 

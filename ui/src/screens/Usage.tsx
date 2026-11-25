@@ -29,7 +29,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 /** Loaded once it's opened: the table pages its rows. */
 const CostMatrix = lazyNamed(() => import("../components/CostMatrix"), "CostMatrix");
 /** AJ-E2902: loaded when it opens. */
-const CostReview = lazyNamed(() => import("../components/usage/CostReview"), "CostReview");
+const CostReview = lazyNamed(() => import("../components/usage/CostReview"), "CostReview", false, () => null); // a dialog, over the page
 
 export function UsageScreen({
   accounts,

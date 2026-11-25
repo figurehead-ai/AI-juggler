@@ -15,6 +15,8 @@ import { Button, Card } from "../../components/primitives";
 import { IconGoTo } from "../../components/icons-actions";
 import type { TurnInfo } from "../../lib/ipc/conversations";
 import type { FeedState } from "../../lib/conversation-feed-state";
+import { useLoadDeadline } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { plainWords } from "./Markdown";
 import { foldOf } from "./TurnWork";
 import { Turn } from "./ConversationTurn";
@@ -80,7 +82,7 @@ export function LastMessages({
   asker?: string;
 }): JSX.Element {
   const own = useMemo(() => (model.conversationId === null ? null : sessionSource(model.profileId, model.conversationId)), [model.profileId, model.conversationId]);
-  const { state: chat, showEarlier } = useConversation({ source: remoteMac ? null : (source ?? own), visible: visible && !remoteMac });
+  const { state: chat, showEarlier, retry } = useConversation({ source: remoteMac ? null : (source ?? own), visible: visible && !remoteMac });
   const speaker = speakerName(model.tool);
   const following = chat.status === "shown" && chat.subscription !== null && model.live && visible;
   return (
@@ -113,7 +115,7 @@ export function LastMessages({
       ) : model.conversationId === null ? (
         <Quiet>It hasn't written anything yet.</Quiet>
       ) : (
-        <Body chat={chat} model={model} speaker={speaker} onShowEarlier={showEarlier} asker={asker} />
+        <Body chat={chat} model={model} speaker={speaker} onShowEarlier={showEarlier} onRetry={retry} asker={asker} />
       )}
       {!remoteMac && !source && <Bottom chat={chat} model={model} speaker={speaker} onGoTo={onGoTo} />}
     </Card>
@@ -135,7 +137,7 @@ function Quiet({ children, testId, state }: { children: ReactNode; testId?: stri
   );
 }
 
-function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: FeedState; model: SessionModel; speaker: string; onShowEarlier: () => void; asker?: string }): JSX.Element {
+function Body({ chat, model, speaker, onShowEarlier, onRetry, asker }: { chat: FeedState; model: SessionModel; speaker: string; onShowEarlier: () => void; onRetry: () => void; asker?: string }): JSX.Element {
   const scroller = useRef<HTMLDivElement | null>(null);
   const turns = chat.turns;
   const last = turns[turns.length - 1];
@@ -151,7 +153,7 @@ function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: FeedState;
     if (further && !chat.loadingEarlier) onShowEarlier();
   }, [further, chat.loadingEarlier, onShowEarlier]);
 
-  if (turns.length === 0) return <Empty chat={chat} further={further} />;
+  if (turns.length === 0) return <Empty chat={chat} further={further} onRetry={onRetry} />;
   const asksAt = model.state.asks && last?.speaker === "assistant" ? turns.length - 1 : -1;
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -195,18 +197,36 @@ function Body({ chat, model, speaker, onShowEarlier, asker }: { chat: FeedState;
   );
 }
 
-/** Before any turn was shown: loading, or why there is none. */
-function Empty({ chat, further }: { chat: FeedState; further: boolean }): JSX.Element {
-  if (chat.status === "failed") return <Quiet>Couldn't read them: {chat.why}</Quiet>;
-  if (chat.status === "loading" || further) {
-    return (
-      <div className="flex flex-1 flex-col gap-5 px-5 py-6" aria-label={further ? "Looking further back" : "Loading the conversation"} role="status">
-        <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-16 w-3/4 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
-        <span className="ml-auto h-8 w-1/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
-      </div>
-    );
-  }
+/** Before any turn was shown: loading (AJ-E1552: Still loading after
+ * 3 s, an error with Retry at the deadline), a failure, or why there is
+ * none. */
+function Empty({ chat, further, onRetry }: { chat: FeedState; further: boolean; onRetry: () => void }): JSX.Element {
+  const waiting = chat.status === "loading" || further;
+  const { slow, timedOut } = useLoadDeadline(waiting, "the conversation");
+  const state = chat.status === "failed" || timedOut ? "error" : waiting ? "loading" : "empty";
+  return (
+    <LoadingState
+      state={state}
+      slow={slow}
+      what="the conversation"
+      failed={chat.status === "failed" && chat.why ? `Couldn't read them: ${chat.why}` : undefined}
+      skeleton={
+        <output className="flex flex-1 flex-col gap-5 px-5 py-6" aria-label={further ? "Looking further back" : "Loading the conversation"} data-testid="last-messages-skeleton">
+          <span className="ml-auto h-10 w-1/2 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+          <span className="h-16 w-3/4 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+          <span className="ml-auto h-8 w-1/3 rounded-2xl bg-skeleton motion-safe:animate-pulse" />
+        </output>
+      }
+      empty={<NoTurns chat={chat} />}
+      onRetry={onRetry}
+    >
+      {null}
+    </LoadingState>
+  );
+}
+
+/** Why a conversation that answered shows no turn. */
+function NoTurns({ chat }: { chat: FeedState }): JSX.Element {
   if (chat.status === "off") {
     return (
       <Quiet testId="last-messages-off">
@@ -257,10 +277,15 @@ function Bottom({ chat, model, speaker, onGoTo }: { chat: FeedState; model: Sess
   const question = model.state.asks ? questionOf(last) : null;
   if (model.state.asks) {
     return (
-      <div className="border-t border-warning/30 bg-warning-soft px-5 py-4" data-testid="last-messages-asks">
+      // 0.5.1 F66 (PAT-COLOR-2, PAT-SURF-1): a need card's tone with an
+      // amber mark by its words; never an amber fill behind them or a line.
+      <div className="bg-surface-2 px-5 py-4" data-testid="last-messages-asks">
         <div className="mx-auto flex w-full max-w-[760px] flex-wrap items-start gap-x-4 gap-y-3">
           <div className="flex min-w-0 flex-1 basis-72 flex-col gap-1">
-            <p className="text-meta font-semibold text-warning">{speaker} asks you</p>
+            <p className="flex items-center gap-1.5 text-meta font-semibold text-warning" data-testid="last-messages-asks-who">
+              <span aria-hidden="true" className="level-mark" data-level={2} data-testid="last-messages-asks-mark" />
+              {speaker} asks you
+            </p>
             {question && (
               <p className="line-clamp-3 text-body leading-[1.5] text-ink" data-testid="last-messages-question">
                 {question}

@@ -391,26 +391,25 @@ pub async fn handover_save(
 }
 
 /// Reveal in Finder: a saved handover's folder, through the system's
-/// file manager (the opener, as everywhere else).
+/// file manager (`juggler_adapter::apps::open`, as everywhere else).
 ///
 /// # Errors
 ///
 /// As [`reveal_target`], or the opener's error.
 #[tauri::command]
 pub async fn handover_reveal(
-    app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     path: String,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt;
     let target = crate::ipc::blocking(state.inner(), "the handover", move |state| {
         reveal_target(state, &path)
     })
     .await?;
-    app.opener()
-        .reveal_item_in_dir(&target)
-        .map_err(|error| AppError::Io {
+    // F67: through the launcher (none of our environment).
+    juggler_adapter::apps::open(juggler_adapter::apps::Opening::Reveal(&target)).map_err(|error| {
+        AppError::Io {
             context: "reveal in Finder",
             message: error.to_string(),
-        })
+        }
+    })
 }

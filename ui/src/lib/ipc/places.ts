@@ -11,10 +11,12 @@ import type { GoToOutcomeInfo } from "../../types/generated/GoToOutcomeInfo";
 import type { KnownPlaceInfo } from "../../types/generated/KnownPlaceInfo";
 import type { FindProfilesInfo } from "../../types/generated/FindProfilesInfo";
 import type { PlaceOfferInfo } from "../../types/generated/PlaceOfferInfo";
+import type { PlaceAddedInfo } from "../../types/generated/PlaceAddedInfo";
+import type { PlacePairingInfo } from "../../types/generated/PlacePairingInfo";
 import { previewHooks } from "../preview-hooks";
 import { listenWhileShown } from "../shown-window";
 
-export type { FindProfilesInfo, KnownPlaceInfo };
+export type { FindProfilesInfo, KnownPlaceInfo, PlaceAddedInfo, PlacePairingInfo };
 
 /** The event the backend sends when a place changed. */
 export const PLACES_CHANGED = "places-changed";
@@ -31,6 +33,9 @@ interface PreviewPlaces {
   profiles?: FindProfilesInfo & { beside?: KnownPlaceInfo[] };
   /** D-84: found running, not added. */
   offers?: PlaceOfferInfo[];
+  /** AJ-E2327: each desktop profile paired with its folder (first run's
+   * "Your apps", a gallery's fixture). */
+  pairings?: PlacePairingInfo[];
 }
 
 /** The preview's places: a spec's fixture, else the places desktop's
@@ -123,6 +128,20 @@ export async function placesRestart(id: string, confirmed = false): Promise<GoTo
   return call("places_restart", { id, confirmed });
 }
 
+/** 0.5.1 F98: Quit…, confirmed: quits a running app or profile and
+ * leaves it closed (Keep alive waits for its next Open). */
+export async function placesQuit(id: string): Promise<GoToOutcomeInfo> {
+  if (!hasLiveBackend()) {
+    const place = preview().places.find((row) => row.id === id);
+    if (!place) return { outcome: "AI Juggler doesn't remember that app any more", reached: "none" };
+    place.app_pid = null;
+    if (place.keep_alive) place.paused = "you quit it in AI Juggler";
+    changedHere();
+    return { outcome: `Quit ${place.label}`, reached: "quit" };
+  }
+  return call("places_quit", { id });
+}
+
 /** Keep alive on or off. */
 export async function placesKeepAlive(id: string, on: boolean): Promise<void> {
   if (!hasLiveBackend()) {
@@ -201,15 +220,46 @@ export async function placesOffers(): Promise<PlaceOfferInfo[]> {
   return call("places_offers");
 }
 
-/** D-84: Add an offer as an App, or Not now. */
-export async function placesOfferAnswer(id: string, add: boolean): Promise<void> {
+/** D-84: Add an offer as an App, or Not now. AJ-E2327: what Add did
+ * with its tool folder (brought in where it is, by what evidence, or why
+ * none), for its confirmation. */
+export async function placesOfferAnswer(id: string, add: boolean): Promise<PlaceAddedInfo> {
+  let added: PlaceAddedInfo;
   if (!hasLiveBackend()) {
     const now = preview();
     now.offers = (now.offers ?? []).filter((offer) => offer.id !== id);
     const found = now.profiles?.beside?.find((place) => place.id === id);
+    if (now.pairings) now.pairings = now.pairings.flatMap((row) => (row.id !== id ? [row] : add ? [{ ...row, added: true }] : []));
     if (add && found) now.places.push({ ...found });
+    added = { id, folder: (add ? found?.folder : null) ?? { tool: null, name: null, path: null, by: null, why: null } };
   } else {
-    await call("places_offer_answer", { id, add });
+    added = await call("places_offer_answer", { id, add });
   }
   changedHere();
+  return added;
+}
+
+/** AJ-E2327, "Choose its folder…": App `id` uses `folder`, one the user
+ * picked in the system's picker. */
+export async function placesChooseFolder(id: string, folder: string): Promise<PlaceAddedInfo> {
+  let added: PlaceAddedInfo;
+  if (!hasLiveBackend()) {
+    const name = folder.split("/").filter(Boolean).pop() ?? folder;
+    const info = { tool: "Claude Code", name, path: folder, by: "recorded", why: null };
+    const now = preview();
+    now.places = now.places.map((place) => (place.id === id ? { ...place, folder: info } : place));
+    added = { id, folder: info };
+  } else {
+    added = await call("places_choose_folder", { id, folder });
+  }
+  changedHere();
+  return added;
+}
+
+/** AJ-E2327: each desktop profile known (Apps and offers) paired with the
+ * tool folder evidence says it uses, and whether that's certain; none
+ * without a backend. Reads only. */
+export async function placesPairings(): Promise<PlacePairingInfo[]> {
+  if (!hasLiveBackend()) return [...(preview().pairings ?? [])];
+  return call("places_pairings");
 }

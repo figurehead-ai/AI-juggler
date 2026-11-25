@@ -51,7 +51,7 @@ import { appByConversation, appByFolder } from "../../lib/rail-apps";
 import { itemsOf } from "../../lib/rail-items";
 import { useSeen } from "../../lib/seen";
 import { useShownConversations } from "../../lib/shown-apps";
-import { askRestart, restartCounts } from "../../components/RestartApp";
+import { askQuit, askRestart, restartCounts } from "../../components/RestartApp";
 import { showGoTo } from "../../lib/go-to";
 
 export function AppPage({
@@ -301,11 +301,17 @@ function AppAction({ app, restart }: { app: AppModel; restart: { open: number; w
   };
   return (
     <>
-      {/* D-71: a running one restarts after its confirm. */}
+      {/* D-71: a running one restarts after its confirm; 0.5.1 F98: or
+          quits, and stays closed. */}
       {running && (
-        <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, ...restart })} data-testid="app-restart">
-          Restart…
-        </Button>
+        <>
+          <Button size="md" variant="secondary" onClick={() => askQuit({ placeId: place.id, name: app.name, ...restart, keepAlive: place.keep_alive })} data-testid="app-quit">
+            Quit…
+          </Button>
+          <Button size="md" variant="secondary" onClick={() => askRestart({ placeId: place.id, name: app.name, ...restart })} data-testid="app-restart">
+            Restart…
+          </Button>
+        </>
       )}
       <Button
         size="md"

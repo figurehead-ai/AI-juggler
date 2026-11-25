@@ -13,7 +13,7 @@ id: number,
  */
 peer_label: string, 
 /**
- * What it asks for, in plain words ("stop Work Max (claude-code)").
+ * What it asks for, in plain words ("stop “Fix the flaky login test” in Claude Code CLI · Work Max").
  */
 action: string, 
 /**

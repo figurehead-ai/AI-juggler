@@ -63,6 +63,16 @@ export function notBroughtIn(found: FoundTool[], appTools: string[], firstRunToo
  * fresh App and its sign-in when nothing of it is set up). */
 export const ADD_APP = "aij:add-app";
 
+/** F19 (0.5.1): the event the shell opens Find my apps on (the setup's
+ * Your apps: running profiles not added, folders not brought in), from
+ * where the shell's own state isn't (Settings › Desktop apps). */
+export const FIND_APPS = "aij:find-apps";
+
+/** Opens Find my apps. */
+export function findMyApps(): void {
+  window.dispatchEvent(new CustomEvent(FIND_APPS));
+}
+
 /** Opens Add an app for `tool`, by its id. */
 export function addAppFor(tool: string): void {
   window.dispatchEvent(new CustomEvent<{ tool: string }>(ADD_APP, { detail: { tool } }));

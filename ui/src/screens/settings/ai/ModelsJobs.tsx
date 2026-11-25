@@ -15,7 +15,7 @@ import type { ModelJob } from "../../../types/generated/ModelJob";
 import { Switch } from "../parts";
 import { JobIcon } from "./model-icons";
 import { CARD, ModelsSection } from "./ModelParts";
-import { JOB_ROWS, nameOf, pickable, verdictOf } from "./models-view";
+import { JOB_ROWS, jobsToday, nameOf, pickable, verdictOf } from "./models-view";
 import { JOBS, JOB_NAMES, VERDICT_WORDS } from "./models-words";
 
 const AUTOMATIC = "automatic";
@@ -132,12 +132,20 @@ export function JobsTable({
    * instead); the Jobs pane has the page's. */
   title?: boolean;
 }): JSX.Element {
+  const today = jobsToday(catalog);
   const rows = (
-    <ul className={`@container flex flex-col divide-y divide-divider px-1.5 py-1 ${CARD}`} data-testid="models-jobs">
-      {JOB_ROWS.map((job) => (
-        <JobRow key={job} job={job} info={jobs?.find((info) => info.job === job)} catalog={catalog} installed={installed} actions={actions} />
-      ))}
-    </ul>
+    <>
+      <ul className={`@container flex flex-col divide-y divide-divider px-1.5 py-1 ${CARD}`} data-testid="models-jobs">
+        {today.map((job) => (
+          <JobRow key={job} job={job} info={jobs?.find((info) => info.job === job)} catalog={catalog} installed={installed} actions={actions} />
+        ))}
+      </ul>
+      {catalog && today.length < JOB_ROWS.length && (
+        <p className="px-1 pt-2 text-meta text-muted" data-testid="models-jobs-more">
+          {JOBS.moreSoon}
+        </p>
+      )}
+    </>
   );
   if (!title) return rows;
   return (

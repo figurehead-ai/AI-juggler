@@ -287,7 +287,7 @@ function ForgetSheet({ project, onClose, onDone }: { project: ProjectInfo; onClo
  * view): rename, pin. `host` gives them to the action registry. */
 export function useSessionManage(onChanged: () => void) {
   const [renaming, setRenaming] = useState<InstanceInfo | null>(null);
-  const [replaying, setReplaying] = useState<string | null>(null);
+  const [replaying, setReplaying] = useState<{ id: string; tool: string } | null>(null);
   const [problem, setProblem] = useState<{ title: string; message: string } | null>(null);
   // AJ-E2908: an ended session's page has History's Archive, with Undo.
   const archiving = async (session: InstanceInfo, run: () => Promise<unknown>, done: string, undo: () => Promise<unknown>) => {
@@ -339,7 +339,7 @@ export function useSessionManage(onChanged: () => void) {
         />
       )}
       {problem && <ProblemSheet title={problem.title} message={problem.message} onClose={() => setProblem(null)} />}
-      {replaying && <ReplayDialog sessionId={replaying} onClose={() => setReplaying(null)} />}
+      {replaying && <ReplayDialog sessionId={replaying.id} tool={replaying.tool} onClose={() => setReplaying(null)} />}
     </>,
     document.body,
   );
@@ -347,7 +347,7 @@ export function useSessionManage(onChanged: () => void) {
     renameSession: actions.rename,
     pinSession: actions.togglePin,
     // AJ-E2908: History's actions for an ended session, from one registry.
-    replay: (session) => setReplaying(session.id),
+    replay: (session) => setReplaying({ id: session.id, tool: session.provider }),
     archive: (session) => archiving(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id)),
     unarchive: (session) => archiving(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id)),
     isArchived: (session) => session.lifecycle === "archived",

@@ -12,4 +12,9 @@ words: string,
 /**
  * The folder that keeps what was done since the move.
  */
-kept: string, };
+kept: string, 
+/**
+ * What of the profiles kept running when they quit (a server they
+ * started), in words: as the move itself says it (AJ-E2319 R5).
+ */
+notes: Array<string>, };

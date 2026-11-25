@@ -3,8 +3,9 @@
  * nightly list carries them (config/remote/nightly.json), three Macs, and
  * each state of the approved mock-up (`?s=`): Apple recommended, a
  * download recommended, downloading, the second-model approval, not
- * enough free disk, the list unread (offline), and installed with a
- * withdrawn model. Used by the component tests and the gallery; nothing
+ * enough free disk, the list unread (offline), installed with a
+ * withdrawn model, and (AJ-E3823) Apple Intelligence off, its helper
+ * unanswered, and its helper blocked: the engine-setup guide on top. Used by the component tests and the gallery; nothing
  * here is fetched.
  */
 import type { AiJobInfo } from "../lib/ipc/ai";
@@ -137,8 +138,14 @@ const DOWNLOADS = [QWEN, GRANITE, NEMOTRON, GEMMA];
 
 /** A Mac with Apple Intelligence on (M3, 18 GB, 212 GB free). */
 const MAC_AI: MacInfo = { apple_silicon: true, chip: 3, memory_bytes: 18 * GIB, memory_gb: 19, free_disk_bytes: 212 * GB, apple_ai: "on" };
-/** A Mac without it (M2, 16 GB, 48 GB free). */
-const MAC_PLAIN: MacInfo = { apple_silicon: true, chip: 2, memory_bytes: 16 * GIB, memory_gb: 17, free_disk_bytes: 48 * GB, apple_ai: "off" };
+/** A Mac that can't run it (M2, 16 GB, 48 GB free). */
+const MAC_PLAIN: MacInfo = { apple_silicon: true, chip: 2, memory_bytes: 16 * GIB, memory_gb: 17, free_disk_bytes: 48 * GB, apple_ai: "unavailable" };
+/** The first Mac with Apple Intelligence turned off, then two where it
+ * couldn't be checked (AJ-E3823): its helper never answered, or was
+ * blocked by the system. */
+const MAC_OFF: MacInfo = { ...MAC_AI, apple_ai: "off" };
+const MAC_NO_ANSWER: MacInfo = { ...MAC_AI, apple_ai: "no_answer" };
+const MAC_BLOCKED: MacInfo = { ...MAC_AI, apple_ai: "blocked" };
 
 const rec = (over: Partial<RecommendationInfo>): RecommendationInfo => ({ model_id: null, why: null, nothing: null, needed_bytes: null, apple_ai_off: false, ...over });
 
@@ -193,7 +200,7 @@ export const STATES: Record<string, ModelsState> = {
     start: NEEDS_APPROVAL,
   },
   nodisk: {
-    catalog: catalog({ ...MAC_PLAIN, free_disk_bytes: 11.2 * GB }, rec({ nothing: "not_enough_disk", needed_bytes: QWEN.free_disk_needed_bytes, apple_ai_off: true }), DOWNLOADS),
+    catalog: catalog({ ...MAC_PLAIN, free_disk_bytes: 11.2 * GB }, rec({ nothing: "not_enough_disk", needed_bytes: QWEN.free_disk_needed_bytes }), DOWNLOADS),
     models: NO_MODELS,
     jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }),
   },
@@ -207,6 +214,9 @@ export const STATES: Record<string, ModelsState> = {
     models: installed([QWEN, NOV_12, "listed"], [NEMOTRON, NOV_14, "withdrawn"]),
     jobs: jobs({ review: on(APPLE.id, APPLE.name), chat: on(NEMOTRON.id, NEMOTRON.name, NEMOTRON.id) }),
   },
+  appleoff: { catalog: catalog(MAC_OFF, rec({ nothing: "turn_on_apple_ai" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
+  noanswer: { catalog: catalog(MAC_NO_ANSWER, rec({ nothing: "apple_ai_unknown" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
+  blocked: { catalog: catalog(MAC_BLOCKED, rec({ nothing: "apple_ai_unknown" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
   nolist: {
     catalog: catalog({ ...MAC_PLAIN, apple_ai: "unavailable" }, rec({ nothing: "nothing_listed" }), [], false),
     models: NO_MODELS,

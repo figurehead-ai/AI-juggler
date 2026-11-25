@@ -124,3 +124,20 @@ describe("0.4.1 a running app's menu in the rail", () => {
     expect(screen.queryByTestId("rail-idle-menu-restart")).toBeNull();
   });
 });
+
+/** 0.5.1 F26 (PL1 walk E1): every control on an App's rail row shows the
+ * keyboard focus line (PAT-SURF: the accent line is focus's), and the
+ * bordered + / Start, whose ring sat against its own hairline, turns that
+ * border to the focus line too. */
+describe("0.5.1 F26 an App row's controls show keyboard focus", () => {
+  it("each focusable control carries the focus ring; the bordered action's border becomes the focus line", () => {
+    render(<RailIdleApp app={app({ kind: "cli", sessions: sessions(2) })} open={false} onToggle={vi.fn()} now={NOW} />);
+    const row = screen.getByTestId("rail-idle-app");
+    const controls = Array.from(row.querySelectorAll<HTMLElement>("button, [tabindex]:not([tabindex='-1'])"));
+    expect(controls.length).toBeGreaterThanOrEqual(3); // its fold, the row, its + New session
+    for (const control of controls) expect(control.className, control.getAttribute("aria-label") ?? control.textContent ?? "").toMatch(/focus-visible:ring-1 focus-visible:ring-accent\/60/);
+    const action = screen.getByTestId("rail-idle-action");
+    expect(action.getAttribute("aria-label")).toBe("New session: Claude app · Work");
+    expect(action.className).toMatch(/focus-visible:border-focus/);
+  });
+});

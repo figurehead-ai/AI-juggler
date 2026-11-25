@@ -91,7 +91,7 @@ export function LegendPopover({
           tabIndex={-1}
           data-testid="indicator-legend"
           style={{ left: place.left, top: place.top, bottom: place.bottom, maxHeight: place.maxHeight }}
-          className="fixed z-50 w-80 overflow-y-auto rounded-xl border border-hairline bg-surface p-3 shadow-card outline-none"
+          className="fixed z-50 w-80 overflow-y-auto rounded-xl border border-hairline bg-overlay p-3 shadow-popover outline-none"
         >
           <IndicatorLegend />
         </div>,

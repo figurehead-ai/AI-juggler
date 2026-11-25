@@ -9,6 +9,7 @@ import type { MoveOfferInfo } from "../lib/ipc/switch-move";
 export const EXAMPLE_MOVE_OFFER: MoveOfferInfo = {
   applies: true,
   blocks: [],
+  holders: [],
   members: [
     { title: "Fix the checkout flow", archived: false, side: "moves", folder_missing: false },
     { title: "Checkout tests", archived: false, side: "moves", folder_missing: true },
@@ -22,4 +23,6 @@ export const EXAMPLE_MOVE_OFFER: MoveOfferInfo = {
   kept_outputs: 2,
   bytes: 1_200_000_000,
   app: true,
+  prompts: [],
+  carried: [],
 };

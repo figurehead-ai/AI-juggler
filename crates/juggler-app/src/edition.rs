@@ -81,6 +81,25 @@ impl Edition {
         }
     }
 
+    /// AJ-E3822: the identifier this edition's helper `suffix` (`apple-ai`,
+    /// `local-ai`) is signed as, and so what the app requires of it, the
+    /// name of its sandbox container and of its cache. AI Juggler and
+    /// Nightly share the team's signer, so their helpers share one
+    /// identifier under AI Juggler's (unchanged since the helpers
+    /// shipped); Dev's are signed ad hoc, so they carry Dev's own prefix,
+    /// as the app does: one identifier under two signers made macOS's
+    /// app-data protection ask about the helper. The build side is
+    /// `scripts/helper_identity.sh`; `scripts/helper_identity_lint.py`
+    /// keeps the two in step.
+    #[must_use]
+    pub fn helper_identifier(self, suffix: &str) -> String {
+        let prefix = match self {
+            Self::Main | Self::Nightly => MAIN_IDENTIFIER,
+            Self::Dev => self.identifier(),
+        };
+        format!("{prefix}.{suffix}")
+    }
+
     /// The data folder's name under the OS data directory (Application
     /// Support on macOS). AI Juggler's is unchanged from before editions.
     #[must_use]
@@ -303,6 +322,37 @@ mod tests {
             assert_ne!(a.keychain().service(), a.vault_keychain().service());
             assert_ne!(a.keychain().service(), a.service_keys().service());
             assert_ne!(a.vault_keychain().service(), a.service_keys().service());
+        }
+    }
+
+    /// AJ-E3822: the released editions' helpers keep the identifiers they
+    /// shipped with (their sandbox containers and caches stay theirs);
+    /// Dev's never share one with them.
+    #[test]
+    fn helpers_follow_the_edition_and_releases_keep_theirs() {
+        for edition in [Edition::Main, Edition::Nightly] {
+            assert_eq!(
+                edition.helper_identifier("apple-ai"),
+                "ai.figurehead.juggler.apple-ai"
+            );
+            assert_eq!(
+                edition.helper_identifier("local-ai"),
+                "ai.figurehead.juggler.local-ai"
+            );
+        }
+        assert_eq!(
+            Edition::Dev.helper_identifier("apple-ai"),
+            "ai.figurehead.juggler.dev.apple-ai"
+        );
+        assert_eq!(
+            Edition::Dev.helper_identifier("local-ai"),
+            "ai.figurehead.juggler.dev.local-ai"
+        );
+        for suffix in ["apple-ai", "local-ai", "agent"] {
+            assert_ne!(
+                Edition::Dev.helper_identifier(suffix),
+                Edition::Main.helper_identifier(suffix)
+            );
         }
     }
 

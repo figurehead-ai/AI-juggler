@@ -330,3 +330,26 @@ describe("a turn that didn't finish, in words", () => {
     for (const code of [/error_during_execution/, /error_max_\w+/, /\berror_[a-z]+_[a-z_]+/]) expect(source).not.toMatch(code);
   });
 });
+
+// 0.5.1 F59 (PAT-COLOR-2, PAT-SURF-1): amber is a mark, never a fill
+// behind words, and a card has no outline: a need card's look, by tone.
+describe("an ask card's look (F59)", () => {
+  it("is a tone card with an amber mark: no amber fill, no border", () => {
+    const { getByTestId } = render(<AskCard ask={approval()} />);
+    const card = getByTestId("ask-card");
+    expect(card.className).toContain("bg-surface");
+    expect(card.className).not.toMatch(/warning|border/);
+    const mark = getByTestId("ask-mark");
+    expect(mark.className).toContain("level-mark");
+    expect(mark.getAttribute("data-level")).toBe("2");
+    expect(mark.getAttribute("aria-hidden")).toBe("true");
+    expect(getByTestId("ask-kind").textContent).toBe("Wants to run");
+  });
+
+  it("inside a panel that frames it, one tone step up, still no fill of amber", () => {
+    const { getByTestId } = render(<AskCard ask={approval()} plain />);
+    const card = getByTestId("ask-card");
+    expect(card.className).toContain("bg-surface-2");
+    expect(card.className).not.toMatch(/warning|border/);
+  });
+});

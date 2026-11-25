@@ -308,7 +308,13 @@ describe("AJ-E408 Project (§5.5, Req.5-6)", () => {
     const banner = container.querySelector('[data-testid="project-missing-banner"]');
     expect(banner).not.toBeNull();
     expect(banner!.getAttribute("role")).toBe("alert");
-    expect(banner!.textContent).toContain("missing");
+    expect(banner!.textContent).toContain("Project folder is missing");
+    // 0.5.1 F84 (PAT-COLOR-2, PAT-SURF-1): a tone card with a red mark,
+    // the words in ink; no red fill behind them, no outline.
+    expect(banner!.className).toContain("bg-surface");
+    expect(banner!.className).not.toMatch(/danger|border/);
+    expect(banner!.querySelector('[data-testid="project-missing-mark"]')!.getAttribute("data-level")).toBe("3");
+    expect(banner!.innerHTML).not.toMatch(/text-danger/);
     const relocate = [...banner!.querySelectorAll("button")].find((button) => button.textContent === "Relocate…");
     expect(relocate).toBeDefined();
     expect((relocate as HTMLButtonElement).disabled).toBe(false);

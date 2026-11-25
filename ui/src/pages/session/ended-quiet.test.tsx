@@ -51,11 +51,11 @@ function openFold(testId: string): void {
 
 describe("D-103.3 an ended session's page stays quiet", () => {
   it("shows no notice under its header; a live one keeps it", async () => {
-    const ended = render(<SessionNotices accountId="acc-west" quiet switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[ENDED]} />);
+    const ended = render(<SessionNotices accountId="acc-west" quiet reminderKey="s-1" parkedId="s-1" sessions={[ENDED]} />);
     await settle();
     expect(screen.queryByTestId("session-notice-quota")).toBeNull();
     ended.unmount();
-    render(<SessionNotices accountId="acc-west" switchKey="s-1" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
+    render(<SessionNotices accountId="acc-west" reminderKey="s-1" parkedId="s-1" sessions={[LIVE]} />);
     expect((await screen.findByTestId("session-notice-quota")).textContent).toContain("This session's account, West, is out of room");
   });
 

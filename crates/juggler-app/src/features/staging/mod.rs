@@ -368,15 +368,19 @@ fn stage_one(
     let parsed = juggler_adapters::parse_any(&bytes);
     drop(bytes);
     let (_, turns) = crate::features::switch::back::turns_of(parsed);
-    let preflight =
-        match crate::features::switch::preflight::preflight_with(state, id, &target.recipe_id) {
-            Ok(preflight) => preflight,
-            Err(error) => {
-                // A switch that would stop isn't ready.
-                discard(&dir);
-                return Err(error);
-            }
-        };
+    let preflight = match crate::features::switch::preflight::preflight_with(
+        state,
+        id,
+        &target.recipe_id,
+        target.place_id.as_deref(),
+    ) {
+        Ok(preflight) => preflight,
+        Err(error) => {
+            // A switch that would stop isn't ready.
+            discard(&dir);
+            return Err(error);
+        }
+    };
 
     private_folder(root).map_err(|e| io(&e))?;
     private_folder(&dir).map_err(|e| io(&e))?;

@@ -45,7 +45,9 @@ function Line({ icon: Icon, label }: { icon: typeof IconSnooze; label: string })
   );
 }
 
-export function NoticeRow({ notice, actions, now, onEditWatch }: { notice: NoticeInfo; actions: NoticeActions; now: number; onEditWatch?: (id: string) => void }): JSX.Element {
+/** `lead`: the first need's main action is the centre's one filled
+ * button (BTN-1, as Home's Needs you); the others' are secondary. */
+export function NoticeRow({ notice, actions, now, onEditWatch, lead = false }: { notice: NoticeInfo; actions: NoticeActions; now: number; onEditWatch?: (id: string) => void; lead?: boolean }): JSX.Element {
   const [menuAt, setMenuAt] = useState<{ x: number; y: number } | null>(null);
   // F16: a hand-over with no open session opens the account, and says so.
   const primary = primaryWords(notice, actions.canHandOver(notice));
@@ -107,7 +109,7 @@ export function NoticeRow({ notice, actions, now, onEditWatch }: { notice: Notic
         {meta && <p className="truncate text-label text-muted">{meta}</p>}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           {primary && (
-            <Button size="sm" variant="primary" onClick={() => actions.primary(notice)} data-testid="notice-primary">
+            <Button size="sm" variant={lead ? "primary" : "secondary"} onClick={() => actions.primary(notice)} data-testid="notice-primary">
               {primary}
               <span className="sr-only"> — {notice.title}</span>
             </Button>

@@ -71,9 +71,10 @@ describe("AJ-E3816 the Watches list", () => {
   it("lists each watch by its echo, names bold, with its target, chips and state; one primary", async () => {
     const page = await show(STATES.list!);
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(6));
-    expect(screen.getByTestId("watches-count").textContent).toBe("6 of 50");
+    // AJ-E1548 #25: far from the limit, no count beside the title.
+    expect(screen.queryByTestId("watches-count")).toBeNull();
     const [first] = screen.getAllByTestId("watch-row");
-    expect(within(first!).getByTestId("watch-echo").textContent).toBe("Tell you when “api” finishes, or looks stuck for 15 minutes.");
+    expect(within(first!).getByTestId("watch-echo").textContent).toBe("Tell you when “api” finishes its turn, or looks stuck for 15 minutes.");
     expect(within(first!).getByTestId("watch-echo").querySelector("b")?.textContent).toBe("“api”");
     expect(within(first!).getByTestId("watch-target-line").textContent).toBe("Session · Agent CLI · shop");
     expect(within(first!).getByTestId("watch-lifetime").textContent).toBe("Until it ends");
@@ -160,7 +161,7 @@ describe("AJ-E3816 the Watches list", () => {
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(5));
     expect(calls()).toContainEqual(["watches_remove", { id: "w-a2" }]);
     const toast = toastEntries().find((t) => t.id === "watch-removed-w-a2")!;
-    expect(toast.options.message).toBe("Watch removed: all of “api” and “web” finish");
+    expect(toast.options.message).toBe("Watch removed: all of “api” and “web” finish their turn");
     await act(() => undoToast(toast.id));
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(6));
     expect(calls()).toContainEqual(["watches_restore", { id: "w-a2" }]);
@@ -205,13 +206,13 @@ describe("AJ-E3816 empty and many", () => {
   it("empty: what a watch is, one primary, Ask Bot, and starters that open the form filled in", async () => {
     const page = await show(STATES.empty!);
     expect(await screen.findByTestId("watches-empty")).toBeTruthy();
-    expect(page.textContent).toContain("Get told when an agent finishes, asks you or gets stuck");
+    expect(page.textContent).toContain("Get told when a session finishes its turn, asks you or gets stuck");
     expect(screen.getByTestId("watches-empty-bot").textContent).toContain("or ask Bot");
     await waitFor(() => expect(screen.getAllByTestId("watch-starter")).toHaveLength(3));
     expect(primariesIn(page)).toHaveLength(1);
     fireEvent.click(screen.getAllByTestId("watch-starter")[0]!);
     expect(await screen.findByTestId("watch-form")).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId("watch-preview-echo").textContent).toContain("Tell you when “api” finishes. Once."));
+    await waitFor(() => expect(screen.getByTestId("watch-preview-echo").textContent).toContain("Tell you when “api” finishes its turn. Once."));
     // Nothing was made by the starter.
     expect(calls().filter(([name]) => name === "watches_create")).toHaveLength(0);
   });
@@ -225,7 +226,7 @@ describe("AJ-E3816 empty and many", () => {
   it("many: the toolbar, compact rows ten at a time, and the limit only once New watch is pressed", async () => {
     await show(STATES.many!);
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(10));
-    expect(screen.getByTestId("watches-count").textContent).toBe("50 of 50");
+    expect(screen.getByTestId("watches-count").textContent).toBe("50 of 50 watches");
     expect(screen.getByTestId("watches-toolbar")).toBeTruthy();
     expect(screen.getByTestId("watches-pager").textContent).toContain("10 of 50 shown");
     expect(screen.queryByTestId("watches-limit")).toBeNull();
@@ -274,7 +275,7 @@ describe("AJ-E3816 the form", () => {
     await waitFor(() => expect(screen.getByTestId("watch-condition-stuck")).toBeTruthy());
     fireEvent.click(screen.getByTestId("watch-condition-stuck").querySelector("input")!);
     // Finishes was picked already; with Looks stuck the suggestion is Today.
-    const expected = "Tell you when “api” finishes, or looks stuck for 15 minutes. Until midnight today.";
+    const expected = "Tell you when “api” finishes its turn, or looks stuck for 15 minutes. Until midnight today.";
     await waitFor(() => expect(screen.getByTestId("watch-preview-echo").textContent).toBe(expected));
     expect(screen.getByTestId("watch-preview-ends").textContent).toBe("Ends at midnight tonight.");
     fireEvent.click(screen.getByTestId("watch-form-save"));
@@ -286,6 +287,19 @@ describe("AJ-E3816 the form", () => {
     expect(draftWords(created).words).toBe(expected);
   });
 
+  it("AJ-E1548 #16: Watch primes the notification permission first (our sheet), and Not now or no answer still saves the watch", async () => {
+    const prompts = await import("../../lib/ipc/os-prompts");
+    const asked = vi.spyOn(prompts, "osPromptRequest").mockRejectedValue(new Error("Not now"));
+    await show(STATES.list!);
+    act(() => openWatches({ kind: "new", target: { kind: "session", id: "s-api" } }));
+    await waitFor(() => expect(screen.getByTestId("watch-form-save")).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId("watch-form-save").hasAttribute("disabled")).toBe(false));
+    fireEvent.click(screen.getByTestId("watch-form-save"));
+    await waitFor(() => expect(screen.queryByTestId("watch-form")).toBeNull());
+    expect(asked).toHaveBeenCalledWith("notifications");
+    expect(calls().some(([name]) => name === "watches_create")).toBe(true);
+  });
+
   it("Edit: a second session shows For each / When all, the Was line, and saves by id", async () => {
     await show(STATES.edit!);
     await waitFor(() => expect(screen.getAllByTestId("watch-row")).toHaveLength(6));
@@ -295,8 +309,8 @@ describe("AJ-E3816 the form", () => {
     fireEvent.click(screen.getByTestId("watch-target-add"));
     fireEvent.click(document.querySelector("[data-key='session:s-web']")!);
     expect(screen.getByTestId("watch-matching")).toBeTruthy();
-    await waitFor(() => expect(screen.getByTestId("watch-preview-was").textContent).toContain("Tell you when “api” finishes, or looks stuck for 15 minutes. Until it ends."));
-    await waitFor(() => expect(screen.getByTestId("watch-preview-echo").textContent).toBe("Tell you when “api” or “web” finishes, or looks stuck for 15 minutes. Until they end."));
+    await waitFor(() => expect(screen.getByTestId("watch-preview-was").textContent).toContain("Tell you when “api” finishes its turn, or looks stuck for 15 minutes. Until it ends."));
+    await waitFor(() => expect(screen.getByTestId("watch-preview-echo").textContent).toBe("Tell you when “api” or “web” finishes its turn, or looks stuck for 15 minutes. Until they end."));
     expect(screen.getByTestId("watch-form-consequence").textContent).toBe("Changes it at once. Its history stays.");
     expect(screen.getByTestId("watch-form-remove")).toBeTruthy();
     fireEvent.click(screen.getByTestId("watch-form-save"));

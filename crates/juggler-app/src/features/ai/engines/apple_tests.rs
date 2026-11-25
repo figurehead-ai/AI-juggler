@@ -21,8 +21,13 @@ fn model(availability: Availability) -> Seen {
     }
 }
 
+/// Each answer's readiness, and Apple Intelligence as the recommendation
+/// reads it. AJ-E3823: only the model's own answer or the OS seam says
+/// "this Mac can't run it"; a probe that failed, got no answer or was
+/// blocked couldn't check, and never reads as unavailable.
 #[test]
 fn each_answer_gives_its_readiness_and_unknown_fails_closed() {
+    let not_here = Readiness::NotHere(Reason::Unknown);
     let cases = [
         (
             model(Availability::Available),
@@ -37,7 +42,7 @@ fn each_answer_gives_its_readiness_and_unknown_fails_closed() {
         (
             model(Availability::NotReady),
             Readiness::Preparing(Reason::GettingReady),
-            AppleAi::Off,
+            AppleAi::Preparing,
         ),
         (
             model(Availability::NotEligible),
@@ -49,11 +54,7 @@ fn each_answer_gives_its_readiness_and_unknown_fails_closed() {
             Readiness::NotHere(Reason::NotThisSystem),
             AppleAi::Unavailable,
         ),
-        (
-            model(Availability::Unknown),
-            Readiness::NotHere(Reason::Unknown),
-            AppleAi::Unavailable,
-        ),
+        (model(Availability::Unknown), not_here, AppleAi::Unchecked),
         (
             Seen::Os(SystemModel::NotThisChip),
             Readiness::NotHere(Reason::NotThisComputer),
@@ -72,23 +73,49 @@ fn each_answer_gives_its_readiness_and_unknown_fails_closed() {
         (
             Seen::Missing,
             Readiness::NotHere(Reason::HelperMissing),
-            AppleAi::Unavailable,
+            AppleAi::Unchecked,
         ),
-        (
-            Seen::NotAsked,
-            Readiness::NotHere(Reason::Unknown),
-            AppleAi::Unavailable,
-        ),
-        (
-            Seen::Failed,
-            Readiness::NotHere(Reason::Unknown),
-            AppleAi::Unavailable,
-        ),
+        (Seen::NotAsked, not_here, AppleAi::Unchecked),
+        (Seen::Failed, not_here, AppleAi::Unchecked),
+        (Seen::NoAnswer, not_here, AppleAi::NoAnswer),
+        (Seen::Blocked, not_here, AppleAi::Blocked),
     ];
     for (seen, ready, apple_ai) in cases {
         assert_eq!(seen.readiness(), ready, "{seen:?}");
         assert_eq!(seen.apple_ai(), apple_ai, "{seen:?}");
+        let unknown = matches!(
+            apple_ai,
+            AppleAi::Unchecked | AppleAi::NoAnswer | AppleAi::Blocked
+        );
+        assert_eq!(seen.apple_ai().unknown(), unknown, "{seen:?}");
+        if unknown {
+            assert_ne!(
+                seen.apple_ai(),
+                AppleAi::Unavailable,
+                "{seen:?}: never \"can't run it\""
+            );
+        }
     }
+}
+
+/// AJ-E3823's root cause: a helper the system stops before its hello is
+/// "blocked", one that breaks "couldn't check": never "can't run it".
+#[cfg(unix)]
+#[test]
+fn a_blocked_or_broken_probe_is_its_own_state() {
+    let dir = tempfile::tempdir().unwrap();
+    let killed = dir.path().join("killed");
+    crate::test_support::script(&killed, "#!/bin/sh\nkill -9 $$\n");
+    let engine = Apple::with_program(Some(killed));
+    engine.probe();
+    assert_eq!(engine.seen(), Seen::Blocked);
+    assert_eq!(engine.seen().apple_ai(), AppleAi::Blocked);
+    let broken = dir.path().join("broken");
+    crate::test_support::script(&broken, "#!/bin/sh\nexit 1\n");
+    let engine = Apple::with_program(Some(broken));
+    engine.probe();
+    assert_eq!(engine.seen(), Seen::Failed);
+    assert_eq!(engine.seen().apple_ai(), AppleAi::Unchecked);
 }
 
 #[test]

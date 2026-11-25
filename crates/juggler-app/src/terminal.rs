@@ -93,6 +93,8 @@ pub fn spawn_login_terminal_impl(
         .get(&account.harness)
         .ok_or_else(|| AppError::UnknownHarness(account.harness.as_str().to_string()))?;
     let spec = adapter.login_spec(&account.state_dir)?;
+    // AJ-E1553: how its folder stands before the sign-in can write to it.
+    let watch = juggler_adapter::sign_in_page::SignInWatch::start(&*adapter, &account.state_dir);
     let id = SessionId::new(format!("{LOGIN_TERMINAL_PREFIX}{}", unique_suffix()));
     state.supervisor.spawn(
         &id,
@@ -106,6 +108,7 @@ pub fn spawn_login_terminal_impl(
         },
     )?;
     attach_forwarder(app, state, &id);
+    crate::features::sign_ins::started(app, state, &account, &id, watch);
     Ok(TerminalInfo {
         id: id.as_str().to_string(),
     })

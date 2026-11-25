@@ -215,12 +215,16 @@ read_routes! {
     // set-up list, all reads. The check's secret previews are masked
     // before they leave ([`masked`]).
     "switch_targets" => async_result features::switch::commands::switch_targets(state; session_id: String);
-    "switch_preflight" => async_result features::switch::commands::switch_preflight(state; session_id: String, target_profile_id: String);
+    "switch_preflight" => async_result features::switch::commands::switch_preflight(state; session_id: String, target_profile_id: String, target_place_id: Option<String>);
     // D-93 (ADR-0031): the Move offer a switch shows (whether Move applies,
     // why not, the family, the restarts); it reads, it moves nothing.
-    "switch_move_offer" => async_result features::switch::moves::switch_move_offer(state; session_id: String, target_profile_id: String);
+    "switch_move_offer" => async_result features::switch::moves::switch_move_offer(state; session_id: String, target_profile_id: String, target_place_id: Option<String>);
+    // AJ-E2325: the backups kept for Undo, together (reads only).
+    "switch_move_backups" => async_result features::switch::moves::switch_move_backups(state);
     // The moves AI Juggler knows of (for Undo), a page at a time.
     "switch_moves" => async_result features::switch::moves::switch_moves(state; page: Option<crate::paging::PageRequest>);
+    // AJ-E2328: the worktree ownership check (reads only).
+    "switch_ownership" => async_result features::switch::moves::switch_ownership(state);
     "switch_setup_check" => async_result features::switch_setup::switch_setup_check(state; session_id: String, target_profile_id: String);
     "switch_space_check" => async_result features::switch_space::switch_space_check(state; session_id: String, target_profile_id: String);
     "switch_cut_preview" => async_result features::switch_cut::switch_cut_preview(state; session_id: String, target_profile_id: String, cut: Option<features::switch_cut::SwitchCutArgs>);
@@ -280,6 +284,8 @@ read_routes! {
     "places_find" => async_result features::places::commands::places_find(state; tool: String, conversation_id: String, account: Option<String>, app: Option<String>);
     "places_offers" => async_result features::places::commands::places_offers(state);
     "places_profiles" => async_result features::places::commands::places_profiles(state);
+    // AJ-E2327: first run's "Your apps" (reads only: nothing is added).
+    "places_pairings" => async_result features::places::commands::places_pairings(state);
     "conversations_get" => async_result features::conversations::commands::conversations_get(state; account_id: String, conversation_id: String);
     "conversations_started" => async_result features::conversations::commands::conversations_started(state; tool: String, conversation_id: String);
     "conversations_resume_command" => async_result features::conversations::commands::conversations_resume_command(state; account_id: String, conversation_id: String);
@@ -374,6 +380,8 @@ read_routes! {
     "tasks_counts" => async_result features::tasks::commands::tasks_counts(state; pool_id: String);
     "tasks_across" => async_result features::tasks::commands::tasks_across(state; filter: features::tasks::dto::TasksFilterInput, page: crate::paging::PageRequest);
     "tasks_across_counts" => async_result features::tasks::commands::tasks_across_counts(state; filter: features::tasks::dto::TasksFilterInput);
+    // AJ-E3824: Search's records (reads only, at most 8 rows).
+    "bot_search" => async_result features::bot::search::bot_search(state; text: String);
     "tasks_project_counts" => async_result features::tasks::commands::tasks_project_counts(state; project_ids: Vec<String>, page: crate::paging::PageRequest);
     "tasks_plan" => async_result features::tasks::commands::tasks_plan(state; pool_id: String, page: crate::paging::PageRequest);
     "tasks_children" => async_result features::tasks::commands::tasks_children(state; pool_id: String, parent: String, page: crate::paging::PageRequest);
@@ -411,6 +419,22 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
     (
         "features::ai::models::commands::ai_models_catalog",
         "asking it may start the system model's helper, as ai_jobs does (AJ-E3812); the real window walks it",
+    ),
+    (
+        "features::ai::models::commands::ai_engines_check",
+        "Check again: asks the engines again, which may start the system model's helper, and tells the app's own windows (AJ-E3823); the real window walks it",
+    ),
+    (
+        "features::sign_ins::commands::sign_ins_list",
+        "a running sign-in's one-time code; the bridge never signs in",
+    ),
+    (
+        "os_prompts::os_prompts_list",
+        "asks macOS what it says of each system prompt now (the Mac's permissions), not the app's data; the real window walks setup's step",
+    ),
+    (
+        "os_prompts::os_prompt_status",
+        "asks macOS what it says of one system prompt now, as os_prompts_list does",
     ),
     (
         "main_window::app_close_note_due",

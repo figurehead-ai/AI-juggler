@@ -15,6 +15,12 @@ describe("switchExecute", () => {
     expect(result.conversation_key).toBe("conversation:a:b");
   });
 
+  it("sends the App picked, by its place id (AJ-E2317)", async () => {
+    const { switchExecute } = await import("./switchExecute");
+    await switchExecute("s-1", "r-1", "finish-turn", null, [], [], "desktop", null, "place-team");
+    expect(invoke).toHaveBeenCalledWith("switch_execute", expect.objectContaining({ destination: "desktop", targetPlaceId: "place-team" }));
+  });
+
   it("sends CLI when no destination is given", async () => {
     const { switchExecute } = await import("./switchExecute");
     await switchExecute("s-1", "r-1", "finish-turn");

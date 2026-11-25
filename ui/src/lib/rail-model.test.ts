@@ -348,8 +348,9 @@ describe("a row's sub-agents come from one source (AJ-E1520, 0.2)", () => {
   it("AI Juggler's own session of a tool without hooks is one row once linked, carrying the count", () => {
     for (const tool of ["opencode", "grok-build", "kimi-code"]) {
       const session = own(`s-${tool}`, { subtask_count: 2 });
-      // Its conversation, linked to it by the backend (features/sessions/linking.rs).
-      const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null });
+      // Its conversation, linked to it by the backend (features/sessions/linking.rs),
+      // open in AI Juggler's own terminal (AJ-E2326: one a desktop app holds too is shown there as well).
+      const linked = talk(`c-${tool}`, { tool, session_id: session.id, subtask_count: null, places: [place("Terminal", "Work")] });
       const items = itemsOf({ sessions: [session], conversations: [linked], projects: [], seen: {} });
       expect(items).toHaveLength(1);
       expect(items[0]!.session?.id).toBe(session.id);

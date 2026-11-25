@@ -1,4 +1,4 @@
-<!-- captures: 83c296705066 -->
+<!-- captures: 8267218f0459 -->
 <!-- captures: pending -->
 # 99-account-quality: how an Account's sessions went
 
@@ -38,3 +38,11 @@ Design critique (D-57) against the Account page (99-account-page) and a session'
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: the measured week ("9 in 300 turns", "2 times", "71% on average") and Codex's "doesn't record errors or context" line. Its figures still don't open their sessions (design.md, under 4, item 1).
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Content is unchanged; wording reads How it's measured and Codex CLI.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The renewal chip is the neutral chip with amber words (F76); the lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

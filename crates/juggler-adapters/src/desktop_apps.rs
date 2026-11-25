@@ -138,6 +138,20 @@ mod tests {
         }
     }
 
+    /// The third review's Low 1 (AJ-E2315, now data): the lock the Claude
+    /// app's main (browser) process holds on its instance while it runs
+    /// it is Chromium's own storage database lock (`fcntl`, checked
+    /// 2026-11-15: held by the running main process of each of five
+    /// instances). The app takes no `SingletonLock` (none of those
+    /// instances has one), so this is the proof; no other app declares one.
+    #[test]
+    fn only_the_claude_app_declares_its_instance_lock() {
+        for app in all() {
+            let expected = (app.id == "claude-app").then_some("Local Storage/leveldb/LOCK");
+            assert_eq!(app.instance_lock.as_deref(), expected, "{}", app.id);
+        }
+    }
+
     #[test]
     fn the_claude_apps_undocumented_links_are_declared_but_never_sent() {
         let claude = for_tool("claude-code").remove(0);

@@ -299,8 +299,11 @@ function MissingBanner({ project, onStopped }: { project: ProjectInfo; onStopped
   if (!project.missing) return null;
   return (
     <>
-      <div className="flex items-center gap-3 rounded-xl border border-danger/40 bg-danger-soft px-4 py-3" data-testid="project-missing-banner" role="alert">
-        <span className="text-[12px] font-medium text-danger">Project directory is missing</span>
+      {/* 0.5.1 F84 (PAT-COLOR-2, PAT-SURF-1): a need card by tone with the
+          broken level's red mark; the words in ink, no red fill or outline. */}
+      <div className="flex items-center gap-3 rounded-xl bg-surface px-4 py-3" data-testid="project-missing-banner" role="alert">
+        <span aria-hidden="true" className="level-mark" data-level={3} data-testid="project-missing-mark" />
+        <span className="text-[12px] font-medium text-ink">Project folder is missing</span>
         <span className="min-w-0 flex-1 truncate font-mono text-label text-muted">{homeRelative(project.root)}</span>
         <Button size="sm" variant="secondary" onClick={() => void manage.actions.relocate(project)}>
           Relocate…

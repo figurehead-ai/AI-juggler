@@ -1,4 +1,4 @@
-<!-- captures: 8bc485df55aa -->
+<!-- captures: 551a68ce3e81 -->
 # 98-local-cache: Settings › Advanced › Local cache, and Privacy's line about it
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good. New family (ADR-0023, D-58).
@@ -57,3 +57,11 @@ Design critique (D-57, AJ-E2814) against the reference screens: the row menus (7
 The Local cache card stands clearly off the page in both themes (a lighter card on the darker canvas, a white card on grey), and its rows read in three levels: the row titles, the brighter sentence beneath ("Using 47 MB of 1.3 GB…"), and the quieter figures on the right ("45 MB · 126 items", "Off", "Empty"). The clear-sheet's "Clear cache" is one solid violet next to a plain Cancel, so the dialog's one real action is obvious over the blurred page. low-disk is the strongest capture: the amber warning sits inside the toggle's row, and the header's "This Mac · Under pressure" with its red dot and the rail's "Your Mac is under pressure" agree with it. In off and search-empty the disabled Size limit and Clear cache… are faint, which reads as unavailable, though in light the off toggle's pale grey track on a white card is still the lightest thing on the page. The top bar is one row in every capture (the 1024 ones drop the This Mac line and keep "7 to clean up" whole).
 
 The design fixes show in the dark captures: the lighter violet is on the logo mark, the cache toggle, Automatic's check in limit-menu, "Turn it on in Privacy" and "Change it in Privacy", the Desktop apps and Switching icons and the rail's New session; the light captures moved only by sub-pixel text in the top bar. Size limit's menu is now wider, so Automatic's hint runs on two longer lines, but it still splits "64 MB" across the break ("between 64 / MB and 2 GB"), and the wider menu covers more of the card's footnote while open ("…and never sent. Everythin" at 1280, "…and never sent." at 1024). The 1024 captures still open scrolled so the backup card's first line is cut at the top, and the rail's Needs you line is still cut ("Claude Code's own sign-in, in a t…"). In the second pass the 1280 rail's "Refactor the settings screen" row keeps its age whole ("ai-ju… · viewed 2 min ago" where it read "ai-juggler · viewed 2 mi…"), also blurred behind clear-sheet; nothing else changed.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The cache dialog and settings are unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

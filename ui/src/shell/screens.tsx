@@ -8,7 +8,7 @@ import { cliAppId, cliAppName } from "../lib/app-name";
 import { GLOBAL_NAV, type GlobalId } from "../lib/nav";
 import { CLEAN_UP_VIEW, landedOn } from "../lib/landing";
 import { accountsFilterOf } from "../lib/accounts-filter";
-import { ScreenBoundary, ScrollingScreen } from "../components/ScreenBoundary";
+import { AreaSkeleton, ScreenBoundary, ScrollingScreen } from "../components/ScreenBoundary";
 import { ProfilesScreen } from "../screens/Profiles";
 import { BotPage, FleetScreen, History, NavScreen, ProcessesScreen, SettingsScreen, ThisMacPage, UsageScreen, WatchesScreen } from "../lazyParts";
 import type { Shell } from "./use-shell";
@@ -105,8 +105,9 @@ export const SCREENS: Partial<Record<GlobalId, ScreenEntry>> = {
       />
     </ScreenBoundary>
   ),
-  // Settings › Privacy, a frame from now (lib/nav's redirect).
-  privacy: () => null,
+  // Settings › Privacy, a frame from now (lib/nav's redirect): its
+  // skeleton meanwhile, never an empty area (AJ-E1549).
+  privacy: () => <AreaSkeleton key="privacy" label="Privacy" />,
   settings: (shell) => (
     <ScrollingScreen key="settings" screen="settings" label="Settings" subject={shell.settingsSection ?? ""}>
       <SettingsScreen key={shell.settingsSection ?? "top"} focusCloud={shell.settingsFocusCloud} focusSection={shell.settingsSection} />

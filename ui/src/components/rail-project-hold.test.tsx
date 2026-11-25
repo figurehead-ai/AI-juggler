@@ -96,8 +96,10 @@ describe("the Project lens holds its board until Needs you is known", () => {
     act(() => {
       standInNeeds(previewNeedsOf({ sessions: ROWS }));
     });
-    expect(screen.queryByTestId("placeholder-rail")).toBeNull();
+    // 0.5.1 F54: held until the list shows the read after it (its rows
+    // with the needs), never the earlier empty one for a frame.
     const needs = await screen.findByTestId("rail-needs-you");
+    expect(screen.queryByTestId("placeholder-rail")).toBeNull();
     expect(within(needs).getByRole("button", { name: /^Probably stuck, / })).toBeTruthy();
     const rows = projectRows(container);
     expect(rows.map((row) => row.id).sort()).toEqual(["parked", "working"]);

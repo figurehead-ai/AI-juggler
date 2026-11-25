@@ -50,7 +50,7 @@ export function WatchPreview({ facts }: { facts: PreviewFacts }): JSX.Element {
         <span className="flex-1 text-label font-medium uppercase tracking-[0.07em] text-section-label">{PREVIEW.title}</span>
         <span className="text-label text-muted">{PREVIEW.updates}</span>
       </div>
-      <div className="mx-3 rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] px-3.5 pb-3 pt-3.5 inset-ring-1 inset-ring-accent/35 [[data-theme=dark]_&]:bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))]">
+      <div className="mx-3 rounded-xl bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] px-3.5 pb-3 pt-3.5 [[data-theme=dark]_&]:bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))]">
         {facts.was && (
           <div className="mb-2.5 border-b border-[color-mix(in_srgb,var(--color-accent)_22%,var(--color-divider))] pb-2.5 text-meta text-muted" data-testid="watch-preview-was">
             <span className="mb-1 block text-label font-medium uppercase tracking-[0.07em] text-section-label">{PREVIEW.was}</span>
@@ -111,7 +111,7 @@ export function WatchPreview({ facts }: { facts: PreviewFacts }): JSX.Element {
 /** The preview folded (under 960 px): the echo in one strip. */
 export function WatchPreviewStrip({ echo }: { echo: EchoParts | null }): JSX.Element {
   return (
-    <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-meta text-ink-2 inset-ring-1 inset-ring-accent/35" data-testid="watch-preview-strip">
+    <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-meta text-ink-2" data-testid="watch-preview-strip">
       <span className="mr-1.5 font-semibold text-ink">{PREVIEW.summary}</span>
       {echo ? joinedWords(echo) : "…"}
     </p>

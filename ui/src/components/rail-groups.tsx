@@ -136,8 +136,10 @@ export function FoldedNeeds({ rows, isNeed, onOpen }: { rows: InstanceInfo[]; is
       data-testid="rail-folded-needs"
       data-level={danger ? 3 : 2}
     >
-      <span aria-hidden="true" className="level-mark" data-level={danger ? 3 : 2} />
+      {/* AJ-E1548 #12: the count first, its mark after ("5 •"), so a red
+          ✕ never reads as "times 5" or a close button. */}
       <span className="tabular-nums">{count}</span>
+      <span aria-hidden="true" className="level-mark" data-level={danger ? 3 : 2} />
       {/* Its red dot is decoration: what broke is said in words. */}
       <span className="sr-only">{count === 1 ? "needs you" : "need you"}{danger ? `, ${brokenParts(broken)}` : ""},</span>
     </Mark>
@@ -163,8 +165,8 @@ export function HeadNeeds({ needs, level, probably = false, testId = "place-need
   if (needs === 0) return null;
   return (
     <span title={`${needs} here ${needs === 1 ? "needs" : "need"} you: ${needs === 1 ? "it's" : "they're"} at the top, under Needs you`} className={"inline-flex min-w-[20px] items-center gap-1 overflow-hidden px-1 text-label font-semibold leading-[18px] tabular-nums text-ink " + className} data-testid={testId} data-level={level}>
-      <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
       {needs}
+      <span aria-hidden="true" className="level-mark" data-level={level === 3 ? 3 : 2} data-probably={probably ? "true" : undefined} />
     </span>
   );
 }

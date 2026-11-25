@@ -15,6 +15,7 @@
  * Decorative (`alt=""`): the app's name is always beside it in words.
  */
 import { memo, useEffect, useRef, useState, type JSX, type ReactNode } from "react";
+import { useLoadDeadline } from "../lib/loading";
 import { appIconRead, type AppIconAsk, type AppIconPixels } from "../lib/ipc/appIcons";
 import { IconJuggler } from "./icons";
 import { OWN_PLACE } from "../lib/rail-items";
@@ -118,6 +119,11 @@ export function macRadius(size: number): number {
   return Math.round(size * 0.225 * 10) / 10;
 }
 
+/** Its tooltip: its name, then (AJ-E2327) what its tone means. */
+function titleOf(name: string, tip: string | null | undefined): string {
+  return tip ? `${name}. ${tip}` : name;
+}
+
 export interface AppIconProps {
   /** The host registry's id (`PlaceInfo.app_id`, a tool's `host_app`),
    * or `OWN_APP_ID`. */
@@ -131,6 +137,9 @@ export interface AppIconProps {
   /** Words for the image, only where no name is beside it. */
   alt?: string;
   className?: string;
+  /** AJ-E2327: what its tone means (D-117's calm grey, or why an App's
+   * sessions can't be shown), after its name in its tooltip. */
+  tip?: string | null;
 }
 
 /** Any size: `AppIcon` keeps callers to the four sizes; a page header
@@ -139,6 +148,14 @@ export interface AppIconProps {
  * its read change, never because the row, tile or page around it did
  * (Home's tiles and the rail's rows drew every icon on each list read,
  * about 60 a minute with ten sessions at work). */
+/** AJ-E1552: an icon's read, given up at its deadline (its letters show
+ * instead: an icon's slot has no room for words or a Retry). */
+function useIconRead(app: AppIconAsk, px: AppIconPixels, visible: boolean, name: string): { url: string | null; done: boolean } {
+  const { url, done } = useAppIcon(app, px, visible);
+  const { timedOut } = useLoadDeadline(!done && visible, `${name}'s icon`);
+  return { url, done: done || timedOut };
+}
+
 export const AppIconTile = memo(function AppIconTile({
   appId,
   appPid = null,
@@ -147,6 +164,7 @@ export const AppIconTile = memo(function AppIconTile({
   alt = "",
   className = "",
   fallback,
+  tip,
 }: Omit<AppIconProps, "size"> & {
   size: number;
   /** D-126 (ToolLogo): drawn in place of the letters when there is no
@@ -157,15 +175,16 @@ export const AppIconTile = memo(function AppIconTile({
   const px = pixelsFor(size);
   const cached = keyOf({ appId, appPid }, px);
   const visible = useOnScreen(box, cached !== null && icons.has(cached));
-  const { url, done } = useAppIcon({ appId, appPid }, px, visible);
+  const { url, done } = useIconRead({ appId, appPid }, px, visible, name);
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [url]);
   const radius = macRadius(size);
+  const title = titleOf(name, tip);
   const decorative = alt === "";
   const frame = { width: size, height: size };
   if (url && !broken) {
     return (
-      <span ref={box} className={`inline-flex shrink-0 ${className}`} style={frame} title={name} data-testid="app-icon" data-app={appId ?? undefined} data-state="icon" aria-hidden={decorative ? "true" : undefined}>
+      <span ref={box} className={`inline-flex shrink-0 ${className}`} style={frame} title={title} data-testid="app-icon" data-app={appId ?? undefined} data-state="icon" aria-hidden={decorative ? "true" : undefined}>
         <img src={url} alt={alt} width={size} height={size} draggable={false} decoding="async" className="block select-none" style={frame} onError={() => setBroken(true)} />
       </span>
     );
@@ -174,11 +193,11 @@ export const AppIconTile = memo(function AppIconTile({
     // It pulses while its read runs; one out of view isn't read yet and
     // waits still (0.4.5, AJ-E805: off screen, it pulsed for ever).
     const pulse = visible ? " motion-safe:animate-pulse" : "";
-    return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-skeleton${pulse} ${className}`} style={{ ...frame, borderRadius: radius }} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
+    return <span ref={box} aria-hidden="true" className={`inline-flex shrink-0 bg-skeleton${pulse} ${className}`} style={{ ...frame, borderRadius: radius }} title={tip ? title : undefined} data-testid="app-icon" data-app={appId ?? undefined} data-state="loading" />;
   }
   if (fallback) {
     return (
-      <span ref={box} role={decorative ? undefined : "img"} aria-label={decorative ? undefined : alt} aria-hidden={decorative ? "true" : undefined} title={name} className={`inline-flex shrink-0 ${className}`} style={frame} data-testid="app-icon" data-app={appId ?? undefined} data-state="fallback">
+      <span ref={box} role={decorative ? undefined : "img"} aria-label={decorative ? undefined : alt} aria-hidden={decorative ? "true" : undefined} title={title} className={`inline-flex shrink-0 ${className}`} style={frame} data-testid="app-icon" data-app={appId ?? undefined} data-state="fallback">
         {fallback}
       </span>
     );
@@ -194,7 +213,7 @@ export const AppIconTile = memo(function AppIconTile({
       role={decorative ? undefined : "img"}
       aria-label={decorative ? undefined : alt}
       aria-hidden={decorative ? "true" : undefined}
-      title={name}
+      title={title}
       data-testid="app-icon"
       data-app={appId ?? undefined}
       data-state="letters"

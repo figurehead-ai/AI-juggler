@@ -1,0 +1,38 @@
+{
+  "budget": 0.01,
+  "viewport": "1280x800",
+  "hovers": {
+    "session-row-dark": {
+      "cls": 0,
+      "moved": []
+    },
+    "app-header-dark": {
+      "cls": 0,
+      "moved": []
+    },
+    "needs-row-dark": {
+      "cls": 0,
+      "moved": []
+    },
+    "project-row-dark": {
+      "cls": 0,
+      "moved": []
+    },
+    "session-row-light": {
+      "cls": 0,
+      "moved": []
+    },
+    "app-header-light": {
+      "cls": 0,
+      "moved": []
+    },
+    "needs-row-light": {
+      "cls": 0,
+      "moved": []
+    },
+    "project-row-light": {
+      "cls": 0,
+      "moved": []
+    }
+  }
+}

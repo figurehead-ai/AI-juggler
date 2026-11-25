@@ -22,19 +22,19 @@ afterEach(() => {
 describe("AJ-E2507 — your menu", () => {
   it("R2: your name and initial; with an account its plan, Cloud backup's when-last and My Macs' count", async () => {
     const now = Date.now();
-    setSeam("__AIJ_USER__", { name: "Faruk", initial: "F", computer: "Mac", computers: "Macs" });
-    setSeam("__AIJ_FIGUREHEAD__", { state: "linked", email: "faruk@example.com", plan: "Pro", device_name: "Studio", features: [], link: null, refreshed_at_ms: now, offline: false, notice: null, consent_version: 1, consent_current: 1 });
+    setSeam("__AIJ_USER__", { name: "Alex", initial: "A", computer: "Mac", computers: "Macs" });
+    setSeam("__AIJ_FIGUREHEAD__", { state: "linked", email: "alex@example.com", plan: "Pro", device_name: "Studio", features: [], link: null, refreshed_at_ms: now, offline: false, notice: null, consent_version: 1, consent_current: 1 });
     setSeam("__AIJ_CLOUD_BACKUP__", { enabled: true, code_saved: true, schedule: "weekly", last: { at_ms: now - 2 * 3_600_000 }, uploading: false, limit_bytes: 1 });
     setSeam("__AIJ_FLEET_PEERS__", [{ machine_id: "m1" }, { machine_id: "m2" }]);
     render(<UserMenu />);
     const button = screen.getByTestId("user-menu-button");
-    await waitFor(() => expect(button.getAttribute("aria-label")).toBe("Your menu: Faruk"));
-    expect(button.textContent).toBe("F");
+    await waitFor(() => expect(button.getAttribute("aria-label")).toBe("Your menu: Alex"));
+    expect(button.textContent).toBe("A");
     fireEvent.click(button);
     const menu = await screen.findByRole("menu", { name: "Your menu" });
     const who = within(menu).getByTestId("user-menu-who");
     await waitFor(() => expect(who.textContent).toContain("Pro"));
-    expect(who.textContent).toBe("FFarukf…@example.com · FigureheadPro");
+    expect(who.textContent).toBe("AAlexa…@example.com · FigureheadPro");
     expect(within(menu).getByTestId("user-menu-backup").textContent).toBe(`Cloud backup${agoWords(now - 2 * 3_600_000, Date.now())}`);
     expect(within(menu).getByTestId("user-menu-computers").textContent).toBe("My Macs2");
   });

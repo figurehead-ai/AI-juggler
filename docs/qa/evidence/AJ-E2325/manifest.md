@@ -1,0 +1,47 @@
+# Evidence manifest: AJ-E2325
+
+**Task:** `docs/tasks/E23-session-runtime.md`, AJ-E2325: move backups clean themselves up.
+
+**Branch:** `release/0.5.1`. Fixtures only (the move lab's temp folders, scripted processes, crashes simulated mid-phase). No real profile or real `moves/` folder was read or written.
+
+**Policy (the coordinator's ruling, 2026-11-23): retention is decided here only.** AJ-E2321 lets nothing go by itself (its `retire` primitive is called only by this policy and by Delete backup).
+
+## Requirements
+
+| Requirement | Verdict | Proof | Commit | Date |
+|---|---|---|---|---|
+| R1 A refused or nothing-changed attempt deletes its move folder at once | PASS | `handover::moving::tests::recovering::a_refused_attempts_folder_goes_at_once_and_an_undone_moves_record_stays` (undone before it changed a file, nothing kept aside: the folder goes; one undone after it changed files keeps its record); `execute` drops refused attempts right after a refusal, the sweep at start too | 92af8d8ea | 2026-11-23 |
+| R2 Keep for 1 / 7 (default) / 30 days / until deleted; sweep at start after recovery and once a day; never while a move runs (hold, lock); never an interrupted move | PASS | `the_setting_reads_its_four_choices_seven_days_by_default`, `a_committed_moves_backups_go_after_the_chosen_days_never_before`, `the_sweep_never_runs_during_a_move_nor_touches_an_interrupted_one`, `a_second_move_of_the_same_family_leaves_the_first_moves_backups`; vitest `screens/settings/moves-section.test.tsx` (the four choices, 7 days default, a choice kept as `moves.keep_backups`). Sweep: `recover::startup_settle` after recovery, then every 24 h in the recovery thread | 92af8d8ea | 2026-11-23 |
+| R3 Moves door: date, from → to, title, backup size, "Kept until <date>", Undo, Delete backup ("You can no longer undo this move"), Keep; the total; rich-mode sticky header and footer | PASS | Each row: date, from → to, title, "Backup kept until <date> · frees up to <size>", Undo…, Delete backup… (sheet "You can no longer undo this move.", Keep cancels). Settings › Desktop apps › Moves: sticky header (moves, backups) and sticky footer (the total). Rust `each_backup_and_the_total_say_what_deleting_frees`; vitest `moves-door.test.tsx` ("a kept backup says what deleting it frees…"), `moves-backups.test.tsx` ("a sticky header and footer, the footer with the total"). Checked by eye in the UI preview (fixture moves) | 92af8d8ea, aa5048677 | 2026-11-23 |
+| R4 Disk pressure: offer to clear backups older than a day, naming what it frees; never silent | PASS | Under the cache's low-disk line, or when a move's backup won't fit (the room check, recorded for a day), the sweep (start, daily) and the move offer record one notice a day: "The disk is nearly full: move backups older than a day free up to <size>", opening Settings › Desktop apps › Moves; the footer's "Clear older than a day…" sheet clears only on its confirm, never during a move, never an interrupted move. Rust `a_nearly_full_disk_offers_once_a_day_naming_what_it_frees_and_clears_nothing`, `clearing_old_backups_takes_only_finished_moves_a_day_old_never_during_a_move`; vitest `moves-backups.test.tsx` (offer, Keep clears nothing, no offer without day-old backups) | aa5048677 | 2026-11-23 |
+| R4 note (F12, D-127) | PASS | The offer shows only when clearing frees more than 0 B: day-old backups that are untouched clones (exactly 0 B under D-146) bring no notice and no footer offer. Rust `backups_that_free_nothing_bring_no_low_disk_offer` (failing before); vitest `moves-backups.test.tsx` "no offer when the day-old backups free nothing (F12)" | 972b52634 | 2026-11-23 |
+| R5 Backups count in the header's "N to clean up" with their size | PASS | `useCleanupCount` adds the kept backups (read again when they change); the Processes page under its tallies: "Also to clean up: N move backups kept for Undo, frees up to <size>" with Review backups (opens Moves). vitest `cleanup-count.test.tsx` (2 processes + 3 backups = 5), `moves-backups.test.tsx` (the clean-up line, none when no backups) | aa5048677 | 2026-11-23 |
+| R6 Sizes are what deleting frees (APFS clones measured, behind `juggler_platform`) | PASS | D-146: `juggler_platform::room::reclaimable` reads each file's private bytes on APFS through one audited read-only `getattrlist(ATTR_CMNEXT_PRIVATESIZE)` (`room::private_size`, its `allow(unsafe_code, reason)` and SAFETY note); elsewhere, or where the call can't answer, allocated blocks as a ceiling, said "up to". Rust `a_clone_frees_only_what_it_alone_holds` (an untouched clone frees 0, exact; after a 40 KB append it frees that, whole blocks; the original gone, all of it), `a_failing_or_non_apfs_read_falls_back_to_the_ceiling` (a failing read gives blocks, exact false on APFS; devfs and a missing path give no private size), `a_plain_files_size_is_exact`, `the_only_unsafe_is_background_io_and_private_size` (exactly two `unsafe` sites, a third fails); app `each_backup_and_the_total_say_what_deleting_frees`, the offer's and Clear's words exact (no "up to"); vitest `moves-door.test.tsx`, `moves-backups.test.tsx` ("frees <size>" for an exact backup, the total, the offer and the clean-up line; "frees up to" for a ceiling) | ddebc4571, 43a2fb858, 327ce2308, ac8b237f1 | 2026-11-23 |
+| R7 The first 0.5.1 sweep keeps 0.4.9/0.5.0 backups until 7 days after they were made; refused-attempt folders go at once | PASS | `backups_made_before_the_first_sweep_keep_seven_days_and_until_deleted_keeps_them` (a backup older than the first sweep keeps 7 days even under "1 day"); `kept_until` in `the_setting_reads_…`; refused attempts as R1 | 92af8d8ea | 2026-11-23 |
+
+## Usability answers (PAT-USE), re-checked on the built screen
+
+1. Who: anyone who moved conversations: backups kept for Undo a while, then cleaned up, never filling the disk silently. Match (R2, R4: an offer, never a silent clear).
+2. Each backup says its size ("frees 8 KB", exact on APFS; "frees up to 8 MB" only where the disk can't measure), "Backup kept until <date>"; Delete backup says "You can no longer undo this move"; the setting names its choices in days. Match.
+3. In the Moves door (Settings › Desktop apps › Moves, the conversation's page) and in the header's "N to clean up" (the Processes page says them and opens Moves). Match.
+4. No backups: no size, no Delete backup, the footer says "No backups kept", the clean-up line is hidden; interrupted moves never deleted automatically nor by the offer (tests). Match.
+5. OS prompts: none. Match.
+6. Watch-fors: a backup deleted while its Undo shows (Undo goes with it, test); a clean-up offer during a move (never, test); a size that frees less than it said: exact on APFS (D-146), "up to" only for a ceiling (tests). An exact 0 (untouched clones) brings no low-disk offer (F12, 972b52634).
+
+## Checks
+
+2026-11-23 (R6, D-146): `cargo test -p juggler-platform` all passed (5 runs, no flake after syncing test writes); clippy `-p juggler-platform -p juggler-app --all-targets -D warnings` clean; `cargo test -p juggler-app --lib -- handover::moving` passed; vitest moves door + moves backups 18 passed; `tsc -b`, `ui_lint.py`, `check_task_counts.py` OK.
+
+2026-11-23 (aa5048677): `cargo test -p juggler-platform --lib room::` 4 passed; `cargo test -p juggler-app --lib -- handover::moving places:: command_types` 230 passed; clippy `-p juggler-platform -p juggler-app --all-targets -D warnings` clean; rustfmt clean on the changed files; vitest 84 passed (moves door, moves backups, moves section, clean-up count, move stops, processes, notice actions, app keys); `tsc -b`, `ui_lint.py`, `ipc_audit.py`, `size_budget.py` OK; knip: MovesDoor's unused export gone. Earlier:
+
+`cargo test -p juggler-app --lib -- handover::moving places:: command_types` 226 passed; clippy `-p juggler-handover -p juggler-app --all-targets -D warnings` clean; rustfmt check clean; `size_budget.py` no longer lists `moving.rs` or `places/mod.rs`; `ipc_audit.py` clean for the move commands; vitest 23 passed (door, settings, stops, checking); `tsc -b`, `ui_lint.py` OK.
+
+## 0.5.1 F93, the header's count (2026-11-24)
+
+PL1 J5 (F-PL1-25): the header's "N to clean up" said 1, then nothing, then 4 while Moves said 2 and 4. Two reads: the header read the backups once at start and again only after a click on a Moves row (`BACKUPS_CHANGED`), while Moves read its own. Now one shared read (`lib/move-backups`) serves the header, Moves' head and footer and the clean-up line; every IPC call that makes or lets go of a backup (a move, Undo, Finish, a repair, Delete backup, Clear older) tells it to read again, whatever it returned. Test: vitest `move-backups.test.tsx` (a move, then a repair: the header and Moves say the same; failing before: 1 against 2). Commit 823fa4104.
+
+## Re-checked after the late fixes (2026-11-24, Opus)
+
+- R3 (the Moves door): F95 (1049cdee5): each row's Undo…, Delete backup…, Finish and Copy details carries an accessible name with its move (the visible words unchanged), so a screen reader and the walk's driver tell the rows apart (F-PL1-26); vitest `moves-door.test.tsx`. 613cb968b: Undo asks its prompt first (`move-prompts.test.tsx`). Still PASS.
+- R5: the F93 section above (823fa4104). Still PASS.
+- Re-run at HEAD 2026-11-24: cargo `-p juggler-app --lib features::handover::moving` 142 passed, `--test move_never_asks` 2 passed; vitest `moves-door`, `move-prompts`, `moves-backups`, `move-backups`, `moving-section` passed.

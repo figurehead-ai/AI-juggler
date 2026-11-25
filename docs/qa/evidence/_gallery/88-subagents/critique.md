@@ -1,4 +1,4 @@
-<!-- captures: 6eb523dd7c92 -->
+<!-- captures: 7ea624f12987 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -109,3 +109,13 @@ Weak, not this family's to fix: at 1280 the rail cuts its App names to "Per…" 
 The five tab captures at 1280x800 dark (tab-running, tab-all-grouped, tab-search, tab-most-tokens, tab-none-match) re-taken from CI #218's renders (the gate's captures; the light ones and the 1024 ones are not in the gate and stay as they were). Each looked at by eye. The Subagents tab itself is unchanged; the one change is the rail's: its head (search, the App/Project/Account lenses) stays put at the top and the list scrolls under it, so the search field is whole where it used to be scrolled out of view (8cc1b38bb).
 
 Weak: the list's first visible line ("feat/read-model · Probably stuck") is cut at the lenses' bottom edge with no fade.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the Subagents tab, the detail cards and the switcher sit on tonal surfaces and the lens segments show the F53 chosen fill. Then F85 (fc44584c6): detail-failed-* shows the reason in ink on a tone card inside Result, with the red ✕ mark before it; no red fill, outline or red words.
+
+Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

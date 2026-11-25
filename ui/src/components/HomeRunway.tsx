@@ -14,6 +14,9 @@
  */
 import { MeasureLimits } from "./MeasureLimits";
 import { LOW_LEFT } from "../lib/room";
+import { RUNWAY_FILL, runwayState, runwayWidth } from "../lib/runway-look";
+import { roomMarkFrom } from "../lib/room-mark";
+import { RoomChip } from "./RoomChip";
 import type { JSX } from "react";
 import { AccountAvatar } from "./Avatar";
 import { HomeSection } from "./HomeSection";
@@ -70,6 +73,8 @@ export interface RunwayLine {
   left: number | null;
   words: string;
   resets: string | null;
+  /** When it resets (the Out chip's "resets Thu 9:00 AM"). */
+  resetsAtMs?: number | null;
   /** A used-up window its credits carry on past (0.3.2). */
   credits?: CreditsCover | null;
   /** How old its reading is, when it's old (F-rc3c-1). */
@@ -100,9 +105,10 @@ function liveOn(group: AccountGroup, sessions: readonly InstanceInfo[]): number 
 
 const LIVE = new Set(["starting", "running", "waiting_user", "stuck", "quota_blocked"]);
 
-/** A runway figure's and meter's colour by level: neutral, amber, red. */
+/** A runway figure's colour by level: neutral, amber, red. Its meter's
+ * colour follows the room itself (PAT-COLOR, lib/runway-look): green,
+ * teal, amber, red. */
 const LEVEL_TEXT: Record<AttentionLevel, string> = { 0: "text-ink", 1: "text-ink", 2: "text-warning", 3: "text-danger" };
-const LEVEL_FILL: Record<AttentionLevel, string> = { 0: "bg-muted", 1: "bg-muted", 2: "bg-warning", 3: "bg-danger" };
 
 /** A runway row's level (D-117): the quota need's, from its room and live work. */
 function runwayLevel(left: number | null, live: number): AttentionLevel {
@@ -140,6 +146,36 @@ export function runwayFacts(row: RunwayLine, live: number): string {
   const lower = (part: string) => part.charAt(0).toLowerCase() + part.slice(1);
   const line = [low ? "low" : null, when && lower(when), sessions].filter(Boolean).join(" · ");
   return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+/** 0.5.1 F43: the Out chip says "Out" alone when the line under its
+ * meter already says when it resets (`runwayFacts`): the chip's own
+ * "· resets 10:00 AM tomorrow" said it twice and cut the Account's name
+ * to "w……" on Home's narrowest cards. Its tooltip and spoken name keep
+ * the whole of it. */
+export function outChipBrief(row: Pick<RunwayLine, "resets">): boolean {
+  return row.resets !== null;
+}
+
+/** A runway row's figure: its % left (or On credits), and when it's out
+ * the one red Out chip with when it's back (PAT-COLOR, `lib/room-mark`),
+ * whatever runs on it. Unknown room is said once, on its own line below
+ * (the 0.4 design review, 82): no "—" figure here. */
+function RunwayFigure({ row, out, credits, level }: { row: RunwayLine; out: boolean; credits: boolean; level: AttentionLevel }): JSX.Element | null {
+  if (out) return <RoomChip mark={roomMarkFrom(0, row.resetsAtMs ?? null, false, undefined, row.age ?? null)} brief={outChipBrief(row)} testId="home-runway-out" />;
+  if (!credits && row.left === null) return null;
+  return <span className={"shrink-0 text-body font-semibold tabular-nums " + LEVEL_TEXT[level]}>{credits ? "On credits" : `${row.left}% left`}</span>;
+}
+
+/** A runway row's meter, its colour by the room's state (PAT-COLOR,
+ * `lib/runway-look`): green, teal, amber, a full red bar when out. */
+function RunwayMeter({ left, credits, label }: { left: number; credits: boolean; label: string }): JSX.Element {
+  const state = runwayState(left, credits);
+  return (
+    <div className="h-1 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={left} aria-label={label}>
+      <div className={"h-full rounded-full " + RUNWAY_FILL[state]} style={{ width: `${runwayWidth(left, state)}%` }} data-state={state} />
+    </div>
+  );
 }
 
 export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { accounts: AccountInfo[]; quota: QuotaDisplayData[]; quotaKnown?: boolean; sessions: InstanceInfo[] }): JSX.Element {
@@ -180,27 +216,12 @@ export function HomeRunway({ accounts, quota, quotaKnown = true, sessions }: { a
                   )}
                   {named && <span className="sr-only" data-testid="home-runway-apps">, {named}</span>}
                 </span>
-                {/* Unknown room is said once, on its own line below (the 0.4
-                    design review, 82): no "—" figure here. 0.4.1: an Account
-                    out of room says Out, as everywhere else: a word in the
-                    figure's place (red only with live work on it, D-117),
-                    its reset on the line below. */}
-                {out ? (
-                  <span className={"shrink-0 text-body font-semibold " + LEVEL_TEXT[level]} data-testid="home-runway-out">Out</span>
-                ) : (credits || row.left !== null) && (
-                  <span className={"shrink-0 text-body font-semibold tabular-nums " + LEVEL_TEXT[level]}>
-                    {credits ? "On credits" : `${row.left}% left`}
-                  </span>
-                )}
+                <RunwayFigure row={row} out={out} credits={credits} level={level} />
               </div>
               {/* Before the first reading its meter's track holds the row's
                   height, so the reading doesn't push what's below. */}
               {!quotaKnown && row.left === null && <div className="h-1 rounded-full bg-surface-3" aria-hidden="true" data-testid="home-runway-meter-pending" />}
-              {row.left !== null && (
-                <div className="h-1 overflow-hidden rounded-full bg-surface-3" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={row.left} aria-label={`${group.name}: ${row.words}`}>
-                  <div className={"h-full rounded-full " + LEVEL_FILL[level]} style={{ width: `${row.left}%` }} />
-                </div>
-              )}
+              {row.left !== null && <RunwayMeter left={row.left} credits={credits} label={`${group.name}: ${row.words}`} />}
               {credits ? (
                 <span className="flex flex-col text-label" data-testid="home-runway-credits">
                   <span className="text-ink">{row.words}</span>

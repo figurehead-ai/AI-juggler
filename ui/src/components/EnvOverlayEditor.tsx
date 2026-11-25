@@ -33,7 +33,7 @@ export function envRowProblem(key: string, value: string, protectedKeys: string[
   if (!/^[A-Z_][A-Z0-9_]{0,63}$/.test(key)) return "Use capitals, digits and _ (e.g. MY_FLAG)";
   if (protectedKeys.includes(key)) return "Managed by AI Juggler — it keeps this app isolated";
   if (key.split("_").some((segment) => CREDENTIAL_SEGMENTS.has(segment))) {
-    return "Looks like a credential — sign in with the vendor's own flow instead";
+    return "Looks like a credential — sign in with the app's own sign-in instead";
   }
   if (value.length > 1024 || /[\0\n\r]/.test(value)) return "One line, under 1 KB";
   return null;

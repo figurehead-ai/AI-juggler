@@ -201,6 +201,15 @@ pub(crate) fn start_session(
     row: &NewSession<'_>,
     runs: Runs<'_>,
 ) -> AppResult<Started> {
+    // AJ-E2326 R1: never a second writer on a conversation a move holds
+    // (every start path comes here: Continue, Resume, pickup, an epoch's).
+    if let Some(why) = row
+        .conversation
+        .as_ref()
+        .and_then(|id| crate::features::places::conversation_held(state, id.as_str()))
+    {
+        return Err(AppError::Refused(why.to_owned()));
+    }
     let adapter = state
         .registry
         .get(&row.account.harness)

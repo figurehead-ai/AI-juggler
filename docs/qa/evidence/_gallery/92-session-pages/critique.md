@@ -1,4 +1,4 @@
-<!-- captures: 3f9c9d4a0c6f -->
+<!-- captures: 415d4d4cd858 -->
 # 92-session-pages: a session's page, for each kind of session
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -73,3 +73,11 @@ The maintainer, testing 0.3.3: the conversation showed every note written betwee
 ## 0.4.1 (E21, 2026-11-07): re-shot
 
 What changed, each looked at: the Conversation card's caption reads "From its transcript · not saved" (was "nothing kept": the turns are held in memory a minute after the page closes, never written, ADR-0024); D-62's names throughout (Claude app · Work Max, Account rows). Other moves (header ‹ ›, rail App headers) are other 0.4.1 work.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The session pages keep their cards; Switch account… and the runway bars' colours are new.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Claude's question is a tone card (F66); the top bar folds Usage and History into More where it is narrow. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

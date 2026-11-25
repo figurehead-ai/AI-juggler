@@ -13,7 +13,6 @@ export type PaneId =
   | "accounts"
   | "sessions"
   | "switching"
-  | "ai-jobs"
   | "ai-models"
   | "agent-access"
   | "notifications"
@@ -62,7 +61,7 @@ export const PANES: readonly PaneSpec[] = [
   { id: "accounts", label: "Accounts", tone: "live" },
   { id: "sessions", label: "Sessions", tone: "success" },
   { id: "switching", label: "Switching", tone: "accent" },
-  { id: "ai-jobs", label: "Jobs", tone: "accent", group: "ai" },
+  // AJ-E1548 #5: the job switches live on Models, beside their model.
   { id: "ai-models", label: "Models", tone: "accent", group: "ai" },
   // AJ-E1702, D-28: what agents may do in each pool, and your rules.
   // Always shown: every project has its default pool (D-33), whose level
@@ -113,6 +112,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   "last-messages": { pane: "desktop-apps", anchor: "last-messages" },
   // 0.3.3: the apps and profiles, with Start and Keep alive.
   "keep-alive": { pane: "desktop-apps", anchor: "keep-alive" },
+  // AJ-E2325: the moves and their backups (the low-disk offer opens it).
+  moves: { pane: "desktop-apps", anchor: "moves" },
   // 0.2's first Agent access section (one page of Settings).
   agents: { pane: "agent-access" },
   // AJ-E1704: whether sessions get the agent tools, and where they're off.

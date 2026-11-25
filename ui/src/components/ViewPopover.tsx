@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX } from "react";
 import { IconView, IconWindow } from "./icons-places";
 import { IconArchive, IconComputer, IconKey, IconPool, IconReplay } from "./icons-actions";
-import { IconProjects, IconSubtasks } from "./icons";
+import { IconProjects } from "./icons";
 import { IconBackground, IconChevronRight, IconEnded, IconInactive, IconQuiet } from "./icons-controls";
 import { MenuItem, MenuSeparator, MenuSubmenu, RowMenu, type MenuAt } from "./RowMenu";
 import { ChoiceLine, type ControlIcon } from "./controls";
@@ -23,7 +23,6 @@ const SHOW_ICONS: Record<ShowKey, ControlIcon> = {
   quiet: IconQuiet,
   ended: IconEnded,
   background: IconBackground,
-  subagents: IconSubtasks,
   otherMacs: IconComputer,
   archived: IconArchive,
 };
@@ -108,7 +107,7 @@ export function ViewPopover({ options, onOpenChange }: { options: Record<OnlyKey
         }}
         className={
           "relative flex size-7 shrink-0 items-center justify-center rounded-lg border outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-          (open || changed ? "border-accent/40 bg-accent-soft text-accent-hi" : "border-hairline text-muted hover:bg-surface hover:text-ink")
+          (open || changed ? "border-transparent bg-accent-soft text-accent-hi" : "border-hairline text-muted hover:bg-surface hover:text-ink")
         }
       >
         <IconView width={14} height={14} />

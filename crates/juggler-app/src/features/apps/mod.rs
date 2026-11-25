@@ -208,6 +208,11 @@ pub fn rename_impl(state: &Arc<AppState>, id: &str, label: Option<&str>) -> AppR
         ));
     }
     storage.apps().rename(id, label)?;
+    drop(storage);
+    // D-84, AJ-E1552: a name makes a desktop App the user's
+    // (`App::is_users`), so the places book reads its rows again and the
+    // UI's desktop Apps agree with this list at once.
+    crate::features::places::store::read_rows_again(state);
     Ok(())
 }
 

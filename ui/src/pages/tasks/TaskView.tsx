@@ -20,6 +20,8 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
+import { LoadingState } from "../../components/LoadingState";
+import { useRetriedRead } from "../../lib/loading";
 import { Pill } from "../../components/Pill";
 import { IconStateFinished } from "../../components/icons";
 import { IconRemove, IconReplay, IconStop } from "../../components/icons-actions";
@@ -121,6 +123,8 @@ export function TaskView({
   const [cancelling, setCancelling] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // AJ-E1552: the task's read failure, and its Retry.
+  const { setFailed, round, retry, ...load } = useRetriedRead(detail, "this task", { isEmpty: () => false });
   const asks = useTaskAsks({ taskId });
   useEffect(() => {
     let alive = true;
@@ -129,14 +133,20 @@ export function TaskView({
     // A card's Send back… opens it on its note (AJ-E2806 R2).
     setSending(sendBack);
     setCancelling(false);
-    const read = () => void tasksDetail(taskId).then((next) => alive && setDetail(next), (cause) => alive && setError(errorText(cause)));
+    const read = () =>
+      void tasksDetail(taskId).then(
+        (next) => alive && (setFailed(undefined), setDetail(next)),
+        (cause: unknown) => alive && setFailed(cause),
+      );
     read();
     const off = onTasksChanged(read);
     return () => {
       alive = false;
       off();
     };
-  }, [taskId, sendBack]);
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskId, sendBack, round]);
   const act = (run: () => Promise<TaskDetail>) => {
     setBusy(true);
     setError(null);
@@ -152,11 +162,21 @@ export function TaskView({
   };
   if (!detail) {
     return (
-      <div className="flex flex-col gap-3 p-1" role="status" aria-label="Loading the task">
-        <span className="h-6 w-2/3 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-        {error && <p className="text-meta text-danger">{error}</p>}
-      </div>
+      <LoadingState
+        state={load.state}
+        slow={load.slow}
+        what="this task"
+        skeleton={
+          <output className="flex flex-col gap-3 p-1" aria-label="Loading the task" data-testid="task-view-skeleton">
+            <span className="h-6 w-2/3 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+            <span className="h-16 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+          </output>
+        }
+        empty={null}
+        onRetry={retry}
+      >
+        {null}
+      </LoadingState>
     );
   }
   const { task, actions } = detail;

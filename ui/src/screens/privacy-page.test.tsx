@@ -4,7 +4,7 @@
  * disclosure and linked to their source; what each tool's terms say about
  * several accounts, linked, on the page and while accounts are added.
  */
-import { cleanup, fireEvent, render, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PrivacyScreen } from "./PrivacyScreen";
 import { FirstRun } from "./FirstRun";
@@ -72,6 +72,11 @@ describe("AJ-E1518 the Privacy page", () => {
 
   it("lists each tool's terms with its line and a link, from the catalog", () => {
     const view = render(<PrivacyScreen />);
+    // AJ-E1548 R11 (PAT-SER-7): closed until the user opens it.
+    const toggle = view.getByTestId("privacy-terms-disclosure-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.textContent).toBe("Providers’ terms");
+    fireEvent.click(toggle);
     const rows = view.getAllByTestId("privacy-terms-row");
     const withTerms = PREVIEW_TOOLS.filter((tool) => tool.terms !== null);
     expect(rows).toHaveLength(withTerms.length);
@@ -113,6 +118,28 @@ describe("AJ-E1518 the Privacy page", () => {
     }
   });
 
+  it("AJ-E1548 #15: Check for configuration updates is on by default, says what it fetches, and turns off; Bot's notes and watches have their lines", async () => {
+    const { PrivacyPane } = await import("./settings/PrivacyPane");
+    const { remoteAbout } = await import("../lib/ipc/remote");
+    const view = render(<PrivacyPane />);
+    const row = view.getByTestId("privacy-config-check");
+    expect(row.textContent).toContain("Check for configuration updates");
+    expect(row.textContent).toContain("At most once a day");
+    expect(row.textContent).toContain("carries nothing about you");
+    const toggle = view.getByTestId("privacy-config-check-switch");
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
+    fireEvent.click(toggle);
+    await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("false"));
+    expect((await remoteAbout()).checking).toBe(false);
+    const text = view.getByTestId("privacy-page").textContent ?? "";
+    for (const id of ["remote-config", "bot-history", "watches-kept"]) {
+      const claim = claims.groups.flatMap((group) => group.claims).find((c) => c.id === id);
+      expect(claim, id).toBeTruthy();
+      expect(text).toContain(claim!.text);
+    }
+    Reflect.deleteProperty(window, "__AIJ_REMOTE__");
+  });
+
   it("Settings › Privacy holds every line, in one place (0.1.5)", async () => {
     const { PrivacyPane } = await import("./settings/PrivacyPane");
     const view = render(<PrivacyPane />);
@@ -142,7 +169,14 @@ describe("AJ-E1518 the terms line while accounts are added", () => {
 
   it("Add account shows it for the tool being added", async () => {
     const view = render(<FirstRun mode="add" provider="codex" onDone={() => null} openLoginTerminal={() => null} />);
-    const line = await view.findByTestId("terms-line");
+    // AJ-E1548 R11 (PAT-SER-7): closed, as "Providers’ terms", until the user opens it.
+    const toggle = await view.findByTestId("first-run-terms-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.textContent).toBe("Providers’ terms");
+    expect((view.getByTestId("terms-line").closest("[hidden]"))).not.toBeNull();
+    fireEvent.click(toggle);
+    const line = view.getByTestId("terms-line");
+    expect(line.closest("[hidden]")).toBeNull();
     const codex = PREVIEW_TOOLS.find((tool) => tool.id === "codex")!;
     expect(line.textContent).toContain(codex.terms!.accounts);
     expect(line.textContent).not.toContain("Anthropic");

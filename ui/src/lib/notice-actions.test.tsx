@@ -10,6 +10,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionHostProvider } from "../components/ItemMenu";
 import type { NoticeInfo } from "./ipc/notices";
 import * as messages from "./ipc/messages";
+import * as places from "./ipc/places";
+import { primaryLabel } from "./notice-words";
 import * as subscriptions from "./subscriptions";
 import * as toast from "../components/Toast";
 import { OPEN_ACCOUNT } from "./accounts-page";
@@ -118,5 +120,15 @@ describe("AJ-E3104 each notice opens its page on its tab", () => {
     expect(shown).toHaveBeenCalledWith(expect.objectContaining({ message: "Nothing to open for this one" }));
     expect(openSessionById).not.toHaveBeenCalled();
     expect(openPool).not.toHaveBeenCalled();
+  });
+
+  it("0.5.1 F92: an App a crashed move left closed offers Start, which starts it by its place id and says what happened", async () => {
+    const start = vi.spyOn(places, "placesOpen").mockResolvedValue({ outcome: "Starting Claude app · work", reached: "started" });
+    const shown = vi.spyOn(toast, "showToast");
+    const left = notice("app-not-started", "start-app", { place_id: "app:claude-app:/Users/someone/P/work", page: "desktop_apps" });
+    expect(primaryLabel(left)).toBe("Start");
+    actions({}).primary(left);
+    expect(start).toHaveBeenCalledWith("app:claude-app:/Users/someone/P/work");
+    await vi.waitFor(() => expect(shown).toHaveBeenCalledWith(expect.objectContaining({ message: "Starting Claude app · work" })));
   });
 });

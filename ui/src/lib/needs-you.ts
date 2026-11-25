@@ -63,7 +63,7 @@ export function useBackendNeeds(): BackendNeeds {
   // D-103.6: read on every render (the preview's first tick moves the
   // summary, which renders this again, not always the rows); a summary
   // that counts none says so before the list answers.
-  const known = standInNeedsKnown() && (!list.loading || summary?.count === 0);
+  const known = standInNeedsKnown(list.items) && (!list.loading || summary?.count === 0);
   return useMemo(() => {
     const awake = list.items.filter((row) => !row.snoozed);
     const rows = withoutArchived(awake, archived);

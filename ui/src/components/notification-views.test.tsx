@@ -135,6 +135,9 @@ describe("AJ-E2503 R2 — a row's parts", () => {
     expect(row("asks").textContent).toContain("docs-site · Claude app");
     expect(within(row("review")).getByTestId("notice-primary").textContent).toBe("Review — “Fix billing” finished");
     expect(within(row("signin")).getByTestId("notice-primary").textContent).toBe("Sign in… — Work needs its sign-in");
+    // 0.5.1 critique (BTN-1): one filled button in the centre, the first need's.
+    expect(screen.getByTestId("notification-centre").querySelectorAll("[data-primary]")).toHaveLength(1);
+    expect(screen.getAllByTestId("notice-need")[0]!.querySelector("[data-primary]")).not.toBeNull();
   });
 
   it("snoozed needs fold under “Snoozed: n”", async () => {
@@ -151,14 +154,14 @@ describe("AJ-E2503 R2 — a row's parts", () => {
     expect(fold.textContent).toBe("Snoozed: 2");
     expect(fold.getAttribute("aria-expanded")).toBe("false");
     expect(within(screen.getByTestId("notices-needs")).getAllByTestId("notice-need")).toHaveLength(1);
-    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs action · 1");
+    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs you · 1");
     fireEvent.click(fold);
     expect(within(screen.getByTestId("notices-needs")).getAllByTestId("notice-need")).toHaveLength(3);
   });
 });
 
-describe("AJ-E2503 R3 — Earlier: time · detail · its link, 20 at a time, Show earlier", () => {
-  it("shows the first 20, then the rest on Show earlier; a row has its time, detail and link", async () => {
+describe("AJ-E2503 R3, AJ-E1548 #9 — Latest: time · detail · its link, the last five, See all on Home", () => {
+  it("shows the five latest with their time, detail and link, and sends the rest to Home's feed", async () => {
     const now = Date.now();
     const earlier = [
       notice({ id: 100, kind: "restarted", title: "“Nightly fix” crashed and was restarted", detail: "try 1 of 3", action: "see-why", created_ms: now - 60_000 }),
@@ -166,19 +169,22 @@ describe("AJ-E2503 R3 — Earlier: time · detail · its link, 20 at a time, Sho
       ...Array.from({ length: 23 }, (_, index) => notice({ id: 200 + index, kind: "finished", title: `Session ${index} finished`, detail: "shop", created_ms: now - (index + 3) * 60_000 })),
     ];
     setSeam("__AIJ_NOTICES__", { earlier });
-    render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />);
+    const onClose = vi.fn();
+    const home = vi.fn();
+    window.addEventListener("aij:open-home", home);
+    render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={onClose} />);
     const list = await screen.findByTestId("notices-earlier");
-    await waitFor(() => expect(within(list).getAllByTestId("notice-earlier")).toHaveLength(20));
+    await waitFor(() => expect(within(list).getAllByTestId("notice-earlier")).toHaveLength(5));
     const [restarted, update] = within(list).getAllByTestId("notice-earlier");
     const { happenedAt } = await import("../lib/notice-words");
     expect(restarted!.textContent).toContain(`${happenedAt(now - 60_000, now)}· try 1 of 3`);
     expect(within(restarted!).getByRole("button").textContent).toBe("See why — “Nightly fix” crashed and was restarted");
     expect(within(update!).getByRole("button").textContent).toBe("What's new — AI Juggler 0.4.1 is ready");
-    const more = screen.getByTestId("notices-more");
-    expect(more.textContent).toBe("Show earlier");
-    fireEvent.click(more);
-    await waitFor(() => expect(within(screen.getByTestId("notices-earlier")).getAllByTestId("notice-earlier")).toHaveLength(25));
     expect(screen.queryByTestId("notices-more")).toBeNull();
+    fireEvent.click(screen.getByTestId("notices-see-all"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(home).toHaveBeenCalledTimes(1);
+    window.removeEventListener("aij:open-home", home);
   });
 });
 
@@ -197,9 +203,9 @@ describe("AJ-E2503 R4 — the digest and the way to Notification settings", () =
     window.removeEventListener("aij:open-settings", listen);
   });
 
-  it("with nothing to digest, says how long history is kept", async () => {
+  it("with nothing to digest, says where the history is kept", async () => {
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />);
-    expect(screen.getByTestId("notices-digest").textContent).toBe("History is kept for 30 days.");
+    expect(screen.getByTestId("notices-digest").textContent).toBe("Everything from the last 30 days is in Home's feed.");
   });
 });
 
@@ -376,4 +382,3 @@ describe("AJ-E2505 R2 — focus the user moves pauses a toast; focus placed for 
     expect(screen.queryByTestId("toast")).toBeNull();
   });
 });
-

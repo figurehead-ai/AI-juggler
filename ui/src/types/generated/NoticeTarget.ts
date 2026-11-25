@@ -37,4 +37,8 @@ pool_id: string | null,
 /**
  * A pool's message thread, by id (AJ-E3104: a message opens on it).
  */
-thread_id?: string | null, };
+thread_id?: string | null, 
+/**
+ * 0.5.1 F92: an App or profile, by its place id (Start starts it).
+ */
+place_id?: string | null, };

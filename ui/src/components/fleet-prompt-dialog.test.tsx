@@ -13,7 +13,7 @@ afterEach(cleanup);
 beforeEach(() => {
   w().__AIJ_LINK__ = { enabled: true, port: 47821, error: null };
   w().__AIJ_FLEET_PROMPTS__ = [
-    { id: 7, peer_label: "Laptop", action: "stop Work Max (claude-code)", expires_at_ms: Date.now() + 20_000 },
+    { id: 7, peer_label: "Laptop", action: "stop “Fix the flaky login test” in Claude Code CLI · Work Max", expires_at_ms: Date.now() + 20_000 },
   ];
   delete w().__AIJ_FLEET_CALLS__;
 });
@@ -23,7 +23,7 @@ describe("FleetPromptDialog", () => {
     const view = render(<FleetPromptDialog />);
     const dialog = await view.findByTestId("fleet-prompt");
     expect(dialog.textContent).toContain("Laptop asks to act on this Mac");
-    expect(dialog.textContent).toContain("stop Work Max (claude-code)");
+    expect(dialog.textContent).toContain("stop “Fix the flaky login test” in Claude Code CLI · Work Max");
     expect(dialog.textContent).toMatch(/denied in \d+ s/);
     await waitFor(() => expect(document.activeElement).toBe(view.getByTestId("fleet-prompt-deny")));
     await act(async () => {

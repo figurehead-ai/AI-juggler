@@ -9,6 +9,8 @@
  */
 import { matches } from "../../lib/shortcuts";
 import { errorText } from "../../lib/bridge";
+import { useLoadDeadline } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Picker, Segmented, type PickerOption } from "../../components/controls";
 import type { SubagentRowInfo, SubagentsQuery } from "../../lib/ipc/subagents";
@@ -95,6 +97,11 @@ export function SubagentsView({
     [view, search, kind, sort, groups],
   );
   const { list, rows, meta } = useSubagentRows(source, query, visible);
+  // AJ-E1552: the skeleton only while the first page is read, "Still
+  // loading…" after 3 s (the read has its own deadline: then it fails and
+  // says so below, with Try again).
+  const firstRead = list.loading && rows.length === 0;
+  const { slow } = useLoadDeadline(firstRead, "its subagents", { timeoutMs: Number.POSITIVE_INFINITY });
   const onGroup = (key: string, open: boolean) =>
     setGroups((now) => ({
       open: open ? [...now.open.filter((k) => k !== key), key] : now.open.filter((k) => k !== key),
@@ -218,12 +225,23 @@ export function SubagentsView({
         </div>
       </div>
       )}
-      {list.loading && rows.length === 0 ? (
-        <div className="flex flex-col gap-1.5" role="status" aria-label="Loading its subagents" data-testid="subagents-loading">
-          {[0, 1, 2, 3].map((row) => (
-            <span key={row} className="h-11 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-          ))}
-        </div>
+      {firstRead ? (
+        <LoadingState
+          state="loading"
+          slow={slow}
+          what="its subagents"
+          skeleton={
+            <output className="flex flex-col gap-1.5" aria-label="Loading its subagents" data-testid="subagents-loading">
+              {[0, 1, 2, 3].map((row) => (
+                <span key={row} className="h-11 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+              ))}
+            </output>
+          }
+          empty={null}
+          onRetry={list.refresh}
+        >
+          {null}
+        </LoadingState>
       ) : list.error !== null && rows.length === 0 ? (
         // A read that failed says so (the E28 walk: an empty table with
         // its headers looked like "none", which it may not be).

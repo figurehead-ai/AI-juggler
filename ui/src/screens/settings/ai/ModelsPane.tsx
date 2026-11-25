@@ -4,6 +4,11 @@
  * this Mac, Other tested models, Installed — then Each job uses. One
  * answer first, the choices next, management last.
  *
+ * AJ-E3823: while Apple's built-in AI is off, getting ready or couldn't
+ * be checked, the top group is the engine-setup guide (the same one as
+ * "Set up Bot"): it takes the Recommended card's place, and the AI it
+ * names leaves Other tested models, so nothing shows twice.
+ *
  * Lazy and instant: the pane is its own chunk, its reads are shared and
  * kept, so it paints the last answer at once and reads again behind it.
  * Every word comes from `models-words.ts`.
@@ -11,7 +16,11 @@
 import type { JSX } from "react";
 import { Alert } from "../../../components/Alert";
 import { useAiJobs } from "../../../lib/ai-availability";
-import { useModelsCatalog, useModelsInstalled } from "../../../lib/ai-models";
+import { EngineSetup } from "../../../components/ai/EngineSetup";
+import { setupView, showsSetup } from "../../../components/ai/engine-setup-view";
+import { useModelsCatalogRead, useModelsInstalled } from "../../../lib/ai-models";
+import { LoadingState } from "../../../components/LoadingState";
+import { useLoadDeadline, type LoadState } from "../../../lib/loading";
 import type { ModelsCatalog, ModelsInfo } from "../../../lib/ipc/models";
 import { Pane } from "../parts";
 import { IconChevronRight } from "../../../components/icons-controls";
@@ -78,16 +87,29 @@ function Head({ catalog }: { catalog: ModelsCatalog | null }): JSX.Element {
 }
 
 function Skeleton(): JSX.Element {
-  return <div aria-hidden="true" className="h-56 animate-pulse rounded-2xl bg-skeleton/60" data-testid="models-skeleton" />;
+  return <output aria-label="Loading the AI models" className="block h-56 animate-pulse rounded-2xl bg-skeleton/60" data-testid="models-skeleton" />;
 }
 
 /** The Recommended group: the pick, or why there's none; Apple's tip;
  * the honesty line when no other card carries it. */
-function RecommendedGroup({ catalog, installed, pick, act }: { catalog: ModelsCatalog | null; installed: ModelsInfo | null; pick: Recommended | null; act: ModelActions }): JSX.Element {
+function RecommendedGroup({ catalog, read, installed, pick, act }: { catalog: ModelsCatalog | null; read: { state: LoadState; retry: () => void }; installed: ModelsInfo | null; pick: Recommended | null; act: ModelActions }): JSX.Element {
+  // AJ-E1552: the skeleton only while the list loads ("Still loading…"
+  // after 3 s); the shared read's own deadline turns it into an error
+  // with Retry. The list is never empty: no pick is the NothingCard.
+  const { slow } = useLoadDeadline(read.state === "loading", "the AI models", { timeoutMs: Number.POSITIVE_INFINITY });
   if (!catalog) {
     return (
       <RecommendedSection>
-        <Skeleton />
+        <LoadingState state={read.state === "error" ? "error" : "loading"} slow={slow} what="the AI models" skeleton={<Skeleton />} empty={null} onRetry={read.retry}>
+          {null}
+        </LoadingState>
+      </RecommendedSection>
+    );
+  }
+  if (showsSetup(catalog)) {
+    return (
+      <RecommendedSection>
+        <EngineSetup place="models" />
       </RecommendedSection>
     );
   }
@@ -113,15 +135,23 @@ function RecommendedGroup({ catalog, installed, pick, act }: { catalog: ModelsCa
 
 const UNDER_WAY = new Set(["running", "waiting", "verifying"]);
 
+/** The AI the setup guide names, when it leads the page: it isn't
+ * listed again below it. */
+function namedBySetup(catalog: ModelsCatalog | null, installed: ModelsInfo | null, jobs: Parameters<typeof recommended>[2]): string | null {
+  if (!showsSetup(catalog)) return null;
+  return setupView(catalog, installed, jobs?.find((job) => job.job === "chat") ?? null).download?.id ?? null;
+}
+
 /** What the page shows, worked out once per draw. */
 function viewOf(catalog: ModelsCatalog | null, installed: ModelsInfo | null, jobs: Parameters<typeof recommended>[2]) {
   const pick = catalog && recommended(catalog, installed, jobs);
   const builtIn = catalog?.models.find((model) => model.built_in) ?? null;
   const here = installed?.installed ?? [];
+  const named = namedBySetup(catalog, installed, jobs);
   return {
     pick,
     builtIn,
-    rest: catalog ? others(catalog, installed, pick?.model.id ?? null) : [],
+    rest: catalog ? others(catalog, installed, named ?? pick?.model.id ?? null) : [],
     tagged: catalog ? tags(catalog) : new Map<string, ModelTag>(),
     free: catalog?.mac?.free_disk_bytes ?? null,
     anyModel: builtIn !== null || here.length > 0,
@@ -134,7 +164,8 @@ function viewOf(catalog: ModelsCatalog | null, installed: ModelsInfo | null, job
 }
 
 export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
-  const catalog = useModelsCatalog();
+  const catalogRead = useModelsCatalogRead();
+  const catalog = catalogRead.data ?? null;
   const installed = useModelsInstalled();
   const jobs = useAiJobs();
   const act = useModelActions(jobs);
@@ -147,7 +178,7 @@ export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
             {act.note}
           </Alert>
         )}
-        <RecommendedGroup catalog={catalog} installed={installed} pick={view.pick} act={act} />
+        <RecommendedGroup catalog={catalog} read={catalogRead} installed={installed} pick={view.pick} act={act} />
         {catalog && (
           <OthersSection
             catalog={catalog}

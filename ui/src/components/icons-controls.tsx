@@ -99,3 +99,21 @@ export function IconChevronLeft(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** A clip plays (AJ-E1546). */
+export function IconPlay(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8 5.5v13l10.5-6.5L8 5.5Z" />
+    </svg>
+  );
+}
+
+/** A clip pauses (AJ-E1546). */
+export function IconPause(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <path d="M8.5 5.5v13M15.5 5.5v13" />
+    </svg>
+  );
+}

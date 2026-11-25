@@ -1,3 +1,4 @@
+import { useStartFocus } from "./new-session-focus";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ariaOf, keysOf } from "../lib/shortcuts";
 import { useEscapeCloses } from "../lib/use-escape-closes";
@@ -28,6 +29,7 @@ import { folderName, StatedChoice } from "./new-session/StatedChoice";
 import { MoreOptions } from "./new-session/MoreOptions";
 import { useAppPick } from "./new-session/useAppPick";
 import { DialogFrame, DialogOverlay } from "../components/DialogFrame";
+import { isolationOfferShown, useIsolationOfferShown } from "../components/IsolationOfferDialog";
 
 const FOCUSABLE = "button:not(:disabled), a[href], input, summary, [tabindex]:not([tabindex='-1'])";
 
@@ -64,6 +66,7 @@ export function NewSessionModal({
   onProjectsChanged,
   after = null,
   onStartAnother,
+  onStarting,
 }: {
   projects: ProjectInfo[];
   /** The config folders (each CLI App's own). */
@@ -89,6 +92,8 @@ export function NewSessionModal({
   /** Opens it again on the next project, after a start; without it,
    * nothing is offered. */
   onStartAnother?: (at: { dir: string; after: StartedBefore }) => void;
+  /** 0.5.1 F68: a start was asked for (New project's flow (b) ends here). */
+  onStarting?: () => void;
 }) {
   const [directory, setDirectory] = useState<string | null>(initialDirectory);
   // F-rc3f-1: the App the person picked, and what a folder change did.
@@ -103,6 +108,7 @@ export function NewSessionModal({
   // AJ-E2911: a launch that failed can be reported with what it showed.
   const [failure, setFailure] = useState<Failure | null>(null);
   const where = useWhere(); // AJ-E1515: or on a paired Mac
+  const asking = useIsolationOfferShown(); // AJ-E2314 L7: hidden and inert while its launch's busy-folder offer is up
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const startRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
@@ -112,7 +118,7 @@ export function NewSessionModal({
   useEffect(() => {
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Tab") return;
+      if (event.key !== "Tab" || isolationOfferShown()) return;
       const focusables = sheetRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (focusables === undefined || focusables.length === 0) return;
       const first = focusables[0]!;
@@ -130,14 +136,7 @@ export function NewSessionModal({
       }
     };
     window.addEventListener("keydown", onKey);
-    // AJ-E804: opening the sheet moves focus into it (WCAG 2.4.3): onto
-    // Start when it can, so Return starts the usual.
-    const frame = requestAnimationFrame(() => {
-      if (sheetRef.current?.contains(document.activeElement)) return;
-      (startRef.current && !startRef.current.disabled ? startRef.current : sheetRef.current?.querySelector<HTMLElement>(FOCUSABLE))?.focus();
-    });
     return () => {
-      cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
       restoreFocusRef.current?.focus?.();
     };
@@ -181,6 +180,7 @@ export function NewSessionModal({
   // No folder known: the App's own, from its launch settings.
   const folder: FolderChoice | null = asked ?? (recipe?.default_cwd ? { root: recipe.default_cwd, project: projects.find((row) => row.root === recipe.default_cwd) ?? null, why: "app-folder" } : null);
   const ready = recipe !== null && signedIn(accounts.find((row) => row.id === recipe.account_id)?.login_state ?? "logged_in");
+  useStartFocus(sheetRef, startRef, ready, FOCUSABLE); // AJ-E804: focus into the sheet, onto Start
   // AJ-E2304: this session's runtime, kept for its App (AJ-E2312 item 5).
   const runtimePick = useRuntimePick(recipe);
   const sessionNames = useMemo(() => new Map(sessions.map((row) => [row.id, sessionTitle(row)])), [sessions]);
@@ -265,6 +265,7 @@ export function NewSessionModal({
     const cwd = folder?.root ?? null;
     try {
       if (!pack.opened && !(await runtimePick.confirm(recipe.id, cwd))) return setBusy(false); // Lab 2: the folder's trust
+      onStarting?.();
       const result = pack.opened ? await pack.start(recipe.id, cwd) : await launchSession(recipe.id, cwd, runtimePick.runtime);
       if (!result) {
         setError("Preview mode — no backend connected.");
@@ -305,13 +306,14 @@ export function NewSessionModal({
       aria-modal="true"
       aria-label="New session"
       data-testid="new-session-sheet"
+      inert={asking || undefined}
       // AJ-E2311 item 2: held at the top, not centred, so a line that
       // comes in a read later grows it downward and never moves the
       // choice under the pointer.
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm"
+      className={"fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 pt-[8vh] backdrop-blur-sm" + (asking ? " invisible" : "")}
     >
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
         headerClassName="flex items-center gap-3 px-6 py-4"
         header={<><IconTerminal width={16} height={16} className="text-accent-hi" /><h3 className="text-sm font-semibold">New session</h3></>}
         bodyClassName={"px-6 py-5 " + (dragging ? "bg-accent-soft/40 outline-dashed outline-1 -outline-offset-8 outline-accent/60" : "")}

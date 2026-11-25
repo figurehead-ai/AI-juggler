@@ -23,6 +23,12 @@ const SURFACES = ["canvas", "canvas-hi", "surface", "surface-2", "surface-3"] as
  * raised fill — at 3:1 or more (WCAG 1.4.11), never colour alone (its words
  * are semibold too; the vitest checks that). */
 const AROUND_SELECTED = [...SURFACES, "fill", "selected"] as const;
+/** AJ-E1550, 0.5.1 F53: a chosen segment's fill against the track its
+ * unselected siblings sit on, as drawn: the control's state, so 3:1 (WCAG
+ * 1.4.11), with its semibold words as the second cue (WCAG 1.4.1). F49
+ * accepted any fill; light's soft fill measured 1.02:1, so the segment now
+ * wears the strong step (`selected-strong`, SELECTED_STRONG). */
+const SELECTED_STEP = 3;
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/AJ-E804");
 
 function channel(c: number): number {
@@ -79,7 +85,7 @@ for (const theme of ["dark", "light"] as const) {
         probe.remove();
         return out;
       },
-      [...TEXT, ...SURFACES, ...BADGES.flat(), "fill", "selected", "selected-ink", "selected-ring"],
+      [...TEXT, ...SURFACES, ...BADGES.flat(), "fill", "selected", "selected-ink", "selected-ring", "selected-strong", "selected-strong-ink"],
     );
     // D-117 (selection): the selected edge against everything unselected
     // around it, and the selected words on the selected fill.
@@ -93,43 +99,75 @@ for (const theme of ["dark", "light"] as const) {
       if (r < 4.5) failures.push(`${theme} selected-ink on selected: ${r.toFixed(2)}:1`);
       rows.push(`| ${theme} | \`selected-ink\` on \`selected\` | ${r.toFixed(2)}${r < 4.5 ? " ✗" : ""} | | | | |`);
     }
-    // And as drawn: every chosen segment on the page carries the selected
-    // edge, 3:1 off its control's fill where its unselected siblings sit;
-    // the unselected carry no edge.
-    const drawn = await page.evaluate(() => {
-      const rgb = (value: string) => (value.match(/rgba?\([^)]*\)/g) ?? []).map((c) => (c.match(/[\d.]+/g) ?? []).slice(0, 4).map(Number));
-      const opaque = (element: Element | null): number[] => {
-        for (let at = element; at; at = at.parentElement) {
-          const [c] = rgb(getComputedStyle(at).backgroundColor);
-          if (c && (c[3] === undefined || c[3] === 1)) return c.slice(0, 3);
-        }
-        return [0, 0, 0];
-      };
-      return [...document.querySelectorAll<HTMLElement>("[role='radiogroup']")]
-        .filter((group) => group.getBoundingClientRect().width > 0)
-        .map((group) => {
-          const radios = [...group.querySelectorAll<HTMLElement>("[role='radio']")];
-          const on = radios.find((radio) => radio.getAttribute("aria-checked") === "true");
-          const off = radios.filter((radio) => radio !== on);
-          const edge = on ? rgb(getComputedStyle(on).boxShadow).find((c) => c[3] === undefined || c[3] === 1) : undefined;
-          return {
-            name: group.getAttribute("aria-label") ?? "",
-            edge: edge?.slice(0, 3) ?? null,
-            weight: on ? Number(getComputedStyle(on).fontWeight) : 0,
-            around: opaque(off[0] ?? group),
-            offEdged: off.filter((radio) => rgb(getComputedStyle(radio).boxShadow).some((c) => c[3] === undefined || c[3] === 1)).length,
-          };
-        });
-    });
-    expect(drawn.length, "a segmented control on the page").toBeGreaterThan(0);
-    for (const control of drawn) {
-      expect(control.edge, `${theme} ${control.name}: the chosen segment's edge`).not.toBeNull();
-      const r = ratio(control.edge!, control.around);
-      rows.push(`| ${theme} | ${control.name}: chosen edge vs unselected (as drawn) | ${r.toFixed(2)}${r < 3 ? " ✗" : ""} | | | | |`);
-      if (r < 3) failures.push(`${theme} ${control.name}: chosen edge vs unselected ${r.toFixed(2)}:1`);
+    {
+      const r = ratio(colours["selected-strong-ink"]!, colours["selected-strong"]!);
+      if (r < 4.5) failures.push(`${theme} selected-strong-ink on selected-strong: ${r.toFixed(2)}:1`);
+      rows.push(`| ${theme} | \`selected-strong-ink\` on \`selected-strong\` (a chosen segment's words) | ${r.toFixed(2)}${r < 4.5 ? " ✗" : ""} | | | | |`);
+    }
+    // And as drawn. AJ-E1550 (PAT-SURF; selected.ts), 0.5.1 F53: a chosen
+    // segment is a fill and semibold ink, never an outline: at rest it
+    // carries no edge, and its fill stands 3:1 off the track its unselected
+    // siblings sit on (WCAG 1.4.11); under Increase Contrast its edge comes back as the
+    // selected ring, 3:1 off that track (WCAG 1.4.11). Unselected segments
+    // never carry an edge.
+    const drawnSegments = () =>
+      page.evaluate(() => {
+        const rgb = (value: string) => (value.match(/rgba?\([^)]*\)/g) ?? []).map((c) => (c.match(/[\d.]+/g) ?? []).slice(0, 4).map(Number));
+        // The colour an element is drawn on: its own background and each
+        // translucent one under it, laid over the first opaque one.
+        const drawnOn = (element: Element | null): number[] => {
+          const layers: number[][] = [];
+          for (let at = element; at; at = at.parentElement) {
+            const [c] = rgb(getComputedStyle(at).backgroundColor);
+            if (!c || c[3] === 0) continue;
+            layers.push(c);
+            if (c[3] === undefined || c[3] === 1) break;
+          }
+          let out = [0, 0, 0];
+          for (const c of layers.reverse()) {
+            const a = c[3] ?? 1;
+            out = out.map((v, i) => v * (1 - a) + c[i]! * a);
+          }
+          return out;
+        };
+        const opaqueEdge = (element: Element) => rgb(getComputedStyle(element).boxShadow).find((c) => c[3] === undefined || c[3] === 1);
+        return [...document.querySelectorAll<HTMLElement>("[role='radiogroup']")]
+          .filter((group) => group.getBoundingClientRect().width > 0)
+          .map((group) => {
+            const radios = [...group.querySelectorAll<HTMLElement>("[role='radio']")];
+            const on = radios.find((radio) => radio.getAttribute("aria-checked") === "true");
+            const off = radios.filter((radio) => radio !== on);
+            return {
+              name: group.getAttribute("aria-label") ?? "",
+              fill: on ? drawnOn(on) : null,
+              edge: on ? (opaqueEdge(on)?.slice(0, 3) ?? null) : null,
+              weight: on ? Number(getComputedStyle(on).fontWeight) : 0,
+              around: drawnOn(off[0] ?? group),
+              offEdged: off.filter((radio) => opaqueEdge(radio) !== undefined).length,
+            };
+          });
+      });
+    const atRest = await drawnSegments();
+    expect(atRest.length, "a segmented control on the page").toBeGreaterThan(0);
+    for (const control of atRest) {
+      expect(control.fill, `${theme} ${control.name}: a chosen segment`).not.toBeNull();
+      expect(control.edge, `${theme} ${control.name}: the chosen segment has no edge at rest (a fill, AJ-E1550)`).toBeNull();
+      const r = ratio(control.fill!, control.around);
+      rows.push(`| ${theme} | ${control.name}: chosen fill vs unselected (as drawn) | ${r.toFixed(2)}${r < SELECTED_STEP ? " ✗" : ""} | | | | |`);
+      if (r < SELECTED_STEP) failures.push(`${theme} ${control.name}: chosen fill vs unselected ${r.toFixed(2)}:1 (non-text, 3:1)`);
+      expect(r, `${theme} ${control.name}: the chosen segment's fill stands 3:1 off its track (WCAG 1.4.11)`).toBeGreaterThanOrEqual(SELECTED_STEP);
       expect(control.weight, `${theme} ${control.name}: the chosen word semibold`).toBeGreaterThanOrEqual(600);
       expect(control.offEdged, `${theme} ${control.name}: unselected segments carry no edge`).toBe(0);
     }
+    await page.emulateMedia({ contrast: "more" });
+    for (const control of await drawnSegments()) {
+      expect(control.edge, `${theme} ${control.name}: under Increase Contrast the chosen segment's edge`).not.toBeNull();
+      const r = ratio(control.edge!, control.around);
+      rows.push(`| ${theme} | ${control.name}: chosen edge vs unselected (Increase Contrast) | ${r.toFixed(2)}${r < 3 ? " ✗" : ""} | | | | |`);
+      if (r < 3) failures.push(`${theme} ${control.name}: chosen edge vs unselected under Increase Contrast ${r.toFixed(2)}:1`);
+      expect(control.offEdged, `${theme} ${control.name}: unselected segments carry no edge (Increase Contrast)`).toBe(0);
+    }
+    await page.emulateMedia({ contrast: "no-preference" });
     for (const [ink, badge] of BADGES) {
       const r = ratio(colours[ink]!, colours[badge]!);
       if (r < 4.5) failures.push(`${theme} ${ink} on ${badge}: ${r.toFixed(2)}:1`);

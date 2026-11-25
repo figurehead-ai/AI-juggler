@@ -81,7 +81,7 @@ describe("design review 28/33/38/56 — the parts fold to one line", () => {
     act(() => openReportBug({ from: "switch", words: "x" }));
     await findByTestId("report-parts");
     for (const id of ["report-title", "report-words"]) {
-      expect(getByTestId(id).className).toContain("bg-surface-2");
+      expect(getByTestId(id).className).toContain("bg-control");
       expect(getByTestId(id).className).not.toContain("bg-canvas");
     }
   });

@@ -113,6 +113,9 @@ describe("AJ-E1501 the account card's menu", () => {
     fireEvent.change(input, { target: { value: "mine" } });
     fireEvent.click(view.getByTestId("rename-account-save"));
     await waitFor(() => expect(view.getByRole("alert").textContent).toContain("already called “Mine”"));
+    // 0.5.1 F86: a red mark beside words in ink, never a saturated red line.
+    expect(view.getByRole("alert").className).not.toMatch(/danger/);
+    expect(view.getByRole("alert").querySelector(".level-mark")!.getAttribute("data-level")).toBe("3");
 
     fireEvent.change(input, { target: { value: "Max (personal)" } });
     fireEvent.change(view.getByTestId("rename-account-plan"), { target: { value: "Max" } });
@@ -177,9 +180,31 @@ describe("AJ-E1501 the remove sheet", () => {
       session("s3", "acc-copy", "finished", "old"),
     ]);
     fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
-    expect(view.getByTestId("remove-account-open").textContent).toContain("has 2 sessions open: api, web");
+    expect(view.getByTestId("remove-account-open").textContent).toContain("has 2 sessions open: api and web.");
     expect(view.queryByTestId("remove-account-confirm")).toBeNull();
     expect(remove).not.toHaveBeenCalled();
+  });
+
+  // 0.5.1 F86: "3 sessions" named one (three on one branch folded into
+  // it). Every open session is named, so the count matches the names;
+  // past three, "and N more" shows the rest.
+  it("names every open session, so the count matches the names, even on one branch", async () => {
+    const titled = (id: string, title: string) => ({ ...session(id, "acc-copy", "running", "feat/read-model"), title }) as InstanceInfo;
+    const view = mount([titled("s1", "Refactor the read model"), titled("s2", "Fix the flaky login test"), titled("s3", "Write the migration")]);
+    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
+    expect(view.getByTestId("remove-account-open").textContent).toContain(
+      "has 3 sessions open: Refactor the read model, Fix the flaky login test and Write the migration.",
+    );
+  });
+
+  it("past three, names three and \"and N more\" shows the rest", async () => {
+    const branches = ["api", "web", "docs", "cli", "infra"];
+    const view = mount(branches.map((branch, at) => session(`s${at}`, "acc-copy", "running", branch)));
+    fireEvent.click((await openMenu(view, 1)).querySelector("[data-testid='action-remove']")!);
+    expect(view.getByTestId("remove-account-open").textContent).toContain("has 5 sessions open: api, web, docs and 2 more.");
+    fireEvent.click(view.getByTestId("remove-account-open-more"));
+    expect(view.getByTestId("remove-account-open-names").textContent).toBe("api, web, docs, cli and infra");
+    expect(view.queryByTestId("remove-account-open-more")).toBeNull();
   });
 
   it("a refusal from the app is shown in its words, and nothing changes", async () => {

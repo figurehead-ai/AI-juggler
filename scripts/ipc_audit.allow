@@ -25,7 +25,9 @@ unbounded bot_ask  # bounded: one turn, at most 8 rows (ADR-0034 §6.2) and the 
 unbounded bot_find  # bounded: at most 500 turn ids (FIND_MAX), the find bar's matches
 unbounded bot_memories  # bounded: at most 200 stated memories a kind (LISTED), the user's own words
 unbounded bot_page  # paged by its own keyset: at most 50 turns a page, before the oldest shown
+unbounded bot_search  # bounded: at most 8 rows in all (lookup::SHOWN), split by kind; its pools only those rows' own
 unbounded account_import  # bounded: one import's notes and top-level folders
+unbounded sign_ins_list  # bounded: at most 16 sign-ins (sign_ins::MOST), the newest kept
 unbounded account_audit  # TO PAGE: an account's audit log
 unbounded account_set_default  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded account_settings_apply  # bounded: one row per account, tool, launch setting or paired Mac
@@ -42,6 +44,7 @@ unbounded ai_model_decline_extra  # bounded: one row per installed model, at mos
 unbounded ai_model_download_cancel  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded ai_model_remove  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded ai_models_catalog  # bounded: the list's models (at most 16) plus the installed ones, verdicts per compiled job
+unbounded ai_engines_check  # bounded: ai_models_catalog's answer after Check again (AJ-E3823)
 unbounded ai_models_installed  # bounded: one row per installed model, at most the 16 a list can hold
 unbounded app_bug_report_compose  # bounded: the bug form's seven fields at most
 unbounded app_bug_report_preview  # bounded: a report's five parts at most
@@ -145,12 +148,15 @@ unbounded notification_prefs_get  # bounded: a fixed set (settings, checks, choi
 unbounded notification_prefs_set  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded os_access_list  # bounded: one row per account, tool, launch setting or paired Mac
 unbounded os_access_request  # bounded: one row per account, tool, launch setting or paired Mac
+unbounded os_prompts_list  # bounded: one row per system prompt in the registry (16, os_prompts::registry::ENTRIES)
+unbounded os_prompt_status  # bounded: one entry; its dialog's buttons are at most three
 unbounded overnight_summary  # TO PAGE: what happened while away (grows with sessions)
 unbounded packs_open_preview  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded parked_list  # bounded: the parked sessions (one per waiting session)
 unbounded parked_offers  # bounded: one per parked session
 unbounded places_find  # bounded: one app; its sessions are the book's newest 100 (D-64)
 unbounded places_offers  # bounded: the places book keeps at most 32 apps, offers among them
+unbounded places_pairings  # bounded: one row per desktop profile the places book knows (it keeps at most 32)
 unbounded places_profiles  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded places_profiles_set  # bounded: one folder per remembered profile's folder (the book keeps at most 32)
 unbounded pools_canvas  # bounded: at most 200 members named, edges per pair of them, the newest 100 waiting messages and 30 stream lines
@@ -219,6 +225,9 @@ unbounded switch_back_suggestions  # bounded: a fixed set (settings, checks, cho
 unbounded switch_graph_overview  # TO PAGE: a project's switch history
 unbounded switch_move_execute  # bounded: one move's family (its conversations) and a few notes
 unbounded switch_move_offer  # bounded: one conversation's family, the two profiles and a few notes
+unbounded switch_move_undo  # bounded: one Undo's notes, what of its two profiles kept running (a few lines)
+unbounded switch_ownership  # bounded: one row per desktop app moves run on, and the conversations an older move left split (a few)
+unbounded switch_ownership_repair  # bounded: one repair's notes (a few lines)
 unbounded switch_preflight  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_apply  # bounded: a fixed set (settings, checks, choices or tools)
 unbounded switch_setup_check  # bounded: a fixed set (settings, checks, choices or tools)

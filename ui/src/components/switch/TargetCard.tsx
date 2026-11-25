@@ -13,7 +13,8 @@
  *   much carries as a neutral tag, never an amber sentence (COL-4).
  * - `TargetButton`: a pick in a list, a card-like row (logo, the App's
  *   name, its account, its tags), a chevron saying it opens the switch;
- *   the Suggested one wears the accent's edge.
+ *   the Suggested one is told by its tag alone (AJ-E1550, PAT-SURF: an
+ *   accent ring read as an alert); every card is a tone step, no line.
  */
 import { forwardRef, type ButtonHTMLAttributes, type JSX, type ReactNode } from "react";
 import { cliAppKey } from "../../lib/app-name";
@@ -23,6 +24,7 @@ import { IconChevronRight } from "../icons-controls";
 import { Pill, type PillTone } from "../Pill";
 import { ProfileBadge } from "../ProfileBadge";
 import { ToolLogo } from "../ToolLogo";
+import { SELECTED_CARD } from "../controls/selected";
 
 /** The App's logo, 40 px, and its profile's badge beside it. */
 export function TargetLogo({ tool, kind, place, folderId, label, size = 40 }: { tool: string | null; kind: "cli" | "desktop"; place?: RailPlace | null; folderId: string; label: string; size?: 24 | 32 | 40 }): JSX.Element {
@@ -113,19 +115,22 @@ export const TargetButton = forwardRef<
     tags?: ReactNode;
     /** Lines under the tags: the room in words, what doesn't carry. */
     detail?: ReactNode;
-    /** The Suggested one: the accent's edge. */
+    /** The Suggested one (its tag says so; kept for its callers' data). */
     suggested?: boolean;
+    /** Chosen or open (Every move's open step): the kit's selected fill. */
+    chosen?: boolean;
   } & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children">
->(function TargetButton({ logo, name, sub, tags, detail, suggested = false, className = "", ...rest }, ref) {
+>(function TargetButton({ logo, name, sub, tags, detail, suggested = false, chosen = false, className = "", ...rest }, ref) {
   return (
     <button
       ref={ref}
       type="button"
+      data-suggested={suggested || undefined}
       {...rest}
       className={
         "group/target relative flex w-full min-w-0 items-start gap-3.5 rounded-card px-4 py-3 text-left outline-none transition-[background-color,box-shadow] " +
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-60 " +
-        (suggested ? "bg-surface inset-ring-[1.5px] inset-ring-accent/70 hover:bg-surface-2 " : "bg-surface inset-ring-1 inset-ring-hairline hover:bg-surface-2 hover:inset-ring-faint/60 ") +
+        (chosen ? SELECTED_CARD + " " : "bg-surface-2 inset-ring-1 inset-ring-frame hover:bg-surface-3 ") +
         className
       }
     >

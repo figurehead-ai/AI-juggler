@@ -24,7 +24,9 @@ const STATES: Array<{ name: string; fixture: FixtureSet; expect: string }> = [
   { name: "needs-you", fixture: allStatuses, expect: "need you" },
   { name: "all-clear", fixture: allClear, expect: "All clear" },
   { name: "no-sessions", fixture: nothingYet, expect: "Ready when you are" },
-  { name: "no-accounts", fixture: honestEmpty, expect: "All your AI coding accounts, in one calm place." },
+  // AJ-E1524/AJ-E1545 (0.5.1 F20): no accounts is the Welcome, "Let's get
+  // you set up" with Get started (the old "one calm place" words are gone).
+  { name: "no-accounts", fixture: honestEmpty, expect: "Let's get you set up" },
 ];
 const VIEWPORTS = [
   { name: "1280x800", width: 1280, height: 800 },
@@ -47,6 +49,14 @@ const HAPPO_TARGETS = Object.entries(happoConfig.targets ?? {}).map(([name, targ
 /** Two frames: the resize's layout (the rail's fold, Home's columns) is drawn. */
 async function settled(page: Page) {
   await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+}
+
+/** The Welcome's scan line has landed ("We found …", not "Looking at
+ * what's on this computer…"), so each capture shows the same words. */
+async function welcomeFound(page: Page, state: string) {
+  if (state !== "no-accounts") return;
+  await expect(page.getByTestId("welcome-get-started")).toBeVisible();
+  await expect(page.getByTestId("welcome-found")).toContainText(/We found|No AI coding tools found/);
 }
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));
@@ -80,6 +90,7 @@ for (const theme of ["dark", "light"] as const) {
       test(`home — ${state.name} — ${vp.name} — ${theme}`, gate("67-home"), async ({ page, happoScreenshot }) => {
         await seed(page, state.fixture, theme, vp);
         await expect(page.getByRole("main")).toContainText(state.expect);
+        await welcomeFound(page, state.name);
         await page.screenshot({ path: resolve(OUT, `${state.name}-${vp.name}-${theme}.png`) });
         await axeClean(page, `home ${state.name}`);
         // Each Happo target from a page laid out at its own size (above).
@@ -88,6 +99,7 @@ for (const theme of ["dark", "light"] as const) {
             await page.setViewportSize({ width: target.width, height: target.height });
             await settled(page);
             await expect(page.getByRole("main")).toContainText(state.expect);
+            await welcomeFound(page, state.name);
             if (state.name !== "no-accounts") await expect(page.getByTestId("home-apps-section")).toBeAttached();
             // Stable names: a rename unpairs Happo's baseline (tests/visual/happo.ts).
             await happoScreenshot(page.locator("body"), { component: "Home", variant: `${state.name}-${theme}-${target.name}`, targets: [target.name] });

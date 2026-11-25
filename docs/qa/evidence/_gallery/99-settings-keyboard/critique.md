@@ -1,4 +1,4 @@
-<!-- captures: d504c93c5590 -->
+<!-- captures: a14b40ff05f6 -->
 <!-- captures: pending -->
 # 99-settings-keyboard: Settings › Keyboard
 
@@ -39,3 +39,9 @@ Design critique (D-57) against the reference screens: Settings' other panes (65-
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: the keycap is the button, "Press keys…" while capturing, "changed" with Reset on a changed row.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the capturing row's Press keys ring is the only bright line, the You changed 1 shortcut bar is a tonal strip, and the refused message is amber words with no fill. The 1024 captures re-render identically.
+
+Nothing broken (checked both themes).

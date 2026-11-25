@@ -39,6 +39,7 @@ import type { AppRef } from "../../lib/app-of";
 import { RowShell } from "./RowShell";
 import { needWait } from "../../lib/waiting";
 import { PlaceLine, RowSubagents, appWords } from "./RowParts";
+import { TwoPlacesNote, twoPlacesWords } from "./TwoPlacesNote";
 
 export type RowDensity = "cozy" | "compact" | "list";
 
@@ -62,8 +63,6 @@ export interface SessionRowProps {
   arrange?: Arrangeable | null;
   /** The rail's Your order: the drag handle and the pin. */
   tools?: boolean;
-  /** "Subagents" is on in the View: the row says how many it runs. */
-  subagents?: boolean;
   /** 0.3.9: how deep it sits under the session it was started from. */
   depth?: number;
   /** That session's title, for a screen reader. */
@@ -112,7 +111,7 @@ export function StateMark({ item, level, dot }: { item: RailItem; level: Attenti
 }
 
 export function SessionRow(props: SessionRowProps): JSX.Element {
-  const { item, density, now, within = {}, subagents } = props;
+  const { item, density, now, within = {} } = props;
   const title = props.title ?? item.title;
   const state = rowState(item, now);
   // AJ-E3603: a row its limit stopped says "Limit reached"; "0% left"
@@ -133,8 +132,11 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   const appShown = !within.app;
   const projectShown = !within.project;
   const line = [projectShown ? item.project : null, density === "list" && appShown ? appWords(item) : null, when].filter(Boolean).join(" · ");
-  const also = item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
-  const helpers = subagents && item.subagents > 0 ? `+${item.subagents} ${item.subagents === 1 ? "agent" : "agents"}` : null;
+  // AJ-E2326 R4: live in AI Juggler's session and another app: said under it, with Stop ours.
+  const two = item.twoPlaces ?? null;
+  const also = two ? twoPlacesWords(two) : item.alsoIn.length > 0 ? `also open in ${item.alsoIn.join(" and ")}` : null;
+  // AJ-E1554 R3: said on every row that runs some (the View's switch no longer hides it).
+  const helpers = item.subagents > 0 ? `${item.subagents} ${item.subagents === 1 ? "subagent" : "subagents"} running` : null;
   // AJ-E1502: a pinned row says so, as the Project lens's row does.
   const pinned = item.pinned;
   // AI Juggler's own session: the account it runs on too (its place is
@@ -155,7 +157,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
       {heavy}
     </span>
   ) : null;
-  const shell = { item, selected: props.selected ?? false, onSelect: props.onSelect, label, arrange: props.arrange, tools: props.tools, below: props.below, slim: props.slim, menuKind: props.menuKind, data: { "data-level": String(state.level), "data-need": item.need ?? undefined, "data-state": item.state, ...props.data }, buttonData: props.buttonData, depth: props.depth };
+  const shell = { item, selected: props.selected ?? false, onSelect: props.onSelect, label, arrange: props.arrange, tools: props.tools, below: props.below ?? (two ? <TwoPlacesNote two={two} title={title} /> : undefined), slim: props.slim, menuKind: props.menuKind, data: { "data-level": String(state.level), "data-need": item.need ?? undefined, "data-state": item.state, ...props.data }, buttonData: props.buttonData, depth: props.depth };
 
   if (density === "list") {
     return (
@@ -206,6 +208,16 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   }
   // Where and when it was, for its tooltip (its name says them too).
   const hover = [title, line, also].filter(Boolean).join(" — ");
+  // AJ-E1554 R1: the rail's fixed slots (RowShell): the dot in the gutter,
+  // the title (cut at its end), its facts, and the state's word at the end,
+  // which hover and focus swap for the row's tools in the same box.
+  const word = (
+    <span aria-hidden="true" className={"shrink-0 whitespace-nowrap text-label font-medium " + railWord} data-testid="state-word">
+      {state.word}
+    </span>
+  );
+  // R3: its running subagents, a way to its Subagents tab, always beside it.
+  const agents = item.subagents > 0 ? <RowSubagents item={item} words={helpers ?? ""} onSelect={props.onSelect} /> : null;
   if (density === "compact") {
     // One line: the state's dot, the title, then an exception (low
     // runway, heavy load) or when, and the state word (AJ-E403: the
@@ -214,16 +226,13 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
     // width cut titles to "Refa…" to fit "waiting 3 h"); it stays in the
     // row's tooltip and name.
     return (
-      <RowShell {...shell} indent shape="rounded-lg" className="h-[30px] gap-2 pl-2.5">
-        {dot}
+      <RowShell {...shell} indent shape="rounded-lg" className="h-[30px] gap-2 pl-1.5" lead={dot} rest={word}>
         <span aria-hidden="true" className="@container flex min-w-0 flex-1 items-center gap-1.5">
           <span className={"min-w-0 truncate text-meta " + railTitle} title={hover} data-testid="row-title">{title}</span>
           {pinned && <PinMark />}
-          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className={lowTone} data-level={lowLevel}>{low}</span> : heavy ? <span className="text-muted" data-testid="rail-heavy">{heavy}</span> : when ? <span className="hidden @min-[16rem]:inline" data-testid="row-when">{when}</span> : null}</span>
-          <span className={"shrink-0 text-label font-medium " + railWord} data-testid="state-word">
-            {state.word}
-          </span>
+          <span className="ml-auto shrink-0 text-label text-muted">{low ? <span className={lowTone} data-level={lowLevel}>{low}</span> : heavy ? <span className="text-muted" data-testid="rail-heavy">{heavy}</span> : when ? <span className="hidden @min-[14rem]:inline" data-testid="row-when">{when}</span> : null}</span>
         </span>
+        {agents}
       </RowShell>
     );
   }
@@ -231,8 +240,7 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
   // right, so more of the list fits; where and when it was (project ·
   // time, and where else it is open) are in its tooltip and its name.
   return (
-    <RowShell {...shell} indent shape="rounded-lg" className="h-[32px] gap-2 pl-2.5">
-      {dot}
+    <RowShell {...shell} indent shape="rounded-lg" className="h-[32px] gap-2 pl-1.5" lead={dot} rest={word}>
       <span className="flex min-w-0 flex-1 items-center gap-1.5">
         <span aria-hidden="true" className={"min-w-0 truncate text-meta " + railTitle} title={hover} data-testid="row-title">{title}</span>
         {pinned && (
@@ -240,14 +248,9 @@ export function SessionRow(props: SessionRowProps): JSX.Element {
             <PinMark />
           </span>
         )}
-        <span className="ml-auto flex shrink-0 items-center gap-2">
-          {exception && <span aria-hidden="true" className="flex">{exception}</span>}
-          {helpers && <RowSubagents item={item} words={helpers} onSelect={props.onSelect} />}
-          <span aria-hidden="true" className={"shrink-0 text-label font-medium " + railWord} data-testid="state-word">
-            {state.word}
-          </span>
-        </span>
+        {exception && <span aria-hidden="true" className="ml-auto flex shrink-0">{exception}</span>}
       </span>
+      {agents}
     </RowShell>
   );
 }

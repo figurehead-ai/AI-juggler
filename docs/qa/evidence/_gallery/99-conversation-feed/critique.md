@@ -1,4 +1,4 @@
-<!-- captures: 185b05a3b585 -->
+<!-- captures: 81094b475b06 -->
 # 99-conversation-feed: a Claude session's conversation, followed live
 
 Design critique (D-57, AJ-E2814) for 0.3.5 (ADR-0024), against the Claude app's Code tab (`docs/research/native-conversation-display.md` §1) and the reference screens of 92-session-pages. The captures are the Conversation card alone, at 1280×800, both themes.
@@ -35,3 +35,7 @@ Design critique (D-57, AJ-E2814) for 0.3.5 (ADR-0024), against the Claude app's 
 
 - The pill covers a line of text while it shows (it floats over the list, as the apps' own do).
 - The banner is neutral grey; "Trying again" problems and "it ended" notes look the same.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The conversation card is unchanged; its status says not saved instead of nothing kept.

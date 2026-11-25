@@ -243,7 +243,9 @@ describe("AJ-E1529 a conversation's page", () => {
       const pick = (await screen.findByTestId("continue-target")) as HTMLButtonElement;
       expect(pick.disabled).toBe(false);
       fireEvent.click(pick);
-      expect(onSwitch).toHaveBeenCalledWith("conversation:a1:c", "recipe-codex", "Codex Personal");
+      // AJ-E2317: the pick carries the desktop App it is, by place id; a
+      // terminal target has none.
+      expect(onSwitch).toHaveBeenCalledWith("conversation:a1:c", "recipe-codex", "Codex Personal", null);
     } finally {
       delete (window as unknown as { __AIJ_SWITCH_TARGETS__?: unknown }).__AIJ_SWITCH_TARGETS__;
     }

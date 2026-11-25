@@ -35,6 +35,7 @@ export function MemberList({ pool, data, canvas, sessions, names, now, onSelect 
             <PoolCardRows
               list={data.list}
               sessions={sessions}
+              names={names}
               now={now}
               renderOwn={(row, name) => <MemberLevel pool={pool} sessionId={row.session.id} memberRole={row.card.role} name={name} look="row" session={row.session} />}
               // SK-13: its role, in its row, as on its canvas card.

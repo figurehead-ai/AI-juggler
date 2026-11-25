@@ -112,6 +112,7 @@ pub(crate) fn claude_app_host(bundle_id: Option<&str>) -> juggler_adapter::live:
         kind: juggler_adapter::live::HostKind::Desktop,
         instance_arg: Some("--user-data-dir".into()),
         default_instance: Some("Library/Application Support/Claude".into()),
+        instance_lock: Some("Local Storage/leveldb/LOCK".into()),
         thread_link: None,
         folder_link: None,
         folder_command: None,
@@ -187,6 +188,9 @@ pub(crate) fn desktop_app(
         )
         .unwrap();
     storage.apps().set_folder(&app, Some(id)).unwrap();
+    // D-84, AJ-E1552: an App because the user added it (a folder link
+    // alone never makes one).
+    assert!(storage.apps().add(&app).unwrap());
     app
 }
 
@@ -313,4 +317,89 @@ pub(crate) fn seven_sessions(dir: &std::path::Path) -> std::sync::Arc<crate::sta
         }
     }
     state
+}
+
+/// A Claude app profile AI Juggler knows, on folder `dir`, run from the
+/// app in `/Applications` (the process-tree and ownership fixtures).
+pub(crate) fn claude_profile(dir: &str) -> crate::features::places::book::KnownPlace {
+    let app = "/Applications/Claude.app";
+    crate::features::places::book::KnownPlace {
+        app_id: "claude-app".into(),
+        name: "Claude".into(),
+        instance: Some("work".into()),
+        bundle: std::path::PathBuf::from(app),
+        exe: std::path::PathBuf::from(format!("{app}/Contents/MacOS/Claude")),
+        given: Some(std::path::PathBuf::from(dir)),
+        instance_dir: Some(std::path::PathBuf::from(dir)),
+        account_id: None,
+        conversations: Vec::new(),
+        seen_ms: 1,
+        keep_alive: false,
+        paused: None,
+        found: false,
+        users: true,
+        declined: false,
+    }
+}
+
+/// Two Claude Code accounts, Work and Home, each with launch settings
+/// "Main" (`true` stands in for the tool: nothing real runs), Home set up
+/// as a signed-in account is (a switch checks, 0.3.2), and one
+/// conversation `native` on Work in `root/site`, not yet listed.
+pub(crate) struct WorkAndHome {
+    pub(crate) state: std::sync::Arc<crate::state::AppState>,
+    pub(crate) work: String,
+    pub(crate) work_recipe: String,
+    pub(crate) home_recipe: String,
+}
+
+/// [`WorkAndHome`] over `root` (canonical), its data in `root/app-data`.
+pub(crate) fn work_and_home(root: &std::path::Path, native: &str) -> WorkAndHome {
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    let claude = std::sync::Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+        "/usr/bin/true",
+    ));
+    registry.register(claude.clone());
+    registry.register_handover(claude);
+    let state = std::sync::Arc::new(
+        crate::state::AppState::init_with_registry(root.join("app-data"), registry).unwrap(),
+    );
+    let tool = juggler_adapters::CLAUDE_CODE_ID;
+    let work = crate::features::account::create_account(&state, tool, "Work", None).unwrap();
+    let work_recipe =
+        crate::features::profile::create_profile(&state, &work.id, "Main", None, None).unwrap();
+    let home = crate::features::account::create_account(&state, tool, "Home", None).unwrap();
+    let home_recipe =
+        crate::features::profile::create_profile(&state, &home.id, "Main", None, None).unwrap();
+    let home_dir = state.accounts_dir().join(tool).join(&home.id);
+    std::fs::create_dir_all(&home_dir).unwrap();
+    std::fs::write(
+        home_dir.join(".claude.json"),
+        r#"{"hasCompletedOnboarding":true}"#,
+    )
+    .unwrap();
+    let folder = root.join("site");
+    std::fs::create_dir_all(&folder).unwrap();
+    let transcripts = state
+        .accounts_dir()
+        .join(tool)
+        .join(&work.id)
+        .join("projects")
+        .join(folder.to_string_lossy().replace(['/', '.'], "-"));
+    std::fs::create_dir_all(&transcripts).unwrap();
+    let cwd = folder.display();
+    std::fs::write(
+        transcripts.join(format!("{native}.jsonl")),
+        format!(
+            "{{\"type\":\"user\",\"uuid\":\"u1\",\"sessionId\":\"{native}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"user\",\"content\":\"Fix the footer\"}}}}\n\
+             {{\"type\":\"assistant\",\"uuid\":\"u2\",\"parentUuid\":\"u1\",\"sessionId\":\"{native}\",\"cwd\":\"{cwd}\",\"message\":{{\"role\":\"assistant\",\"content\":[{{\"type\":\"text\",\"text\":\"Fixed.\"}}]}}}}\n"
+        ),
+    )
+    .unwrap();
+    WorkAndHome {
+        state,
+        work: work.id,
+        work_recipe: work_recipe.id,
+        home_recipe: home_recipe.id,
+    }
 }

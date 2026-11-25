@@ -12,9 +12,16 @@
  * on its poll (one timer for all, the shortest asked), when its own
  * events say so, and after a change the user made (`refresh`). A failed
  * read keeps the last answer. `forgetSharedReads` drops every one.
+ *
+ * AJ-E1552: a read with no answer by its deadline (lib/loading's 12 s)
+ * fails, logged, and the next load reads again: a read that never
+ * answers no longer holds every later load on it. `failure()` says why
+ * the last read failed, until an answer comes; `useSharedReadState`
+ * gives a screen the read's state.
  */
 import { everyWhileShown } from "./shown-window";
 import { useEffect, useSyncExternalStore } from "react";
+import { emptyAnswer, loadStateOf, logLoadFailure, TookTooLong, withDeadline, type LoadState } from "./loading";
 
 export type SharedRead<T> = {
   /** The last answer, if any. */
@@ -29,6 +36,8 @@ export type SharedRead<T> = {
   poll: (everyMs: number) => () => void;
   /** Forgets the answer and stops the timer. */
   reset: () => void;
+  /** Why the last read failed (`undefined` once an answer came). */
+  failure: () => unknown;
 };
 
 const every = new Set<{ reset: () => void }>();
@@ -53,8 +62,9 @@ export function whenForgotten(reset: () => void): void {
   every.add({ reset });
 }
 
-function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean } {
+function store<T>(read: () => Promise<T>, what: string): SharedRead<T> & { idle: () => boolean } {
   let value: T | undefined;
+  let failed: unknown;
   let seen: string | null = null;
   let at = 0;
   let started = 0;
@@ -69,11 +79,15 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
     // Only the newest read's answer is kept (a refresh after a change
     // wins over a read that began before it).
     const mine = ++started;
-    const run: Promise<T | undefined> = read()
+    const run: Promise<T | undefined> = withDeadline(what, read())
       .then(
         (next) => {
           if (mine === started) {
             at = Date.now();
+            if (failed !== undefined) {
+              failed = undefined;
+              listeners.forEach((listener) => listener());
+            }
             // an equal answer keeps the value shown (0.4.1, idle CPU). Its
             // text is compared, not the objects kept: a reader that hands
             // back the same objects changed in place still shows.
@@ -86,7 +100,14 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
           }
           return value;
         },
-        () => value,
+        (cause: unknown) => {
+          if (mine === started) {
+            if (cause instanceof TookTooLong) logLoadFailure(what, cause);
+            failed = cause;
+            listeners.forEach((listener) => listener());
+          }
+          return value;
+        },
       )
       .finally(() => {
         if (pending === run) pending = null;
@@ -124,8 +145,10 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
         retime();
       };
     },
+    failure: () => failed,
     reset: () => {
       value = undefined;
+      failed = undefined;
       seen = null;
       at = 0;
       started++;
@@ -139,8 +162,8 @@ function store<T>(read: () => Promise<T>): SharedRead<T> & { idle: () => boolean
 }
 
 /** One read shared by every screen that shows it. */
-export function sharedRead<T>(read: () => Promise<T>): SharedRead<T> {
-  const one = store(read);
+export function sharedRead<T>(read: () => Promise<T>, what = "a shared read"): SharedRead<T> {
+  const one = store(read, what);
   every.add(one);
   return one;
 }
@@ -153,7 +176,7 @@ export function sharedReads<T>(read: (key: string) => Promise<T>, keep = 32): (k
   return (key) => {
     let one = byKey.get(key);
     if (one) byKey.delete(key);
-    else one = store(() => read(key));
+    else one = store(() => read(key), key);
     byKey.set(key, one);
     for (const [old, entry] of byKey) {
       if (byKey.size <= keep) break;
@@ -180,6 +203,19 @@ export function useSharedRead<T>(
   }, [source, wanted, maxAgeMs, version]);
   useEffect(() => (source && wanted && pollMs > 0 ? source.poll(pollMs) : undefined), [source, wanted, pollMs]);
   return value;
+}
+
+/** AJ-E1552: `source`'s answer and its state (lib/loading): loading
+ * until the first answer or failure, then ready, empty, error or stale. */
+export function useSharedReadState<T>(
+  source: SharedRead<T> | null,
+  options: { maxAgeMs?: number; pollMs?: number; wanted?: boolean; version?: unknown; isEmpty?: (data: T) => boolean } = {},
+): { data: T | undefined; state: LoadState; retry: () => void } {
+  const data = useSharedRead(source, options);
+  const failure = useSyncExternalStore(source?.subscribe ?? noSubscribe, source?.failure ?? nothing);
+  const isEmpty = options.isEmpty ?? emptyAnswer;
+  const state = source === null ? "empty" : loadStateOf({ hasData: data !== undefined, loading: false, error: failure, empty: data !== undefined && isEmpty(data) });
+  return { data, state: data === undefined && failure === undefined && source !== null ? "loading" : state, retry: () => void source?.refresh() };
 }
 
 const noSubscribe = () => () => undefined;

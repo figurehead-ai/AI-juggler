@@ -474,6 +474,9 @@ struct Running {
     lit: Option<(i64, super::store::Light)>,
     /// AJ-E3517: the hover card shown, its words read when it opened.
     card: Option<juggler_floor::overlay::Card>,
+    /// AJ-E1548 #23: the first-open line shows (until a click hides it,
+    /// kept on this Mac).
+    intro: bool,
 }
 
 impl Running {
@@ -501,6 +504,12 @@ impl Running {
             .ok()
             .and_then(|s| store::load(&s, settings.per_floor, fresh_seed).ok())
             .unwrap_or_else(|| (Office::new(fresh_seed, settings.per_floor), Vec::new()));
+        let intro = state
+            .storage
+            .lock()
+            .ok()
+            .and_then(|s| s.app_settings().get(store::INTRO_KEY).ok().flatten())
+            .is_none_or(|word| word != "hidden");
         open_step("settings and office", opened);
         let snapshot = super::current(&state).ok()?;
         open_step("snapshot", opened);
@@ -551,6 +560,7 @@ impl Running {
             place,
             lit: None,
             card: None,
+            intro,
         })
         .map(|mut floor| {
             floor.relight(Duration::ZERO);
@@ -651,6 +661,7 @@ impl Running {
                         let scale = self.driver.size.2.max(1.0);
                         window.view_menu((x / scale, y / scale), self.settings);
                     }
+                    Some(Effect::HideIntro) => self.hide_intro(),
                     Some(Effect::GoTo(id)) => {
                         if let Some(Target::Session(key)) =
                             self.world.scene.pick_of(id).map(|p| &p.target)
@@ -744,6 +755,20 @@ impl Running {
         });
     }
 
+    /// AJ-E1548 #23: the first-open line was clicked: gone, and kept
+    /// gone on this Mac.
+    fn hide_intro(&mut self) {
+        self.intro = false;
+        let kept = self.state.storage.lock().map_err(|_| ()).and_then(|s| {
+            s.app_settings()
+                .set(store::INTRO_KEY, "hidden")
+                .map_err(|_| ())
+        });
+        if kept.is_err() {
+            tracing::warn!("floor: the first-open line's hiding wasn't kept");
+        }
+    }
+
     /// Draws a frame (a refused one is retried by the driver).
     fn frame(&mut self, now: Duration) {
         self.card_now();
@@ -774,6 +799,7 @@ impl Running {
             mouse: d.mouse,
             card: self.card.as_ref(),
             opened: d.opened_at(now),
+            intro: self.intro,
         };
         let drawing = Instant::now();
         match self
@@ -795,6 +821,7 @@ impl Running {
                 d.card_area = shown.card.as_ref().map(|c| c.rect);
                 d.card_buttons = shown.card.map(|c| c.buttons).unwrap_or_default();
                 d.view_button = shown.view;
+                d.intro = shown.intro;
                 d.doors = shown.doors;
                 d.drew(true, shown.moving, now);
                 if std::mem::take(&mut self.first) {

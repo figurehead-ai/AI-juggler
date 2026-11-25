@@ -263,10 +263,18 @@ describe("F1 the switch dialog says the target's room", () => {
     // 0.5.0: a fact row of the Target step's panel, "Room" its label.
     expect(room.textContent).toBe("RoomAccount F: 98% left this week · Week resets " + room.textContent!.split("Week resets ")[1]);
     expect(screen.getByTestId("switch-step-target").textContent).toContain("Nothing changes until the last step, where you pick Desktop or CLI and switch.");
-    // deep/11 §9: the step's heading has the keyboard, never × (⏎ closed it).
-    await waitFor(() => expect(document.activeElement?.textContent).toBe("Where it goes"));
+    // deep/11 §9, 0.5.1 F75: each step starts the keyboard on its first
+    // control (its choice, else its primary), never × (⏎ closed it) nor a
+    // heading (a ring round words that aren't a control).
+    const inBody = () => {
+      const at = document.activeElement;
+      return Boolean(at?.closest("[data-testid=switch-body], [data-testid=switch-footer]")) && at?.getAttribute("data-testid") !== "switch-close" && !/^H[1-6]$/.test(at?.tagName ?? "");
+    };
+    await waitFor(() => expect(inBody()).toBe(true));
     fireEvent.click(screen.getByTestId("switch-continue"));
-    await waitFor(() => expect(document.activeElement?.textContent).toBe("Ready to switch to Account F"));
+    await waitFor(() => expect(screen.getByTestId("switch-step-confirm")).toBeTruthy());
+    await waitFor(() => expect(inBody()).toBe(true));
+
     expect(screen.getByTestId("switch-confirm").textContent).toBe("Switch to CLI");
   });
 });

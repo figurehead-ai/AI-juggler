@@ -22,6 +22,7 @@ import { CliAppMark } from "./PlaceMarks";
 import { IconJuggler } from "./icons";
 import { useItemMenu } from "./ItemMenu";
 import { openBot } from "../lib/bot-store";
+import { useBotReady } from "../lib/ai-availability";
 import { authorWords, exactWhen, factsLine, feedWhen, placeWords, rollupSentence, said, sentence, type Part } from "../lib/feed-words";
 import { restartOf, stateOf, type FeedCard, type FeedThing } from "../lib/feed-rollup";
 import { goToWhere, type RailItem } from "../lib/rail-items";
@@ -159,6 +160,7 @@ function Rolled({ card, now, actions }: { card: FeedCard; now: number; actions: 
 /** A single item's ghost actions: Open, Mark reviewed, ↗. */
 function Actions({ item, actions }: { item: FeedItemInfo; actions: CardActions }): JSX.Element {
   const row = actions.railOf(item);
+  const botReady = useBotReady();
   const session = item.kind === "finished" ? item.target.session_id : null;
   return (
     // Over the card's lower right, shown on hover and focus: out of the
@@ -166,8 +168,9 @@ function Actions({ item, actions }: { item: FeedItemInfo; actions: CardActions }
     <div className="absolute bottom-1.5 right-2 flex items-center gap-1 rounded-md bg-surface-2 p-0.5 opacity-0 shadow-card transition-opacity group-hover/card:opacity-100 group-focus-within/card:opacity-100 motion-reduce:transition-none" data-testid="feed-actions">
       <button type="button" className={GHOST} data-home-row onClick={() => void actions.open(item)}>Open<span className="sr-only"> {item.subject}</span></button>
       {session && <button type="button" className={GHOST} data-home-action onClick={() => actions.review(session)}>Mark reviewed<span className="sr-only"> {item.subject}</span></button>}
-      {/* D-136: Bot, scoped to this item's session (by id). */}
-      {item.target.session_id && (
+      {/* D-136: Bot, scoped to this item's session (by id); D-144: only
+          while Bot's AI is ready. */}
+      {botReady && item.target.session_id && (
         <button type="button" className={GHOST} onClick={() => openBot({ kind: "session", id: item.target.session_id!, name: item.subject || "this session", sessions: [] })} data-testid="feed-ask-bot">
           Ask Bot about this<span className="sr-only"> {item.subject}</span>
         </button>
@@ -178,10 +181,12 @@ function Actions({ item, actions }: { item: FeedItemInfo; actions: CardActions }
 }
 
 /** When a card happened: a rollup from its oldest to its newest. */
-function whenOf(card: FeedCard, now: number): string {
+export function whenOf(card: FeedCard, now: number): string {
   const newest = card.head.at_ms;
   const oldest = card.things[card.things.length - 1]!.head.at_ms;
-  return card.rolled && oldest !== newest ? `${feedWhen(oldest, now)}–${feedWhen(newest, now)}` : feedWhen(newest, now);
+  // AJ-E2314 L5: never "2 min–2 min": a range only when its ends read apart.
+  const [from, to] = [feedWhen(oldest, now), feedWhen(newest, now)];
+  return card.rolled && from !== to ? `${from}–${to}` : to;
 }
 
 export function HomeFeedCard({ card, pos, now, unread, fresh, actions }: { card: FeedCard; pos: number; now: number; unread: boolean; fresh: boolean; actions: CardActions }): JSX.Element {

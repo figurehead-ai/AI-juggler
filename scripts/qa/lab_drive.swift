@@ -59,6 +59,16 @@
 // minimised and restored (a window restored from the Dock opens on the
 // Space in use), raised again. Each prints its own line: UNHID /
 // UNMINIMISED / ACTIVATED / MOVED <UTC time> step=<command> idle=<s>s.
+// A HIDDEN TAB (0.5.1 F38, F-PL1-18): a window manager's tab group can take
+// Dev's main window in as a tab behind another app's window; it is then
+// neither minimised nor hidden, just not on screen, with that other window
+// at its frame, and activating Dev doesn't show it ("the system refused").
+// The guard says so ("Dev's window is a hidden tab behind …"), and bringing
+// Dev forward first asks Dev itself to show its window, as a second launch
+// does (`lab_scenario.sh open`): the line "raise" on Dev's own hand-over
+// socket (found among Dev's open files, ours and in a folder of ours), and
+// Dev answers once its window is forward (TAB_SHOWN …). Then it is
+// activated as above, and the guard is checked again before anything is sent.
 // Then the guard is checked again: Dev still not frontmost, or its main
 // window still off screen, stops the step at once (exit 3, a STOPPED line
 // saying what was tried; nothing sent), never a wait that can't end. After it, any new input at the Mac (the idle time falls back
@@ -109,13 +119,22 @@
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
 //   key NAME [--repeat N]         return, down, up, left, right, pagedown, pageup, home, end,
-//                                 escape, tab, space, ctrl-c
+//                                 escape, tab, space, ctrl-c, or a chord: cmd+k, cmd+shift+p,
+//                                 shift+tab (modifiers cmd, shift, alt, ctrl; a letter needs
+//                                 one; cmd+q, cmd+h, cmd+m, cmd+w are refused: by hand)
+//   hover TITLE [--row NAME | --region NAME] [--in TEXT …] | hover --at X,Y
+//                                 moves the pointer onto the one element titled TITLE (picked
+//                                 as press picks) or to the screen point X,Y in Dev's main
+//                                 window, behind the guard there; nothing is clicked; the
+//                                 pointer stays (for a `shot`) and the line says where it was
 //   scroll down|up [N] [--at X,Y] the wheel, N clicks (default 3) of a line, at the screen
 //                                 point X,Y (default: the middle of Dev's main window), posted
 //                                 to Dev's pid; the pointer doesn't move; each click behind the
 //                                 guard at that point
 //   resize WxH                    Dev's MAIN window to W×H points, by accessibility, behind
-//                                 the guard; prints SIZE; one that didn't take stops (exit 4)
+//                                 the guard; prints SIZE as the window server shows it once
+//                                 it has held still 3 s; one that didn't take, or that a
+//                                 tiling window manager put back, stops (exit 4) and says so
 //   windows                       every window of Dev's pid (accessibility's role, subrole,
 //                                 title, frame; the window server's layer), read only
 //   wait TEXT [--timeout S] [--ocr] [--gone]
@@ -126,7 +145,12 @@
 //   shot NAME (--box X,Y,W,H … | --no-real-data REASON) [--note TEXT]
 //                                 Dev's front window by its id, through
 //                                 scripts/qa/redact_capture.swift into AIJ_DRIVE_OUT/NAME.jpg
-//                                 (+ its sidecar); the raw picture is deleted
+//                                 (+ its sidecar); the raw picture is deleted. Whatever the
+//                                 flags, every line showing the Mac account's name is covered
+//                                 and the picture read again (still there: nothing kept, exit 4)
+//
+// The Mac account's name (full, each word, login; from the system's user
+// record) is replaced by ‹name› in every line the driver prints or logs.
 //
 // The run sheet's steps (docs/qa/0.5-walks/AJ-E1612.md), each a few of the
 // above; each prints every primitive it runs, so a step that stops can be
@@ -184,12 +208,62 @@ import Vision
 /// of the run; nil: none (a selftest, or it couldn't be opened).
 var logFile: FileHandle?
 
-/// The driver's own line: printed, and kept in the run's log.
-func say(_ text: String) { print(text); fflush(stdout); record(text) }
+/// The driver's own line: printed, and kept in the run's log; the Mac
+/// account's name never in it (`unnamed`).
+func say(_ text: String) { let line = unnamed(text); print(line); fflush(stdout); record(line) }
 
 /// Dev's page content (`read`, `texts`, `buttons`): printed only, never
-/// kept in the log (a terminal's picture can show a sign-in code).
-func show(_ text: String) { print(text); fflush(stdout) }
+/// kept in the log (a terminal's picture can show a sign-in code); the Mac
+/// account's name never in it (`unnamed`).
+func show(_ text: String) { print(unnamed(text)); fflush(stdout) }
+
+/// 0.5.1 F24: what to keep out of every line the driver prints, from the
+/// system's own user record (NSFullUserName and NSUserName, as `id -F` and
+/// `id -un` say; never an argument, never printed): the account's full
+/// name, each word of it (two letters and more: the first name too) and
+/// its login name. A shot's picture is covered for the same words by
+/// scripts/qa/redact_capture.swift.
+let accountName: [String] = nameNeedles(full: NSFullUserName(), login: NSUserName())
+
+/// `text` with no case, accents or full-width forms.
+func folded(_ text: String) -> String {
+    text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: nil)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+/// The words to keep out (pure: the selftest), longest first.
+func nameNeedles(full: String, login: String) -> [String] {
+    var out = Set<String>()
+    let whole = folded(full).split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
+    if whole.count >= 2 { out.insert(whole) }
+    for word in whole.split(whereSeparator: { !$0.isLetter }) where word.count >= 2 { out.insert(String(word)) }
+    let user = folded(login)
+    if user.count >= 3 { out.insert(user) }
+    return out.sorted { $0.count != $1.count ? $0.count > $1.count : $0 < $1 }
+}
+
+/// `text` with each of `needles` replaced by "‹name›" (pure: the
+/// selftest): ignoring case and accents; one of five letters or more (or
+/// with a space) anywhere, a shorter one only as a whole word ("Sam's",
+/// not "Sample").
+func unnamed(_ text: String, _ needles: [String] = accountName) -> String {
+    var out = text
+    for needle in needles {
+        var from = out.startIndex
+        while from < out.endIndex, let hit = out.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], range: from..<out.endIndex) {
+            let wordOnly = needle.count < 5 && !needle.contains(" ")
+            let before = hit.lowerBound > out.startIndex ? out[out.index(before: hit.lowerBound)] : " "
+            let after = hit.upperBound < out.endIndex ? out[hit.upperBound] : " "
+            if wordOnly && (before.isLetter || before.isNumber || after.isLetter || after.isNumber) {
+                from = hit.upperBound
+                continue
+            }
+            out.replaceSubrange(hit, with: "‹name›")
+            from = out.index(hit.lowerBound, offsetBy: "‹name›".count, limitedBy: out.endIndex) ?? out.endIndex
+        }
+    }
+    return out
+}
 
 /// A line as the log keeps it (pure: the selftest): typed words only by
 /// their count (`» type (12 characters)`), stamped with the UTC time.
@@ -222,6 +296,7 @@ func runLine(_ args: [String]) -> String {
 }
 
 func stop(_ code: Int32, _ message: String) -> Never {
+    let message = unnamed(message)
     FileHandle.standardError.write("lab_drive: \(message)\n".data(using: .utf8)!)
     record("EXIT \(code) \(message)")
     exit(code)
@@ -233,7 +308,7 @@ func squash(_ text: String) -> String {
 
 // MARK: - the guard (pure: tested by --selftest)
 
-struct Win {
+struct Win: Equatable {
     let owner: pid_t
     let ownerName: String
     let title: String
@@ -249,6 +324,9 @@ enum Verdict: Equatable {
     case offWindow
     /// Dev has no window on screen at all (minimised, hidden, another Space).
     case offScreen
+    /// Dev's main window is a hidden tab in a window manager's tab group,
+    /// behind the window named (F38).
+    case hiddenTab(String)
 }
 
 /// The guard's decision. `windows` is CGWindowList's on-screen list (front
@@ -271,6 +349,20 @@ func describe(_ verdict: Verdict) -> String {
     case .covered(let what): return "another window is on top at the point: \(what)"
     case .offWindow: return "no Dev window is on screen at the point"
     case .offScreen: return "Dev's window is off screen (minimised/hidden/other Space)"
+    case .hiddenTab(let what): return "Dev's window is a hidden tab behind \(what) (a window manager's tab group)"
+    }
+}
+
+/// Whether Dev's main window is a hidden tab (pure: the selftest, F38): it
+/// is off screen though neither minimised nor hidden, and another app's
+/// window is on screen over (nearly) all of its frame, as a tab group shows
+/// one of its windows at a time; that window, else nil.
+func hiddenTabCover(main: CGRect, onScreen: Bool, minimised: Bool, hidden: Bool, dev: pid_t, windows: [Win]) -> Win? {
+    guard !onScreen, !minimised, !hidden, main.width > 50, main.height > 50 else { return nil }
+    return windows.first { w in
+        guard w.owner != dev, w.layer == 0, w.alpha > 0.01 else { return false }
+        let both = w.bounds.intersection(main)
+        return !both.isNull && both.width * both.height >= 0.9 * main.width * main.height
     }
 }
 
@@ -318,7 +410,7 @@ func decide(_ p: Probe, may: Bool, activatedAt: Double?, now: Double, opportunis
     // Only another app in front, or Dev's window off screen: a window over
     // Dev's isn't moved.
     switch p.verdict {
-    case .notFrontmost, .offScreen: break
+    case .notFrontmost, .offScreen, .hiddenTab: break
     default: return .wait(why)
     }
     if !p.onConsole { return .wait("\(why); this login isn't the one on screen") }
@@ -353,6 +445,8 @@ enum GateEnd: Equatable {
 enum Raise: String {
     case unhid = "UNHID"
     case unminimised = "UNMINIMISED"
+    /// Dev asked to show its window, a hidden tab (F38).
+    case tabShown = "TAB_SHOWN"
     case activated = "ACTIVATED"
     case moved = "MOVED"
 }
@@ -443,7 +537,7 @@ func gate(step: String, may: Bool, opportunistic: Bool = false, activatedAt: ino
                 after = mac.probe()
             }
             switch after.verdict {
-            case .notFrontmost, .offScreen:
+            case .notFrontmost, .offScreen, .hiddenTab:
                 let tried = parts.map { $0.what.rawValue + ($0.ok ? "" : " (refused)") }.joined(separator: ", ")
                 let why = "\(describe(after.verdict)) after bringing it forward (\(tried))"
                 mac.log("STOPPED \(utc(mac.now())) step=\(step): \(why). Nothing was sent. "
@@ -727,6 +821,11 @@ struct Forward {
     var unhide: () -> Bool
     var minimised: () -> Bool
     var unminimise: () -> Bool
+    /// The main window is a hidden tab (F38).
+    var inHiddenTab: () -> Bool
+    /// Dev asked, on its own hand-over socket, to show its window (as a
+    /// second launch asks): whether it answered that it did.
+    var showTab: () -> Bool
     /// The main window made main and raised, Dev made frontmost.
     var activate: () -> Bool
     /// The main window is on screen (the Space in use).
@@ -743,6 +842,10 @@ func bringForwardSteps(_ f: Forward) -> [Raised] {
     var done: [Raised] = []
     if f.hidden() { done.append(Raised(what: .unhid, ok: f.unhide())) }
     if f.minimised() { done.append(Raised(what: .unminimised, ok: f.unminimise())) }
+    if f.inHiddenTab() {
+        done.append(Raised(what: .tabShown, ok: f.showTab()))
+        f.settle(0.4)
+    }
     done.append(Raised(what: .activated, ok: f.activate()))
     f.settle(0.6)
     guard !f.onThisSpace() else { return done }
@@ -765,6 +868,81 @@ func within(_ seconds: Double, _ until: () -> Bool) -> Bool {
     return until()
 }
 
+/// Dev's hand-over socket (pure: the selftest): among the unix sockets
+/// `lsof -F n` lists for Dev, the one `…/aij-<hash>/ho.sock`
+/// (crates/juggler-app/src/handover.rs), else nil.
+func handoverSocket(lsof: String) -> String? {
+    lsof.split(separator: "\n").lazy
+        .filter { $0.hasPrefix("n/") }
+        .map { String($0.dropFirst()) }
+        .first { path in
+            let parts = path.split(separator: "/")
+            return parts.count >= 2 && parts[parts.count - 1] == "ho.sock" && parts[parts.count - 2].hasPrefix("aij-")
+        }
+}
+
+/// Owned by this user, and (for a folder) not writable by anyone else.
+func ours(_ path: String, folder: Bool) -> Bool {
+    var st = stat()
+    guard lstat(path, &st) == 0, st.st_uid == getuid() else { return false }
+    let kind = st.st_mode & S_IFMT
+    if folder { return kind == S_IFDIR && st.st_mode & 0o022 == 0 }
+    return kind == S_IFSOCK
+}
+
+/// Asks Dev, by its own hand-over socket, to bring its window forward, as a
+/// second launch does (F38): "raise", and Dev answers "ok" once it has. Only
+/// a socket Dev holds open, of ours, in a folder of ours, is asked.
+func askDevToShow(_ pid: pid_t) -> Bool {
+    let lsof = Process()
+    lsof.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+    lsof.arguments = ["-a", "-p", String(pid), "-U", "-F", "n"]
+    let out = Pipe()
+    lsof.standardOutput = out
+    lsof.standardError = FileHandle.nullDevice
+    guard (try? lsof.run()) != nil else { return false }
+    let listed = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+    lsof.waitUntilExit()
+    guard let path = handoverSocket(lsof: listed),
+          ours((path as NSString).deletingLastPathComponent, folder: true), ours(path, folder: false) else { return false }
+    let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+    guard fd >= 0 else { return false }
+    defer { close(fd) }
+    var address = sockaddr_un()
+    address.sun_family = sa_family_t(AF_UNIX)
+    let bytes = Array(path.utf8)
+    guard bytes.count < MemoryLayout.size(ofValue: address.sun_path) else { return false }
+    withUnsafeMutableBytes(of: &address.sun_path) { raw in
+        raw.copyBytes(from: bytes)
+        raw[bytes.count] = 0
+    }
+    let connected = withUnsafePointer(to: &address) {
+        $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, socklen_t(MemoryLayout<sockaddr_un>.size)) }
+    }
+    guard connected == 0 else { return false }
+    var wait = timeval(tv_sec: 3, tv_usec: 0)
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &wait, socklen_t(MemoryLayout<timeval>.size))
+    let ask = Array("raise\n".utf8)
+    guard write(fd, ask, ask.count) == ask.count else { return false }
+    var reply = [UInt8](repeating: 0, count: 3)
+    var got = 0
+    while got < 3 {
+        let n = reply.withUnsafeMutableBytes { read(fd, $0.baseAddress! + got, 3 - got) }
+        guard n > 0 else { return false }
+        got += n
+    }
+    return reply == Array("ok\n".utf8)
+}
+
+/// Dev's main window's hidden-tab cover (F38), read now; nil: not a hidden tab.
+func devHiddenTab(_ pid: pid_t) -> Win? {
+    guard let main = mainWindow(pid) else { return nil }
+    return hiddenTabCover(main: main.cg.bounds, onScreen: main.cg.onScreen,
+                          minimised: (attr(main.ax, kAXMinimizedAttribute) as? Bool) == true,
+                          hidden: NSRunningApplication(processIdentifier: pid)?.isHidden ?? false,
+                          dev: pid, windows: onScreenWindows())
+}
+
 /// Brings Dev (by pid, its own main window) forward; nothing is clicked or typed.
 func bringForward(_ pid: pid_t) -> [Raised] {
     let running = NSRunningApplication(processIdentifier: pid)
@@ -778,6 +956,8 @@ func bringForward(_ pid: pid_t) -> [Raised] {
             guard let window = minimisedWindow(app) else { return true }
             return AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse) == .success
         },
+        inHiddenTab: { devHiddenTab(pid) != nil },
+        showTab: { askDevToShow(pid) && within(1.5) { devWindow(pid) != nil } },
         activate: {
             if let main = mainWindow(pid)?.ax {
                 AXUIElementSetAttributeValue(main, kAXMainAttribute as CFString, kCFBooleanTrue)
@@ -830,12 +1010,12 @@ func guarded(_ pid: pid_t, at point: CGPoint?) -> Go {
         probe: {
             let front = NSWorkspace.shared.frontmostApplication
             // No window on screen while accessibility reads the page:
-            // minimised, hidden, or on another Space.
+            // minimised, hidden, on another Space, or a hidden tab (F38).
             let win = devWindow(pid)
             let verdict = win.map { win in
                 judge(dev: pid, frontmost: front?.processIdentifier, frontmostName: front?.localizedName ?? "",
                       windows: onScreenWindows(), point: point ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY))
-            } ?? .offScreen
+            } ?? devHiddenTab(pid).map { .hiddenTab($0.title.isEmpty ? $0.ownerName : "\($0.ownerName) (\($0.title))") } ?? .offScreen
             let s = session()
             return Probe(verdict: verdict, idle: personIdle(), locked: s.locked, saver: screenSaverRuns(), onConsole: s.onConsole)
         },
@@ -1062,7 +1242,7 @@ let keyCodes: [String: CGKeyCode] = ["return": 36, "enter": 36, "tab": 48, "spac
                                      "pagedown": 121, "pageup": 116, "home": 115, "end": 119]
 
 /// The keys `key` takes, for its usage line.
-let keyNames = "return, down, up, left, right, pagedown, pageup, home, end, escape, tab, space, ctrl-c"
+let keyNames = "return, down, up, left, right, pagedown, pageup, home, end, escape, tab, space, ctrl-c, or a chord: cmd+k, cmd+shift+p, shift+tab"
 
 func keyPoint(_ pid: pid_t) -> CGPoint {
     let win = windowOnScreen(pid)
@@ -1125,10 +1305,56 @@ func typeText(_ pid: pid_t, _ s: String) {
     for ch in s { post(pid, code: 0, unicode: String(ch)) }
 }
 
+// 0.5.1 F25: a chord (⌘K and the like), each one as one key behind the
+// same guard as every other key.
+
+/// Letters, digits and marks by their US-layout key codes (for chords;
+/// plain words go through `type`).
+let charCodes: [Character: CGKeyCode] = [
+    "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12, "w": 13,
+    "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23, "=": 24, "9": 25,
+    "7": 26, "-": 27, "8": 28, "0": 29, "]": 30, "o": 31, "u": 32, "[": 33, "i": 34, "p": 35, "l": 37, "j": 38,
+    "'": 39, "k": 40, ";": 41, "\\": 42, ",": 43, "/": 44, "n": 45, "m": 46, ".": 47, "`": 50]
+
+let modifierFlags: [String: CGEventFlags] = ["cmd": .maskCommand, "command": .maskCommand, "⌘": .maskCommand,
+                                             "shift": .maskShift, "⇧": .maskShift,
+                                             "alt": .maskAlternate, "option": .maskAlternate, "opt": .maskAlternate, "⌥": .maskAlternate,
+                                             "ctrl": .maskControl, "control": .maskControl, "⌃": .maskControl]
+
+/// Chords that would take Dev's window away mid-walk (quit, hide,
+/// minimise, close): refused; do them by hand.
+let refusedChords: Set<String> = ["cmd+q", "cmd+h", "cmd+m", "cmd+w"]
+
+/// A key or chord as `key` takes it (pure: the selftest): "return",
+/// "ctrl-c", "cmd+k", "cmd+shift+p", "shift+tab". A letter, digit or mark
+/// needs at least one modifier (words go through `type`). nil: unknown, or
+/// refused (`refusedChords`).
+func parseChord(_ raw: String) -> (code: CGKeyCode, flags: CGEventFlags)? {
+    let name = raw.lowercased()
+    if name == "ctrl-c" { return (8, .maskControl) }
+    if let code = keyCodes[name] { return (code, []) }
+    let parts = name.split(separator: "+", omittingEmptySubsequences: false).map(String.init)
+    guard parts.count >= 2, let last = parts.last, !last.isEmpty else { return nil }
+    var flags: CGEventFlags = []
+    var seen: [String] = []
+    for m in parts.dropLast() {
+        guard let f = modifierFlags[m], !flags.contains(f) else { return nil }
+        flags.insert(f)
+        seen.append(f == .maskCommand ? "cmd" : f == .maskShift ? "shift" : f == .maskAlternate ? "alt" : "ctrl")
+    }
+    let code: CGKeyCode
+    if last.count == 1, let c = charCodes[Character(last)] { code = c } else if let k = keyCodes[last] { code = k } else { return nil }
+    // One spelling per chord for the refusal list: modifiers then the key.
+    if seen == ["cmd"], refusedChords.contains("cmd+\(last)") { return nil }
+    return (code, flags)
+}
+
 func pressKey(_ pid: pid_t, _ name: String) {
-    if name == "ctrl-c" { post(pid, code: 8, flags: .maskControl); return }
-    guard let code = keyCodes[name] else { stop(2, "unknown key \(name) (\(keyNames))") }
-    post(pid, code: code)
+    guard let chord = parseChord(name) else {
+        if refusedChords.contains(name.lowercased()) { stop(2, "\(name) would take Dev's window away (quit, hide, minimise or close): do it by hand") }
+        stop(2, "unknown key \(name) (\(keyNames))")
+    }
+    post(pid, code: chord.code, flags: chord.flags)
 }
 
 // MARK: - the wheel and the window's size (the 0.5.0 final walk, F11)
@@ -1202,23 +1428,80 @@ func scrollWheel(_ pid: pid_t, lines: Int32, at given: CGPoint?) {
     }
 }
 
+// 0.5.1 F25: hover. The pointer moves to a point inside Dev's main window
+// (the full guard at that point first, as a press or a wheel click has)
+// and stays there, so a `shot` shows the hover state; nothing is clicked.
+// It prints where the pointer was, so `hover --at X,Y` can put it back.
+
+/// The roles `hover TITLE` may name: what can be pressed, plus headings
+/// and plain words (a rail row's title).
+let hoverRoles: Set<String> = pressRoles.union(["AXStaticText", "AXHeading", "AXGroup"])
+
+func hoverAt(_ pid: pid_t, _ given: CGPoint?, element: AXUIElement? = nil) {
+    var point = CGPoint.zero
+    while true {
+        let win = windowOnScreen(pid)
+        point = element.map { pointFor(pid, $0) } ?? given ?? CGPoint(x: win.bounds.midX, y: win.bounds.midY)
+        guard win.bounds.contains(point) else { stop(4, "the point \(Int(point.x)),\(Int(point.y)) isn't inside Dev's main window; nothing sent") }
+        if guarded(pid, at: point) == .send { break }
+    }
+    let source = CGEventSource(stateID: .hidSystemState)
+    let was = CGEvent(source: nil)?.location ?? point
+    guard let there = CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: point, mouseButton: .left) else { stop(3, "no pointer event") }
+    ledger.noteOwn(Date().timeIntervalSince1970)
+    there.post(tap: .cghidEventTap)
+    ledger.noteOwn(Date().timeIntervalSince1970)
+    saveLedger()
+    usleep(300_000)
+    say("  the pointer is at \(Int(point.x)),\(Int(point.y)) (it was at \(Int(was.x)),\(Int(was.y)): `hover --at \(Int(was.x)),\(Int(was.y))` puts it back)")
+}
+
+func hover(_ pid: pid_t, _ title: String, within: [String], row: String?, region: String?) {
+    if row != nil && region != nil { stop(2, "hover takes --row or --region, not both") }
+    let nodes = tree(pid)
+    let candidates = controls(nodes, titled: title, roles: hoverRoles)
+    let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) }
+        ?? region.map { pickInRegion(nodes, candidates, title: title, region: $0) }
+        ?? pick(nodes, candidates, within: within)
+    guard let i = chosen else { stop(4, "nothing single titled exactly \"\(title)\": \(why). Nothing sent. (`texts` lists the words.)") }
+    hoverAt(pid, nil, element: nodes[i].element)
+}
+
 /// Dev's MAIN window to `size` (points), by accessibility and its pid,
 /// behind the full guard at the window's middle; never another of its
 /// windows (W-03: a size set on the first window accessibility listed
 /// moved the small 280x168 one, and the main window kept its size). Says
 /// the size it has after; one that didn't take stops (exit 4).
 func resizeMain(_ pid: pid_t, to size: CGSize) {
+    // AJ-E2314 S3: accessibility read the new size and the window server
+    // showed it, then 1.6 s later the window was back at 1701×1348: a
+    // tiling window manager (BetterStage, on the maintainer's Mac) put it
+    // back into its pane; asked again, it kept the new size. So the size
+    // is the window server's once it has held still, never accessibility's
+    // word at once, and a size put back is asked again (three tries, each
+    // behind the guard) before it stops and names the window manager.
+    var verdict: String?
+    for attempt in 1...3 {
+        let (result, took, settled) = sizeOnce(pid, to: size)
+        say("SIZE \(Int(settled.width))×\(Int(settled.height)) (asked \(Int(size.width))×\(Int(size.height)), accessibility said \(result.rawValue), read by the window server after \(settleSeconds) s; try \(attempt))")
+        verdict = resizeRefusal(asked: size, took: took, settled: settled, tilers: runningTilers())
+        guard let why = verdict else { return }
+        if !why.contains("put it back") { break }
+    }
+    if let why = verdict { stop(4, why) }
+}
+
+/// One try of `resizeMain`, behind the full guard: accessibility's result,
+/// the size accessibility read at once, and the window server's settled one.
+func sizeOnce(_ pid: pid_t, to size: CGSize) -> (AXError, CGSize, CGSize) {
     while true {
         let win = windowOnScreen(pid)
         if guarded(pid, at: CGPoint(x: win.bounds.midX, y: win.bounds.midY)) == .send { break }
     }
     guard let main = mainWindow(pid) else { stop(3, "Dev's main window isn't there; nothing sent") }
-    // R12 (the 0.5.0 re-walk): the size was accepted (0) and settable, and
-    // the window stayed 1701×1348 at 1727,80: the right half of the
-    // screen, a window macOS tiled (or full screen), which keeps its tile's
-    // frame over a size alone. So: out of full screen first; then as a
-    // window manager does it, size, then a position that keeps the new
-    // size on its screen (a move takes a window out of its tile), then the
+    // R12 (the 0.5.0 re-walk): out of full screen first; then as a window
+    // manager does it, size, then a position that keeps the new size on
+    // its screen (a move takes a window out of a macOS tile), then the
     // size again; up to three times.
     if (attr(main.ax, "AXFullScreen") as? Bool) == true {
         _ = AXUIElementSetAttributeValue(main.ax, "AXFullScreen" as CFString, kCFBooleanFalse)
@@ -1243,10 +1526,53 @@ func resizeMain(_ pid: pid_t, to size: CGSize) {
         now = frame(main.ax)?.size ?? .zero
         if abs(now.width - size.width) <= 2 && abs(now.height - size.height) <= 2 { break }
     }
-    say("SIZE \(Int(now.width))×\(Int(now.height)) (asked \(Int(size.width))×\(Int(size.height)), accessibility said \(result.rawValue))")
-    if abs(now.width - size.width) > 2 || abs(now.height - size.height) > 2 {
-        stop(4, "the main window didn't take that size (its minimum is 1024×680, and a full-screen or tiled window keeps its own)")
+    return (result, now, settledBounds(main.cg.id)?.size ?? now)
+}
+
+/// How long the window must keep a size before `resize` calls it taken.
+let settleSeconds = 3.0
+
+/// The window server's frame of window `id`, after it has stayed the same
+/// for `settleSeconds` (polled every 0.1 s, at most three times that).
+func settledBounds(_ id: CGWindowID) -> CGRect? {
+    let read = { () -> CGRect? in
+        guard let info = (CGWindowListCopyWindowInfo([.optionIncludingWindow], id) as? [[String: Any]])?.first,
+              let b = info[kCGWindowBounds as String] as? [String: Double] else { return nil }
+        return CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
     }
+    var last = read()
+    var still = Date()
+    let end = Date().addingTimeInterval(settleSeconds * 3)
+    while Date() < end && Date().timeIntervalSince(still) < settleSeconds {
+        usleep(100_000)
+        let now = read()
+        if now != last { last = now; still = Date() }
+    }
+    return last
+}
+
+/// Window managers that put a window back into their layout (bundle ids).
+let tilerBundles = ["app.betterstage.macos": "BetterStage", "com.knollsoft.Rectangle": "Rectangle",
+                    "com.knollsoft.Hookshot": "Rectangle Pro", "com.amethyst.Amethyst": "Amethyst",
+                    "bobko.aerospace": "AeroSpace", "com.crowdcafe.windowmagnet": "Magnet",
+                    "com.manytricks.Moom": "Moom", "com.MrKai77.Loop": "Loop", "com.koekeishiya.yabai": "yabai"]
+
+/// The tiling window managers running now, by name.
+func runningTilers() -> [String] {
+    Set(NSWorkspace.shared.runningApplications.compactMap { $0.bundleIdentifier.flatMap { tilerBundles[$0] } }).sorted()
+}
+
+/// Why a resize didn't take (pure: the selftest), nil when it did: the
+/// window server's settled size is the asked one (within 2 pt).
+func resizeRefusal(asked: CGSize, took: CGSize, settled: CGSize, tilers: [String]) -> String? {
+    let near = { (a: CGSize, b: CGSize) in abs(a.width - b.width) <= 2 && abs(a.height - b.height) <= 2 }
+    if near(settled, asked) { return nil }
+    let back = "\(Int(settled.width))×\(Int(settled.height))"
+    if near(took, asked) {
+        let who = tilers.isEmpty ? "something outside Dev (a window manager?)" : tilers.joined(separator: ", ")
+        return "the main window took \(Int(asked.width))×\(Int(asked.height)), then \(who) put it back to \(back): float AI Juggler Dev (ai.figurehead.juggler.dev) there, or measure that size in the browser pane"
+    }
+    return "the main window didn't take that size and stays \(back) (its minimum is 1024×680, and a full-screen window keeps its own)"
 }
 
 /// Every window of Dev's pid, read only (W-04: which one is the untitled
@@ -1659,6 +1985,12 @@ func activationSelftest() -> [String] {
         var otherWindowHere = false
         /// Moving the main window here fails too.
         var cantMove = false
+        /// Dev's main window is a hidden tab in a window manager's tab
+        /// group (F38): activating Dev doesn't show it.
+        var tabbed = false
+        /// Dev doesn't answer on its hand-over socket.
+        var refuseTab = false
+        var tabAsks = 0
         var activateCalls = 0
         var moves = 0
         var ledger = InputLedger()
@@ -1677,6 +2009,7 @@ func activationSelftest() -> [String] {
             },
             probe: {
                 let verdict: Verdict = w.hidden || w.minimised || w.elsewhere ? .offScreen
+                    : w.tabbed ? .hiddenTab("Claude (Sign in)")
                     : !w.front ? .notFrontmost("Aside") : w.covered ? .covered("Notification Center, layer 23") : .clear
                 let person = max(w.inputAt, w.pointerAt)
                 let any = w.t - max(person, w.ownAt)
@@ -1692,6 +2025,14 @@ func activationSelftest() -> [String] {
                     unhide: { if !w.refuse { w.hidden = false }; return !w.refuse },
                     minimised: { w.minimised },
                     unminimise: { if !w.refuse { w.minimised = false }; return !w.refuse },
+                    inHiddenTab: { w.tabbed },
+                    showTab: {
+                        // Dev shows its own window (its tab comes forward) and comes to the front.
+                        w.tabAsks += 1
+                        guard !w.refuseTab else { return false }
+                        w.tabbed = false; w.front = true
+                        return true
+                    },
                     activate: {
                         w.activateCalls += 1
                         guard !w.refuse else { return false }
@@ -1700,7 +2041,7 @@ func activationSelftest() -> [String] {
                         if !w.otherWindowHere { w.elsewhere = false }
                         return true
                     },
-                    onThisSpace: { !w.hidden && !w.minimised && !w.elsewhere },
+                    onThisSpace: { !w.hidden && !w.minimised && !w.elsewhere && !w.tabbed },
                     moveHere: {
                         w.moves += 1
                         guard !w.refuse && !w.cantMove else { return false }
@@ -1858,6 +2199,38 @@ func activationSelftest() -> [String] {
         if w.t - start > 10 || w.activations != 1 || count(w, "HEARTBEAT") != 0 { failures.append("another Space, can't move: took \(w.t - start) s, \(w.activations) tries") }
         guard let line = w.lines.first(where: { $0.hasPrefix("STOPPED ") }) else { failures.append("another Space, can't move: no STOPPED line"); continue }
         if !(line.contains("step=press") && line.contains("Nothing was sent") && line.contains("yourself")) { failures.append("another Space, can't move: its line \(line)") }
+    }
+    // F38 (F-PL1-18): Dev's window a hidden tab behind another app's (the
+    // window manager's tab group), another app in front. The guard says so;
+    // Dev is asked to show its window (TAB_SHOWN) before ACTIVATED, nothing
+    // is sent until the guard is clear again (frontmost and on top), and
+    // nothing is moved.
+    do {
+        let w = World(); w.inputAt = 0; w.tabbed = true
+        var at: Double?
+        let end = gate(step: "press", may: true, activatedAt: &at, mac: mac(w), limit: 60)
+        let raised = w.lines.compactMap { line in ["TAB_SHOWN", "ACTIVATED", "MOVED"].first { line.hasPrefix($0 + " ") } }
+        if end != .send || raised != ["TAB_SHOWN", "ACTIVATED"] || w.tabAsks != 1 || w.moves != 0 || w.tabbed || !w.front {
+            failures.append("hidden tab: shown, then activated (\(end), \(raised), asks \(w.tabAsks), moves \(w.moves))")
+        }
+    }
+    // …without --may-activate: never asked, the guard waits and stops, saying it's a hidden tab.
+    do {
+        let w = World(); w.inputAt = 0; w.tabbed = true
+        var at: Double?
+        let end = gate(step: "key", may: false, activatedAt: &at, mac: mac(w), limit: 60)
+        let words = "Dev's window is a hidden tab behind Claude (Sign in) (a window manager's tab group)"
+        if end != .guardStopped(words) || w.tabAsks != 0 { failures.append("hidden tab without the switch: \(end), asks \(w.tabAsks)") }
+    }
+    // …and when Dev doesn't answer: STOPPED at once, saying so; nothing sent.
+    do {
+        let w = World(); w.inputAt = 0; w.tabbed = true; w.refuseTab = true
+        var at: Double?
+        let end = gate(step: "key", may: true, activatedAt: &at, mac: mac(w), limit: 600)
+        guard case .guardStopped(let why) = end, why.hasPrefix("Dev's window is a hidden tab"), why.contains("TAB_SHOWN (refused)") else {
+            failures.append("hidden tab, no answer: \(end)"); return failures
+        }
+        if w.tabAsks != 1 || w.activations != 1 { failures.append("hidden tab, no answer: \(w.tabAsks) asks, \(w.activations) tries") }
     }
     // OPPORTUNISTIC. Input mid-step (the person at the Mac from 1001.5 to
     // 1010): PAUSED, nothing sent while paused, Dev not moved; after 20 s
@@ -2112,6 +2485,26 @@ func selftest() {
            .covered("AI Juggler Dev (AI Juggler · Home), layer 0"), "a twin by name")
     expect(judge(dev: dev, frontmost: 4243, frontmostName: "AI Juggler Dev", windows: [devWin], point: inside),
            .notFrontmost("AI Juggler Dev"), "a twin in front")
+    // F38: a hidden tab is Dev's main window off screen, neither minimised
+    // nor hidden, with another app's window over its frame.
+    let tabFrame = devWin.bounds
+    let tabFront = Win(owner: 77, ownerName: "Claude", title: "Sign in", layer: 0, alpha: 1, bounds: tabFrame.insetBy(dx: -1, dy: 0))
+    if hiddenTabCover(main: tabFrame, onScreen: false, minimised: false, hidden: false, dev: dev, windows: [banner, tabFront]) != tabFront {
+        failures.append("hidden tab: not seen")
+    }
+    for (onScreen, minimised, hidden, what) in [(true, false, false, "on screen"), (false, true, false, "minimised"), (false, false, true, "hidden")]
+        where hiddenTabCover(main: tabFrame, onScreen: onScreen, minimised: minimised, hidden: hidden, dev: dev, windows: [tabFront]) != nil {
+        failures.append("hidden tab: seen when \(what)")
+    }
+    if hiddenTabCover(main: tabFrame, onScreen: false, minimised: false, hidden: false, dev: dev, windows: [other, banner, ghost]) != nil {
+        failures.append("hidden tab: seen with no window over its frame (another Space)")
+    }
+    if hiddenTabCover(main: tabFrame, onScreen: false, minimised: false, hidden: false, dev: dev, windows: [devWin]) != nil {
+        failures.append("hidden tab: Dev's own window counted as the cover")
+    }
+    let listed = "p4242\nf12\nn->0x1234\nf13\nn/var/folders/xy/T/aij-00ff00ff00ff00ff/ho.sock\nf14\nn/tmp/other.sock\n"
+    if handoverSocket(lsof: listed) != "/var/folders/xy/T/aij-00ff00ff00ff00ff/ho.sock" { failures.append("hand-over socket: not found") }
+    if handoverSocket(lsof: "n/tmp/ho.sock\nn/tmp/aij-1/other.sock\n") != nil { failures.append("hand-over socket: a stranger's taken") }
     // Exact titles in a region: Home's two "lab A needs its sign-in" rows,
     // OpenCode's and Kimi Code's, each with a Sign in (a made-up tree).
     let dummy = AXUIElementCreateApplication(0)
@@ -2288,12 +2681,38 @@ func selftest() {
     if !shows(["OpenCode CLI · lab A needs its sign-in"], "lab A needs its sign-in") { failures.append("shows") }
     if shows(["Sign"], "Sign in") { failures.append("shows matched a prefix of the needle") }
     // Keys: the names the sheet uses exist.
-    for k in ["return", "down", "up", "left", "right", "pagedown", "pageup", "home", "end", "escape", "tab", "space"] where keyCodes[k] == nil { failures.append("key \(k)") }
+    for k in ["return", "down", "up", "left", "right", "pagedown", "pageup", "home", "end", "escape", "tab", "space"] where keyCodes[k] == nil || parseChord(k) == nil { failures.append("key \(k)") }
+    // 0.5.1 F25: chords, each one key behind the guard; quit, hide,
+    // minimise and close refused; a bare letter is `type`'s.
+    func chord(_ raw: String) -> String? { parseChord(raw).map { "\($0.code) \($0.flags.rawValue)" } }
+    let cmd = CGEventFlags.maskCommand.rawValue, shift = CGEventFlags.maskShift.rawValue, ctrl = CGEventFlags.maskControl.rawValue
+    if chord("cmd+k") != "40 \(cmd)" || chord("CMD+K") != "40 \(cmd)" || chord("⌘+k") != "40 \(cmd)" { failures.append("key cmd+k") }
+    if chord("cmd+shift+p") != "35 \(cmd | shift)" || chord("shift+tab") != "48 \(shift)" || chord("cmd+return") != "36 \(cmd)" { failures.append("key chords with two modifiers or a named key") }
+    if chord("ctrl-c") != "8 \(ctrl)" || chord("ctrl+c") != "8 \(ctrl)" || chord("return") != "36 0" { failures.append("key ctrl-c and plain keys as before") }
+    if chord("k") != nil || chord("cmd+") != nil || chord("hyper+k") != nil || chord("cmd+cmd+k") != nil || chord("cmd+kk") != nil { failures.append("key: a bare letter or a malformed chord refused") }
+    for refused in ["cmd+q", "cmd+h", "cmd+m", "cmd+w", "Cmd+Q"] where chord(refused) != nil { failures.append("key \(refused) refused") }
+    if chord("cmd+shift+w") == nil { failures.append("key: only the plain quit/hide/minimise/close chords are refused") }
+    // Hover: the roles it may name include a row's plain words.
+    if !hoverRoles.isSuperset(of: pressRoles) || !hoverRoles.contains("AXStaticText") { failures.append("hover's roles") }
+    if parse(["--at", "10,20"]).at != "10,20" || !parse(["--at", "10,20"]).positional.isEmpty { failures.append("parse hover --at") }
     // The wheel, a point and a size (F11).
     if wheelLines("down", nil) != -3 || wheelLines("up", "5") != 5 || wheelLines("left", "1") != nil || wheelLines("down", "0") != nil || wheelLines("down", "51") != nil { failures.append("scroll's lines") }
     if parsePoint("400, 300") != CGPoint(x: 400, y: 300) || parsePoint("400") != nil || parsePoint("a,b") != nil { failures.append("--at X,Y") }
     if parseSize("1024x680") != CGSize(width: 1024, height: 680) || parseSize("1280×800") != CGSize(width: 1280, height: 800) || parseSize("10x10") != nil || parseSize("1024") != nil { failures.append("resize WxH") }
     if parse(["down", "4", "--at", "10,20"]).at != "10,20" { failures.append("parse --at") }
+    // AJ-E2314 S3: a size the window server shows put back is never success.
+    let asked = CGSize(width: 1024, height: 680), tiled = CGSize(width: 1701, height: 1348)
+    if resizeRefusal(asked: asked, took: asked, settled: asked, tilers: []) != nil
+        || !(resizeRefusal(asked: asked, took: asked, settled: tiled, tilers: ["BetterStage"]) ?? "").contains("BetterStage put it back to 1701×1348")
+        || !(resizeRefusal(asked: asked, took: tiled, settled: tiled, tilers: []) ?? "").contains("didn't take") { failures.append("resize verdict") }
+    // 0.5.1 F24: a made-up account's name never printed (the real one is
+    // read from the system and never shown here).
+    let fake = nameNeedles(full: "Samwise Rivera-Oakes", login: "someone")
+    if unnamed("Your menu: Samwise · On this Mac", fake) != "Your menu: ‹name› · On this Mac"
+        || unnamed("/Users/someone/lab and SÁMWISE RIVERA-OAKES", fake) != "/Users/‹name›/lab and ‹name›"
+        || unnamed("Open now · 5 apps · 16 sessions", fake) != "Open now · 5 apps · 16 sessions"
+        || unnamed("Sam's menu, a Sample", nameNeedles(full: "Sam Li", login: "")) != "‹name›'s menu, a Sample"
+        || !nameNeedles(full: " ", login: "").isEmpty { failures.append("the account's name kept out of printed lines") }
     // Options parse.
     let o = parse(["Sign in", "--in", "lab A needs its sign-in", "--timeout", "900", "--ocr"])
     if o.positional != ["Sign in"] || o.within != ["lab A needs its sign-in"] || o.timeout != 900 || !o.ocr { failures.append("parse") }
@@ -2344,6 +2763,17 @@ case "key":
     need(1, "key NAME [--repeat N]")
     say("» key \(o.positional[0])" + (o.repeatCount > 1 ? " ×\(o.repeatCount)" : ""))
     for _ in 0..<o.repeatCount { pressKey(pid, o.positional[0]) }
+case "hover":
+    if let raw = o.at, o.positional.isEmpty {
+        guard let point = parsePoint(raw) else { stop(2, "hover --at X,Y (screen points)") }
+        say("» hover --at \(raw)")
+        hoverAt(pid, point)
+    } else {
+        need(1, "hover TITLE [--row NAME | --region NAME] [--in TEXT] | hover --at X,Y")
+        say("» hover \"\(o.positional[0])\"" + (o.row.map { " --row \"\($0)\"" } ?? "") + (o.region.map { " --region \"\($0)\"" } ?? "")
+            + o.within.map { " --in \"\($0)\"" }.joined())
+        hover(pid, o.positional[0], within: o.within, row: o.row, region: o.region)
+    }
 case "scroll":
     need(1, "scroll down|up [N] [--at X,Y]")
     guard let lines = wheelLines(o.positional[0], o.positional.count > 1 ? o.positional[1] : nil) else { stop(2, "scroll down|up [N, 1 to 50] [--at X,Y]") }

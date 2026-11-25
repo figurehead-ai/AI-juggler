@@ -7,6 +7,14 @@
 //! The user's own tools (an agent session, their editor, `gh`, a vendor
 //! CLI) are not helpers: they run in the user's login environment, which
 //! is theirs to set (`scripts/spawn_lint.py` keeps the two apart).
+//!
+//! [`launcher`] (F65, 0.5.1): `open` handing an app (or a link that
+//! starts one) to Launch Services gets no environment at all. `open`
+//! passes its own environment on to the app it starts, so even the
+//! allowlist's `HOME` and `TMPDIR` would become the app's: a lab's
+//! AI Juggler (its `HOME` the lab's) restarted the user's Claude app on
+//! a home with no keychain. With none, the app gets the login session's,
+//! as from the Dock or Finder, plus only the launch's own `--env`.
 
 use std::ffi::OsStr;
 use std::process::Command;
@@ -46,6 +54,46 @@ pub fn helper(program: impl AsRef<OsStr>) -> Command {
     allowlisted_env(&mut command);
     command.env("PATH", SYSTEM_PATH);
     command
+}
+
+/// The command that hands an app, or a link that may start one, to
+/// Launch Services: `program` (an absolute path, `/usr/bin/open`) with
+/// nothing of AI Juggler's environment, not even the [`ENV_ALLOWLIST`]:
+/// `open` passes its environment on to the app it starts ("Opened
+/// applications inherit environment variables just as if you had launched
+/// the application directly", its manual), and with none the app gets the
+/// login session's, as from the Dock or Finder. The one way AI Juggler
+/// starts an app (`apps::open_app`).
+#[must_use]
+pub fn launcher(program: impl AsRef<OsStr>) -> Command {
+    let mut command = Command::new(program);
+    command.env_clear();
+    command
+}
+
+/// Whether the system stopped a helper that ended with `status` the way
+/// it stops code it refuses to run (AJ-E3823): macOS kills it outright
+/// (`SIGKILL`, "Killed: 9") when its signature, its identity or its
+/// sandbox container is refused. Other systems can't tell yet: `false`.
+#[must_use]
+pub fn stopped_by_system(status: &std::process::ExitStatus) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt as _;
+        status.signal() == Some(nix::sys::signal::Signal::SIGKILL as i32)
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = status;
+        false
+    }
+}
+
+/// Whether the system refused to start a helper (`error` from its
+/// spawn): not allowed to run it, rather than missing or broken.
+#[must_use]
+pub fn refused_to_start(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::PermissionDenied
 }
 
 /// Whether process `pid` is there (it may be another user's): a signal-0
@@ -173,10 +221,39 @@ mod tests {
     }
 
     #[test]
+    fn a_killed_helper_reads_as_stopped_by_the_system() {
+        let mut child = Command::new("/bin/sleep").arg("30").spawn().unwrap();
+        child.kill().unwrap();
+        let status = child.wait().unwrap();
+        assert_eq!(stopped_by_system(&status), cfg!(unix));
+        let ok = Command::new("/usr/bin/true").status().unwrap();
+        assert!(!stopped_by_system(&ok));
+        let denied = std::io::Error::from(std::io::ErrorKind::PermissionDenied);
+        assert!(refused_to_start(&denied));
+        assert!(!refused_to_start(&std::io::Error::from(
+            std::io::ErrorKind::NotFound
+        )));
+    }
+
+    #[test]
     fn this_process_is_alive_and_no_pid_isnt() {
         assert!(alive(std::process::id()));
         assert!(!alive(0));
         assert!(!alive(u32::MAX));
+    }
+
+    /// F65: what starts an app passes on nothing of AI Juggler's own
+    /// environment (`HOME`, `TMPDIR`, `PATH` included): the started app
+    /// gets the login session's.
+    #[cfg(unix)]
+    #[test]
+    fn the_launcher_passes_on_nothing_of_ours() {
+        let command = launcher("/usr/bin/env");
+        assert_eq!(command.get_envs().count(), 0, "nothing set");
+        let out = launcher("/usr/bin/env").output().unwrap();
+        assert!(out.status.success());
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.trim().is_empty(), "an empty environment: {text}");
     }
 
     #[test]

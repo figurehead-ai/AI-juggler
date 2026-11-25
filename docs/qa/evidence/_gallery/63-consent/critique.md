@@ -1,4 +1,4 @@
-<!-- captures: 9ec1850dcc48 -->
+<!-- captures: 09ad91ff3992 -->
 # 63-consent: the "Usage statistics changed" dialog asking again over Home
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -10,3 +10,11 @@ The dialog reads well in both themes and at both sizes. The three choices are fu
 ## Weak
 
 - reask-1024x680-dark/light: text fragments of the Runway card show at the dialog's right edge; a scrim or a narrower dialog would hide them.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The usage-statistics dialog is unchanged; Home behind it is the new feed.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80), under the dimmed overlay. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

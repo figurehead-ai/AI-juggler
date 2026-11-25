@@ -1,4 +1,4 @@
-<!-- captures: 3019995f7684 -->
+<!-- captures: 28bc9374a237 -->
 # 99-new-session: New session, the usual made and said (0.4, D-62, AJ-E3207)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at 0.4 from its captures.
@@ -44,3 +44,36 @@ The principles audit (`docs/design/PRINCIPLES.md`, worked example): New session 
 The whole family was retaken on release/0.4.1 for the 14-line re-score (AJ-E3305, `docs/qa/0.4-walks/design.md`) and opened on contact sheets, both themes, 1280 and 1024. Shared with every screen since the last shoot: the header's New session is tinted (one filled button per view), the Floor button is a split control with its own menu, This Mac's line is its dot below 1120 px, and the rail's App headers put the profile first.
 
 Unchanged in design: the stated choice with its why and ⌘↩, More options folded with its values, the out-of-room line with the App that has room.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B2)
+
+Re-captured after F53 and F49 (start-another), every state, both themes, opened as dark|light pairs. usual: one tinted block "Start in web-shop on Claude Code CLI · Work Max — used here before; 2 accounts worked here", the folder line with Change folder, the App line with its Suggested tag and "Account Work · 58% left in the 5-hour window" with Change app, "Always start web-shop on Work", More options · Main · Opus, and the one primary "Start in web-shop ⌘↩". out-of-room and skipped now start on Claude Code CLI · Personal with why ("Work is out of room until 4:20 PM", "Work is almost out (5% left)"); own-account says "App changed to Codex CLI · ~/.codex (was Claude Code CLI · Work Max): the only account used here. Undo". start-another (F49): after a start, the toast "Started in web-shop on Claude Code CLI · Personal" with "Start another: payments-api", which takes the keyboard.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | Start the usual in one key. |
+| 2 | Prominence | 5 | |
+| 3 | Default | 5 | The stated choice with its why; ⌘↩. |
+| 4 | Mode | 4 | |
+| 5 | Mock-up | 4 | PRINCIPLES' worked example. |
+| 6 | Areas | 5 | One block, one fold, one footer. |
+| 7 | Colour | 4 | |
+| 8 | Type | 4 | |
+| 9 | Actions | 5 | |
+| 10 | Serious | 4 | Nothing switches by itself; a changed App says so with Undo. |
+| 11 | Doors | 4 | |
+| 12 | Words | 4 | "Always start web-shop on Work" names the Account where the App is set; a default Codex profile shows as "~/.codex". |
+| 13 | States | 4 | First time, out of room, almost out, own account, start another. |
+| 14 | Consistency | 4 | Change app's rows still show the terminal glyph, not each tool's mark; the toast's "Start another" is the kit's secondary fill, as every toast action (F73, dda75a83f). |
+| 15 | Accessibility | 4 | The toast takes the keyboard after a start (F49). |
+| 16 | Hand walk | 4 | Preview. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | |
+
+Lowest: 4; F73 logged for the toast's action.
+
+**Fixed after the critique (F73), re-captured (start-another, both themes):** "Start another: payments-api" is a neutral fill with no stroke. Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

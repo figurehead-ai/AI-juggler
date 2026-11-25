@@ -1145,12 +1145,11 @@ pub async fn project_relocate(
 /// As [`project_open_target_impl`], or when the app can't be opened.
 #[tauri::command]
 pub async fn project_open(
-    app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     project_id: String,
     how: String,
 ) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt;
+    use juggler_adapter::apps::{Opening, open};
     let how = if how == "finder" {
         OpenIn::Finder
     } else {
@@ -1160,11 +1159,15 @@ pub async fn project_open(
         project_open_target_impl(state, &project_id, how)
     })
     .await?;
+    // F67: through the launcher, so the editor gets none of our
+    // environment.
     let result = if target.reveal {
-        app.opener().reveal_item_in_dir(&target.folder)
+        open(Opening::Reveal(&target.folder))
     } else {
-        app.opener()
-            .open_path(target.folder.to_string_lossy(), target.app.as_deref())
+        open(Opening::Path {
+            path: &target.folder,
+            app: target.app.as_deref(),
+        })
     };
     result.map_err(|error| AppError::Io {
         context: if target.reveal {

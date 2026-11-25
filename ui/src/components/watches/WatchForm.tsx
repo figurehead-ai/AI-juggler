@@ -7,19 +7,22 @@
  * compiled bounds; the echo is the backend's, word for word. Nothing is
  * written until Watch (or Save changes) is pressed.
  */
+import { osPromptRequest } from "../../lib/ipc/os-prompts";
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { FlowLayout } from "../FlowLayout";
 import { Button } from "../primitives";
 import { CheckCard, DateField, Picker, Segmented, TimeField, ToggleRow, type Segment } from "../controls";
 import { Alert } from "../Alert";
-import { watchCatalogue, watchDraftWords, type CatalogueEntry, type DraftWords, type WatchDraftInfo, type WatchInfo } from "../../lib/ipc/watch-view";
+import { watchDraftWords, type CatalogueEntry, type DraftWords, type WatchDraftInfo, type WatchInfo } from "../../lib/ipc/watch-view";
 import { errorText } from "../../lib/bridge";
+import { useLoadDeadline } from "../../lib/loading";
+import { useOffered } from "./use-offered";
+import { LoadingState } from "../LoadingState";
 import type { Param } from "../../types/generated/Param";
-import type { WatchTarget } from "../../types/generated/WatchTarget";
 import { WatchPreview, WatchPreviewStrip } from "./WatchPreview";
 import { WatchTargetPicker } from "./WatchTargetPicker";
 import { draftFrom, defaultParam, lifeOf, paramSteps, previewFacts, untilMs, type FormState, type LifeKind } from "./watch-form-state";
-import { intersect, MAX_CONDITIONS, splitConditions, targetKey, untilEndsOffered, type TargetOption } from "./watches-view";
+import { MAX_CONDITIONS, splitConditions, targetKey, untilEndsOffered, type TargetOption } from "./watches-view";
 import { CONDITION_LINE, FORM, LIFE, PARAM } from "./watches-words";
 import { CONDITION_ICONS, IconBin, IconCheckCircle, IconChevronD, IconChevronL, IconChevronR, IconEye, IconMoon } from "./watch-icons";
 import { pastWhen, whenWords } from "../../lib/time-words";
@@ -107,29 +110,6 @@ function ParamControl({ entry, value, onChange }: { entry: CatalogueEntry; value
   return null;
 }
 
-/** The conditions every target can report, as cards. */
-function useOffered(targets: readonly WatchTarget[]): { offered: CatalogueEntry[]; loading: boolean } {
-  const [lists, setLists] = useState<Record<string, CatalogueEntry[]>>({});
-  const keys = targets.map(targetKey);
-  const want = keys.join("|");
-  useEffect(() => {
-    let live = true;
-    const missing = targets.filter((t) => lists[targetKey(t)] === undefined);
-    if (missing.length > 0)
-      void Promise.all(missing.map(async (t) => [targetKey(t), await watchCatalogue(t).catch(() => [])] as const)).then((got) => {
-      if (live) setLists((was) => ({ ...was, ...Object.fromEntries(got) }));
-    });
-    return () => {
-      live = false;
-    };
-    // `want` names the targets; `lists` only fills in.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [want]);
-  const loading = keys.some((key) => lists[key] === undefined);
-  const offered = useMemo(() => (loading ? [] : intersect(keys.map((key) => lists[key]!))), [loading, lists, want]); // eslint-disable-line react-hooks/exhaustive-deps
-  return { offered, loading };
-}
-
 /** The echo for the draft, from the backend (one read per pause). */
 function useDraftWords(draft: WatchDraftInfo, ready: boolean): DraftWords | null {
   const [words, setWords] = useState<DraftWords | null>(null);
@@ -163,22 +143,34 @@ function lifeLine(life: LifeKind, at: number | null, past: boolean, names: strin
 }
 
 /** Section 2: the conditions as cards, the four most used first. */
-function ConditionCards({ state, offered, loading, onFlip, onParam, labelledBy }: { state: FormState; offered: CatalogueEntry[]; loading: boolean; onFlip: (entry: CatalogueEntry, on: boolean) => void; onParam: (code: string, param: Param | undefined) => void; labelledBy: string }): JSX.Element {
+function ConditionCards({ state, catalogue, onFlip, onParam, labelledBy }: { state: FormState; catalogue: ReturnType<typeof useOffered>; onFlip: (entry: CatalogueEntry, on: boolean) => void; onParam: (code: string, param: Param | undefined) => void; labelledBy: string }): JSX.Element {
   const [showMore, setShowMore] = useState(false);
+  const { offered, failed, round, retry } = catalogue;
+  const loading = catalogue.loading && !failed;
+  const { slow } = useLoadDeadline(loading, "the conditions", { timeoutMs: Number.POSITIVE_INFINITY, round });
   if (state.targets.length === 0) return <p className="text-meta text-muted">{FORM.pickTargetFirst}</p>;
-  if (loading)
+  if (loading || failed || offered.length === 0)
     return (
-      <div aria-hidden="true" className="grid grid-cols-2 gap-2.5">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="h-[82px] animate-pulse rounded-card bg-skeleton/60" />
-        ))}
-      </div>
-    );
-  if (offered.length === 0)
-    return (
-      <p className="text-meta text-muted" data-testid="watch-nothing-offered">
-        {FORM.nothingOffered}
-      </p>
+      <LoadingState
+        state={loading ? "loading" : failed ? "error" : "empty"}
+        slow={slow}
+        what="the conditions"
+        skeleton={
+          <div aria-hidden="true" className="grid grid-cols-2 gap-2.5" data-testid="watch-conditions-skeleton">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-[82px] animate-pulse rounded-card bg-skeleton/60" />
+            ))}
+          </div>
+        }
+        empty={
+          <p className="text-meta text-muted" data-testid="watch-nothing-offered">
+            {FORM.nothingOffered}
+          </p>
+        }
+        onRetry={retry}
+      >
+        {null}
+      </LoadingState>
     );
   const { top, more } = splitConditions(offered);
   const pickedMore = more.filter((e) => state.codes.includes(e.code));
@@ -331,7 +323,8 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const ids = useId().replace(/:/g, "");
-  const { offered, loading } = useOffered(state.targets);
+  const catalogue = useOffered(state.targets);
+  const { offered, loading } = catalogue;
   const draft = useMemo(() => draftFrom(state), [state]);
   const words = useDraftWords(draft, state.targets.length > 0 && state.codes.length > 0);
   // Conditions no longer on offer for these targets leave (D-127: hidden,
@@ -355,6 +348,10 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
     setSaving(true);
     setFailed(null);
     try {
+      // AJ-E1548 #16 (PAT-OSP): a watch tells you by notification, so the
+      // first one primes macOS's permission here, at the user's click (our
+      // sheet first). Not now, or no answer, still saves the watch.
+      if (mode === "new") await osPromptRequest("notifications").catch(() => undefined);
       await props.onSave(draft);
     } catch (error) {
       setFailed(errorText(error));
@@ -379,7 +376,7 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
             {many > 1 && <Matching state={state} set={set} />}
           </FormSection>
           <FormSection n={2} done={state.codes.length > 0} title={FORM.forWhat} help={many === 0 ? undefined : many === 2 ? FORM.forWhatBoth : FORM.forWhatHelp(many)} id={`${ids}-for`}>
-            <ConditionCards state={state} offered={offered} loading={loading} onFlip={flip} onParam={(code, param) => set({ params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
+            <ConditionCards state={state} catalogue={catalogue} onFlip={flip} onParam={(code, param) => set({ params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
           </FormSection>
           <FormSection n={3} done={state.codes.length > 0} title={FORM.until} id={`${ids}-until`}>
             <UntilChoice state={state} set={set} offered={offered} book={book} now={now} />

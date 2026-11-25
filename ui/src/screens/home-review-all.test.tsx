@@ -14,6 +14,7 @@ import type { SessionRowInfo, SessionsQuery } from "../lib/ipc/sessions";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import { account, instance } from "../test/fixtures";
+import { feedItem } from "../preview/feed";
 
 vi.mock("../lib/bridge", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/bridge")>()),
@@ -69,6 +70,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(window, "__AIJ_FEED__");
   forgetPaged();
   forgetReviewCount();
   resetToasts();
@@ -78,8 +80,10 @@ afterEach(() => {
   undone.length = 0;
 });
 
-/** The app holds 5 of them (its working set). */
+/** The app holds 5 of them (its working set); the feed shows one that
+ * finished (0.5.1 F56: an empty feed has no filters to reach). */
 function home(onChanged = vi.fn()) {
+  Reflect.set(window, "__AIJ_FEED__", [feedItem({ id: "l:e-0", at_ms: NOW - 300_000, kind: "finished", category: "finished", level: 1, subject: "Ended one", target: { session_id: "e-0" } })]);
   return render(
     <ConversationsProvider>
       <HomeScreen sessions={Array.from({ length: 5 }, (_, n) => ended(n))} accounts={ACCOUNTS} projects={[]} now={NOW} onOpenSession={vi.fn()} onNewSession={vi.fn()} onAddAccounts={vi.fn()} onChanged={onChanged} />
@@ -90,6 +94,7 @@ function home(onChanged = vi.fn()) {
 /** 0.5 (D-118): what to pick up is in the feed; Mark all reviewed is in
  * the Finished filter's ⋯ menu. */
 async function reviewAll(): Promise<HTMLElement> {
+  await screen.findAllByTestId("feed-card");
   fireEvent.click(await screen.findByRole("radio", { name: "Finished" }));
   fireEvent.click(screen.getByTestId("feed-more"));
   return screen.findByTestId("feed-review-all");
@@ -101,9 +106,9 @@ describe("Mark all reviewed counts every one (F-K2-7a)", () => {
     countNow = () => new Promise((resolve) => (answer = resolve));
     home();
     // No number claimed before the backend counts them (the app holds 5).
-    expect((await reviewAll()).textContent).toBe("Mark all reviewed");
+    expect((await reviewAll()).textContent).toBe("Mark all reviewedMarks these finished sessions as looked at");
     await act(async () => answer(TO_REVIEW));
-    await waitFor(() => expect(screen.getByTestId("feed-review-all").textContent).toBe("Mark all 1000 reviewed"));
+    await waitFor(() => expect(screen.getByTestId("feed-review-all-label").textContent).toBe("Mark all 1000 reviewed"));
     // The backend's list: AI Juggler's own to review, in the 7 days up to now.
     expect(counted[0]).toMatchObject({ which: "to_review" });
     expect(Math.abs(Date.now() - 7 * 86_400_000 - counted[0]!.since_ms!)).toBeLessThan(60_000);
@@ -112,9 +117,12 @@ describe("Mark all reviewed counts every one (F-K2-7a)", () => {
   it("Mark all marks every one by the backend's list, and Undo puts that batch back", async () => {
     const onChanged = vi.fn();
     home(onChanged);
-    await waitFor(async () => expect((await reviewAll()).textContent).toBe("Mark all 1000 reviewed"));
+    await waitFor(async () => expect((await reviewAll()).textContent).toContain("Mark all 1000 reviewed"));
     await act(async () => fireEvent.click(screen.getByTestId("feed-review-all")));
     expect(marked).toHaveLength(1);
+    // 0.5.1 critique: done once chosen, the menu closes (it stayed open
+    // over its own toast, still offering "Mark all 3 reviewed").
+    expect(screen.queryByTestId("feed-menu")).toBeNull();
     expect(marked[0]).toMatchObject({ which: "to_review" });
     await waitFor(() => expect(toastEntries().map((toast) => toast.options.message)).toContain("Marked 1000 reviewed."));
     await act(async () => undoToast("reviewed:all"));

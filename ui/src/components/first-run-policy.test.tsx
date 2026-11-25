@@ -57,6 +57,7 @@ describe("D-14 — first run never asks about pack secrets", () => {
     await findByTestId("first-run-found");
     expect(container.textContent).not.toMatch(PACK_QUESTION);
     // Copies, so the sign-in step shows too (used where they are, they keep theirs).
+    { const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]"); if (fold) fireEvent.click(fold); }
     fireEvent.click(within(getByTestId("first-run-placement-copy")).getByRole("radio"));
     fireEvent.click(getByTestId("first-run-bring-in"));
     await findByTestId("first-run-signin");
@@ -65,7 +66,7 @@ describe("D-14 — first run never asks about pack secrets", () => {
 
     const fresh = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await fresh.findByTestId("first-run-found");
-    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.click(fresh.getByRole("button", { name: "Set up a new app instead" }));
     await fresh.findByTestId("first-run-fresh");
     expect(fresh.container.textContent).not.toMatch(PACK_QUESTION);
     await act(async () => {
@@ -77,7 +78,7 @@ describe("D-14 — first run never asks about pack secrets", () => {
     const folder = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await folder.findByTestId("first-run-found");
     await act(async () => {
-      fireEvent.click(folder.getByRole("button", { name: "Import from another folder…" }));
+      fireEvent.click(folder.getByRole("button", { name: "Add from another folder…" }));
     });
     await folder.findByTestId("first-run-folder-bring-in");
     expect(folder.container.textContent).not.toMatch(PACK_QUESTION);
@@ -90,6 +91,7 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     w().__AIJ_PICK_DIRECTORY__ = "/Users/you/old-claude";
     const run = render(<FirstRun onDone={() => null} openLoginTerminal={() => null} />);
     await run.findByTestId("first-run-found");
+    { const fold = document.querySelector<HTMLButtonElement>("[data-testid=first-run-more-options] button[aria-expanded=false]"); if (fold) fireEvent.click(fold); }
     fireEvent.click(within(run.getByTestId("first-run-placement-copy")).getByRole("radio"));
     await act(async () => {
       fireEvent.click(run.getByTestId("first-run-bring-in"));
@@ -98,7 +100,7 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     cleanup();
     const fresh = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await fresh.findByTestId("first-run-found");
-    fireEvent.click(fresh.getByRole("button", { name: "Add a fresh app instead" }));
+    fireEvent.click(fresh.getByRole("button", { name: "Set up a new app instead" }));
     await act(async () => {
       fireEvent.click(await fresh.findByTestId("first-run-fresh-create"));
     });
@@ -106,7 +108,7 @@ describe("AJ-E309 Req.6 — funnel events carry no paths, labels, or credentials
     const folder = render(<FirstRun mode="add" onDone={() => null} openLoginTerminal={() => null} />);
     await folder.findByTestId("first-run-found");
     await act(async () => {
-      fireEvent.click(folder.getByRole("button", { name: "Import from another folder…" }));
+      fireEvent.click(folder.getByRole("button", { name: "Add from another folder…" }));
     });
     await act(async () => {
       fireEvent.click(await folder.findByTestId("first-run-folder-bring-in"));

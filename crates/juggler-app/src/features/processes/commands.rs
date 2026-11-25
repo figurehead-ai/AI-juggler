@@ -474,10 +474,14 @@ pub fn reveal_impl(state: &Arc<AppState>, session_key: &str) -> AppResult<bool> 
     let Some(folder) = folder else {
         return Ok(false);
     };
-    Ok(juggler_adapter::process::helper("/usr/bin/open")
-        .arg(folder)
-        .status()
-        .is_ok_and(|status| status.success()))
+    // F67: through the launcher (none of our environment).
+    Ok(
+        juggler_adapter::apps::open(juggler_adapter::apps::Opening::Path {
+            path: &folder,
+            app: None,
+        })
+        .is_ok(),
+    )
 }
 
 /// Reveal folder: a session's folder in Finder.
@@ -505,7 +509,8 @@ pub async fn processes_reveal(
 #[tauri::command]
 pub async fn processes_activity_monitor(state: tauri::State<'_, Arc<AppState>>) -> AppResult<bool> {
     crate::ipc::blocking(state.inner(), "Activity Monitor", |_| {
-        Ok(juggler_adapter::process::helper("/usr/bin/open")
+        // F65: an app started: none of AI Juggler's environment.
+        Ok(juggler_adapter::process::launcher("/usr/bin/open")
             .args(["-b", "com.apple.ActivityMonitor"])
             .status()
             .is_ok_and(|status| status.success()))

@@ -92,7 +92,7 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
         KeyRing::default()
     });
     let run = Run {
-        checking: state.app_setting(CHECK_KEY).as_deref() != Some("off"),
+        checking: checking_on(&state),
         keys_pinned: !keys.keys().is_empty(),
     };
     // The compiled values, in effect from the start (no I/O beyond the
@@ -118,8 +118,10 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
         tracing::warn!(error = %e, "remote config: no state folder; compiled defaults");
         return;
     }
+    // AJ-E1548 #15: the switch in Settings › Privacy is read at each pass,
+    // so turning it off stops the next fetch and on starts it, no restart.
     let policy = FetchPolicy {
-        enabled: run.checking,
+        enabled: true,
         ..FetchPolicy::default()
     };
     let fetcher = Fetcher::new(
@@ -134,6 +136,13 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
         FIRST_PAINT_AT_MOST,
         PASS_EVERY,
         move || {
+            let run = Run {
+                checking: checking_on(&state),
+                ..run
+            };
+            if !run.checking {
+                return;
+            }
             if pass(&state, &fetcher, &registry, run) {
                 app.emit_event(AppEvent::RemoteConfigChanged, ());
                 // AJ-E3802: a flag or the `models` section may change what
@@ -154,6 +163,27 @@ pub fn spawn(app: tauri::AppHandle, state: Arc<AppState>) {
             }
         },
     );
+}
+
+/// Whether "Check for configuration updates" is on (D-129: on unless
+/// the user turned it off).
+pub fn checking_on(state: &AppState) -> bool {
+    state.app_setting(CHECK_KEY).as_deref() != Some("off")
+}
+
+/// Turns "Check for configuration updates" on or off (Settings ›
+/// Privacy, AJ-E1548 #15): stored, and said at once in "About this
+/// configuration"; the next pass follows it.
+///
+/// # Errors
+///
+/// Storage errors.
+pub fn set_checking(state: &AppState, on: bool) -> crate::error::AppResult<()> {
+    state.set_app_setting(CHECK_KEY, if on { "on" } else { "off" })?;
+    let mut now = (*snapshot::current()).clone();
+    now.checking = on;
+    snapshot::install(now);
+    Ok(())
 }
 
 /// This build's version (a release's version always parses).

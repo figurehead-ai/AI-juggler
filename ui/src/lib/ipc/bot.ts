@@ -146,13 +146,17 @@ export async function botClear(): Promise<number> {
   return call("bot_clear");
 }
 
-/** "This is wrong" about a turn's written answer (kept on this Mac). */
-export async function botWrong(turn: string): Promise<void> {
+/** "This is wrong" about a turn's written answer, or its Undo with
+ * `wrong` false (kept on this Mac; an answer marked wrong is never sent
+ * back to the AI). */
+export async function botWrong(turn: string, wrong = true): Promise<void> {
   if (!hasLiveBackend()) {
-    note("bot_wrong", turn);
+    note("bot_wrong", { turn, wrong });
+    const kept = seam().turns?.find((t) => t.id === turn);
+    if (kept) kept.flagged = wrong;
     return;
   }
-  return call("bot_wrong", { turn });
+  return call("bot_wrong", { turn, wrong });
 }
 
 /** What Bot remembers: the user's names, focus and notes. */

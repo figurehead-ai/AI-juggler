@@ -101,7 +101,7 @@ pub(super) fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
     items.extend(
         (0..o.scene.floors)
             .rev()
-            .map(|f| (format!("FLOOR {}", f + 1), Some(f))),
+            .map(|f| (o.scene.floor_label(f), Some(f))),
     );
     for (s, floor) in items {
         let active = view.focus == floor;
@@ -150,4 +150,47 @@ pub(super) fn switcher(o: &mut Out<'_>, view: &View, u: f32) -> Vec<Chip> {
         x += r[2] + 4.0 * u;
     }
     chips
+}
+
+/// AJ-E1548 #23: the first-open line, what the Floor's pieces mean, in
+/// the controls' style; its last row says how it goes (a click on it,
+/// kept on this Mac by the app). Only the overlay's glyphs
+/// ([`crate::tex::GLYPHS`]).
+pub const INTRO: [&str; 3] = [
+    "EACH AREA IS ONE APP · EACH FLOOR A PAGE OF APPS",
+    "EACH PERSON IS A SESSION: TYPING IS WORKING, WAVING NEEDS YOU",
+    "CLICK HERE TO HIDE THIS",
+];
+
+/// The first-open line, bottom left over the hint line, wrapped to the
+/// window; its place (kept clear, and a click on it hides it).
+pub(super) fn intro_note(o: &mut Out<'_>, u: f32, w: f32, above: f32) -> [f32; 4] {
+    let pad = 6.0 * u;
+    let room = (w - 24.0 * u - 2.0 * pad).max(40.0 * u);
+    let rows: Vec<(String, bool)> = INTRO
+        .iter()
+        .enumerate()
+        .flat_map(|(n, s)| {
+            super::wrap(o, s, (room, u), 3)
+                .into_iter()
+                .map(move |row| (row, n + 1 == INTRO.len()))
+        })
+        .collect();
+    let tw = rows
+        .iter()
+        .map(|(row, _)| o.text_w(row, u))
+        .fold(0.0, f32::max);
+    let pitch = 10.0 * u;
+    let (bw, bh) = (tw + 2.0 * pad, rows.len() as f32 * pitch + 2.0 * u);
+    let r = [12.0 * u, (above - 4.0 * u - bh).max(0.0).round(), bw, bh];
+    o.rect(r[0], r[1], r[2], r[3], [0.11, 0.1, 0.15, 0.85]);
+    for (n, (row, muted)) in rows.iter().enumerate() {
+        let tint = if *muted {
+            [0.7, 0.72, 0.8, 1.0]
+        } else {
+            [0.96, 0.94, 1.0, 1.0]
+        };
+        o.text(r[0] + pad, r[1] + 2.5 * u + n as f32 * pitch, row, u, tint);
+    }
+    r
 }

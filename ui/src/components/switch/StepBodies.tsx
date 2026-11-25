@@ -139,7 +139,7 @@ export function Executing({ target, holding, app = null }: { target: string; hol
     // DLG-10: the stage it's at, a bar, and the steps done and to come.
     <div className="flex flex-col gap-4" aria-live="polite" data-testid="switch-executing">
       <h3 className="type-section">Switching to {target}…</h3>
-      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5 inset-ring-1 inset-ring-accent/15">
+      <div className="flex flex-col gap-2 rounded-card bg-accent-soft px-4 py-3.5">
         <p className="flex items-baseline gap-2 text-body font-semibold text-ink" data-testid="switch-stage-now">
           {stages[Math.min(at, stages.length - 1)]}…
           <span className="ml-auto shrink-0 text-meta font-normal tabular-nums text-ink-2">

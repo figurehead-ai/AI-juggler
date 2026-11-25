@@ -17,14 +17,14 @@ Nothing in any of them acts by itself: every action is your click.
 
 Click the bell, or press ⌥⌘N.
 
-- **Needs action** is your Needs you list: sessions that ask you or may be
+- **Needs you** is your Needs you list: sessions that ask you or may be
   stuck, a usage limit reached, finished work to review, a sign-in, an
   account almost out of room, an agent's message or task. Each line says
   what happened and offers its action (Open, Review, Continue in another
   app…, Sign in…).
-- **Earlier** keeps what happened: an account with room again, a session
-  that finished, a crash AI Juggler restarted, an update. History is kept
-  for 30 days; **Show earlier** reads more.
+- **Latest** shows the last few things that happened: an account with room
+  again, a session that finished, a crash AI Juggler restarted, an update.
+  **See all on Home** opens Home's feed, which keeps them for 30 days.
 - **⋯** on an item: **Snooze 1 h**, **Snooze until tomorrow**, **Mute this
   project** or **Mute this kind**. Both stop interrupting you — no dot, no
   banner, no notification. A **snoozed** item also leaves the Needs you
@@ -95,11 +95,23 @@ session, on This Mac, or on the notification centre.
   for an account almost out of room).
 - **Never while AI Juggler is in front:** it's already showing you.
 - **Not in your quiet hours:** **Quiet hours** hold notifications as well as
-  the hourly digest. When they end, you're told about anything still in
-  that state.
+  the digest. When they end, you're told about anything still in that
+  state.
 - **Only for the apps you choose:** an app left out under **In the
   digest and notifications** stays quiet.
 - **Not what you snoozed or muted** in the notification centre.
+
+## "While you were away" and the digest
+
+Home's feed has two summaries, and they are not the same thing:
+
+- **While you were away** is the card at the top of Home when you come
+  back: what happened since you last looked, counted by kind, with the few
+  that matter most. **Mark all seen** moves its line to now.
+- **The digest** ("AI Juggler · Digest") is a few lines on what your
+  sessions did, every 15 to 30 minutes while they work. Two sessions with
+  one name are told apart as "api (1)" and "api (2)". Turn its
+  notification on under **The digest** above.
 
 ## Watches you set
 

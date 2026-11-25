@@ -13,7 +13,7 @@ use crate::features::switch::dto::{
 };
 use crate::features::switch::execute::switch_execute_core;
 use crate::features::switch::graph::switch_graph_overview_impl;
-use crate::features::switch::preflight::{switch_door_count_impl, switch_preflight_impl};
+use crate::features::switch::preflight::{switch_door_count_impl, switch_preflight_in};
 use crate::features::switch::resume::{epoch_resume_impl, session_resume_impl};
 use crate::features::switch::targets::switch_targets_impl;
 use crate::features::switch::undo::switch_undo_impl;
@@ -25,15 +25,22 @@ use crate::state::AppState;
 /// # Errors
 ///
 /// Returns the typed [`AppError`](crate::error::AppError) when resolution fails or a hard
-/// gate stops the switch.
+/// gate stops the switch. `target_place_id` (AJ-E2317): the desktop App
+/// picked in the switch list, by its place id; its Desktop is that App.
 #[tauri::command]
 pub async fn switch_preflight(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
+    target_place_id: Option<String>,
 ) -> AppResult<PreflightInfo> {
     crate::ipc::blocking(state.inner(), "check the switch", move |state| {
-        switch_preflight_impl(state, &session_id, &target_profile_id)
+        switch_preflight_in(
+            state,
+            &session_id,
+            &target_profile_id,
+            target_place_id.as_deref(),
+        )
     })
     .await
 }
@@ -69,7 +76,8 @@ pub async fn switch_door_count(
 /// # Errors
 ///
 /// Returns the typed [`AppError`](crate::error::AppError) message on any failure; the source
-/// is exactly resumable in all of them (S-F contract).
+/// is exactly resumable in all of them (S-F contract). `target_place_id`
+/// (AJ-E2317): Desktop continues in the App picked, by its place id.
 #[allow(
     clippy::too_many_arguments,
     reason = "the Tauri command's flat wire args"
@@ -85,6 +93,7 @@ pub async fn switch_execute(
     trigger: Option<String>,
     approved: Option<Vec<String>>,
     destination: Option<String>,
+    target_place_id: Option<String>,
     cut: Option<crate::features::switch_cut::SwitchCutArgs>,
 ) -> AppResult<SwitchExecutedInfo> {
     // AJ-E1103: why the user switched (a closed word; anything else is
@@ -107,6 +116,7 @@ pub async fn switch_execute(
             trigger,
             &approved.unwrap_or_default(),
             destination.as_deref(),
+            target_place_id.as_deref(),
             cut.and_then(crate::features::switch_cut::SwitchCutArgs::cut),
         )
     })

@@ -32,7 +32,7 @@ const PEER = {
 };
 
 // AJ-E3812: AI is a group's row, with Jobs and Models under it.
-const PANES = ["General", "Desktop apps", "The Floor", "Accounts", "Sessions", "Switching", "AI", "Jobs", "Models", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
+const PANES = ["General", "Desktop apps", "The Floor", "Accounts", "Sessions", "Switching", "AI", "Models", "Agent access", "Notifications", "Privacy", "Keyboard", "Advanced"];
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -69,7 +69,7 @@ describe("AJ-E2110 — Settings panes", () => {
     w().__AIJ_FLEET_PEERS__ = [PEER];
     const { getByTestId } = render(<SettingsScreen />);
     await waitFor(() => expect(navNames(getByTestId("settings-nav"))).toContain("Your Macs"));
-    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 12), "Your Macs", "Keyboard", "Advanced"]);
+    expect(navNames(getByTestId("settings-nav"))).toEqual([...PANES.slice(0, 11), "Your Macs", "Keyboard", "Advanced"]);
   });
 
   it("Agent access (AJ-E1702): always there, every pool's level, and the rules you made", async () => {

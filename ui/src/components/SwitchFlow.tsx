@@ -49,12 +49,15 @@ export function SwitchFlow({
   sessionId,
   targetProfileId,
   targetLabel,
+  targetPlaceId,
   onClose,
   onSwitched,
 }: {
   sessionId: string;
   targetProfileId: string;
   targetLabel: string;
+  /** AJ-E2317: the desktop App picked, by its place id: Move goes into it. */
+  targetPlaceId?: string | null;
   onClose: () => void;
   onSwitched: (sessionId: string, undo: { edgeId: string } | null) => void;
 }): JSX.Element {
@@ -77,7 +80,7 @@ export function SwitchFlow({
   const carry = useCarryChoice(sessionId, targetProfileId); // D-76: the start left out, when asked
   const room = useTargetRoom(phase.kind === "confirm" ? phase.preflight.target_account : undefined, destination === "desktop"); // its room: the one runway (F1)
   const { setup, picked, toggle: togglePicked } = setupCheck;
-  const move = useMoveFlow(sessionId, targetProfileId, attempt); // ADR-0031 (D-93): Move, or Copy
+  const move = useMoveFlow(sessionId, targetProfileId, attempt, targetPlaceId); // ADR-0031 (D-93): Move, or Copy, into the App picked (AJ-E2317)
   const dialogRef = useRef<HTMLDivElement | null>(null);
   // AJ-E804 (WCAG 2.4.3): Cancel returns focus to what opened the switch
   // (a completed one hands it to the undo toast).
@@ -113,7 +116,7 @@ export function SwitchFlow({
   useEffect(() => {
     let alive = true;
     setPhase({ kind: "preflight" });
-    switchPreflight(sessionId, targetProfileId)
+    switchPreflight(sessionId, targetProfileId, targetPlaceId ?? null)
       .then((preflight) => {
         if (alive) {
           setStep(0);
@@ -131,7 +134,7 @@ export function SwitchFlow({
     };
     // The door is counted for the first check only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, targetProfileId, attempt]);
+  }, [sessionId, targetProfileId, targetPlaceId, attempt]);
 
   const steps = phase.kind === "confirm" && phase.preflight.door === "wizard" && !move.moving ? phase.preflight.wizard_steps : [];
   const keysPending = phase.kind === "confirm" && keysRequired(phase.preflight, answer, changing);
@@ -167,7 +170,7 @@ export function SwitchFlow({
       // AJ-E1542: what the user picked is set up first, so the target
       // starts with it.
       const applied = await setupCheck.applyPicked();
-      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args);
+      const result = await switchExecute(sessionId, targetProfileId, freeze, choice, answer === "strip" ? [...unhide] : [], setupCheck.approved(), destination, carry.args, targetPlaceId ?? null);
       const continuedIn: Destination = result.continued_in === "desktop" ? "desktop" : "cli";
       const opened = openedPage(result, continuedIn, preflight); // its page: the Claude app's conversation (Starting till it says)
       if (oneClick && applied.length === 0 && continuedIn === "cli") {

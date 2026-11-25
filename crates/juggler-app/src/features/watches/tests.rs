@@ -957,14 +957,14 @@ fn the_echo_says_the_watch_in_english() {
     );
     assert_eq!(
         echo(&r, &w, &Book, Lang::En, clock()),
-        "Tell you when “api” or “web” finishes, or looks stuck for 10 minutes. Until midnight today."
+        "Tell you when “api” or “web” finishes its turn, or looks stuck for 10 minutes. Until midnight today."
     );
     w.matching = Matching::All;
     w.lifetime = Lifetime::UntilEnds;
     w.even_in_quiet_hours = true;
     assert_eq!(
         echo(&r, &w, &Book, Lang::En, clock()),
-        "Tell you when all of “api” and “web” finish, or look stuck for 10 minutes. Until they end. \
+        "Tell you when all of “api” and “web” finish their turn, or look stuck for 10 minutes. Until they end. \
          Even during quiet hours."
     );
     let room = watch(
@@ -1115,7 +1115,7 @@ fn the_echo_says_the_watch_in_german() {
     );
     assert_eq!(
         echo(&r, &w, &Book, Lang::De, clock()),
-        "Ich sage dir Bescheid, wenn “api” oder “web” fertig ist, oder seit 10 Minuten festzuhängen \
+        "Ich sage dir Bescheid, wenn “api” oder “web” mit seinem Zug fertig ist, oder seit 10 Minuten festzuhängen \
          scheint. Bis heute Mitternacht."
     );
     w.matching = Matching::All;
@@ -1123,7 +1123,7 @@ fn the_echo_says_the_watch_in_german() {
     w.even_in_quiet_hours = true;
     assert_eq!(
         echo(&r, &w, &Book, Lang::De, clock()),
-        "Ich sage dir Bescheid, wenn alle: “api” und “web” fertig sind, oder seit 10 Minuten \
+        "Ich sage dir Bescheid, wenn alle: “api” und “web” mit ihrem Zug fertig sind, oder seit 10 Minuten \
          festzuhängen scheinen. Einmal. Auch während der Ruhezeit."
     );
 }

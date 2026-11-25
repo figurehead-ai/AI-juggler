@@ -157,10 +157,17 @@ for (const theme of THEMES) {
   test(`first run finds the new tools' setups, each in its own group — ${theme}`, async ({ page }) => {
     await seed(page, theme, { accounts: [], profiles: [], sessions: [], projects: [] }, SCAN);
     await page.goto("/");
+    // F20 (0.5.1): the Welcome first; Get started opens the wizard.
+    await page.getByTestId("welcome-get-started").click();
     for (const tool of NEW_TOOLS) {
       const group = page.getByTestId(`first-run-group-${tool.id}`);
       await expect(group).toContainText(tool.name);
-      await expect(group).toContainText(tool.folder.replace("/Users/you", "~"));
+      // AJ-E1545: a row's folder is under its ▸ Details (closed at rest).
+      const details = group.getByTestId("first-run-details-toggle").first();
+      await details.click();
+      await expect(group.getByTestId("first-run-folder")).toContainText(tool.folder.replace("/Users/you", "~"));
+      await details.click();
+      await expect(group.getByTestId("first-run-folder")).toHaveCount(0);
     }
     await shoot(page, "first-run-found", theme);
   });

@@ -25,8 +25,28 @@
 # And the local model's helper, `juggler-local-ai` (D-131), built offline
 # from its own workspace (llama.cpp) and signed ad hoc (no entitlements:
 # the app applies its sandbox profile at every start).
+#
+# AJ-E3822: every helper here is signed as the Dev identity's
+# (scripts/helper_identity.sh, AIJ_EDITION unset or dev):
+# ai.figurehead.juggler.dev.apple-ai, ….dev.local-ai and ….dev.agent, as
+# the app is ai.figurehead.juggler.dev, so none shares an identifier with
+# the team-signed Nightly's or AI Juggler's (one identifier with two
+# signers made macOS ask '"(null)" differs from previously opened
+# versions'). The release's juggler-agent stays as sign_macos.sh signs it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+[ "${AIJ_EDITION:-dev}" = dev ] || { echo "build_dev_app: AIJ_EDITION is ${AIJ_EDITION}; a Dev build is dev" >&2; exit 1; }
+# shellcheck source=scripts/helper_identity.sh
+. scripts/helper_identity.sh
+# The agent bridge, ad hoc as the Dev identity's (no Info.plist of its own:
+# not sandboxed, it has no container for macOS to protect).
+sign_agent() {
+  codesign --force --sign - --identifier "$(helper_identifier agent)" "$1" 2>/dev/null
+}
+check_agent() {
+  codesign --verify --strict -R="identifier \"$(helper_identifier agent)\"" "$1" \
+    || { echo "build_dev_app: $1 isn't signed as $(helper_identifier agent)" >&2; exit 1; }
+}
 
 # The marked icon (generated; target/ is not committed), and its .icns, as
 # the release workflow makes one: the bundle needs it (a PNG alone fails
@@ -51,7 +71,9 @@ fi
 scripts/build_apple_ai_helper.sh "$profile" "$target/$profile"
 scripts/build_local_ai_helper.sh "$profile" "$target/$profile"
 mkdir -p crates/juggler-app/binaries
+rm -f "crates/juggler-app/binaries/juggler-agent-$triple"
 cp "$target/$profile/juggler-agent" "crates/juggler-app/binaries/juggler-agent-$triple"
+sign_agent "crates/juggler-app/binaries/juggler-agent-$triple"
 # A fresh file, not one rewritten in place: macOS caches a signed
 # program's signature by file, and a rewritten one can be killed on launch.
 rm -f "crates/juggler-app/binaries/juggler-apple-ai-$triple"
@@ -64,6 +86,7 @@ app="$target/$profile/bundle/macos/AI Juggler Dev.app"
 python3 scripts/bundle_check.py "$app"
 scripts/build_apple_ai_helper.sh check "$app/Contents/MacOS/juggler-apple-ai" "$app"
 scripts/build_local_ai_helper.sh check "$app/Contents/MacOS/juggler-local-ai" "$app"
+check_agent "$app/Contents/MacOS/juggler-agent"
 if [ "${1:-}" = lab ]; then
   # The lab keeps its copy at one stable path outside the build folder
   # (lab_scenario.sh opens it there; a build folder gets trimmed), signed
@@ -73,13 +96,16 @@ if [ "${1:-}" = lab ]; then
   rm -rf "$lab_app" && mkdir -p "$(dirname "$lab_app")"
   ditto "$app" "$lab_app"
   codesign --force --deep --sign - "$lab_app" >/dev/null 2>&1
-  # --deep signed the helpers again without their runtime and sandbox:
+  # --deep signed the helpers again without their runtime and sandbox,
+  # and the agent bridge under its file name (the release's identifier):
   # sign them as they were built, then seal the app over them once more.
+  sign_agent "$lab_app/Contents/MacOS/juggler-agent"
   scripts/build_apple_ai_helper.sh sign "$lab_app/Contents/MacOS/juggler-apple-ai" >/dev/null
   scripts/build_local_ai_helper.sh sign "$lab_app/Contents/MacOS/juggler-local-ai" >/dev/null
   codesign --force --sign - "$lab_app" >/dev/null 2>&1
   codesign --verify --strict --deep "$lab_app"
   scripts/build_apple_ai_helper.sh check "$lab_app/Contents/MacOS/juggler-apple-ai" "$lab_app"
   scripts/build_local_ai_helper.sh check "$lab_app/Contents/MacOS/juggler-local-ai" "$lab_app"
+  check_agent "$lab_app/Contents/MacOS/juggler-agent"
   echo "build-dev-app: the lab's copy is $lab_app"
 fi

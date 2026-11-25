@@ -64,6 +64,132 @@ pub struct KnownPlaceInfo {
     /// declares nothing.
     #[ts(optional = nullable)]
     pub reach: Option<super::reach::AppReachInfo>,
+    /// AJ-E2327: the tool folder its sessions are read from, what told,
+    /// or why none is linked; `null` before it was looked for (or for an
+    /// app with no tool folder).
+    #[ts(optional = nullable)]
+    pub folder: Option<PlaceFolderInfo>,
+}
+
+/// AJ-E2327: an App's tool folder, as its row and Add's confirmation say
+/// it.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PlaceFolderInfo {
+    /// The tool whose folder it is (`Claude Code`), for the words.
+    pub tool: Option<String>,
+    /// The folder's own name (`work`), when one is linked.
+    pub name: Option<String>,
+    /// Where it is, `~` for the home folder, when one is linked.
+    pub path: Option<String>,
+    /// What told which folder it is: `running` (its open sessions write
+    /// there), `records` (its app's own list of its sessions is there),
+    /// `recorded` (the folder AI Juggler starts it with, or the one you
+    /// chose), `declared` (its app's one folder), or `named` (a folder
+    /// named like the profile: a guess, checked when it runs).
+    pub by: Option<String>,
+    /// Why no folder is linked, in plain words.
+    pub why: Option<String>,
+}
+
+impl PlaceFolderInfo {
+    /// What [`super::Linked`] says of App `id`'s folder, for the window.
+    pub(crate) fn of(state: &Arc<AppState>, id: &str, linked: &super::Linked) -> Self {
+        let home = juggler_platform::user::home();
+        Self {
+            tool: tool_word(state, id),
+            name: linked
+                .folder
+                .as_deref()
+                .and_then(std::path::Path::file_name)
+                .map(|name| name.to_string_lossy().into_owned()),
+            path: linked.folder.as_deref().map(|folder| {
+                home.as_deref()
+                    .and_then(|home| folder.strip_prefix(home).ok())
+                    .map_or_else(
+                        || folder.display().to_string(),
+                        |rest| format!("~/{}", rest.display()),
+                    )
+            }),
+            by: linked.by.map(|by| by.word().to_owned()),
+            why: linked.why.clone(),
+        }
+    }
+
+    /// An App's row: its last look's note.
+    fn of_note(state: &Arc<AppState>, id: &str, note: super::LinkNote) -> Self {
+        Self::of(
+            state,
+            id,
+            &match note {
+                super::LinkNote::Linked { folder, by } => super::Linked {
+                    folder: Some(folder),
+                    by: Some(by),
+                    why: None,
+                },
+                super::LinkNote::Unlinked(why) => super::Linked {
+                    why: Some(why),
+                    ..super::Linked::default()
+                },
+            },
+        )
+    }
+}
+
+/// The name of the tool whose folders App `id`'s sessions are in
+/// (`Claude Code` for the Claude app).
+fn tool_word(state: &Arc<AppState>, id: &str) -> Option<String> {
+    let app = super::with_book(state, |book| {
+        book.places.get(id).map(|place| place.app_id.clone())
+    })
+    .ok()
+    .flatten()?;
+    state
+        .registry
+        .ids()
+        .into_iter()
+        .filter_map(|harness| state.registry.get(&harness))
+        .find(|adapter| adapter.host_apps().iter().any(|host| host.id == app))
+        .map(|adapter| adapter.spec().display_name.clone())
+}
+
+/// AJ-E2327: what Add did with the App's tool folder, for its
+/// confirmation.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PlaceAddedInfo {
+    /// The App's id.
+    pub id: String,
+    /// The folder it uses (nothing when Not now was the answer).
+    pub folder: PlaceFolderInfo,
+}
+
+/// AJ-E2327: a desktop profile found running or beside one, paired with
+/// the tool folder evidence says it uses (first run's "Your apps": one
+/// row each). Nothing is brought in or linked by asking.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct PlacePairingInfo {
+    /// The place's id (an App's, or an offer's: what Add takes).
+    pub id: String,
+    /// `Claude · team-a`.
+    pub label: String,
+    /// Whether it's one of the user's Apps already.
+    pub added: bool,
+    /// The folder paired with it, what told, or why none.
+    pub folder: PlaceFolderInfo,
+    /// Whether the pairing is proof (its running sessions, its records or
+    /// its app's declared folder) rather than a recalled or guessed one.
+    pub certain: bool,
+    /// 0.5.1 F35: the id of the tool its app runs (`claude-code`), so
+    /// "Your apps" puts its row in that tool's group, paired or not.
+    pub tool: Option<String>,
+    /// 0.5.1 F35: the paired folder's full path, as the scan lists it
+    /// (`folder.path` is for the words, `~` for the home folder), so its
+    /// row is that folder's row exactly, never matched by name.
+    pub path: Option<String>,
+    /// It runs now (the process table says).
+    pub running: bool,
 }
 
 /// AJ-E3203: finding a desktop app's profiles that aren't running.
@@ -120,6 +246,7 @@ fn info(
         found: place.found,
         colour_slot: slots.get(id).copied(),
         reach: hosts.by_id(&place.app_id).and_then(super::reach::info),
+        folder: None,
     }
 }
 
@@ -238,6 +365,11 @@ pub(crate) fn known(state: &Arc<AppState>) -> AppResult<Vec<KnownPlaceInfo>> {
                 &hosts,
                 &slots,
             )
+        })
+        .map(|mut row| {
+            row.folder = super::link_note(state, &row.id)
+                .map(|note| PlaceFolderInfo::of_note(state, &row.id, note));
+            row
         })
         .collect())
 }
@@ -358,11 +490,107 @@ pub async fn places_offer_answer(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
     add: bool,
-) -> AppResult<()> {
+) -> AppResult<PlaceAddedInfo> {
     crate::ipc::blocking(state.inner(), "add the app", move |state| {
-        super::answer_offer(state, &id, add)
+        let linked = super::answer_offer(state, &id, add)?;
+        let folder = PlaceFolderInfo::of(state, &id, &linked);
+        Ok(PlaceAddedInfo { id, folder })
     })
     .await
+}
+
+/// AJ-E2327, "Choose its folder…": App `id` uses `folder`, a folder the
+/// user picked in the system's picker (vouched for: a path the page made
+/// up is refused).
+///
+/// # Errors
+///
+/// A folder that wasn't picked; why it can't be the App's folder.
+#[tauri::command]
+pub async fn places_choose_folder(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+    folder: String,
+) -> AppResult<PlaceAddedInfo> {
+    // Picked or dropped by the user, or a folder AI Juggler's own scan
+    // listed: never a path the page made up.
+    let folder = crate::picked::vouch(&folder, crate::picked::WORK_FOLDER, |_| false)?;
+    crate::ipc::blocking(state.inner(), "choose the app's folder", move |state| {
+        let linked = super::link::choose_folder(state, &id, &folder)
+            .map_err(crate::error::AppError::Refused)?;
+        let folder = PlaceFolderInfo::of(state, &id, &linked);
+        Ok(PlaceAddedInfo { id, folder })
+    })
+    .await
+}
+
+/// AJ-E2327: every desktop profile AI Juggler knows (the user's Apps and
+/// the ones offered), each paired with the tool folder evidence says it
+/// uses, for first run's "Your apps". Reads only: nothing is added,
+/// brought in or linked.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+#[tauri::command]
+pub async fn places_pairings(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<Vec<PlacePairingInfo>> {
+    crate::ipc::blocking(state.inner(), "pair the apps with their folders", pairings).await
+}
+
+/// [`places_pairings`]' body.
+///
+/// # Errors
+///
+/// A poisoned lock; storage errors.
+pub fn pairings(state: &Arc<AppState>) -> AppResult<Vec<PlacePairingInfo>> {
+    let places: Vec<(String, KnownPlace)> = super::with_book(state, |book| {
+        book.places
+            .iter()
+            // An offer whose profile folder is gone is no row (as
+            // `offers` forgets it).
+            .filter(|(_, place)| {
+                !place.declined
+                    && (place.users || place.instance_dir.as_ref().is_none_or(|dir| dir.exists()))
+            })
+            .map(|(id, place)| (id.clone(), place.clone()))
+            .collect()
+    })?;
+    let running = what_runs(state, &HostRegistry::of(&state.registry));
+    Ok(places
+        .into_iter()
+        .map(|(id, place)| {
+            let paired = super::link::pairing(state, &id);
+            let tool = state
+                .registry
+                .ids()
+                .into_iter()
+                .find(|harness| {
+                    state.registry.get(harness).is_some_and(|adapter| {
+                        adapter.host_apps().iter().any(|host| host.id == place.app_id)
+                    })
+                })
+                .map(|harness| harness.as_str().to_owned());
+            let folder = PlaceFolderInfo::of(state, &id, &super::Linked {
+                folder: paired.as_ref().map(|(folder, _, _)| folder.clone()),
+                by: paired.as_ref().map(|(_, by, _)| *by),
+                why: paired.is_none().then(|| {
+                    "AI Juggler can't tell which folder it uses yet: none of its sessions is open and its app lists none it can find.".to_owned()
+                }),
+            });
+            PlacePairingInfo {
+                label: place.label(),
+                added: place.users,
+                certain: paired.as_ref().is_some_and(|(_, _, certain)| *certain),
+                folder,
+                tool,
+                path: paired.map(|(folder, _, _)| folder.to_string_lossy().into_owned()),
+                running: running.contains_key(&id),
+                id,
+            }
+        })
+        .collect())
 }
 
 /// Open: brings the place forward when it runs, else starts it; with a
@@ -443,21 +671,52 @@ pub async fn places_restart(
             super::QuitWait::default(),
             crate::commands::now_millis(),
         );
-        Ok(match said {
-            // Followed by the window until it runs (the go sitting, finding 3).
-            Ok(words) => GoToOutcomeInfo {
-                outcome: words,
-                reached: "started".to_owned(),
-                place_id: Some(id.clone()),
-                ticket: None,
-            },
-            Err(why) => GoToOutcomeInfo {
-                outcome: why,
-                reached: "none".to_owned(),
-                place_id: None,
-                ticket: None,
-            },
-        })
+        // Followed by the window until it runs (the go sitting, finding 3).
+        Ok(outcome(said, "started", &id))
+    })
+    .await
+}
+
+/// Restart's or Quit's words as an outcome: `reached` and the App `id`
+/// when it went, `none` and no App when it didn't.
+fn outcome(said: Result<String, String>, reached: &str, id: &str) -> GoToOutcomeInfo {
+    match said {
+        Ok(words) => GoToOutcomeInfo {
+            outcome: words,
+            reached: reached.to_owned(),
+            place_id: Some(id.to_owned()),
+            ticket: None,
+        },
+        Err(why) => GoToOutcomeInfo {
+            outcome: why,
+            reached: "none".to_owned(),
+            place_id: None,
+            ticket: None,
+        },
+    }
+}
+
+/// 0.5.1 F98: Quit…, after its confirm: quits a running app or profile
+/// and leaves it closed (keep alive pauses for it until its next Open),
+/// through the one quit Restart and Move use. Waits for it to quit (at
+/// most 10 s), so it runs off the window's thread.
+///
+/// # Errors
+///
+/// None of its own: what went wrong is the outcome's words (`none`).
+#[tauri::command]
+pub async fn places_quit(
+    state: tauri::State<'_, Arc<AppState>>,
+    id: String,
+) -> AppResult<GoToOutcomeInfo> {
+    crate::ipc::blocking(state.inner(), "quitting the app", move |state| {
+        let said = super::quit::quit(
+            state,
+            &id,
+            &super::start::System,
+            super::QuitWait::default(),
+        );
+        Ok(outcome(said, "quit", &id))
     })
     .await
 }

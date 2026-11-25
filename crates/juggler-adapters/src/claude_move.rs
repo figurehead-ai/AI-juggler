@@ -31,11 +31,15 @@ use std::path::{Path, PathBuf};
 use juggler_adapter::compat::{CompatFeature, Gate, Span};
 use juggler_adapter::error::AdapterError;
 use juggler_adapter::moving::{
-    Appended, HoldWhy, InPlaceMove, MemberSide, MoveCheck, MoveMember, MovePlan, MoveRequest,
-    MoveStep, NotesChoice, Refusal, Retained,
+    Appended, Carried, HoldWhy, InPlaceMove, MemberSide, MoveCheck, MoveMember, MovePlan,
+    MoveRequest, MoveStep, NotesChoice, ProcView, Refusal, Retained, Split, Tidied, Writer,
 };
 
 mod shape;
+mod worktrees;
+mod writers;
+
+pub use worktrees::{checked_versions, moves_checked};
 
 /// D-128, ADR-0035 §2: a move between Claude app profiles, in the remote
 /// `compat` section: offered for the app's 4.x and later (where its
@@ -497,15 +501,43 @@ fn same_tree(a: &Path, b: &Path) -> bool {
             .all(|f| std::fs::read(a.join(f)).ok() == std::fs::read(b.join(f)).ok())
 }
 
+/// AJ-E2328: what a moved record's paths and branch change to.
+#[derive(Default)]
+struct Edits {
+    /// (from, to) folder pairs: the source profile's and Claude Code
+    /// folder's paths point at the target's.
+    homes: Vec<(PathBuf, PathBuf)>,
+    /// The branch each record's worktree is really on, by record id.
+    branches: HashMap<String, String>,
+}
+
+impl Edits {
+    /// Applies the path moves to `value`. Whether anything changed.
+    fn rehome(&self, value: &mut serde_json::Value) -> bool {
+        let mut changed = false;
+        for (from, to) in &self.homes {
+            changed |= worktrees::rehome(value, from, to);
+        }
+        changed
+    }
+}
+
 /// `record` as it goes to the target: the account-bound and stale runtime
-/// fields out, its parent links pointed at `parent_of`'s answer.
+/// fields out, its parent links pointed at `parent_of`'s answer, its paths
+/// into the source profile pointed into the target's and its worktree's
+/// branch the real one (`edits`).
 fn moved_record(
     record: &Record,
     rebind: &HashMap<String, String>,
     root: bool,
     family: &BTreeSet<String>,
+    edits: &Edits,
 ) -> serde_json::Value {
     let mut value = record.value.clone();
+    edits.rehome(&mut value);
+    if let Some(branch) = edits.branches.get(&record.id) {
+        value["branch"] = serde_json::Value::String(branch.clone());
+    }
     if let Some(object) = value.as_object_mut() {
         for key in ACCOUNT_BOUND.iter().chain(STALE_RUNTIME.iter()) {
             object.remove(*key);
@@ -632,6 +664,15 @@ impl InPlaceMove for ClaudeMove {
         // D-128: the remote compat list may narrow or turn the move off.
         for why in compat_refusals(&juggler_adapter::compat::current(), request) {
             b.refuse(why);
+        }
+        // AJ-E2328 req 1/9: the Claude app's version must be one the known
+        // formats were checked on (`known_formats.json`).
+        for side in [source, target] {
+            if side.host_dir.is_some()
+                && let Some(why) = worktrees::version_refusal(side.version.as_deref(), "Move")
+            {
+                b.refuse(why);
+            }
         }
 
         // The family, by app records (an app side) or the one conversation.
@@ -913,6 +954,30 @@ impl InPlaceMove for ClaudeMove {
                     );
                 }
             }
+            // AJ-E2328 req 5: its side-session notes, beside the app's
+            // records (a folder per record id).
+            if let (Some(id), Some(from_host), Some(to_host)) = (
+                record_id.as_deref(),
+                source.host_dir.as_deref(),
+                target.host_dir.as_deref(),
+            ) {
+                let from = from_host.join(worktrees::NOTES).join(id);
+                if std::fs::symlink_metadata(&from).is_ok() {
+                    let to = to_host.join(worktrees::NOTES).join(id);
+                    if std::fs::symlink_metadata(&to).is_ok() {
+                        b.note(format!(
+                            "the target already had side-session notes for “{name}”; they are kept aside, and Undo brings them back"
+                        ));
+                    }
+                    let files = juggler_adapter::transfer::tree(&from).map_or(0, |(f, _)| f.len());
+                    member.bytes += bytes_of(&from);
+                    b.carry(&from, &to, false, HoldWhy::DivergentBranch);
+                    b.plan.carried.push(Carried::Notes {
+                        of: name.clone(),
+                        files,
+                    });
+                }
+            }
             b.plan.members.push(member);
         }
 
@@ -975,20 +1040,39 @@ impl InPlaceMove for ClaudeMove {
                     target_records[alias].title().unwrap_or_else(|| target_records[alias].conversation.clone())
                 ));
             }
+            // AJ-E2328 req 2–4: the worktrees the family works in are the
+            // target's now; the records name their real branch.
+            let moved: Vec<&Record> = order
+                .iter()
+                .flatten()
+                .map(|id| &source_records[id])
+                .collect();
+            let fixes = worktrees::carry(&mut b, &moved, &family);
+            let edits = Edits {
+                homes: [
+                    source.host_dir.clone().zip(target.host_dir.clone()),
+                    Some((source.tool_dir.clone(), target.tool_dir.clone())),
+                ]
+                .into_iter()
+                .flatten()
+                .collect(),
+                branches: fixes.branches,
+            };
             if let Some(folder) = &folder {
                 for id in order.iter().flatten() {
                     let record = &source_records[id];
                     let root = record.conversation == request.conversation;
                     b.plan.steps.push(MoveStep::WriteRecord {
                         path: folder.join(format!("{id}.json")),
-                        value: moved_record(record, &rebind, root, &family),
+                        value: moved_record(record, &rebind, root, &family, &edits),
                     });
                 }
             }
             for id in &target_children {
                 let record = &target_records[id];
                 let mut value = record.value.clone();
-                if rebound(&mut value, &rebind) {
+                let rehomed = edits.rehome(&mut value);
+                if rebound(&mut value, &rebind) || rehomed {
                     if let Some(object) = value.as_object_mut() {
                         for key in ROUTING_SNAPSHOTS {
                             object.remove(key);
@@ -1170,6 +1254,10 @@ impl InPlaceMove for ClaudeMove {
             "one target record claims the moved conversation".into(),
             claimed == 1,
         );
+        // AJ-E2328: each carried worktree is the target's, for a moved
+        // conversation, and no longer the source's.
+        let ids: BTreeSet<String> = planned.keys().map(|id| (*id).to_owned()).collect();
+        checks.extend(worktrees::checks(plan, source_host, target_host, &ids));
         checks
     }
 
@@ -1210,6 +1298,33 @@ impl InPlaceMove for ClaudeMove {
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-')
             .then(|| format!("claude://resume?session={conversation}"))
+    }
+
+    // AJ-E2328: worktrees owned by another profile than the conversation's.
+    fn splits(&self, hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
+        worktrees::splits(hosts)
+    }
+
+    fn repair(&self, split: &Split, version: Option<&str>) -> MovePlan {
+        worktrees::repair(split, version)
+    }
+
+    fn also_tidied(&self, hosts: &[PathBuf]) -> Result<Vec<Tidied>, String> {
+        worktrees::also_tidied(hosts)
+    }
+
+    fn moves_checked(&self, version: Option<&str>) -> Option<bool> {
+        Some(worktrees::moves_checked(version))
+    }
+
+    // AJ-E2318: its pid files and `--resume` (`writers`).
+    fn writers(
+        &self,
+        tool_dir: &Path,
+        conversations: &[String],
+        table: &[ProcView<'_>],
+    ) -> Vec<Writer> {
+        writers::of(tool_dir, conversations, table)
     }
 }
 

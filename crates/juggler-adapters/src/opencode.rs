@@ -55,6 +55,13 @@ use crate::opencode_store::DB_FILE;
 /// Provider id: `opencode`.
 pub const OPENCODE_ID: &str = "opencode";
 
+/// AJ-E1545 R8: how OpenCode's sign-in output is read: the page of the service picked in its list (`ChatGPT`'s, GitHub's device page, OpenCode's own).
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["auth.openai.com", "github.com", "opencode.ai"],
+    device_codes: true,
+    paste_words: &["paste the authorization code", "authorization code here"],
+};
+
 /// No version has been run live yet (AJ-E1612): every one is unverified.
 const VERIFIED_AGAINST: &[&str] = &[];
 
@@ -435,6 +442,13 @@ impl ToolDiscovery for OpenCodeAdapter {
 }
 
 impl ToolSignIn for OpenCodeAdapter {
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(OPENCODE_ID, &self.data_dir(state_dir))
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         prepare_managed_dir_for(state_dir, OPENCODE_ID)?;
         for dir in [
@@ -812,7 +826,7 @@ pub fn opencode_spec() -> juggler_adapter::ToolSpec {
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
-        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+        scan_hint: "Your default app and any other that looks like one. Nothing is changed."
             .to_owned(),
         setup_groups: vec![SetupGroup {
             id: OPENCODE_ID.to_owned(),

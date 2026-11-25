@@ -1,4 +1,4 @@
-<!-- captures: cc202f42132d -->
+<!-- captures: ece66885a055 -->
 # 82-project-sync: comparing and syncing a project's rules files and MCP servers
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -11,3 +11,7 @@ header-line shows the project path with an amber "1 rules file differs" link, an
 
 - sheet-diff-light: added lines in the diff are a faint grey-green, close to the unchanged lines.
 - header-line, sheet-diff (both themes): "1 rules file differs" should be singular.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The rules dialog is unchanged; account words read app.

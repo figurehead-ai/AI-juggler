@@ -13,7 +13,6 @@ import { forgetSharedReads } from "../../../lib/shared-read";
 import { primariesIn } from "../../../components/primitives";
 import { GEMMA, STATES, catalog, seedModels, type ModelsState } from "../../../preview/ai-models";
 import { ModelsPane } from "./ModelsPane";
-import { JobsPane } from "./JobsPane";
 
 const INTERNAL = [/\bpacks?\b/i, /harness/i, /gguf/i, /apple_builtin/i, /not_yet/, /beta_off/, /\bundefined\b/, /\bnull\b/, /NaN/];
 
@@ -43,7 +42,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(rec.textContent).toContain("Apple's on-device model");
     expect(rec.textContent).toContain("no download, no disk");
     expect(within(rec).getByTestId("models-recommended-action").textContent).toBe("Use it");
-    expect(rec.textContent).toContain("Turns on Turn reviews and Bot answers as Beta, on this model.");
+    expect(rec.textContent).toContain("Turns on Turn reviews and Bot’s AI as Beta, on this model.");
     expect(screen.getAllByTestId("model-card").map((card) => card.dataset.model)).toEqual(["qwen3-1-7b-q8", "granite-4-1-3b-q4km", "nemotron-3-nano-4b-q4km", "gemma-4-e2b-q4-0"]);
     expect(screen.getByTestId("models-total").textContent).toBe("0 GB");
     expect(document.getElementById("settings-ai-installed")?.textContent).toContain("Nothing downloaded yet");
@@ -52,13 +51,18 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     plain(pane.textContent ?? "");
   });
 
-  it("fix 1: no Attention hints on a model card; it shows only in Each job uses, needing no model", async () => {
-    await show(STATES.models!);
-    for (const card of screen.getAllByTestId("model-card")) expect(card.textContent).not.toContain("Attention hints");
-    expect(screen.getByTestId("models-recommended").textContent).not.toContain("Attention hints");
-    const attention = screen.getByTestId("models-job-attention");
-    expect(attention.textContent).toContain("No model needed");
-    expect(within(attention).queryByRole("switch")).toBeNull();
+  it("AJ-E1548 #3 #4 #7: no Attention hints anywhere; Each job uses lists only jobs a model passes, with one quiet line for the rest; the lead says what ships", async () => {
+    const pane = await show(STATES.models!);
+    expect(pane.textContent).not.toContain("Attention hints");
+    expect(screen.queryByTestId("models-job-attention")).toBeNull();
+    const { jobsToday } = await import("./models-view");
+    const today = jobsToday(window.__AIJ_AI_CATALOG__ ?? null);
+    const rows = within(screen.getByTestId("models-jobs")).getAllByRole("listitem");
+    expect(rows).toHaveLength(today.length);
+    if (today.length < 5) expect(screen.getByTestId("models-jobs-more").textContent).toBe("More jobs come as models pass our tests.");
+    expect(pane.textContent).not.toContain("Beta reviews");
+    const { PAGE } = await import("./models-words");
+    expect(PAGE.lead).toMatch(/^The AI that writes Bot's answers\./);
   });
 
   it("fix 2: each card's memory is the list's own minimum (8 GB, Gemma 16 GB), never a flat figure", async () => {
@@ -86,13 +90,38 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     await waitFor(() => expect(window.__AIJ_AI_JOBS__?.filter((job) => job.beta_on).map((job) => job.job)).toEqual(["review", "chat"]));
   });
 
-  it("a download recommended: Download with its size and what it needs, and Apple's tip", async () => {
+  it("a download recommended where Apple's AI can't run: Download names it, its size and what it needs", async () => {
     await show(STATES.noapple!);
-    expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download · 1.8 GB");
+    expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download Qwen3 1.7B · 1.8 GB");
     expect(screen.getByTestId("models-fit").textContent).toContain("48 GB · needs 11.8 GB");
-    expect(screen.getByTestId("models-apple-tip").textContent).toContain("Turn on Apple Intelligence");
+    expect(screen.queryByTestId("models-apple-tip")).toBeNull();
+    expect(screen.queryByTestId("engine-setup")).toBeNull();
     expect(screen.queryByTestId("models-jobs")).toBeNull();
   });
+
+  // AJ-E3823: Apple's AI off, unanswered or blocked: the setup guide leads
+  // in the Recommended card's place; never a download recommended, and the
+  // AI it names isn't listed twice.
+  for (const [name, apple] of [
+    ["appleoff", "off"],
+    ["noanswer", "no_answer"],
+    ["blocked", "blocked"],
+  ] as const) {
+    it(`${name}: the setup guide on top, no download recommended, nothing shown twice`, async () => {
+      const pane = await show(STATES[name]!);
+      const setup = await screen.findByTestId("engine-setup");
+      expect(setup.dataset.place).toBe("models");
+      expect(setup.dataset.apple).toBe(apple);
+      expect(screen.queryByTestId("models-recommended")).toBeNull();
+      expect(screen.queryByTestId("models-nothing")).toBeNull();
+      expect(screen.queryByTestId("models-apple-tip")).toBeNull();
+      expect(within(setup).getByTestId("setup-download-card").dataset.recommended).toBeUndefined();
+      const cards = screen.getAllByTestId("model-card").map((card) => card.dataset.model);
+      expect(cards).not.toContain("qwen3-1-7b-q8");
+      expect(primariesIn(pane)).toHaveLength(1);
+      plain(pane.textContent ?? "");
+    });
+  }
 
   it("downloading: progress, the size done, Cancel, how it's checked", async () => {
     await show(STATES.downloading!);
@@ -104,7 +133,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     for (const card of screen.getAllByTestId("model-card")) expect(within(card).getByTestId("model-download").hasAttribute("disabled")).toBe(true);
     fireEvent.click(within(box).getByTestId("models-cancel"));
     await waitFor(() => expect(window.__AIJ_AI_MODELS__?.download?.state).toBe("cancelled"));
-    await waitFor(() => expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download · 1.8 GB"));
+    await waitFor(() => expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download Qwen3 1.7B · 1.8 GB"));
   });
 
   it("one installed: In use, and a second model asks for approval every time", async () => {
@@ -167,7 +196,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(screen.getByTestId("models-withdrawn").textContent).toBe("We no longer list this model. It keeps working until you remove it.");
     fireEvent.click(screen.getAllByTestId("models-remove")[1]!);
     const confirm = screen.getByTestId("models-remove-confirm");
-    expect(confirm.textContent).toContain("Remove Nemotron 3 Nano 4B? Frees 2.8 GB. Bot answers goes back to Automatic (Apple's on-device model). You can't download it again: we no longer list it.");
+    expect(confirm.textContent).toContain("Remove Nemotron 3 Nano 4B? Frees 2.8 GB. Bot’s AI goes back to Automatic (Apple's on-device model). You can't download it again: we no longer list it.");
     fireEvent.click(within(confirm).getByTestId("models-remove-confirmed"));
     await waitFor(() => expect(window.__AIJ_AI_MODELS__?.installed.map((m) => m.id)).toEqual(["qwen3-1-7b-q8"]));
   });
@@ -188,13 +217,5 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     cleanup();
     render(<ModelsPane />);
     expect(screen.getByTestId("models-recommended")).toBeTruthy();
-  });
-
-  it("Settings › AI › Jobs: the same rows on their own", async () => {
-    seedModels(structuredClone(STATES.installed!));
-    render(<JobsPane />);
-    const rows = await screen.findByTestId("models-jobs");
-    await waitFor(() => expect(rows.textContent).toContain("On · your pick, Nemotron 3 Nano 4B"));
-    expect(screen.getByTestId("models-honesty")).toBeTruthy();
   });
 });

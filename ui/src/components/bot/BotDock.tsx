@@ -8,12 +8,12 @@
 import { useEffect, useRef, useState, type JSX, type PointerEvent as ReactPointerEvent } from "react";
 import { BotConversation } from "./BotConversation";
 import { BotComposer } from "./BotComposer";
-import { BotEmpty, BotNoModel } from "./BotEmpty";
+import { BotEmpty, BotSetup } from "./BotEmpty";
 import { BotFindBar, BotHead } from "./BotHead";
 import { BotClearSheet, BotForgetHost } from "./BotSheets";
 import { WORDS } from "../../lib/bot-words";
 import { SHEET_UNDER, WIDTH_DEFAULT, closeBot, expandBot, openFind, setWidth, useBot } from "../../lib/bot-store";
-import { useAiJob } from "../../lib/ai-availability";
+import { isShown, useAiJob } from "../../lib/ai-availability";
 
 /** Under 1100 px of window the panel slides over the page. */
 export function useNarrow(): boolean {
@@ -71,14 +71,20 @@ function Grip({ width }: { width: number }): JSX.Element {
 export function BotPanelBody({ onClear, onMemories }: { onClear: () => void; onMemories: () => void }): JSX.Element {
   const bot = useBot();
   const job = useAiJob("chat");
-  const noModel = job?.state === "no_engine";
+  const ready = isShown(job);
   const [now] = useState(() => Date.now());
   return (
     <>
-      <BotHead job={job} onClear={onClear} onMemories={onMemories} />
-      {bot.find && <BotFindBar />}
-      <BotConversation now={now} empty={noModel ? <BotNoModel /> : <BotEmpty job={job} />} />
-      <BotComposer footnote={bot.turns.length === 0 ? (noModel ? WORDS.footnoteNoModel : WORDS.footnote) : undefined} />
+      <BotHead job={job} onClear={onClear} onMemories={onMemories} setup={!ready} />
+      {ready && bot.find && <BotFindBar />}
+      {ready ? (
+        <>
+          <BotConversation now={now} empty={<BotEmpty />} />
+          <BotComposer footnote={bot.turns.length === 0 ? WORDS.footnote : undefined} />
+        </>
+      ) : (
+        <BotSetup />
+      )}
     </>
   );
 }

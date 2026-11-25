@@ -1,0 +1,86 @@
+{
+  "format": "aij-claude-known-formats",
+  "v": 1,
+  "about": "AJ-E2328 req 9: what a move and the ownership repair rely on in a Claude app profile, by structure only, each entry with the Claude app versions it was read on. One source of truth: the Claude adapter (claude_move/worktrees.rs) and scripts/claude_compat_check.py both read this file. Read from on-disk files and the app's own logs, never from the app's code. docs/design/claude-known-formats.md explains each entry.",
+  "app": {
+    "checked": ["5.11492.5"],
+    "accept": [{ "min": "5.11492.0", "below": "5.11493.0" }]
+  },
+  "entries": {
+    "session_record": {
+      "verified_on": ["5.11492.5"],
+      "read": "2026-11-23",
+      "where": "<profile>/claude-code-sessions/<account>/<org>/local_<id>.json",
+      "required": { "sessionId": "string", "cliSessionId": "string" },
+      "typed": {
+        "forkedFromSessionId": "string",
+        "isArchived": "boolean",
+        "cwd": "string",
+        "title": "string",
+        "lastActivityAt": "number",
+        "spawnedFrom": "object",
+        "startChain": "object",
+        "worktreeName": "string",
+        "worktreePath": "string",
+        "branch": "string",
+        "sessionPermissionUpdates": "array",
+        "shellFolders": "array<string>"
+      },
+      "permission_update": {
+        "keys": ["destination", "directories", "type"],
+        "directories": "array<string>"
+      }
+    },
+    "worktree_file": {
+      "verified_on": ["5.11492.5"],
+      "read": "2026-11-23",
+      "where": "<profile>/git-worktrees.json",
+      "schemaVersion": 2,
+      "top": {
+        "schemaVersion": "number",
+        "originUrls": "object",
+        "originPins": "object",
+        "worktrees": "object",
+        "untrackedDirGc": "object",
+        "pendingTombstones": "array"
+      },
+      "lease": {
+        "required": { "name": "string", "path": "string", "leasedBy": "string", "branch": "string" },
+        "typed": {
+          "baseRepo": "string",
+          "sourceBranch": "string",
+          "createdAt": "number",
+          "originRemote": "object",
+          "anchors": "array",
+          "originTopLevel": "string",
+          "autoTrusted": "boolean",
+          "creationGrant": "boolean"
+        }
+      }
+    },
+    "cleanup_sightings": {
+      "verified_on": ["5.11492.5"],
+      "read": "2026-11-23",
+      "where": "<profile>/git-worktrees.json: untrackedDirGc",
+      "keys": { "sightings": "object<number>", "roots": "object<number>", "cwds": "object<number>" }
+    },
+    "side_session_notes": {
+      "verified_on": ["5.11492.5"],
+      "read": "2026-11-23",
+      "where": "<profile>/side-session-notes/<record id>/",
+      "entry": "folder",
+      "named": "local_"
+    },
+    "log_lines": {
+      "verified_on": ["5.11492.5"],
+      "read": "2026-11-23",
+      "where": "~/Library/Logs/Claude/main*.log",
+      "lines": {
+        "recycled": "was recycled; created fresh worktree at",
+        "reaped": "[reapUntrackedWorktreeDir] Removed untracked worktree dir",
+        "write_guard": "worktree-write-guard blocked Write (sibling_worktree)",
+        "started": "appVersion:"
+      }
+    }
+  }
+}

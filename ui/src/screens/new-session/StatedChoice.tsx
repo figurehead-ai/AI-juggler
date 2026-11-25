@@ -111,7 +111,7 @@ export function StatedChoice({
   // or, when it can't, on the one its note offers.
   const markOn = suggestedMarkOn(app, ranked);
   return (
-    <section ref={card} aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-accent/30 bg-accent-soft px-4 py-3.5">
+    <section ref={card} aria-labelledby="new-session-sentence" data-testid="launch-preselected" className="rounded-xl border border-transparent bg-accent-soft px-4 py-3.5">
       <p id="new-session-sentence" data-testid="new-session-sentence" className="text-body leading-snug text-ink">
         {folder ? "Start in " : "Start a session"}
         {folder && <strong className="font-semibold">{folderName(folder)}</strong>}

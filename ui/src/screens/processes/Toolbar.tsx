@@ -34,7 +34,7 @@ export interface Choice {
 }
 
 const VIEWS: { id: ViewId; label: string }[] = [
-  { id: "attention", label: "Needs attention" },
+  { id: "attention", label: "Needs you" },
   { id: "running", label: "Everything running" },
   { id: "ended", label: "Ended" },
   { id: "ports", label: "Ports" },

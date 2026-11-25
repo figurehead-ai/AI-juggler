@@ -675,7 +675,7 @@ lab_routes! {
     "launch_session" => features::launch::commands::launch_session(app, state; profile_id: String, cwd: Option<String>, runtime: Option<String>);
     "stop_session" => features::sessions::commands::stop_session(app, state; session_id: String);
     "session_resume" => features::switch::commands::session_resume(state; session_id: String);
-    "switch_execute" => features::switch::commands::switch_execute(state; session_id: String, target_profile_id: String, freeze_choice: String, redaction_choice: Option<String>, redaction_unredact: Option<Vec<u32>>, trigger: Option<String>, approved: Option<Vec<String>>, destination: Option<String>, cut: Option<crate::features::switch_cut::SwitchCutArgs>);
+    "switch_execute" => features::switch::commands::switch_execute(state; session_id: String, target_profile_id: String, freeze_choice: String, redaction_choice: Option<String>, redaction_unredact: Option<Vec<u32>>, trigger: Option<String>, approved: Option<Vec<String>>, destination: Option<String>, target_place_id: Option<String>, cut: Option<crate::features::switch_cut::SwitchCutArgs>);
     "notifications_send_test" => features::notifications::commands::notifications_send_test(state);
     // Opening a thread marks it read: the window's own click (the P9 walk
     // couldn't open a moved 0.3 thread on the read-only bridge).

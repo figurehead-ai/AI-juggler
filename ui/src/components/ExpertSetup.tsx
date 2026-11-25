@@ -229,7 +229,7 @@ export function ExpertSetup({
                   </>
                 ) : (
                   <p className="leading-relaxed text-ink-2" data-testid="expert-snippet-pending">
-                    The shell line appears once the app exists — it points the vendor's CLI at
+                    The shell line appears once the app exists — it points the tool's CLI at
                     that app's own folder.
                   </p>
                 )}

@@ -64,3 +64,27 @@ export function nodeTitles(members: readonly Titled[], now: number = Date.now(),
 /** The words a node's button is named by: its title, then when it
  * started (the visible title first, WCAG 2.5.3). */
 export const titleWords = (title: NodeTitle): string => (title.when ? `${title.title}, ${title.when}` : title.title);
+
+/** AJ-E2314 L3 (the 0.5.0 re-walk, P11): one name per member on a pool's
+ * page, the diagram's. Its node said "web (2)" while Who's in, its More
+ * menu and the List view said "web · started 11:07 AM (2)". A member named
+ * by its facts is called by its node's title ("web (2)", the app's own
+ * number) where that title is its alone in this pool; where two titles
+ * still read alike (started minutes apart, so unnumbered) the start joins
+ * it, as the node's second line shows it ("web · started 9:10 AM"). A
+ * member with a name of its own keeps it. */
+export function pageNames(members: readonly { id: string; name: string; session: Pick<InstanceInfo, "label" | "title" | "git_branch"> }[], titles: ReadonlyMap<string, NodeTitle>): Map<string, string> {
+  const count = new Map<string, number>();
+  for (const member of members) {
+    const title = titles.get(member.id)?.title;
+    if (title) count.set(title, (count.get(title) ?? 0) + 1);
+  }
+  return new Map(
+    members.map((member) => {
+      const title = titles.get(member.id);
+      if (!title || !namedByFacts(member.session)) return [member.id, member.name] as const;
+      if (count.get(title.title) === 1) return [member.id, title.title] as const;
+      return [member.id, title.when ? `${title.title} · ${title.when}` : member.name] as const;
+    }),
+  );
+}

@@ -45,7 +45,7 @@ describe("AJ-E1524 the welcome's words", () => {
 describe("AJ-E1524 the welcome", () => {
   it("says what the probe found, with install links when nothing is installed", async () => {
     w().__AIJ_PROVIDER_INSTALLS__ = [row("one", "Tool One", "not_installed"), row("two", "Tool Two", "not_installed")];
-    render(<Welcome onFindAccounts={() => {}} onFreshAccount={() => {}} />);
+    render(<Welcome onGetStarted={() => {}} onFreshAccount={() => {}} />);
     await waitFor(() => expect(screen.getByTestId("welcome-found").textContent).toContain("No AI coding tools found yet."));
     expect(screen.getByRole("link", { name: "Install Tool One →" }).getAttribute("href")).toBe("https://one.example/install");
     expect(screen.getByRole("link", { name: "Install Tool Two →" })).toBeTruthy();
@@ -53,18 +53,19 @@ describe("AJ-E1524 the welcome", () => {
 
   it("names the tools found, without install links", async () => {
     w().__AIJ_PROVIDER_INSTALLS__ = [row("one", "Tool One", "installed"), row("two", "Tool Two", "not_installed")];
-    render(<Welcome onFindAccounts={() => {}} onFreshAccount={() => {}} />);
+    render(<Welcome onGetStarted={() => {}} onFreshAccount={() => {}} />);
     await waitFor(() => expect(screen.getByTestId("welcome-found").textContent).toContain("We found Tool One on this computer."));
     expect(screen.queryByRole("link")).toBeNull();
   });
 
   it("each action opens its flow; one h1; the mark is decorative; How it works is a disclosure", () => {
-    const onFindAccounts = vi.fn();
+    const onGetStarted = vi.fn();
     const onFreshAccount = vi.fn();
-    const { container } = render(<Welcome onFindAccounts={onFindAccounts} onFreshAccount={onFreshAccount} />);
-    fireEvent.click(screen.getByRole("button", { name: "Find my apps" }));
+    const { container } = render(<Welcome onGetStarted={onGetStarted} onFreshAccount={onFreshAccount} />);
+    expect(container.querySelector("h1")?.textContent).toBe("Let's get you set up");
+    fireEvent.click(screen.getByRole("button", { name: "Get started" }));
     fireEvent.click(screen.getByRole("button", { name: "Add a fresh app" }));
-    expect(onFindAccounts).toHaveBeenCalledOnce();
+    expect(onGetStarted).toHaveBeenCalledOnce();
     expect(onFreshAccount).toHaveBeenCalledOnce();
     expect(container.querySelectorAll("h1")).toHaveLength(1);
     expect(container.querySelector(".welcome-rise")?.getAttribute("aria-hidden")).toBe("true");
@@ -75,17 +76,24 @@ describe("AJ-E1524 the welcome", () => {
     expect(how.querySelectorAll("ol > li")).toHaveLength(3);
     fireEvent.click(fold);
     expect(fold.getAttribute("aria-expanded")).toBe("true");
-    expect(container.querySelectorAll("ul > li")).toHaveLength(4);
+    expect(screen.getAllByTestId("welcome-benefit")).toHaveLength(4);
+    // AJ-E1545 (the maintainer's amendment): Bot leads, full width, with its Beta tag.
+    const bot = screen.getByTestId("welcome-bot");
+    expect(bot.compareDocumentPosition(screen.getAllByTestId("welcome-benefit")[0]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bot.textContent).toContain("Beta");
+    expect(bot.textContent).toMatch(/your AI assistant for everything AI Juggler sees/i);
+    // Make it smoother left the welcome for the setup wizard.
+    expect(screen.queryByTestId("smoother")).toBeNull();
     expect(screen.getByTestId("welcome-trust").textContent).toContain("never stores your passwords or keys");
     // The reading order: the headline, then the found line, then the actions.
-    const order = [...container.querySelectorAll("h1, [data-testid=welcome-found], [data-testid=welcome-find]")].map(
+    const order = [...container.querySelectorAll("h1, [data-testid=welcome-found], [data-testid=welcome-get-started]")].map(
       (node) => node.tagName === "H1" ? "h1" : (node as HTMLElement).dataset.testid,
     );
-    expect(order).toEqual(["h1", "welcome-found", "welcome-find"]);
+    expect(order).toEqual(["h1", "welcome-found", "welcome-get-started"]);
   });
 
   it("claims support only for tools walked live end to end (D-127)", () => {
-    render(<Welcome onFindAccounts={() => {}} onFreshAccount={() => {}} />);
+    render(<Welcome onGetStarted={() => {}} onFreshAccount={() => {}} />);
     const lead = screen.getByText(/AI Juggler runs your/);
     expect(lead.textContent).toContain("Claude Code, Codex, OpenCode and Grok Build sessions");
     for (const unproven of ["Kimi Code", "ZCode", "Muse Code", "Hermes Agent"]) expect(lead.textContent).not.toContain(unproven);

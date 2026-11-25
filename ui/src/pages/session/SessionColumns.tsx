@@ -5,8 +5,9 @@
  * fixed column (where it runs, its runway, where it could continue) that
  * scrolls within itself. One layout for every kind of session.
  */
-import { useEffect, useState, type JSX, type ReactNode, type RefObject } from "react";
+import { useContext, useEffect, useState, type JSX, type ReactNode, type RefObject } from "react";
 import { MoreBelow, useMoreBelow } from "../../components/MoreBelow";
+import { PageFolded } from "../page-folded";
 
 /** The width a box's scroll bar takes from its content (0 while it
  * overlays or doesn't show). */
@@ -31,6 +32,24 @@ export function SessionColumns({ main, side, lead, testId = "session-overview" }
   // The 0.5.0 walk, F7: with a scroll bar shown, the cards under `lead`
   // were 13 px narrower than it; `lead` leaves the same room.
   const gutter = useScrollbarGutter(box);
+  // AJ-E1504 R2 (F89): folded (⌘⇧I), the side column steps aside and the
+  // conversation gets the room; `lead` (Switch account…, D-143) stays,
+  // above it on the right, where the column was.
+  const folded = useContext(PageFolded);
+  if (folded) {
+    return (
+      <div className="@container/session flex min-h-0 flex-1 flex-col" data-testid={testId} data-folded="true">
+        <div className={"mx-auto grid w-full max-w-[1440px] min-h-0 flex-1 grid-cols-1 gap-4 " + (lead ? "grid-rows-[auto_minmax(0,1fr)]" : "grid-rows-[minmax(0,1fr)]")}>
+          {lead && (
+            <div className="min-w-0 @4xl:ml-auto @4xl:w-[340px]" data-testid="session-lead">
+              {lead}
+            </div>
+          )}
+          <div className="flex min-h-[28rem] min-w-0 flex-col @4xl:min-h-0">{main}</div>
+        </div>
+      </div>
+    );
+  }
   return (
     // R2 (the 0.5.0 re-walk): named, so what sits inside the main pane
     // (under the conversation switcher's own container) asks this one

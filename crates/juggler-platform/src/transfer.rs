@@ -100,14 +100,35 @@ pub fn same_device(a: &Path, b: &Path) -> io::Result<bool> {
     Ok(device_of(a)? == device_of(b)?)
 }
 
+thread_local! {
+    /// A test's answer to "does this disk make clones", on its own thread.
+    static CLONES_FOR_TESTS: std::cell::Cell<Option<bool>> =
+        const { std::cell::Cell::new(None) };
+}
+
+/// For tests (as `room::set_free_space_on_this_thread`): on this thread
+/// [`clones_supported`] answers `clones` for every disk instead of asking
+/// it. `Some(true)` lets a test reach the checks after this one on a disk
+/// that makes no clones (a CI runner's ext4); a clone there is a plain
+/// copy of the test's small files. `Some(false)` proves the refusal on a
+/// disk that does make them. `None` asks the disk again. A real move never
+/// sets it, so the check stays strict.
+pub fn set_clones_on_this_thread(clones: Option<bool>) {
+    CLONES_FOR_TESTS.with(|cell| cell.set(clones));
+}
+
 /// Whether the disk `dir` (or the nearest folder above it) is on makes
 /// clones: a copy there shares the original's blocks until either is
-/// written. macOS: the disk is APFS. Elsewhere: not yet.
+/// written. macOS: the disk is APFS. Elsewhere: not yet. On a thread where
+/// a test set one ([`set_clones_on_this_thread`]), the test's answer.
 ///
 /// # Errors
 ///
 /// The disk can't be read.
 pub fn clones_supported(dir: &Path) -> io::Result<bool> {
+    if let Some(clones) = CLONES_FOR_TESTS.with(std::cell::Cell::get) {
+        return Ok(clones);
+    }
     #[cfg(target_os = "macos")]
     {
         let existing = existing_ancestor(dir)
@@ -164,7 +185,10 @@ fn clone_checked(from: &Path, to: &Path) -> io::Result<()> {
 
 #[cfg(not(target_os = "macos"))]
 fn clone_checked(from: &Path, to: &Path) -> io::Result<()> {
-    let _ = (from, to);
+    if CLONES_FOR_TESTS.with(std::cell::Cell::get) == Some(true) {
+        // A test's stand-in disk (`set_clones_on_this_thread`).
+        return std::fs::copy(from, to).map(|_| ());
+    }
     Err(crate::unsupported("cloning a file"))
 }
 
@@ -356,6 +380,29 @@ mod tests {
         let to = tmp.path().join("t");
         rename_on_device(&from, &to).unwrap();
         assert_eq!(std::fs::read(to.join("subagents/a.jsonl")).unwrap(), b"x");
+    }
+
+    #[test]
+    fn a_tests_answer_on_its_thread_decides_clones_and_none_asks_the_disk() {
+        let tmp = tempfile::tempdir().unwrap();
+        let disk = clones_supported(tmp.path()).unwrap();
+        let from = tmp.path().join("a");
+        std::fs::write(&from, b"bytes").unwrap();
+        set_clones_on_this_thread(Some(false));
+        assert!(!clones_supported(tmp.path()).unwrap());
+        let refused = clone_file(&from, &tmp.path().join("no")).unwrap_err();
+        assert_eq!(refused.kind(), io::ErrorKind::Unsupported);
+        assert!(!tmp.path().join("no").exists(), "nothing written");
+        // Another thread still asks the disk.
+        let elsewhere = tmp.path().to_path_buf();
+        let there = std::thread::spawn(move || clones_supported(&elsewhere).unwrap());
+        assert_eq!(there.join().unwrap(), disk);
+        set_clones_on_this_thread(Some(true));
+        assert!(clones_supported(tmp.path()).unwrap());
+        clone_file(&from, &tmp.path().join("yes")).unwrap();
+        assert_eq!(std::fs::read(tmp.path().join("yes")).unwrap(), b"bytes");
+        set_clones_on_this_thread(None);
+        assert_eq!(clones_supported(tmp.path()).unwrap(), disk);
     }
 
     #[test]

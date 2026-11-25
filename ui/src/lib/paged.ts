@@ -15,6 +15,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Page } from "../types/generated/Page";
+import { logLoadFailure, withDeadline } from "./loading";
 import type { PageRequest } from "../types/generated/PageRequest";
 
 export type { Page, PageRequest };
@@ -166,7 +167,9 @@ export function usePagedList<T>(
     const shownRows = entryRef.current?.items.length ?? 0;
     const limit = Math.min(Math.max(pageSize, shownRows), MAX_PAGE);
     setState((now) => (now.key === key ? { ...now, stale: now.entry !== null, error: null } : now));
-    fetchRef.current({ cursor: null, limit }).then(
+    // AJ-E1552: within the read deadline, or it failed (logged): never a
+    // skeleton for ever.
+    withDeadline(key ?? "a list", fetchRef.current({ cursor: null, limit })).then(
       (page) => {
         if (generation.current !== mine) return;
         // A newer read under the key is shown already: this one is older.
@@ -182,6 +185,7 @@ export function usePagedList<T>(
       },
       (error: unknown) => {
         if (generation.current !== mine) return;
+        logLoadFailure(key ?? "a list", error);
         setState((now) => (now.key === key ? { ...now, stale: false, error } : now));
       },
     );
@@ -206,7 +210,7 @@ export function usePagedList<T>(
     const mine = generation.current;
     const cursor = entry.nextCursor;
     setState((now) => (now.key === key ? { ...now, loadingMore: true } : now));
-    fetchRef.current({ cursor, limit: pageSize }).then(
+    withDeadline(key ?? "a list", fetchRef.current({ cursor, limit: pageSize })).then(
       (page) => {
         busyMore.current = false;
         if (generation.current !== mine) return;

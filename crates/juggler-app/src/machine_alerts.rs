@@ -69,6 +69,17 @@ pub const ALERT_EVERY_MS: i64 = 30 * 60_000;
 const PRESSURE_HOLD_MS: i64 = 30_000;
 /// Swap must keep growing this long (on top of its one-minute rate).
 const SWAP_HOLD_MS: i64 = 60_000;
+/// A swap growth rate (MB a minute) in the unit a person reads: MB under
+/// a gigabyte, else GB with one decimal ("3004 MB" read as a typo on This
+/// Mac; 0.5.1 batch B3).
+fn swap_rate_words(rate_mb: f64) -> String {
+    if rate_mb >= 1024.0 {
+        format!("{:.1} GB", rate_mb / 1024.0)
+    } else {
+        format!("{rate_mb:.0} MB")
+    }
+}
+
 /// Swap growth that counts as thrashing, MB a minute.
 const SWAP_THRASH_MB_PER_MIN: f64 = 200.0;
 /// Once on, a swap alert stays on above this, MB a minute.
@@ -303,7 +314,7 @@ fn conditions(mac: &ThisMacInfo, on: &std::collections::HashSet<String>) -> Vec<
             kind: "swap",
             hold_ms: SWAP_HOLD_MS,
             title: "Your Mac is swapping hard".into(),
-            detail: format!("swap is growing — {rate:.0} MB a minute"),
+            detail: format!("swap is growing — {} a minute", swap_rate_words(rate)),
             subject,
             tell_cpu: false,
             tell_memory: true,
@@ -995,6 +1006,14 @@ mod tests {
         let told = run(&mut engine, &mac, 60_000, 10);
         assert_eq!(told.len(), 1);
         assert_eq!(told[0].detail, "swap is growing — 240 MB a minute");
+    }
+
+    /// 0.5.1 B3: past a gigabyte a minute the rate reads in GB.
+    #[test]
+    fn a_large_swap_rate_reads_in_gigabytes() {
+        assert_eq!(swap_rate_words(240.0), "240 MB");
+        assert_eq!(swap_rate_words(1023.4), "1023 MB");
+        assert_eq!(swap_rate_words(3004.0), "2.9 GB");
     }
 
     #[test]

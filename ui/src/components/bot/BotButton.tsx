@@ -9,6 +9,7 @@ import { IconBot } from "./bot-icons";
 import { WORDS } from "../../lib/bot-words";
 import { openBot, toggleBot, useBot, type BotScope } from "../../lib/bot-store";
 import { keysOf } from "../../lib/shortcuts";
+import { useBotReady } from "../../lib/ai-availability";
 
 export function BotButton(): JSX.Element {
   const bot = useBot();
@@ -30,8 +31,11 @@ export function BotButton(): JSX.Element {
   );
 }
 
-/** "Ask Bot about this", beside an object's own actions. */
-export function AskBot({ scope, size = "sm", className = "" }: { scope: BotScope; size?: "sm" | "xs"; className?: string }): JSX.Element {
+/** "Ask Bot about this", beside an object's own actions; shown only while
+ * Bot's AI is ready (D-144, D-127: hidden otherwise). */
+export function AskBot({ scope, size = "sm", className = "" }: { scope: BotScope; size?: "sm" | "xs"; className?: string }): JSX.Element | null {
+  const ready = useBotReady();
+  if (!ready) return null;
   return (
     <button
       type="button"

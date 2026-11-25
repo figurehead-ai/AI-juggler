@@ -14,7 +14,7 @@ import { launchSettingsName } from "../lib/account-words";
 import { useCliRecipes, useTargetApp } from "../lib/apps";
 import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { PRIMARY_FILL } from "./primitives";
-import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { DialogFrame, DialogOverlay, wrapTab } from "./DialogFrame";
 
 const NO_RECIPES: readonly LaunchRecipeInfo[] = [];
 
@@ -60,19 +60,7 @@ export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: rea
         event.preventDefault();
         decide({ kind: "cancel" });
       }
-      if (event.key === "Tab" && node) {
-        const buttons = Array.from(node.querySelectorAll<HTMLElement>("button"));
-        if (buttons.length === 0) return;
-        const first = buttons[0]!;
-        const last = buttons[buttons.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
-      }
+      if (event.key === "Tab" && node) wrapTab(event, node, "button");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -141,7 +129,7 @@ export function IdentityMismatchDialog({ recipes = NO_RECIPES }: { recipes?: rea
               type="button"
               onClick={() => decide({ kind: "switch", recipeId: alternative.recipe_id })}
               // 0.3.2: the first way out is the dialog's primary.
-              className={"flex flex-col gap-0.5 rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-accent/40 bg-accent-soft text-accent-hi")}
+              className={"flex flex-col gap-0.5 rounded-lg border px-3 py-1.5 text-left text-xs " + (index === 0 ? PRIMARY_FILL : "border-transparent bg-accent-soft text-accent-hi")}
               data-testid="identity-switch"
               {...(index === 0 ? { "data-primary": "" } : {})}
             >

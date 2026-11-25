@@ -89,7 +89,7 @@ describe("TimeField", () => {
 });
 
 describe("one field look", () => {
-  it("draws DateField and TimeField alike: filled, a hairline edge, the kit's 36 px at lg", () => {
+  it("draws DateField and TimeField alike: filled, its frame quiet (PAT-SURF), the kit's 36 px at lg", () => {
     render(
       <>
         <DateField ariaLabel="Renews on" value="2026-12-12" onCommit={() => {}} size="lg" />
@@ -98,8 +98,8 @@ describe("one field look", () => {
     );
     for (const name of ["Renews on", "Quiet to"]) {
       const shell = screen.getByRole("textbox", { name }).parentElement!;
-      expect(shell.className).toContain("bg-fill");
-      expect(shell.className).toContain("inset-ring-hairline/75");
+      expect(shell.className).toContain("bg-control");
+      expect(shell.className).toContain("inset-ring-frame");
       expect(shell.className).toContain("h-9");
     }
     expect(screen.getByRole("button", { name: "Choose from a calendar" })).toBeTruthy();

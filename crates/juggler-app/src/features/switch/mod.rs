@@ -12,5 +12,6 @@ pub mod moves;
 pub mod preflight;
 pub mod replay;
 pub mod resume;
+pub(crate) mod source_app;
 pub mod targets;
 pub mod undo;

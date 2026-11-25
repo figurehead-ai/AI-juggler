@@ -12,7 +12,8 @@ use crate::features::handover::moving::{
 use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
-/// Tauri: the Move offer for the switch screen.
+/// Tauri: the Move offer for the switch screen, into the App the user
+/// picked (`target_place_id`, AJ-E2317; none: a terminal's folder).
 ///
 /// # Errors
 ///
@@ -22,14 +23,21 @@ pub async fn switch_move_offer(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
+    target_place_id: Option<String>,
 ) -> AppResult<MoveOfferInfo> {
     crate::ipc::blocking(state.inner(), "check the move", move |state| {
-        offer(state, &session_id, &target_profile_id)
+        offer(
+            state,
+            &session_id,
+            &target_profile_id,
+            target_place_id.as_deref(),
+        )
     })
     .await
 }
 
-/// Tauri: moves the conversation (the user's click on Move).
+/// Tauri: moves the conversation (the user's click on Move) into the App
+/// the user picked (`target_place_id`, AJ-E2317: by its id end to end).
 ///
 /// # Errors
 ///
@@ -40,6 +48,7 @@ pub async fn switch_move_execute(
     state: tauri::State<'_, Arc<AppState>>,
     session_id: String,
     target_profile_id: String,
+    target_place_id: Option<String>,
     take_notes: Option<bool>,
 ) -> AppResult<MoveDoneInfo> {
     let notes = if take_notes == Some(true) {
@@ -54,7 +63,12 @@ pub async fn switch_move_execute(
             use crate::events::{AppEvent, EmitEvent as _};
             steps.emit_event(AppEvent::MoveProgress, progress.clone());
         });
-        let done = execute(state, &session_id, &target_profile_id, notes, tell)?;
+        let target = (
+            session_id.as_str(),
+            target_profile_id.as_str(),
+            target_place_id.as_deref(),
+        );
+        let done = execute(state, target, notes, tell)?;
         let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
         Ok(done)
     })
@@ -80,6 +94,81 @@ pub async fn switch_move_undo(
     .await
 }
 
+/// Tauri: AJ-E2321, Finish (the Moves door, by the move's id): a move
+/// that stopped after its checks passed is checked once more and kept.
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::recover::finish`].
+#[tauri::command]
+pub async fn switch_move_finish(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    move_id: String,
+) -> AppResult<crate::features::handover::moving::recover::MoveFinishedInfo> {
+    crate::ipc::blocking(state.inner(), "finish the move", move |state| {
+        let said = crate::features::handover::moving::recover::finish(state, &move_id)?;
+        let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
+        Ok(said)
+    })
+    .await
+}
+
+/// Tauri: AJ-E2325, Delete backup (the Moves door, by the move's id, after
+/// its sheet says the move can no longer be undone).
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::retention::delete_backup`].
+#[tauri::command]
+pub async fn switch_move_delete_backup(
+    state: tauri::State<'_, Arc<AppState>>,
+    move_id: String,
+) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "delete the move's backup", move |state| {
+        crate::features::handover::moving::retention::delete_backup(state, &move_id)
+    })
+    .await
+}
+
+/// Tauri: AJ-E2325, the backups kept for Undo together: the Moves door's
+/// total, the header's "N to clean up", and whether room is short (the
+/// offer to clear the older ones). Reads only.
+///
+/// # Errors
+///
+/// None of its own (the blocking pool's).
+#[tauri::command]
+pub async fn switch_move_backups(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<crate::features::handover::moving::retention::MoveBackupsInfo> {
+    crate::ipc::blocking(state.inner(), "count move backups", move |state| {
+        Ok(crate::features::handover::moving::retention::backups(
+            state,
+            crate::commands::now_millis(),
+        ))
+    })
+    .await
+}
+
+/// Tauri: AJ-E2325, the low-disk offer accepted: clears the backups of
+/// moves made more than a day ago (after its sheet says those moves can no
+/// longer be undone). Returns the words.
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::retention::clear_old`].
+#[tauri::command]
+pub async fn switch_move_clear_old(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
+    crate::ipc::blocking(state.inner(), "clear old move backups", move |state| {
+        crate::features::handover::moving::retention::clear_old(
+            state,
+            crate::commands::now_millis(),
+        )
+    })
+    .await
+}
+
 /// Tauri: the moves AI Juggler knows of (Undo, and one left part way),
 /// newest first, a page at a time.
 ///
@@ -98,6 +187,48 @@ pub async fn switch_moves(
             |row| SortKey::new(vec![-row.at_ms], row.move_id.clone()),
             &page,
         )
+    })
+    .await
+}
+
+/// Tauri: AJ-E2328, the ownership check for Settings › Desktop apps: each
+/// app's version and whether moves were checked on it, the conversations
+/// whose worktree another profile owns (each with what Repair quits), and
+/// the worktrees another profile's cleanup has seen. Reads only.
+///
+/// # Errors
+///
+/// None of its own (the blocking pool's).
+#[tauri::command]
+pub async fn switch_ownership(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<crate::features::handover::moving::repair::OwnershipInfo> {
+    crate::ipc::blocking(state.inner(), "check worktree ownership", move |state| {
+        Ok(crate::features::handover::moving::repair::findings(
+            state,
+            &crate::features::handover::moving::Real::quiet(),
+        ))
+    })
+    .await
+}
+
+/// Tauri: AJ-E2328, Repair (the user's click, after the sheet naming the
+/// profiles it quits): the worktree's ownership moved to the profile that
+/// holds the conversation, by the move's own path.
+///
+/// # Errors
+///
+/// As [`crate::features::handover::moving::repair::repair`].
+#[tauri::command]
+pub async fn switch_ownership_repair(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+    key: String,
+) -> AppResult<crate::features::handover::moving::repair::OwnershipRepairedInfo> {
+    crate::ipc::blocking(state.inner(), "repair worktree ownership", move |state| {
+        let done = crate::features::handover::moving::repair::repair(state, &key)?;
+        let _ = crate::features::sessions::read_model::emit_sessions(&app, state);
+        Ok(done)
     })
     .await
 }

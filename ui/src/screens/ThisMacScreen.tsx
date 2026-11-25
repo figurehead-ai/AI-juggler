@@ -14,13 +14,16 @@
  * Mac's figures as cards sized to their content, in a grid.
  */
 import { Page } from "../components/Page";
-import { useContext, type JSX, type ReactNode } from "react";
+import { useContext, useState, type JSX, type ReactNode } from "react";
 import { Button } from "../components/primitives";
 import { ToolMark } from "../components/ToolMark";
 import { AwakeLine, MachineState, OwnLine, TreeRow, cpuWords } from "../components/this-mac-parts";
 import { MemoryMeter, OtherAppsGroup, ROW_FOLD } from "../components/this-mac-memory";
 import { Disclosure } from "../components/controls";
 import { RowPlaceholders } from "../components/Placeholder";
+import { LoadingState } from "../components/LoadingState";
+import { useReadState } from "../lib/loading";
+import { thisMac } from "../lib/ipc/this-mac";
 import { alertNextStep, alertSubject, bytesWords, ThisMacContext, type ThisMacInfo, type ToolTreeInfo } from "../lib/machine";
 import type { ToolGroupInfo } from "../types/generated/ToolGroupInfo";
 
@@ -158,8 +161,28 @@ export function ThisMacScreen(props: OverviewProps): JSX.Element {
 
 /** AJ-E3104: the This Mac page's Overview: its state, its figures, what's
  * using it, what's working it hard, alerts and leftovers. */
+/** AJ-E1552: the app's reading of this Mac, or this page's own after a
+ * Retry: a measurement (or a look for running tools) that never comes is
+ * an error with Retry, not a skeleton for ever (`round` restarts its
+ * clock). */
+function useThisMacRead() {
+  const given = useContext(ThisMacContext);
+  const [own, setOwn] = useState<ThisMacInfo | null>(null);
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
+  const info = given?.machine.sampled || !own?.machine.sampled ? given : own;
+  const measured = useReadState(info?.machine.sampled ? info : null, "this computer's measurements", { error: failed, round, isEmpty: () => false });
+  const tools = useReadState(info && (info.scanned || info.by_tool.length > 0) ? info.by_tool : null, "the AI tools running on this computer", { error: failed, round });
+  const retry = () => {
+    setFailed(undefined);
+    setRound((n) => n + 1);
+    void thisMac().then(setOwn, setFailed);
+  };
+  return { info, measured, tools, retry };
+}
+
 export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: OverviewProps): JSX.Element {
-  const info = useContext(ThisMacContext);
+  const { info, measured, tools, retry } = useThisMacRead();
   const machine = info?.machine;
   return (
     <>
@@ -167,7 +190,20 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
           empty Memory card and "Not measured yet": until the Mac is
           measured, the page says it's measuring. */}
       {!info || !machine || !machine.sampled ? (
-        <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
+        <LoadingState
+          state={measured.state}
+          slow={measured.slow}
+          what="this computer's measurements"
+          skeleton={
+            <div data-testid="this-mac-loading">
+              <RowPlaceholders shape="home" rows={4} label="Measuring this Mac" />
+            </div>
+          }
+          empty={null}
+          onRetry={retry}
+        >
+          {null}
+        </LoadingState>
       ) : (
         // Two columns on a wide window: the Mac's figures, and what's
         // using it (the shared page frame, 0.1.5).
@@ -220,8 +256,26 @@ export function ThisMacOverview({ nameOf, onOpenSession, onOpenCleanup }: Overvi
           <Section id="this-mac-using" title="What's using it">
             {/* "None running" needs a look first (0.4.7 walk V2: said
                 beside two running sessions before the first scan). */}
-            {info.by_tool.length === 0 &&
-              (info.scanned ? <p className="text-body text-ink-2">No AI tools are running.</p> : <RowPlaceholders shape="rail" rows={2} label="Looking for running AI tools" />)}
+            {info.by_tool.length === 0 && (
+              <LoadingState
+                state={tools.state}
+                slow={tools.slow}
+                what="the AI tools running on this computer"
+                skeleton={
+                  <div data-testid="this-mac-tools-loading">
+                    <RowPlaceholders shape="rail" rows={2} label="Looking for running AI tools" />
+                  </div>
+                }
+                empty={
+                  <p className="text-body text-ink-2" data-testid="this-mac-tools-empty">
+                    No AI tools are running. Each one shows up here when it starts.
+                  </p>
+                }
+                onRetry={retry}
+              >
+                {null}
+              </LoadingState>
+            )}
             <div className="flex flex-col">
               {info.by_tool.map((group) => (
                 <ToolGroup key={`${group.ours ? "ours" : "theirs"}-${group.tool}`} group={group} info={info} nameOf={nameOf} onOpenSession={onOpenSession} />

@@ -42,7 +42,7 @@ function kindWords(ask: AskInfo): string {
   }
 }
 
-function Approval({ ask, busy, answer }: { ask: AskInfo; busy: boolean; answer: (option: string) => void }): JSX.Element {
+function Approval({ ask, busy, answer, lead }: { ask: AskInfo; busy: boolean; answer: (option: string) => void; lead: boolean }): JSX.Element {
   if (ask.options.length === 0) {
     return <p className="text-label text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>;
   }
@@ -52,7 +52,7 @@ function Approval({ ask, busy, answer }: { ask: AskInfo; busy: boolean; answer: 
         <Button
           key={option.id}
           size="sm"
-          variant={variantOf(option, index === 0)}
+          variant={variantOf(option, lead && index === 0)}
           disabled={busy}
           title={option.rule ? `The tool remembers: ${option.rule}. Take it back in the tool.` : undefined}
           aria-keyshortcuts={index < 9 ? String(index + 1) : undefined}
@@ -67,7 +67,7 @@ function Approval({ ask, busy, answer }: { ask: AskInfo; busy: boolean; answer: 
   );
 }
 
-function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply: (parts: { part: string; answers: string[] }[]) => void }): JSX.Element {
+function QuestionForm({ ask, busy, reply, lead }: { ask: AskInfo; busy: boolean; reply: (parts: { part: string; answers: string[] }[]) => void; lead: boolean }): JSX.Element {
   const [picked, setPicked] = useState<Record<string, string[]>>({});
   const [typed, setTyped] = useState<Record<string, string>>({});
   const answersOf = (id: string) => {
@@ -129,7 +129,7 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
         </fieldset>
       ))}
       <div>
-        <Button type="submit" size="sm" variant="primary" disabled={busy || !ready} data-testid="ask-reply">
+        <Button type="submit" size="sm" variant={lead ? "primary" : "secondary"} disabled={busy || !ready} data-testid="ask-reply">
           Send answer
         </Button>
       </div>
@@ -142,7 +142,9 @@ function QuestionForm({ ask, busy, reply }: { ask: AskInfo; busy: boolean; reply
  * goes to the pool's ask, not a tool's); the card is the same. */
 /** `plain`: inside a panel that already frames it (a pool's inspector),
  * a tinted section without its own border (design review #36). */
-export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = false }: { ask: AskInfo; title?: string; kindLabel?: string; answer?: (option: string) => Promise<void>; onAnswered?: () => void; plain?: boolean }): JSX.Element {
+/** `lead`: its first allow is the view's one filled button (false when
+ * another card above it already has it: Home's Needs you, one per view). */
+export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = false, lead = true }: { ask: AskInfo; title?: string; kindLabel?: string; answer?: (option: string) => Promise<void>; onAnswered?: () => void; plain?: boolean; lead?: boolean }): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const send = (reply: Parameters<typeof runtimeAnswer>[2]) => {
@@ -178,15 +180,22 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = fal
     <div
       tabIndex={0}
       onKeyDown={onKey}
-      className={"flex flex-col gap-2 rounded-lg bg-warning-soft/40 p-3 outline-none focus-visible:ring-1 focus-visible:ring-accent/60" + (plain ? "" : " border border-warning/30")}
+      // 0.5.1 F59 (PAT-COLOR-2, PAT-SURF-1): a need card's look, by tone,
+      // with an amber mark; never an amber fill behind words or an outline.
+      // Inside a panel that already frames it (`plain`), one tone step up.
+      className={"flex flex-col gap-2 outline-none focus-visible:ring-1 focus-visible:ring-accent/60 " + (plain ? "rounded-lg bg-surface-2 p-3" : "rounded-xl bg-surface px-3.5 py-3")}
       data-testid="ask-card"
       data-ask={ask.id}
       aria-label={`${kindLabel ?? kindWords(ask)}: ${ask.summary}${title ? ` — ${title}` : ""}`}
     >
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-label font-semibold uppercase tracking-wider text-warning">
-          {kindLabel ?? kindWords(ask)}
-          {title ? ` · ${title}` : ""}
+        <span className="flex min-w-0 items-center gap-1.5 text-label font-semibold uppercase tracking-wider text-warning" data-testid="ask-kind">
+          {/* The ask's mark: its level's amber dot (decoration, the words say it). */}
+          <span aria-hidden="true" className="level-mark shrink-0" data-level={2} data-testid="ask-mark" />
+          <span className="min-w-0">
+            {kindLabel ?? kindWords(ask)}
+            {title ? ` · ${title}` : ""}
+          </span>
         </span>
         {kindLabel ? (
           <span className="text-body text-ink">{ask.summary}</span>
@@ -200,9 +209,9 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = fal
         {ask.reason && <span className="whitespace-pre-wrap text-meta text-muted">{ask.reason}</span>}
       </div>
       {ask.kind === "approval" ? (
-        <Approval ask={ask} busy={busy} answer={(option) => send({ option })} />
+        <Approval ask={ask} busy={busy} answer={(option) => send({ option })} lead={lead} />
       ) : ask.parts.length > 0 ? (
-        <QuestionForm ask={ask} busy={busy} reply={(replies) => send({ replies })} />
+        <QuestionForm ask={ask} busy={busy} reply={(replies) => send({ replies })} lead={lead} />
       ) : (
         <p className="text-label text-muted" data-testid="ask-in-terminal">Answer it in its terminal: Go to it.</p>
       )}
@@ -219,7 +228,18 @@ export function AskCard({ ask, title, kindLabel, answer, onAnswered, plain = fal
  * view): small approvals answered one after another without leaving
  * Home. `titleOf` names each one's session. */
 export function AskBatch({ titleOf }: { titleOf: (sessionId: string) => string | undefined }): JSX.Element | null {
-  const asks = useOpenAsks().filter((ask) => ask.options.length > 0 || ask.parts.length > 0);
+  return <AskBatchOf asks={useBatchAsks()} titleOf={titleOf} />;
+}
+
+/** The open asks the batch shows (Needs you reads them once, to know
+ * whether a card above its own has the view's one filled button). */
+export function useBatchAsks(): AskInfo[] {
+  return useOpenAsks().filter((ask) => ask.options.length > 0 || ask.parts.length > 0);
+}
+
+/** The batch drawn from asks read elsewhere; `lead`: its first card has
+ * the view's one filled button. */
+export function AskBatchOf({ asks, titleOf, lead = true }: { asks: AskInfo[]; titleOf: (sessionId: string) => string | undefined; lead?: boolean }): JSX.Element | null {
   if (asks.length === 0) return null;
   return (
     <div className="flex flex-col gap-2" data-testid="ask-batch">
@@ -227,8 +247,8 @@ export function AskBatch({ titleOf }: { titleOf: (sessionId: string) => string |
         {asks.length === 1 ? "1 question from a session" : `${asks.length} questions from your sessions`}
         {" · answer here, or go to the session"}
       </span>
-      {asks.map((ask) => (
-        <AskCard key={`${ask.session_id}:${ask.id}`} ask={ask} title={titleOf(ask.session_id)} />
+      {asks.map((ask, index) => (
+        <AskCard key={`${ask.session_id}:${ask.id}`} ask={ask} title={titleOf(ask.session_id)} lead={lead && index === 0} />
       ))}
     </div>
   );

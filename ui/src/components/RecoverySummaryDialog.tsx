@@ -47,7 +47,7 @@ export function RecoverySummaryDialog({
       data-testid="recovery-summary"
     >
       <DialogFrame
-        className="sheen w-full max-w-md rounded-card border border-hairline bg-surface shadow-[0_24px_80px_-24px_rgba(0,0,0,0.8)]"
+        className="w-full max-w-md rounded-card border border-hairline bg-surface shadow-dialog"
         headerClassName="px-5 pt-5"
         bodyClassName="px-5 pb-1.5"
         footerClassName="px-5 pt-2.5 pb-5"

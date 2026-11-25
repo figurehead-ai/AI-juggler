@@ -145,7 +145,7 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     await page.getByTestId("notification-bell").click();
     await expect(page.getByTestId("notices-needs")).toContainText("Claude Max 20x is almost out of room");
     await expect(page.getByTestId("notices-earlier")).toContainText("crashed and was restarted (try 1 of 3)");
-    await expect(page.getByText(`Needs action · ${home}`)).toBeVisible();
+    await expect(page.getByText(`Needs you · ${home}`)).toBeVisible();
     await shoot(page, "centre-populated", theme);
     // A need's ⋯: Snooze 1 h, Snooze until tomorrow, Mute this project, Mute this kind.
     await page.getByTestId("notice-more").first().click();

@@ -10,7 +10,6 @@
  * Agent access opens the pool's settings in the inspector.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
-
 import { Card } from "../components/primitives";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -25,12 +24,12 @@ import { useLogoSources, useMoreCandidates, useRuleLabel, useRuleTool } from "./
 import { PlannedTeam, canvasRoom } from "./pool/PlannedTeam";
 import { ScopeSheet } from "./pool/ScopeSheet";
 import { NewPool } from "../screens/pools/NewPool";
-import { EmptyPoolSetup, SetupSkeleton } from "./pool/EmptyPoolSetup";
+import { EmptyPoolSetup, SetupLoading } from "./pool/EmptyPoolSetup";
 import type { PoolRules } from "../lib/pool-rules";
 import { FOCUS_THREAD, useMessageNeeds } from "../lib/ipc/messages";
 import { FOCUS_TASK, focusTask, useTaskNeeds, type TaskInfo } from "../lib/ipc/tasks";
 import { needsPanel, openInPool, poolById, poolIdOf, poolIdsOf, poolNeedCount, scopeChipWords, scopeLabel, setPools, usePools } from "../lib/pools";
-import { drawnRules, drawsPlanned, everyoneOf, usePoolSetup } from "./pool/usePoolSetup";
+import { drawnRules, drawsPlanned, everyoneOf, leadOnceSetUp, usePoolSetup } from "./pool/usePoolSetup";
 import { desktopRecipients } from "../lib/connector";
 import { useDesktopOnCanvas } from "./pool/useDesktopOnCanvas";
 import { PoolSetupSections } from "./pool/PoolSetupSections";
@@ -92,7 +91,7 @@ function PoolGate(props: PageProps): JSX.Element {
   const rules = usePoolRules(props.poolId);
   const [diagramChosen, chooseDiagram] = useDiagramChosen(pool.id);
   const peopled = hasWhoIsIn(pool.members, hasMemberRules(pool, rules));
-  if (!peopled && rules.rules === null) return <SetupSkeleton title={`Set up ${pool.name}`} />;
+  if (!peopled && rules.rules === null) return <SetupLoading title={`Set up ${pool.name}`} rules={rules} />;
   if (opensInSetup({ peopled, rulesRead: true, diagramChosen })) {
     return <EmptyPoolSetup pool={pool} rules={rules} projects={props.projects} sessions={props.sessions} accounts={props.accounts} onDiagram={chooseDiagram} />;
   }
@@ -233,10 +232,10 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
   // D-126 §3: before any session joins, the canvas draws the planned team.
   const broad = drawnRules(pool, memberRules).filter((rule) => rule.kind !== "session" && !rule.member.startsWith("conversation:"));
   const planned = drawsPlanned(pool, data.members.length + desktop.refs.length, broad.length, openHere.length);
-  // D-126 §3: setting up (its checklist, the planned team) until a session
-  // has joined and the setup is done, or Hide setup; then the calm view.
+  // D-126 §3: setting up (its checklist, the planned team) until a session has joined and the setup is done, or Hide setup; then the calm view.
   const progress = useSetupProgress({ pool, rows: setup.rows, places: setup.tools, rules, ruleLabel });
   const { phase, hidden, hide, edit } = useSetupPhase(pool.id, pool.members > 0, progress.complete);
+  const { leadCard, room } = leadOnceSetUp(setup, phase, drawnRules(pool, memberRules), rules.watched);
   const onDeleted = () => {
     showToast({ message: `Deleted ${pool.name}`, detail: "Its sessions are back in their projects' own pools." });
     // To the Pools screen (Home when there is none).
@@ -302,11 +301,11 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   }}
                 />
               }
-              {...canvasRoom(planned, broad, setup)}
+              {...canvasRoom(planned, broad, { ...setup, leadCard, room })}
               lineRules={lineRules}
               overlay={(placeOf, view) =>
                 planned ? (
-                  <PlannedTeam poolId={pool.id} joined={pool.members} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={setup.leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
+                  <PlannedTeam poolId={pool.id} joined={pool.members} rules={broad} labelOf={ruleLabel} logos={logos} leadNext={setup.leadNext?.ref ?? null} noLead={leadCard} where={where} view={view} selection={selection} onSelect={(next) => select(next, true)} onStartLead={(member) => startNextLead(member, setup.leadDir)} talk={rules.rules?.talk} />
                 ) : (
                 <RuleNodes
                   rules={drawnRules(pool, memberRules)}
@@ -319,7 +318,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
                   edges={data.canvas?.edges}
                   names={names}
                   lineRules={lineRules}
-                  lead={setup.leadCard && !heldOnly(held, data.members.length)}
+                  lead={leadCard && !heldOnly(held, data.members.length)}
                   leadNext={setup.leadNext}
                   poolId={pool.id}
                   where={where}
@@ -358,6 +357,7 @@ function PoolCanvasPage({ poolId, sessions, projects, accounts, now, rules }: Pa
           pool={pool}
           project={project}
           canvas={data.canvas}
+          canvasRead={data}
           members={data.members}
           open={openHere}
           names={names}

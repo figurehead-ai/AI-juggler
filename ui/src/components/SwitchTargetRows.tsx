@@ -148,7 +148,7 @@ export function SwitchTargetRows({
       )}
       <ul ref={listRef} onKeyDown={onKeyDown} aria-label="Switch destinations, ranked" className="flex flex-col gap-2.5">
         {targets.map((target) => (
-          <TargetRow key={target.recipe_id} target={target} saidOnce={notYet} app={appOf({ folder: target.account_id, tool: target.provider, label: target.account_label })} whyOpen={whyOpen} onPick={() => pick(target)} />
+          <TargetRow key={`${target.recipe_id}${target.place_id ?? ""}`} target={target} saidOnce={notYet} app={appOf({ folder: target.account_id, tool: target.provider, label: target.account_label, placeId: target.place_id ?? null })} whyOpen={whyOpen} onPick={() => pick(target)} />
         ))}
       </ul>
       <p className="text-meta text-ink-2">What carries is checked for each pair of tools, never assumed.</p>

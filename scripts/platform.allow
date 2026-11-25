@@ -22,7 +22,7 @@ crates/juggler-app/src/dev_bridge.rs unix-api 1
 crates/juggler-app/src/features/app/diagnostics/mod.rs mac-words 1
 crates/juggler-app/src/features/app_icons/bundle.rs applications 4
 crates/juggler-app/src/features/cleanup/alerts.rs slash-split 2
-crates/juggler-app/src/features/conversations/goto.rs usr-bin 2
+crates/juggler-app/src/features/conversations/goto.rs usr-bin 1
 crates/juggler-app/src/features/conversations/places.rs app-bundle 2
 crates/juggler-app/src/features/environment/scan.rs applications 1
 crates/juggler-app/src/features/fleet/mod.rs mac-words 1
@@ -31,7 +31,7 @@ crates/juggler-app/src/features/isolation/mod.rs unix-api 1
 crates/juggler-app/src/features/kill/mod.rs slash-split 3
 crates/juggler-app/src/features/notifications/mod.rs mac-words 2
 crates/juggler-app/src/features/pools/cards.rs slash-split 1
-crates/juggler-app/src/features/processes/commands.rs usr-bin 2
+crates/juggler-app/src/features/processes/commands.rs usr-bin 1
 crates/juggler-app/src/features/processes/roles.rs slash-split 1
 crates/juggler-app/src/features/service_accounts/mod.rs mac-words 2
 crates/juggler-app/src/features/staging/mod.rs unix-api 1
@@ -42,7 +42,6 @@ crates/juggler-app/src/fleet.rs mac-words 1
 crates/juggler-app/src/fleet.rs unix-api 1
 crates/juggler-app/src/fleet_account.rs mac-words 3
 crates/juggler-app/src/focus.rs mac-words 4
-crates/juggler-app/src/focus.rs usr-bin 1
 crates/juggler-app/src/lib.rs unix-api 1
 crates/juggler-app/src/lib.rs unix-socket 1
 crates/juggler-app/src/link.rs mac-words 1
@@ -56,7 +55,6 @@ crates/juggler-app/src/machine_recommendations.rs mac-words 2
 crates/juggler-app/src/manage.rs app-bundle 11
 crates/juggler-app/src/manage.rs applications 1
 crates/juggler-app/src/os_access.rs mac-words 3
-crates/juggler-app/src/os_access.rs usr-bin 1
 crates/juggler-app/src/vault.rs mac-words 1
 crates/juggler-core/src/funnel_events.rs mac-words 1
 crates/juggler-core/src/storage/mod.rs unix-api 1
@@ -76,7 +74,6 @@ crates/juggler-supervisor/src/machine.rs mac-words 4
 crates/juggler-supervisor/src/supervisor.rs unix-api 1
 ui/src/components/AccountMacsCard.tsx mac-words 7
 ui/src/components/FigureheadCloudCard.tsx mac-words 1
-ui/src/components/FigureheadCloudParts.tsx mac-words 5
 ui/src/components/FleetChips.tsx mac-words 5
 ui/src/components/FleetPeersEmpty.tsx mac-words 6
 ui/src/components/FleetThisMac.tsx mac-words 1
@@ -87,7 +84,6 @@ ui/src/components/RemoteLaunch.tsx mac-words 1
 ui/src/components/RemoteTabs.tsx mac-words 1
 ui/src/components/SessionsSettings.tsx mac-words 7
 ui/src/components/Welcome.tsx mac-words 1
-ui/src/components/WorkflowRail.tsx mac-words 2
 ui/src/components/row/SessionRow.tsx mac-words 1
 ui/src/components/this-mac-memory.tsx mac-words 3
 ui/src/components/this-mac-parts.tsx mac-words 2

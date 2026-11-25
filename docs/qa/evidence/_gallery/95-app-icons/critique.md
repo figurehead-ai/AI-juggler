@@ -1,4 +1,4 @@
-<!-- captures: 49587e5f0b63 -->
+<!-- captures: 44c0f01d76aa -->
 # 95-app-icons: installed apps' own icons on Home, in the rail, in History and in the Go to session palette
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -15,3 +15,34 @@ Your apps cards line up (the maintainer's report): every card has the same rows 
 
 - rail-1280-dark: the Needs you rows cut their meta ("payments-api · Claude · Wo…", "ai-juggler · Terminal · Work …") and titles ("Migrate the billing webh…").
 - history-2000-dark: the two rows sit at the top of a wide centred list with the rest of the page empty; fine for two rows, thin for a real history.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B2)
+
+Re-captured after F53 at 1280 and 2000. Home is the approved two-column feed (Needs you now with each need card, the feed's empty card with "Include my actions", the Mac access card) beside Your apps (each App's mark, its profile's dot, "1 needs you" and Open; Not running with Start) and Runway by account; the rail is grouped by App with each App's mark and its profile dot; History and ⌘K's rows carry the same marks. Claude's mark is the preview's stand-in; Codex and ChatGPT fall back to a lettered tile, quiet beside it.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Tell Apps apart at a glance. |
+| 2 | Prominence | 4 | |
+| 3 | Default | n/a | |
+| 4 | Mode | 4 | Calm. |
+| 5 | Mock-up | 4 | The calm r2 mock and the home-feed design. |
+| 6 | Areas | 4 | |
+| 7 | Colour | 4 | Marks muted except where an App needs you (calm r2). |
+| 8 | Type | 4 | |
+| 9 | Actions | 4 | Open its page the feed's one primary. |
+| 10 | Serious | n/a | |
+| 11 | Doors | 4 | |
+| 12 | Words | 4 | |
+| 13 | States | 4 | A fallback tile for an App without an icon. |
+| 14 | Consistency | 4 | One mark per App on every surface. |
+| 15 | Accessibility | 4 | |
+| 16 | Hand walk | 4 | PL1 E1 walked the rail in the Dev app. |
+| 17 | System prompts | 5 | None (icons read from the installed apps, no prompt). |
+| 18 | Usability | 4 | |
+
+Lowest: 4.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -1,4 +1,4 @@
-# Task Catalog — All Tasks (generated from epic files, verify with grep)
+# Task Catalog — All Tasks (generated from epic files, verify with grep)\n| AJ-E2326 | One conversation open in two places is seen and said: both live places shown, a notice with one click to stop ours, and a continued session says where it came from | E23-session-runtime.md | P0 | M | AJ-E2315, AJ-E2317 |
 
 | ID | Title | Epic file | Pri | Effort | Depends |
 |---|---|---|---|---|---|
@@ -211,6 +211,16 @@
 | AJ-E1542 | The capability preflight | E15-spec-gaps.md | P0 | L | AJ-E1507 |
 | AJ-E1543 | One switch screen | E15-spec-gaps.md | P0 | M | AJ-E1540, AJ-E1541, AJ-E1542 |
 | AJ-E1544 | LiveStatsCollector in its own module | E15-spec-gaps.md | P2 | S | AJ-E2011 |
+| AJ-E1545 | Welcome leads into a guided setup wizard (find your apps, permissions one card each with live grant detection, keep it running, the tour), and every brand mark is the real app icon | E15-spec-gaps.md | P0 | L | AJ-E1524, AJ-E1527 |
+| AJ-E1546 | A guided tour on the real UI, offered once, and short clips for every "What it does for you" card and "How it works" step | E15-spec-gaps.md | P1 | L | AJ-E1545 |
+| AJ-E1547 | No system prompt the user wasn't told about first: one registry of every OS prompt, priming in setup, one just-in-time gate every trigger goes through | E15-spec-gaps.md | P0 | L | AJ-E1545, AJ-E3822 |
+| AJ-E1548 | The 0.5.0 usability audit's findings, fixed in 0.5.1: one name per thing, no rows nobody can use, every mark and limit said plainly | E15-spec-gaps.md | P1 | M | AJ-E3823 |
+| AJ-E1549 | No white flash, ever: the window, the page and every loading boundary paint the theme's base colour from the first frame | E15-spec-gaps.md | P1 | S | none |
+| AJ-E1550 | Calm surfaces: separation by tone, never bright borders; a bright line only for focus, hover or real attention (PAT-SURF, app-wide) | E15-spec-gaps.md | P0 | L | none |
+| AJ-E1551 | Nothing moves after it appears: every column, header, rail and badge has its place from the first paint (layout shift near zero) | E15-spec-gaps.md | P1 | M | none |
+| AJ-E1552 | Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | E15-spec-gaps.md | P0 | M | AJ-E2327 |
+| AJ-E1553 | A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | E15-spec-gaps.md | P1 | M | AJ-E1545 |
+| AJ-E1554 | The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | E15-spec-gaps.md | P1 | M | AJ-E1550, AJ-E2327 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -298,6 +308,20 @@
 | AJ-E2312 | 0.4.8's walk findings (limits after a reset, the Parked card, time words, Bring in, New session, the pool wizard's pick, This Mac's room, the bell's scroll, lab tools) | E23-session-runtime.md | P1 | L | AJ-E2311 |
 | AJ-E2313 | A hooked session whose turn hangs is said "may be stuck", without false alarms on long thinking | E23-session-runtime.md | P1 | M | AJ-E2312 |
 | AJ-E2314 | 0.5.0's walks: the later findings, in the 0.5.1 rebuild before beta | E23-session-runtime.md | P2 | M | AJ-E2312 |
+| AJ-E2315 | Move to account counts only the moving profile's own processes: a wrapper is its by the program it runs, never by a flag's path; one shared ownership module every site uses | E23-session-runtime.md | P0 | M | AJ-E2312 |
+| AJ-E2316 | The rail's gallery captures wait for the rail to be still | E23-session-runtime.md | P2 | S | AJ-E2314 |
+| AJ-E2317 | Move picks the source by the conversation's holder and the target by the App the user picked, never by account | E23-session-runtime.md | P0 | S | AJ-E2315 |
+| AJ-E2318 | Move waits only on real writers and the profiles' main processes, decides before it disrupts, and quits in parallel | E23-session-runtime.md | P0 | M | AJ-E2315 |
+| AJ-E2319 | Move's refusals are typed (transient, needs you, setup, bug), name what holds the files and carry the move id; Retry only for transient | E23-session-runtime.md | P0 | S | AJ-E2318 |
+| AJ-E2320 | One shared, persistent hold marker every AI Juggler honours, and a move never quits AI Juggler's own parents | E23-session-runtime.md | P0 | S | AJ-E2315 |
+| AJ-E2321 | A move survives a crash: startup recovery before keep alive, and a Moves door to undo or finish each move by id | E23-session-runtime.md | P0 | M | AJ-E2320 |
+| AJ-E2322 | Move says "opened" only when the conversation is open, and keeps a timeline of every phase | E23-session-runtime.md | P1 | S | AJ-E2318 |
+| AJ-E2323 | The switch's verification matrix: every ownership shape as a fixture in CI, and the real cases walked in lab PL1 | E23-session-runtime.md | P0 | M | AJ-E2315 |
+| AJ-E2324 | Move's speed: event-driven waits, an open-file write guard and half the reads | E23-session-runtime.md | P2 | M | AJ-E2322 |
+| AJ-E2325 | Move backups clean themselves up: refused attempts at once, committed moves after a chosen time, sizes that say what deleting frees | E23-session-runtime.md | P0 | M | AJ-E2321 |
+| AJ-E2326 | A refused move leaves the conversation where it was, never in a terminal here: every start path honours a move's hold, the source reopens it, and two live places are seen and said | E23-session-runtime.md | P0 | M | AJ-E2315, AJ-E2317, AJ-E2320 |
+| AJ-E2327 | Add on a running desktop profile brings in its Claude Code folder by evidence, so its sessions show at once; the rail keeps its place and never contradicts itself | E23-session-runtime.md | P0 | M | AJ-E2315 |
+| AJ-E2328 | A move carries the worktree's ownership: the Claude app's worktree lease, its cleanup sightings, the side-session notes and the permission paths move with the conversation; a health check finds and repairs sessions already split | E23-session-runtime.md | P0 | L | AJ-E2315, AJ-E2317 |
 | AJ-E2306 | Claude terminal sessions with hooks and the status line | E23-session-runtime.md | P0 | M | AJ-E2302 |
 | AJ-E2307 | Answers from Needs you and the session page | E23-session-runtime.md | P0 | M | AJ-E2303 |
 | AJ-E2308 | Run without a terminal: answer from AI Juggler (Beta) | E23-session-runtime.md | P1 | L | AJ-E2302, AJ-E2307 |
@@ -488,5 +512,9 @@
 | AJ-E3818 | The harness for the digest (job e) and watch parsing (job f), on D-130's criteria | E38-chat.md | P0 | L | AJ-E3709, AJ-E3712, AJ-E3815 |
 | AJ-E3819 | Chat memory, short and long term, with context budgets (ADR-0037) | E38-chat.md | P0 | XL | AJ-E3804, AJ-E3805, AJ-E3808, AJ-E3815 |
 | AJ-E3820 | The turn review: the code-only review, the model's Beta lines on it, and where it shows | E38-chat.md | P0 | L | AJ-E3802, AJ-E3705, AJ-E3806 |
-Total: 486 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3821 | Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | E38-chat.md | P1 | S | AJ-E3803 |
+| AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
+| AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
+| AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
+Total: 514 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

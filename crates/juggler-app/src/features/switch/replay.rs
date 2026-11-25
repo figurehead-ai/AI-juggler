@@ -134,6 +134,8 @@ pub(crate) fn switch_replay(
         automation_copy_place: None,
         automation_original_waits: false,
         automation_kept: Vec::new(),
+        opened_seen: false,
+        open_place_id: None,
     })
 }
 

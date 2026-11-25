@@ -51,3 +51,27 @@ export function keepRecents(exists: (recent: Recent) => boolean): void {
 export function clearRecents(): void {
   save([]);
 }
+
+/** The lists ⌘K has read, each by what its recents are kept by. */
+export interface RecentLists {
+  commands: readonly { id: string }[];
+  sessions: readonly { id: string }[];
+  conversations: readonly { account_id: string; id: string }[];
+  apps: readonly { id: string }[];
+  projects: readonly { id: string }[];
+  subscriptions: readonly { key: string }[] | null;
+}
+
+/** Drops the recents whose item is gone, judged only by lists already
+ * read, so one still loading never loses its recents. */
+export function dropGoneRecents(lists: RecentLists): void {
+  const { commands, sessions, conversations, apps, projects, subscriptions } = lists;
+  const known: Partial<Record<RecentKind, (id: string) => boolean>> = {};
+  if (commands.length > 0) known.command = (id) => commands.some((command) => command.id === id);
+  if (sessions.length > 0) known.session = (id) => sessions.some((session) => session.id === id);
+  if (conversations.length > 0) known.conversation = (id) => conversations.some((entry) => `${entry.account_id}::${entry.id}` === id);
+  if (apps.length > 0) known.app = (id) => apps.some((entry) => entry.id === id);
+  if (projects.length > 0) known.project = (id) => projects.some((project) => project.id === id);
+  if (subscriptions) known.account = (id) => subscriptions.some((subscription) => subscription.key === id);
+  keepRecents((recent) => known[recent.kind]?.(recent.id) ?? true);
+}

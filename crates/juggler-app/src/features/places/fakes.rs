@@ -24,6 +24,11 @@ pub(crate) struct Recorder {
     pub stays: bool,
     /// The processes asked to quit, in order (never really signalled).
     pub quits: Mutex<Vec<u32>>,
+    /// AJ-E2320: the pid is given to another program after the first
+    /// look at it (between the restart's look and its signal).
+    pub reused_after_look: bool,
+    /// How often a pid was looked up.
+    pub looks: Mutex<usize>,
 }
 
 impl start::Starter for Recorder {
@@ -51,6 +56,22 @@ impl start::Starter for Recorder {
 
     fn alive(&self, pid: u32, _: Option<i64>) -> bool {
         self.stays || !self.quits.lock().unwrap().contains(&pid)
+    }
+
+    fn identify(&self, pid: u32) -> Option<crate::features::ownership::ProcId> {
+        let real = crate::features::ownership::signal::identify(&[pid])
+            .get(&pid)
+            .copied()?;
+        let mut looks = self.looks.lock().unwrap();
+        *looks += 1;
+        Some(if self.reused_after_look && *looks > 1 {
+            crate::features::ownership::ProcId {
+                start_micros: real.start_micros + 1,
+                ..real
+            }
+        } else {
+            real
+        })
     }
 }
 
@@ -139,9 +160,26 @@ impl Desktop for FakeDesktop {
     }
 }
 
+/// A Claude Code folder discovery found at `path` (signed in, another
+/// tool's), for a made-up Mac's `installs`.
+pub(crate) fn install(path: PathBuf) -> juggler_adapter::environment::DiscoveredInstall {
+    use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
+    DiscoveredInstall {
+        harness: juggler_core::model::HarnessId::new("claude-code"),
+        path,
+        origin: InstallOrigin::ManagerTool,
+        login: LoginProbe::LoggedIn,
+        bytes: 0,
+        last_used_secs: None,
+        managed: true,
+        notes: Vec::new(),
+    }
+}
+
 /// A state over `root` whose places see a made-up Mac: only this test's
 /// own process runs on it (its pid and start are real, so a place pinned
-/// to it is found alive), and its home is `root/home`. Nothing the test
+/// to it is found alive), its home is `root/home`, and discovery finds
+/// no tool folder. Nothing the test
 /// asserts then depends on what runs on the machine (a real ChatGPT or
 /// Codex app was found and brought forward instead of started).
 pub(crate) fn on_made_up_mac(
@@ -152,6 +190,8 @@ pub(crate) fn on_made_up_mac(
     let _ = state.places.made_up.set(super::MadeUpMac {
         table: crate::features::conversations::procs::some(&[me]),
         home: root.join("home"),
+        // AJ-E2327: none of this Mac's tool folders either.
+        installs: Some(Vec::new()),
     });
     std::sync::Arc::new(state)
 }

@@ -52,9 +52,9 @@ describe("the terminal's palette", () => {
     expect(TERMINAL_STYLE.theme).toBe(TERMINAL_THEME);
   });
 
-  it("is the one both terminals draw with", () => {
-    const sources = import.meta.glob<string>(["../components/TerminalView.tsx", "../components/ReplayTerminal.tsx"], { query: "?raw", import: "default", eager: true });
-    expect(Object.keys(sources)).toHaveLength(2);
+  it("is the one the terminal draws with (History's replay is the conversation view since F79)", () => {
+    const sources = import.meta.glob<string>(["../components/TerminalView.tsx"], { query: "?raw", import: "default", eager: true });
+    expect(Object.keys(sources)).toHaveLength(1);
     for (const source of Object.values(sources)) {
       expect(source).toContain("...TERMINAL_STYLE");
       expect(source).not.toMatch(/background:\s*"#/);

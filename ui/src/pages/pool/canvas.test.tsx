@@ -385,6 +385,20 @@ describe("a pool's page: its canvas", () => {
     expect(seams().__AIJ_POOL_CALLS__).not.toContain("delete:pool-team");
   });
 
+  it("AJ-E1548 #27: while setup is open its checklist owns the rules (no header choice, no lead card); both come back once setup is done", async () => {
+    seedTeam();
+    const pools: unknown = seams().__AIJ_POOLS__;
+    if (pools && typeof pools === "object" && "members" in pools && Array.isArray(pools.members)) for (const member of pools.members) Object.assign(member, { role: "member" });
+    const view = await openPage();
+    expect(view.getByTestId("pool-header-setup")).toBeTruthy();
+    expect(view.queryByTestId("pool-header-level")).toBeNull();
+    expect(view.queryByTestId("canvas-lead-card")).toBeNull();
+    fireEvent.click(view.getByTestId("pool-setup-hide"));
+    expect(view.queryByTestId("pool-header-setup")).toBeNull();
+    expect(view.getByTestId("pool-header-level")).toBeTruthy();
+    expect(view.getByTestId("canvas-lead-card")).toBeTruthy();
+  });
+
   it("SK-1: Delete is one obvious step: the header's ⋯, with Rename (a project's own pool has none)", async () => {
     seedTeam();
     const view = await openPage();
@@ -399,7 +413,8 @@ describe("a pool's page: its canvas", () => {
     expect(door.className).toContain("ml-auto");
     const button = within(door).getByRole("button", { name: "Actions for Team" });
     expect([...header.querySelectorAll("button")].at(-1)).toBe(button);
-    expect(door.contains(view.getByTestId("pool-header-level"))).toBe(false);
+    // AJ-E1548 #27: while setup is open the checklist owns the agents' choice.
+    expect(view.queryByTestId("pool-header-level")).toBeNull();
     expect(door.querySelector('[aria-hidden="true"].w-px')).not.toBeNull();
     expect(view.getByTestId("page-name").closest("div")?.contains(door)).toBe(false);
     fireEvent.click(button);

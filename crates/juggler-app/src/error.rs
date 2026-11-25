@@ -86,19 +86,118 @@ pub enum AppError {
         /// Its words, from [`juggler_handover::pipeline::SwitchFailure::words`].
         words: String,
     },
-    /// A move to account that stopped (ADR-0031, 0.4.9): `words` say why
-    /// in plain words, never a path; `detail` is the program's own text,
-    /// paths and all, for Copy details.
-    #[error("move stopped: {words} ({detail})")]
-    Move {
-        /// What the person reads.
-        words: String,
-        /// What Copy details copies (the home folder written `~`).
-        detail: String,
-        /// Both accounts are exactly as they were: said calmly, and trying
-        /// again can work. `false`: the move was left part way, for Undo.
-        unchanged: bool,
-    },
+    /// A move to account that stopped (ADR-0031, 0.4.9; AJ-E2319: typed):
+    /// its class, what holds the files, the move's id, and its words.
+    #[error("move stopped ({:?}): {} ({})", .0.class, .0.words, .0.detail)]
+    Move(Box<MoveStop>),
+}
+
+/// AJ-E2319: what kind of stop a move's refusal is, which decides what
+/// the window offers next.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[serde(rename_all = "snake_case")]
+pub enum StopClass {
+    /// It can clear by itself (a writer still finishing, another move
+    /// running): tried once more by itself, then Retry.
+    Transient,
+    /// Only the person can clear it (an app asking something, a session
+    /// working, a terminal on the conversation): no Retry, Check again
+    /// reads the offer without quitting anything, and the holder's door.
+    NeedsYou,
+    /// This setup can't move (the tool's data in a shape the move doesn't
+    /// know, the disks): Move hidden, Copy offered.
+    Setup,
+    /// Something that should never happen: Copy details and Report.
+    Bug,
+}
+
+/// What holds the conversation's files: an app or profile (with its
+/// place's id, for "Go to") or a program outside them.
+#[derive(Clone, PartialEq, Eq, Debug, Default, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MoveHolder {
+    /// In words ("Claude app · Work", "claude", "“Fix the login test” in
+    /// Terminal").
+    pub name: String,
+    /// The app or profile AI Juggler knows it as, for its door.
+    pub place_id: Option<String>,
+    /// 0.5.1 F72: a session of these accounts open outside the apps (a
+    /// terminal's): its account, for its Go to.
+    pub account_id: Option<String>,
+    /// 0.5.1 F72: that session's id in its tool, for its Go to.
+    pub conversation: Option<String>,
+}
+
+/// A move that stopped (AJ-E2319): `words` say why in plain words, never
+/// a path; `detail` is the program's own text, paths and all, for Copy
+/// details.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct MoveStop {
+    /// What it offers next.
+    pub class: StopClass,
+    /// What holds the files (empty: nothing named).
+    pub holders: Vec<MoveHolder>,
+    /// The move it stopped (none: refused before one began): Undo targets
+    /// it by this id.
+    pub move_id: Option<String>,
+    /// Both accounts are exactly as they were. `false`: the move was left
+    /// part way, for Undo of `move_id`.
+    pub unchanged: bool,
+    /// What the person reads.
+    pub words: String,
+    /// What Copy details copies (the home folder written `~`).
+    pub detail: String,
+}
+
+impl MoveStop {
+    /// A stop of `class` that changed nothing.
+    #[must_use]
+    pub fn new(class: StopClass, words: impl Into<String>, detail: impl Into<String>) -> Self {
+        Self {
+            class,
+            holders: Vec::new(),
+            move_id: None,
+            unchanged: true,
+            words: words.into(),
+            detail: detail.into(),
+        }
+    }
+
+    /// Held by `holders`.
+    #[must_use]
+    pub fn held_by(mut self, holders: Vec<MoveHolder>) -> Self {
+        self.holders = holders;
+        self
+    }
+
+    /// Whether trying again can help: only a transient stop that changed
+    /// nothing (a Retry quits and reopens both apps again).
+    #[must_use]
+    pub fn retryable(&self) -> bool {
+        self.class == StopClass::Transient && self.unchanged
+    }
+}
+
+impl From<MoveStop> for AppError {
+    fn from(stop: MoveStop) -> Self {
+        Self::Move(Box::new(stop))
+    }
+}
+
+/// A move's stop as the window reads it (AJ-E2319), beside the error's
+/// words and detail.
+#[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct MoveStopInfo {
+    /// What it offers next.
+    pub class: StopClass,
+    /// What holds the files.
+    pub holders: Vec<MoveHolder>,
+    /// The move it stopped, for Undo by id.
+    pub move_id: Option<String>,
+    /// Both accounts are exactly as they were.
+    pub unchanged: bool,
 }
 
 /// A backup archive refused or not staged (juggler-core reads it): the
@@ -164,6 +263,9 @@ pub struct ErrorWire {
     /// (a switch that stopped); never shown on its own.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+    /// AJ-E2319: a move's stop, typed (its class, holders and id).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<MoveStopInfo>,
 }
 
 impl AppError {
@@ -186,15 +288,16 @@ impl AppError {
             // Every switch failure leaves the original resumable; Retry
             // only where trying again can work (0.3.9).
             Self::Switch { failure, .. } => ("switch_failed".to_owned(), failure.retryable()),
-            // The switch screen says a refusal that changed nothing calmly.
-            Self::Move { unchanged, .. } => (
-                if *unchanged {
+            // The switch screen says a refusal that changed nothing calmly;
+            // Retry only where it can help (AJ-E2319).
+            Self::Move(stop) => (
+                if stop.unchanged {
                     "move_refused"
                 } else {
                     "move_stopped"
                 }
                 .to_owned(),
-                *unchanged,
+                stop.retryable(),
             ),
         };
         ErrorWire {
@@ -209,7 +312,16 @@ impl AppError {
                     failure,
                     failure.stage()
                 ))),
-                Self::Move { detail, .. } => Some(without_home(detail)),
+                Self::Move(stop) => Some(without_home(&stop.detail)),
+                _ => None,
+            },
+            stop: match self {
+                Self::Move(stop) => Some(MoveStopInfo {
+                    class: stop.class,
+                    holders: stop.holders.clone(),
+                    move_id: stop.move_id.clone(),
+                    unchanged: stop.unchanged,
+                }),
                 _ => None,
             },
         }

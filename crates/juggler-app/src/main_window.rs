@@ -472,7 +472,12 @@ pub fn on_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tau
                 tracing::info!("the main window's close: hidden, nothing quits (D-112)");
             }
         }
-        tauri::WindowEvent::Resized(_) => HIDE_AFTER_EXIT.resized(window),
+        tauri::WindowEvent::Resized(_) => {
+            HIDE_AFTER_EXIT.resized(window);
+            // 0.5.1 F21: the next launch opens at this frame.
+            crate::window_frame::changed(window);
+        }
+        tauri::WindowEvent::Moved(_) => crate::window_frame::changed(window),
         // AJ-E1510: no system notification while AI Juggler is in front.
         tauri::WindowEvent::Focused(focused) => {
             let state = window.state::<Arc<AppState>>();

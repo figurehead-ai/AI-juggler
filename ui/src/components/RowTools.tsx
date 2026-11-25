@@ -34,7 +34,7 @@ export function Grip({ arrange, label }: { arrange: Arrangeable; label: string }
       title={`Drag to move ${label} (or ${keysOf("rail-move").join(" and ")})`}
       data-testid="order-grip"
       onPointerDown={arrange.grip}
-      className="pointer-events-auto flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded-md border border-hairline bg-surface text-muted hover:bg-surface-3 hover:text-ink active:cursor-grabbing"
+      className="pointer-events-auto flex h-6 w-4 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted hover:bg-hover hover:text-ink active:cursor-grabbing"
     >
       <IconGrip width={12} height={12} />
     </span>

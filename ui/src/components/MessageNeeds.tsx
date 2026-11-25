@@ -166,14 +166,15 @@ export function MessageNeedCard({ need, now, first = false, keys }: { need: Mess
 }
 
 /** Its held asks, as approval cards (the rest are cards of their own). */
-export function MessageNeeds({ needs }: { needs: MessageNeedInfo[] }): JSX.Element | null {
+export function MessageNeeds({ needs, lead = true }: { needs: MessageNeedInfo[]; /** Its first card has the view's one filled button. */ lead?: boolean }): JSX.Element | null {
   const asks = needs.filter(isHeldAsk);
   if (asks.length === 0) return null;
   return (
     <div className="flex flex-col gap-2" data-testid="message-needs">
-      {asks.map((need) => (
+      {asks.map((need, index) => (
         <AskCard
           key={need.key}
+          lead={lead && index === 0}
           ask={asAsk(need)}
           kindLabel={need.kind === "deliver" ? "A chain of replies paused for you" : "An agent asks to send"}
           title={need.pool_name}

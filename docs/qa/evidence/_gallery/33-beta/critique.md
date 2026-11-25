@@ -1,4 +1,4 @@
-<!-- captures: 378d71a1802a -->
+<!-- captures: 6ca57bed050d -->
 # 33-beta: the "Beta · Not proven yet" mark on a switch, and the Accounts page above "Which switches between accounts are proven"
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -16,3 +16,36 @@ The Accounts captures show the 0.3.2 surfaces well: the Personal and Fake Desk c
 Retaken for AJ-E808's visual check: the badge for a proven and an unproven pair, both themes. The matrix captures (`matrix-*`) now scroll the matrix into view: before, its disclosure sat at the Accounts screen's foot and the captures showed the Accounts cards, not the matrix. Now `matrix-validated-*` shows "Proven ✓" and "Proven: tried by hand…" on the proven row, and `matrix-default-*` shows "Beta — not proven yet" on every row: the words the register's "Settings › Beta shows" column gives (rendered by the same code, `docs/qa/evidence/AJ-E808/register.md`). `badge-in-situ-*` shows "Same conversation, another app · Beta · Not proven yet", the register's "Switch rows show" for Claude Code → Claude Code.
 
 Fixture notes, not product: the switch wizard's shared fixture (`SWITCH_WIZARD_FIXTURE`, capture.spec.ts) says a Claude → Claude move carries "its subagents" and then "Doesn't carry: Subagents' work"; the product's Claude → Claude dispositions copy subagents, so the real sheet never says both. And the validated row's fixture names Claude → Claude "Full story, fresh start", where the product says "Same conversation, another app". The fixture is shared by the switch wizard's families, whose assertions use its drop, so it's left as it is and noted here.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B2)
+
+Re-captured after F53 and this batch's fix, both sizes and themes. The matrix captures open Accounts on "Which switches between apps are tested": Tested switches as a table (Switch, What carries, Automatic tests, Tried by hand, Status), the proven row "Tested ✓ · Proven: tried by hand 2026-10-17 on a tiny project"; badge-in-situ is the wizard's Target step with "Same conversation, another app · Beta" on the target card.
+
+**Fixed (c3fd24f78):** "What carries" was amber on every unproven row (and green on the proven one): amber where nothing asks the user to act (PAT-COLOR) and the same Beta said twice. It is ink now; the Status column says Beta. Gate baseline `33-beta/matrix-default-1280x800-dark` re-rendered.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 4 | Which switches are tested, and how. |
+| 2 | Prominence | 4 | Behind a disclosure at the page's foot (D-25). |
+| 3 | Default | 4 | Closed by default; the proven row says so. |
+| 4 | Mode | 4 | Calm table on its card. |
+| 5 | Mock-up | 4 | No mock; the register's words. |
+| 6 | Areas | 4 | One card; rows split by faint rules (a table, where tone can't separate). |
+| 7 | Colour | 4 | After the fix: a hand check's Passed green and Failed red only. |
+| 8 | Type | 4 | 12 px table; long Status notes wrap to three lines. |
+| 9 | Actions | n/a | No actions. |
+| 10 | Serious | 4 | A failed hand check lowers the promise, said under the table. |
+| 11 | Doors | 4 | Settings › Switching named in words, not a link. |
+| 12 | Words | 4 | Plain; "stand-ins" for the test tools. |
+| 13 | States | 4 | Default, failed, validated. |
+| 14 | Consistency | 4 | |
+| 15 | Accessibility | 4 | Row headers scoped (a11y.spec). |
+| 16 | Hand walk | 4 | Preview. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | |
+
+Lowest: 4 after the fix.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

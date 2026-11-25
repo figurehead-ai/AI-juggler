@@ -82,8 +82,10 @@ pub struct KnownPlace {
     /// goes or finding is turned off.
     #[serde(default)]
     pub found: bool,
-    /// D-84: the user's App (added, imported, kept alive or named);
-    /// otherwise only an offer. From its row, never stored here.
+    /// D-84: the user's App (added, kept alive or named:
+    /// `App::is_users`, the rule the Apps list reads too); otherwise only
+    /// an offer, even when linked to an Account. From its row, never
+    /// stored here.
     #[serde(skip)]
     pub users: bool,
     /// D-84: an offer the user said "Not now" to.
@@ -119,9 +121,9 @@ impl KnownPlace {
         )
     }
 
-    /// D-84: the user's App (added, imported, on one of their Accounts,
-    /// named or kept alive): theirs until they remove it, so tidying never
-    /// forgets it. Only an offer (seen running, never added) is forgotten.
+    /// D-84: the user's App (added, named or kept alive): theirs until
+    /// they remove it, so tidying never forgets it. Only an offer (seen
+    /// running, never added) is forgotten.
     #[must_use]
     pub const fn kept(&self) -> bool {
         self.users || self.keep_alive
@@ -141,6 +143,27 @@ pub fn place_id(app_id: &str, instance_dir: Option<&Path>) -> String {
         app_id,
         instance_dir.map(|dir| dir.to_string_lossy()).as_deref(),
     )
+}
+
+/// Whether the instance folder `dir` is under the system's temporary
+/// folder and not inside `home` (this run's home): a test's or an
+/// installer's profile, never remembered (D-84). A profile inside the
+/// run's own home is its user's even there (a lab's HOME is
+/// `/tmp/aij-lab…`, ADR-0027), however either path is spelled
+/// (`/tmp` is `/private/tmp`).
+#[must_use]
+pub fn temporary_not_home(dir: &Path, home: &Path) -> bool {
+    use juggler_platform::real_path::{canonical, lexical};
+    let temporary = |path: &Path| {
+        path.to_str()
+            .is_some_and(juggler_core::storage::in_temporary_folder)
+    };
+    if !temporary(dir) && !temporary(&canonical(dir)) {
+        return false;
+    }
+    let in_home = !home.as_os_str().is_empty()
+        && (lexical(dir).starts_with(lexical(home)) || canonical(dir).starts_with(canonical(home)));
+    !in_home
 }
 
 /// `tool/id`: how a session is remembered.
@@ -187,11 +210,13 @@ impl Book {
         for app in running {
             // D-84: a test's or an installer's profile under the system's
             // temporary folder is never remembered (one was, as an App).
+            // F18 (0.5.1 PL1): one inside this run's own home is the
+            // user's, though: a lab's HOME is under `/tmp`, and its running
+            // profiles were never found.
             if app
                 .instance
                 .as_deref()
-                .and_then(Path::to_str)
-                .is_some_and(juggler_core::storage::in_temporary_folder)
+                .is_some_and(|dir| temporary_not_home(dir, home))
             {
                 continue;
             }

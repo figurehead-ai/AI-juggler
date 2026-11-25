@@ -21,7 +21,9 @@ import { epochResume, packExport, switchGraphOverview, type WorkGraphData } from
 import { errorText } from "../lib/bridge";
 import { ariaOf, keysOf } from "../lib/shortcuts";
 import type { SavedHandoverInfo } from "../lib/ipc/handover";
-import { providerMark } from "./indicator";
+import { Button } from "./primitives";
+import { cliAppName } from "../lib/app-name";
+import type { EpochNodeData } from "../lib/ipc/switch-targets";
 import { SavedHandover, SwitchHandover } from "./HandoverView";
 import { GraphEdge, GraphNode } from "./switch/GraphParts";
 
@@ -43,7 +45,7 @@ export function SwitchGraph({
   const [actionLine, setActionLine] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedHandoverInfo | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
 
   const load = useCallback(() => {
     let alive = true;
@@ -101,7 +103,7 @@ export function SwitchGraph({
     }
   };
 
-  const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+  const onKeyDown = (event: React.KeyboardEvent<HTMLOListElement>) => {
     const delta = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
     if (delta === 0) return;
     const buttons = Array.from(
@@ -129,9 +131,8 @@ export function SwitchGraph({
   }
 
   return (
-    <div className="flex flex-col gap-3" data-testid="switch-graph">
+    <div className="flex flex-col gap-5" data-testid="switch-graph">
       {works.map((work) => {
-        const openEpoch = work.epochs.find((epoch) => epoch.id === openNode) ?? null;
         const failedEdge =
           work.edges.find(
             (edge) =>
@@ -142,38 +143,35 @@ export function SwitchGraph({
           failedEdge === null
             ? null
             : (work.epochs.find((epoch) => epoch.id === failedEdge.from) ?? null);
-        const handoverEdge =
-          openEdge === null ? null : (work.edges.find((edge) => edge.id === openEdge && !!edge.handover) ?? null);
+        const edgeKey = (from: string, to: string | null) => `${from}->${to ?? "none"}`;
         return (
-          <div
+          <section
             key={work.title}
             className="flex flex-col gap-1.5"
+            aria-label={work.title}
             data-testid="switch-graph-work"
           >
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              <p className="text-xs font-medium">{work.title}</p>
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <h4 className="text-body font-semibold text-ink">{work.title}</h4>
               {work.hop_note !== null && work.hop_note !== undefined && (
-                <p className="text-label text-warning" data-testid="switch-graph-hop-note">
+                <p className="text-meta text-muted" data-testid="switch-graph-hop-note">
                   {work.hop_note}
                 </p>
               )}
             </div>
-            <div
+            {work.collapsed > 0 && (
+              <p data-testid="switch-graph-collapse" className="text-meta text-muted">
+                {work.collapsed === 1 ? "1 earlier switch" : `${work.collapsed} earlier switches`}, kept in its history
+              </p>
+            )}
+            {/* One step under another, each a target card, the moves
+                between them a line with their words whole (F78). */}
+            <ol
               ref={listRef}
               onKeyDown={onKeyDown}
-              className="flex items-center gap-1 overflow-x-auto pb-1"
-              role="group"
+              className="flex flex-col gap-1"
               aria-label={`Timeline for ${work.title}`}
             >
-              {work.collapsed > 0 && (
-                <span
-                  data-testid="switch-graph-collapse"
-                  title={`Collapsed: ${work.collapsed} older switches stay in the graph store`}
-                  className="shrink-0 rounded-full border border-hairline px-2 py-0.5 text-label text-muted"
-                >
-                  +{work.collapsed} switches
-                </span>
-              )}
               {work.epochs.map((epoch, index) => {
                 // The incoming arrow: the confirmed edge that CREATED
                 // this epoch (never a failed one — failures never
@@ -189,7 +187,6 @@ export function SwitchGraph({
                 const trailingFailed = work.edges.filter(
                   (edge) => edge.from === epoch.id && !!edge.failed_reason,
                 );
-                const edgeKey = (from: string, to: string | null) => `${from}->${to ?? "none"}`;
                 // The edge shape around this epoch: fork = 2+ confirmed
                 // edges out, merge = 2+ confirmed edges in (Req.4).
                 const confirmedOut = work.edges.filter(
@@ -198,8 +195,9 @@ export function SwitchGraph({
                 const confirmedIn = work.edges.filter(
                   (edge) => edge.to === epoch.id && !edge.failed_reason,
                 ).length;
+                const handover = incoming?.handover && incoming.id && openEdge === incoming.id ? incoming : null;
                 return (
-                  <span key={epoch.id} className="flex shrink-0 items-center gap-1">
+                  <li key={epoch.id} className="flex flex-col gap-1">
                     {incoming !== null && (
                       <GraphEdge
                         edge={incoming}
@@ -210,15 +208,23 @@ export function SwitchGraph({
                         }}
                       />
                     )}
+                    {handover?.handover && handover.id && (
+                      <div data-testid="switch-graph-edge-detail" className="ml-10 flex flex-col gap-1.5 pb-1">
+                        <p className="text-meta font-semibold text-ink">What {handover.handover.to_tool} was told</p>
+                        <SwitchHandover edgeId={handover.id} summary={handover.handover} />
+                      </div>
+                    )}
                     <GraphNode
                       epoch={epoch}
                       open={openNode === epoch.id}
                       shape={{ fork: confirmedOut > 1, merge: confirmedIn > 1 }}
                       onToggle={() => {
                         setOpenEdge(null);
+                        setOpenFailedEdge(null);
                         setOpenNode((current) => (current === epoch.id ? null : epoch.id));
                       }}
                     />
+                    {openNode === epoch.id && <StepActions epoch={epoch} onResume={() => void doResume(epoch.id)} onExport={() => void doExport(epoch.id)} onOpenSession={onOpenSession} />}
                     {trailingFailed.map((failed) => (
                       <GraphEdge
                         key={failed.label}
@@ -234,114 +240,38 @@ export function SwitchGraph({
                         }}
                       />
                     ))}
-                  </span>
+                    {failedEdge !== null && failedEdge.from === epoch.id && (
+                      <div data-testid="switch-graph-failed-detail" className="ml-10 flex flex-col gap-2 pb-1 text-meta">
+                        <p className="text-ink">
+                          It didn't switch{failedEdge.failed_reason ? `: ${failedEdge.failed_reason}` : ""}.
+                        </p>
+                        <p className="text-ink-2">
+                          Nothing was half-moved: the session it started from stayed resumable and nothing
+                          was left on the other side. Switch again from that session.
+                        </p>
+                        {failedSource?.session_id && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="self-start"
+                            onClick={() => {
+                              if (failedSource.session_id) onOpenSession(failedSource.session_id);
+                            }}
+                          >
+                            Open the session it started from
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </li>
                 );
               })}
-            </div>
-
-            {failedEdge !== null && (
-              <div
-                data-testid="switch-graph-failed-detail"
-                className="rounded-lg border border-danger/40 bg-danger-soft px-2.5 py-2 text-label"
-              >
-                <p className="text-danger">
-                  Switch failed: {failedEdge.label}
-                  {failedEdge.failed_reason ? ` — ${failedEdge.failed_reason}` : ""}
-                </p>
-                <p className="mt-0.5 text-ink-2">
-                  Nothing was half-moved: the source stayed resumable and no target session
-                  was left behind. Recovery starts from the source — its own ranked targets
-                  are one click away.
-                </p>
-                <div className="mt-1.5 flex gap-2">
-                  <button
-                    type="button"
-                    disabled={!failedSource?.session_id}
-                    title={
-                      failedSource?.session_id
-                        ? "Opens the source epoch's session"
-                        : "The source epoch has no live session row"
-                    }
-                    onClick={() => {
-                      if (failedSource?.session_id) onOpenSession(failedSource.session_id);
-                    }}
-                    className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40 disabled:opacity-50"
-                  >
-                    Open the source epoch
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {handoverEdge?.handover && handoverEdge.id && failedEdge === null && (
-              <div
-                data-testid="switch-graph-edge-detail"
-                className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-2"
-              >
-                <p className="text-section font-semibold text-ink">
-                  What {handoverEdge.handover.to_tool} was told
-                </p>
-                <SwitchHandover edgeId={handoverEdge.id} summary={handoverEdge.handover} />
-              </div>
-            )}
-
-            {openEpoch !== null && failedEdge === null && handoverEdge === null && (
-              <div
-                data-testid="switch-graph-node-menu"
-                className="flex flex-col gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 py-2"
-              >
-                <p className="text-section font-semibold text-ink">
-                  {openEpoch.account_label} · {providerMark(openEpoch.provider).abbrev}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    data-testid="epoch-resume-button"
-                    disabled={!openEpoch.resumable}
-                    aria-keyshortcuts={openEpoch.resumable ? ariaOf("epoch-resume") : undefined}
-                    title={
-                      openEpoch.resumable
-                        ? `Resumes this epoch's native session (${keysOf("epoch-resume")[0]})`
-                        : "No native session transcript survives for this epoch"
-                    }
-                    onClick={() => void doResume(openEpoch.id)}
-                    className="rounded border border-accent/40 px-2 py-1 text-label text-accent-hi transition-colors hover:border-accent/60 disabled:border-hairline disabled:text-muted"
-                  >
-                    Resume {openEpoch.resumable && `(${keysOf("epoch-resume")[0]})`}
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="epoch-switch-from-button"
-                    disabled={openEpoch.session_id === undefined || openEpoch.session_id === null}
-                    title={
-                      openEpoch.session_id
-                        ? "Opens this epoch's session — its ranked switch targets are there"
-                        : "This epoch has no live session row"
-                    }
-                    onClick={() => {
-                      if (openEpoch.session_id) onOpenSession(openEpoch.session_id);
-                    }}
-                    className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40 disabled:opacity-50"
-                  >
-                    Switch from here…
-                  </button>
-                  <button
-                    type="button"
-                    data-testid="epoch-export-button"
-                    onClick={() => void doExport(openEpoch.id)}
-                    title="Saves this step's handover, with keys and passwords handled as you chose"
-                    className="rounded border border-hairline px-2 py-1 text-label transition-colors hover:border-accent/40"
-                  >
-                    Save handover…
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+            </ol>
+          </section>
         );
       })}
       {actionLine !== null && (
-        <p className="text-label text-success" data-testid="pack-export-toast">
+        <p className="text-meta text-success" data-testid="pack-export-toast">
           {actionLine}
         </p>
       )}
@@ -351,10 +281,37 @@ export function SwitchGraph({
         </div>
       )}
       {actionError !== null && (
-        <p className="text-label text-danger" data-testid="switch-graph-action-error">
+        <p className="text-meta text-ink" data-testid="switch-graph-action-error">
+          <span aria-hidden="true" className="mr-1.5 font-semibold text-danger">✕</span>
           {actionError}
         </p>
       )}
+    </div>
+  );
+}
+
+/** An open step's actions, the kit's buttons: Resume where its
+ * conversation was kept, Switch from here… where its session is still
+ * listed, Save handover… always (D-127: what can't run isn't offered;
+ * the card says why, "no conversation kept"). */
+function StepActions({ epoch, onResume, onExport, onOpenSession }: { epoch: EpochNodeData; onResume: () => void; onExport: () => void; onOpenSession: (sessionId: string) => void }): JSX.Element {
+  const key = keysOf("epoch-resume")[0];
+  return (
+    <div data-testid="switch-graph-node-menu" data-step={cliAppName(epoch.provider, epoch.account_label)} className="ml-10 flex flex-wrap items-center gap-2 pb-1">
+      {epoch.resumable && (
+        <Button size="sm" variant="secondary" data-testid="epoch-resume-button" aria-keyshortcuts={ariaOf("epoch-resume")} onClick={onResume}>
+          Resume
+          {key && <span className="text-muted">{key}</span>}
+        </Button>
+      )}
+      {epoch.session_id && (
+        <Button size="sm" variant="secondary" data-testid="epoch-switch-from-button" onClick={() => epoch.session_id && onOpenSession(epoch.session_id)}>
+          Switch from here…
+        </Button>
+      )}
+      <Button size="sm" variant="secondary" data-testid="epoch-export-button" onClick={onExport}>
+        Save handover…
+      </Button>
     </div>
   );
 }

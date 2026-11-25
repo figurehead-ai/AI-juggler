@@ -6,7 +6,8 @@
 import { useState, type JSX } from "react";
 import type { MoveDoneInfo, MoveUndoneInfo } from "../../lib/ipc/switch-move";
 import type { MoveOutcomeInfo } from "../../types/generated/MoveOutcomeInfo";
-import { switchMoveUndo } from "../../lib/ipc/switch-move";
+import { askFirst, switchMoveUndo } from "../../lib/ipc/switch-move";
+import { placesOpen } from "../../lib/ipc/places";
 import { errorText } from "../../lib/bridge";
 import { IconCheck } from "../icons-controls";
 import { IconClock, IconWarn } from "../icons-menu";
@@ -64,6 +65,14 @@ export function MoveUndone({ undone, source }: { undone: MoveUndoneInfo; source:
           </p>
         </div>
       </div>
+      {/* AJ-E2319 R5: what kept running, as the move itself says it. */}
+      {undone.notes.length > 0 && (
+        <Alert level="info" live={null} testId="switch-undone-notes">
+          {undone.notes.map((note) => (
+            <p key={note}>{sentence(note)}</p>
+          ))}
+        </Alert>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" type="button" onClick={copy} data-testid="switch-undone-copy">
           <IconCopy aria-hidden="true" width={14} height={14} />
@@ -78,12 +87,14 @@ export function MoveUndone({ undone, source }: { undone: MoveUndoneInfo; source:
 }
 
 /** Undo the move; once undone, `onUndone` takes the dialog to its end
- * state (MoveUndone); a refusal is said under the button. */
-export function MoveUndo({ moveId, onUndone }: { moveId: string; onUndone: (undone: MoveUndoneInfo) => void }): JSX.Element {
+ * state (MoveUndone); a refusal is said under the button. 0.5.1 F93:
+ * `prompts` (the move's) are asked first, before anything quits. */
+export function MoveUndo({ moveId, prompts, onUndone }: { moveId: string; prompts?: readonly string[]; onUndone: (undone: MoveUndoneInfo) => void }): JSX.Element {
   const [undo, setUndo] = useState<{ state: "idle" | "running" | "failed"; text?: string }>({ state: "idle" });
   const run = async () => {
     setUndo({ state: "running" });
     try {
+      await askFirst(prompts);
       onUndone(await switchMoveUndo(moveId));
     } catch (cause) {
       setUndo({ state: "failed", text: errorText(cause) });
@@ -103,7 +114,33 @@ export function MoveUndo({ moveId, onUndone }: { moveId: string; onUndone: (undo
   );
 }
 
-export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; target: string; source?: string | null }): JSX.Element {
+/** AJ-E2322: where the move can't see the conversation open in the App it
+ * moved to, Open there (the app started first when it isn't running);
+ * what Open did is said beside it. */
+function OpenIn({ done, target }: { done: MoveDoneInfo; target: string }): JSX.Element | null {
+  const [said, setSaid] = useState<string | null>(null);
+  const placeId = done.open_place_id;
+  if (!placeId) return null;
+  const open = () =>
+    void placesOpen(placeId, done.conversation).then(
+      (outcome) => setSaid(outcome.outcome),
+      (cause) => setSaid(errorText(cause)),
+    );
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button size="sm" variant="secondary" type="button" onClick={open} data-testid="switch-moved-open">
+        Open in {target}
+      </Button>
+      {said && (
+        <output className="text-label text-muted" data-testid="switch-moved-open-said">
+          {sentence(said)}
+        </output>
+      )}
+    </div>
+  );
+}
+
+export function MoveDone({ done, target, source = null, prompts }: { done: MoveDoneInfo; target: string; source?: string | null; prompts?: readonly string[] }): JSX.Element {
   const [undone, setUndone] = useState<MoveUndoneInfo | null>(null);
   if (undone) return <MoveUndone undone={undone} source={source} />;
   return (
@@ -122,6 +159,7 @@ export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; 
           );
         })}
       </FactPanel>
+      <OpenIn done={done} target={target} />
       {done.notes.length > 0 && (
         <Alert level="info" live={null} testId="switch-moved-notes">
           {done.notes.map((note) => (
@@ -129,7 +167,7 @@ export function MoveDone({ done, target, source = null }: { done: MoveDoneInfo; 
           ))}
         </Alert>
       )}
-      <MoveUndo moveId={done.move_id} onUndone={setUndone} />
+      <MoveUndo moveId={done.move_id} prompts={prompts} onUndone={setUndone} />
     </div>
   );
 }

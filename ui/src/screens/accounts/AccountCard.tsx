@@ -5,9 +5,14 @@
  * aren't signed in to anything sit last, under "Not signed in".
  */
 import { AccountAppRows, AppRowPending } from "../../pages/subscription/AccountApps";
-import { accountAppsNow, appsAwaited, type AccountApp } from "../../lib/account-items";
+import { accountAppsNow, appsAwaited, shownAppIds, type AccountApp } from "../../lib/account-items";
+import { LoadingState } from "../../components/LoadingState";
+import { useLoadDeadline, type LoadState } from "../../lib/loading";
+import { addAppFor } from "../../lib/found-tools";
+import { refreshKnownPlaces } from "../../lib/places";
+import { APPS_CHANGED } from "../../lib/ipc/apps";
 import { cliAppId } from "../../lib/app-name";
-import type { AppModel } from "../../lib/apps";
+import { openApp, type AppModel } from "../../lib/apps";
 import { useState, type JSX } from "react";
 import { useItemMenu } from "../../components/ItemMenu";
 import { RenameAccountSheet } from "../../pages/subscription/AccountSettings";
@@ -160,11 +165,28 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
   const known = accountAppsNow(props.apps, sub, folderIds);
   const ids = new Set(known?.ids ?? []);
   const rows = profiles.filter((profile) => ids.has(cliAppId(profile.id)));
+  // 0.5.1 F36: none of its own, while a desktop App holds its folder (the
+  // folder is that App's, rc22 A3) signed in to another Account.
+  const holder = (props.apps ?? []).find((app) => app.kind === "desktop" && app.folder !== null && folderIds.has(app.folder.id) && app.accountId !== sub.account_id);
   const desktop: AccountApp[] = (known?.apps ?? [])
     .filter((app) => app.kind === "desktop")
     .map((app) => ({ app, sessions: app.place?.recent.length ?? 0, open: 0, working: 0, lastMs: app.place?.seen_ms ?? 0 }));
-  const awaited = appsAwaited(known);
-  const appCount = known?.ids.length ?? null;
+  // AJ-E1552: its Apps row is loading only while the Apps are read, and
+  // for no longer than their deadline; read, with none, it is empty.
+  const shown = shownAppIds(known);
+  const appsLoading = known === null || appsAwaited(known);
+  const [appsRound, setAppsRound] = useState(0);
+  const deadline = useLoadDeadline(appsLoading, `${name}'s apps`, { round: appsRound });
+  const appsState: LoadState = appsLoading ? (deadline.timedOut ? "error" : "loading") : rows.length + desktop.length === 0 ? "empty" : "ready";
+  const readAppsAgain = () => {
+    setAppsRound((was) => was + 1);
+    void refreshKnownPlaces();
+    window.dispatchEvent(new Event(APPS_CHANGED));
+    void props.onRechecked();
+  };
+  // Its count from the backend's list at once; once the Apps are read,
+  // only those it shows.
+  const appCount = known === null ? null : (shown?.length ?? known.ids.length);
   return (
     <Card className="@container overflow-hidden" data-testid="account-card" data-state={sub.state} data-service={service?.id}>
       {/* The 0.4.6 RC walk A9: its mark and name take the room they need
@@ -199,7 +221,7 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
           {/* D-62 (AJ-E3202 req. 4): its Apps said different things; chosen once on its Settings. */}
           <ChooseChip sub={sub} onOpen={() => openAccount(sub.account_id!, "settings")} />
           {/* Every App listed below: its folders and the desktop Apps on them (walk A2). */}
-          {appCount === null && !signedOut && <span aria-hidden="true" className="h-3 w-36 animate-pulse rounded bg-skeleton" data-testid="account-profiles-count-pending" />}
+          {appCount === null && appsState === "loading" && !signedOut && <span aria-hidden="true" className="h-3 w-36 animate-pulse rounded bg-skeleton" data-testid="account-profiles-count-pending" />}
           {appCount !== null && appCount > 1 && !signedOut && (
             <span className="text-meta text-muted" data-testid="account-profiles-count">
               {appCount} apps share this account
@@ -286,12 +308,46 @@ export function AccountCard(props: AccountCardProps): JSX.Element {
             <AccountAppRows apps={desktop} now={props.now} compact />
           </li>
         )}
-        {awaited && (
-          <li className="px-3 py-2">
-            <AppRowPending />
+        {appsState !== "ready" && !(signedOut && appsState === "empty") && (
+          <li className="px-3 py-2" data-testid="account-apps-state">
+            <LoadingState
+              state={appsState}
+              slow={deadline.slow}
+              what="this account's apps"
+              skeleton={<AppRowPending />}
+              empty={<NoAppYet tool={sub.tool} holder={holder} />}
+              onRetry={readAppsAgain}
+            >
+              {null}
+            </LoadingState>
           </li>
         )}
       </ul>
     </Card>
+  );
+}
+
+/** AJ-E1552: an Account no App uses yet, and the way to add one. 0.5.1
+ * F36: when its folder is a desktop App's, which signs in on its own (in
+ * its app, AJ-E3210), that's why, and the way to that App (not another
+ * Add). */
+function NoAppYet({ tool, holder }: { tool: string; holder?: AppModel }): JSX.Element {
+  if (holder) {
+    return (
+      <p className="px-2 text-meta text-ink-2" data-testid="account-apps-empty" data-held={holder.id}>
+        Its folder is used by {holder.name}, which signs in on its own ·{" "}
+        <button type="button" className="rounded text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" onClick={() => openApp(holder.id)} data-testid="account-apps-holder">
+          Open it
+        </button>
+      </p>
+    );
+  }
+  return (
+    <p className="px-2 text-meta text-ink-2" data-testid="account-apps-empty">
+      No app uses this account yet ·{" "}
+      <button type="button" className="rounded text-accent underline-offset-2 outline-none hover:underline focus-visible:ring-1 focus-visible:ring-accent/60" onClick={() => addAppFor(tool)} data-testid="account-apps-add">
+        Add its app
+      </button>
+    </p>
   );
 }

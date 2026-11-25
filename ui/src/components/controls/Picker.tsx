@@ -54,8 +54,8 @@ const SIZES = {
 } as const;
 
 const LOOKS = {
-  /** A field: the secondary button's surface and border. */
-  field: "border border-hairline bg-surface-2 text-ink hover:border-muted/30 hover:bg-surface-3",
+  /** A field: the secondary button's fill (AJ-E1550: no stroke). */
+  field: "border border-frame bg-control text-ink hover:bg-control-hi",
   /** Inline in a line of words or a toolbar: no box until hovered. */
   quiet: "text-ink hover:bg-surface-2",
   /** A link beside what it changes ("Change folder"): accent words. */
@@ -163,7 +163,9 @@ export function Picker<T extends string>({
         type="button"
         aria-haspopup="menu"
         aria-expanded={at !== null}
-        aria-label={ariaLabel ? `${ariaLabel}: ${shown}` : undefined}
+        // A prefixed button reads its name as it shows ("Showing: Ada ·
+        // Project"), so the name contains the visible words (WCAG 2.5.3).
+        aria-label={ariaLabel ? `${ariaLabel}: ${prefix && typeof label === "string" ? label : shown}` : undefined}
         aria-describedby={[describedBy, why].filter(Boolean).join(" ") || undefined}
         title={why ? reason : undefined}
         data-testid={testId}

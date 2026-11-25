@@ -7,6 +7,8 @@
 import { useMemo, type JSX, type KeyboardEvent } from "react";
 import { Button } from "../../components/primitives";
 import { usePagedList } from "../../lib/paged";
+import { usePagedState } from "../../lib/paged-state";
+import { LoadingState } from "../../components/LoadingState";
 import { tasksAcross, type TaskBoardRow, type TasksFilterInput } from "../../lib/ipc/tasks-across";
 import type { TaskCounts } from "../../lib/ipc/tasks";
 import { TaskTree } from "../../pages/tasks/TaskTree";
@@ -60,21 +62,36 @@ function Skeleton({ rows }: { rows: number }): JSX.Element {
 function Column({ status, count, ...shared }: Shared & { status: string; count: number | null }): JSX.Element {
   const list = usePagedList(`tasks-across:${status}:${shared.filterKey}`, (page) => tasksAcross({ ...shared.filter, status }, page), { pageSize: COLUMN_PAGE, keyOf: (row) => row.task.id });
   const id = `tasks-column-${status}`;
+  // AJ-E1552: its skeleton only while its first page is read.
+  const shown = usePagedState(list, `the ${STATUS_WORDS[status]!.toLowerCase()} tasks`);
   return (
     <section aria-labelledby={id} className="flex min-w-0 flex-col gap-2" data-testid={`tasks-column-${status}`}>
       <h3 id={id} className="flex items-baseline gap-2 px-1 text-section font-semibold text-ink">
         {STATUS_WORDS[status]}
         <span className="text-meta font-normal tabular-nums text-muted">{count ?? ""}</span>
       </h3>
-      <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]} aria-busy={list.loading}>
-        {list.loading ? (
-          // As many cards as the count says (0.3.4: two everywhere was
-          // taller than most columns); an empty column, its note's height.
-          count === 0 ? <li aria-hidden="true" className="h-[2.875rem] rounded-lg bg-skeleton motion-safe:animate-pulse" /> : <Skeleton rows={count === null ? 2 : Math.min(count, COLUMN_PAGE)} />
-        ) : list.items.length === 0 ? (
-          <li className="rounded-lg border border-dashed border-hairline px-3 py-3 text-meta text-muted">{EMPTY[status]}</li>
-        ) : (
-          list.items.map((row) => (
+      <LoadingState
+        state={shown.state}
+        slow={shown.slow}
+        what={`the ${STATUS_WORDS[status]!.toLowerCase()} tasks`}
+        skeleton={
+          <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]} aria-busy="true" data-testid={`tasks-skeleton-${status}`}>
+            {/* As many cards as the count says (0.3.4: two everywhere was
+                taller than most columns); an empty column, its note's height. */}
+            {count === 0 ? <li aria-hidden="true" className="h-[2.875rem] rounded-lg bg-skeleton motion-safe:animate-pulse" /> : <Skeleton rows={count === null ? 2 : Math.min(count, COLUMN_PAGE)} />}
+          </ul>
+        }
+        empty={
+          <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]}>
+            <li className="rounded-lg border border-dashed border-hairline px-3 py-3 text-meta text-muted" data-testid={`tasks-empty-${status}`}>
+              {EMPTY[status]}
+            </li>
+          </ul>
+        }
+        onRetry={list.refresh}
+      >
+        <ul className="flex flex-col gap-2" aria-label={STATUS_WORDS[status]}>
+          {list.items.map((row) => (
             <TaskCard
               key={row.task.id}
               row={row}
@@ -86,9 +103,9 @@ function Column({ status, count, ...shared }: Shared & { status: string; count: 
               onOpenTask={(id) => shared.onOpen({ id, projectId: row.project_id })}
               onOpenProject={shared.onOpenProject}
             />
-          ))
-        )}
-      </ul>
+          ))}
+        </ul>
+      </LoadingState>
       {list.hasMore && (
         <Button size="sm" variant="ghost" onClick={list.loadMore} disabled={list.loadingMore} className="self-start">
           {list.loadingMore ? "Reading more…" : "Show more"}
@@ -135,18 +152,28 @@ export function Plan({ now, ...shared }: Shared & { now: number }): JSX.Element 
     for (const row of list.items) byPool.set(row.task.pool_id, [...(byPool.get(row.task.pool_id) ?? []), row]);
     return [...byPool.values()];
   }, [list.items]);
-  if (list.loading) {
-    return (
-      <ul className="flex flex-col gap-2" aria-busy="true" aria-label="Loading the plan">
-        <Skeleton rows={3} />
-      </ul>
-    );
-  }
+  // AJ-E1552: its skeleton only while its first page is read.
+  const shown = usePagedState(list, "the plan");
   if (pools.length === 0) {
     return (
-      <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="tasks-plan-empty">
-        No epics or stories yet. When a pool's lead agent plans bigger work, its epics, their stories and their tasks show here.
-      </p>
+      <LoadingState
+        state={shown.state}
+        slow={shown.slow}
+        what="the plan"
+        skeleton={
+          <ul className="flex flex-col gap-2" aria-busy="true" aria-label="Loading the plan" data-testid="tasks-plan-skeleton">
+            <Skeleton rows={3} />
+          </ul>
+        }
+        empty={
+          <p className="rounded-lg border border-dashed border-hairline px-4 py-6 text-center text-body text-ink-2" data-testid="tasks-plan-empty">
+            No epics or stories yet. When a pool's lead agent plans bigger work, its epics, their stories and their tasks show here.
+          </p>
+        }
+        onRetry={list.refresh}
+      >
+        {null}
+      </LoadingState>
     );
   }
   return (

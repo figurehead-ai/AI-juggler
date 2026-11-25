@@ -203,5 +203,19 @@ pub async fn notifications_mutes(
 /// As [`super::send_test`].
 #[tauri::command]
 pub async fn notifications_send_test(state: tauri::State<'_, Arc<AppState>>) -> AppResult<String> {
-    super::send_test(state.inner())
+    crate::ipc::blocking_with(
+        state.inner(),
+        "send a test notification",
+        crate::ipc::Wait::Person,
+        |state| {
+            // AJ-E1547: a first notification may make the system ask, so
+            // the sheet comes first; Not now sends nothing (the next Send
+            // test asks again).
+            if !crate::os_prompts::notify::may_send_test() {
+                return Ok("Nothing was sent: the system wasn't asked.".to_owned());
+            }
+            super::send_test(state)
+        },
+    )
+    .await
 }

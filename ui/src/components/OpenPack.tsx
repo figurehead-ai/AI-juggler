@@ -74,7 +74,7 @@ export function PackPicker({ pack }: { pack: PackChoice }): JSX.Element {
   }
   const { info } = pack.opened;
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-accent/30 bg-accent-soft/40 p-3" aria-labelledby="pack-title" data-testid="pack-summary">
+    <section className="flex flex-col gap-2 rounded-xl border border-transparent bg-accent-soft p-3" aria-labelledby="pack-title" data-testid="pack-summary">
       <div className="flex items-center gap-2">
         <h4 id="pack-title" className="text-xs font-semibold">
           Starting from a saved handover

@@ -20,7 +20,9 @@ import { clearSeams, setSeam } from "../../test/fixtures";
 
 vi.mock("./useSubagents", () => ({
   useHeardSubagentCounts: () => counts,
+  knownHasSubagents: () => known,
 }));
+let known = false;
 let counts: { total: number; running: number } | null = null;
 
 const { ConversationSwitcher } = await import("./ConversationSwitcher");
@@ -30,6 +32,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   counts = null;
+  known = false;
 });
 
 const NOW = Date.now();
@@ -81,6 +84,28 @@ describe("0.3.4 the Overview's switcher", () => {
     await act(async () => undefined);
     expect(screen.getByTestId("own")).toBeTruthy();
     expect(screen.queryByTestId("switcher-list")).toBeNull();
+  });
+
+  it("AJ-E1551: reserves the tree's column from what's known before its lists are read, a skeleton in the list's place; nothing moves when they arrive", async () => {
+    let open: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => (open = resolve));
+    seed([], []);
+    vi.spyOn(subagents, "subagentsList").mockImplementation(async (_a, _c, _p, query) => {
+      await gate;
+      return page(query?.view === "running" ? [agent("r1", "running", "Read the tax tables")] : []);
+    });
+    // The rail said it has subagents; no count heard on this page yet.
+    counts = { total: 1, running: 1 };
+    known = true;
+    const other = { ...model, conversationId: "c-reserved" } as SessionModel;
+    render(<ConversationSwitcher model={other} visible own={<p data-testid="own">own</p>} />);
+    // First frame: the column is there, as a skeleton.
+    expect(screen.getByTestId("switcher-skeleton")).toBeTruthy();
+    expect(screen.getByTestId("conversation-switcher")).toBeTruthy();
+    expect(screen.queryByTestId("switcher-list")).toBeNull();
+    await act(async () => open());
+    await waitFor(() => expect(screen.getByTestId("switcher-list")).toBeTruthy());
+    expect(screen.queryByTestId("switcher-skeleton")).toBeNull();
   });
 
   it("drills into a running subagent in place, keeps the session's own pane mounted, and Esc comes back", async () => {

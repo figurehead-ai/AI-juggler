@@ -4,7 +4,8 @@
 //! - **Reading never prompts.** [`os_access_list_impl`] only checks, so the
 //!   UI can poll it while the step is open and flip an entry the moment the
 //!   user says yes in the system dialog.
-//! - **Allow does the asking.** [`os_access_request_impl`] raises the
+//! - **Allow does the asking**, through the gate (AJ-E1547): our sheet
+//!   first for a prompt not primed yet. [`os_access_request_impl`] raises the
 //!   system's own prompts (on macOS: the Accessibility prompt that adds AI
 //!   Juggler to the list, the Automation prompt for System Events, the
 //!   Screen Recording prompt). When the user said no before, the system
@@ -53,8 +54,6 @@ pub struct OsAccessInfo {
 }
 
 const ASKED_PREFIX: &str = "os_access_asked:";
-// Only macOS has entries that read these back.
-#[cfg(target_os = "macos")]
 const AUTOMATION_KEY: &str = "os_access_automation";
 
 #[cfg(target_os = "macos")]
@@ -132,35 +131,15 @@ pub fn automation_from_probe(ok: bool, stderr: &str) -> Option<bool> {
 #[cfg(target_os = "macos")]
 mod platform {
     use super::{AppState, Arc, OsAccessInfo};
+    use juggler_platform::os_prompt::{self, Status};
 
+    /// AJ-E1547: read through the gate's seam, never asking.
     pub(super) fn accessibility_trusted() -> bool {
-        macos_accessibility_client::accessibility::application_is_trusted()
-    }
-
-    pub(super) fn accessibility_prompt() -> bool {
-        macos_accessibility_client::accessibility::application_is_trusted_with_prompt()
+        os_prompt::accessibility_status() == Status::Allowed
     }
 
     pub(super) fn screen_recording_allowed() -> bool {
-        core_graphics::access::ScreenCaptureAccess.preflight()
-    }
-
-    pub(super) fn screen_recording_request() -> bool {
-        core_graphics::access::ScreenCaptureAccess.request()
-    }
-
-    /// Asks System Events for nothing but whether UI scripting is on:
-    /// the first run raises the Automation prompt (and blocks until it's
-    /// answered); later runs only report.
-    pub(super) fn automation_probe() -> Option<bool> {
-        let out = juggler_adapter::process::helper("/usr/bin/osascript")
-            .args([
-                "-e",
-                "tell application \"System Events\" to return UI elements enabled",
-            ])
-            .output()
-            .ok()?;
-        super::automation_from_probe(out.status.success(), &String::from_utf8_lossy(&out.stderr))
+        os_prompt::screen_recording_status() == Status::Allowed
     }
 
     pub(super) fn settings_url(id: &str) -> &'static str {
@@ -173,8 +152,9 @@ mod platform {
     }
 
     pub(super) fn entries(state: &Arc<AppState>) -> Vec<OsAccessInfo> {
-        let automation_ok = super::stored_automation(state).unwrap_or(false);
-        let focus_granted = accessibility_trusted() && automation_ok;
+        // 0.5.1 F23: the same reads as setup's two cards (one answer).
+        let focus_granted =
+            accessibility_trusted() && super::system_events_status(state) == Some(Status::Allowed);
         let (status, action) = super::status_of(focus_granted, super::asked(state, "focus"));
         let (preview_status, preview_action, preview_note) =
             super::preview_state(screen_recording_allowed(), super::asked(state, "preview"));
@@ -231,14 +211,59 @@ mod platform {
     }
 }
 
-#[cfg(target_os = "macos")]
-fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
+/// What AI Juggler's own System Events ask found (`None`: never asked).
+#[must_use]
+pub fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
     state
         .storage
         .lock()
         .ok()
         .and_then(|storage| storage.app_settings().get(AUTOMATION_KEY).ok().flatten())
         .map(|raw| raw == "1")
+}
+
+/// Whether AI Juggler may ask System Events about an app's windows: the
+/// one read behind setup's "Find a session's window" card, Settings ›
+/// Desktop apps' exact window and Go to it (0.5.1 F23: setup said
+/// "Allowed" from the system while Settings said "Set up…" from AI
+/// Juggler's own record, empty when the grant came from elsewhere). What
+/// the system says now comes first (a never-asking Apple event); AI
+/// Juggler's own record of its ask only when the system can't say (System
+/// Events not running). `None`: neither knows.
+#[must_use]
+pub fn system_events_status(state: &Arc<AppState>) -> Option<juggler_platform::os_prompt::Status> {
+    let live = juggler_platform::os_prompt::automation_status(
+        crate::os_prompts::registry::SYSTEM_EVENTS_BUNDLE,
+    );
+    system_events_from(live, stored_automation(state))
+}
+
+/// [`system_events_status`] from the system's answer and AI Juggler's
+/// record (pure).
+#[must_use]
+pub fn system_events_from(
+    live: Option<juggler_platform::os_prompt::Status>,
+    stored: Option<bool>,
+) -> Option<juggler_platform::os_prompt::Status> {
+    use juggler_platform::os_prompt::Status;
+    live.or_else(|| {
+        stored.map(|allowed| {
+            if allowed {
+                Status::Allowed
+            } else {
+                Status::NotAllowed
+            }
+        })
+    })
+}
+
+/// Keeps what the System Events ask found.
+///
+/// # Errors
+///
+/// A poisoned lock or a storage error.
+pub fn store_automation(state: &Arc<AppState>, allowed: bool) -> AppResult<()> {
+    set_setting(state, AUTOMATION_KEY, if allowed { "1" } else { "0" })
 }
 
 /// AJ-E2102: whether Go to it may reach exact windows: the user turned on
@@ -249,7 +274,8 @@ fn stored_automation(state: &Arc<AppState>) -> Option<bool> {
 pub fn exact_windows_allowed(state: &Arc<AppState>) -> bool {
     #[cfg(target_os = "macos")]
     {
-        stored_automation(state) == Some(true) && platform::accessibility_trusted()
+        platform::accessibility_trusted()
+            && system_events_status(state) == Some(juggler_platform::os_prompt::Status::Allowed)
     }
     #[cfg(not(target_os = "macos"))]
     {
@@ -296,19 +322,30 @@ pub fn os_access_request_impl(state: &Arc<AppState>, id: &str) -> AppResult<Vec<
             message: format!("{id:?} isn't needed on this computer"),
         });
     }
-    set_setting(state, &format!("{ASKED_PREFIX}{id}"), "1")?;
-    #[cfg(target_os = "macos")]
-    match id {
-        "focus" => {
-            platform::accessibility_prompt();
-            if let Some(allowed) = platform::automation_probe() {
-                set_setting(state, AUTOMATION_KEY, if allowed { "1" } else { "0" })?;
+    // AJ-E1547: each system prompt through the gate, our sheet first for
+    // one not primed yet; Not now asks nothing and marks nothing.
+    let prompts = match id {
+        "focus" => [
+            crate::os_prompts::registry::ACCESSIBILITY,
+            crate::os_prompts::registry::SYSTEM_EVENTS,
+        ]
+        .as_slice(),
+        "preview" => [crate::os_prompts::registry::SCREEN_RECORDING].as_slice(),
+        _ => [].as_slice(),
+    };
+    let mut called = false;
+    for prompt in prompts {
+        if let Some(entry) = crate::os_prompts::registry::entry(prompt.id) {
+            let outcome =
+                crate::os_prompts::prime_call(state, entry, juggler_platform::os_prompt::user())?;
+            if outcome.result != "called" {
+                break;
             }
+            called = true;
         }
-        "preview" => {
-            platform::screen_recording_request();
-        }
-        _ => {}
+    }
+    if called {
+        set_setting(state, &format!("{ASKED_PREFIX}{id}"), "1")?;
     }
     Ok(os_access_list_impl(state))
 }
@@ -357,7 +394,6 @@ pub async fn os_access_request(
 /// this platform doesn't list.
 #[tauri::command]
 pub async fn os_access_open_settings(
-    app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
 ) -> AppResult<()> {
@@ -373,16 +409,15 @@ pub async fn os_access_open_settings(
         }
         #[cfg(target_os = "macos")]
         {
-            use tauri_plugin_opener::OpenerExt;
-            app.opener()
-                .open_url(platform::settings_url(&id), None::<&str>)
-                .map_err(|e| AppError::Io {
-                    context: "open the system settings",
-                    message: e.to_string(),
-                })?;
+            // F67: through the launcher (none of our environment).
+            juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(
+                platform::settings_url(&id),
+            ))
+            .map_err(|e| AppError::Io {
+                context: "open the system settings",
+                message: e.to_string(),
+            })?;
         }
-        #[cfg(not(target_os = "macos"))]
-        let _ = app;
         Ok(())
     })
     .await
@@ -425,17 +460,17 @@ impl SystemPage {
 /// # Errors
 ///
 /// The page can't be opened.
-pub fn open_system_page(app: &tauri::AppHandle, page: SystemPage) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt as _;
+pub fn open_system_page(page: SystemPage) -> AppResult<()> {
     let Some(url) = page.url() else {
         return Ok(());
     };
-    app.opener()
-        .open_url(url, None::<&str>)
-        .map_err(|e| AppError::Io {
+    // F67: through the launcher (none of our environment).
+    juggler_adapter::apps::open(juggler_adapter::apps::Opening::Link(url)).map_err(|e| {
+        AppError::Io {
             context: "open the system settings",
             message: e.to_string(),
-        })
+        }
+    })
 }
 
 #[cfg(test)]
@@ -484,6 +519,34 @@ mod tests {
         // After the reopen, the OS says yes: Allowed, nothing to do.
         assert_eq!(preview_state(true, true), ("allowed", "none", None));
         assert_eq!(preview_state(true, false), ("allowed", "none", None));
+    }
+
+    /// 0.5.1 F23: setup said System Events "Allowed" (the system's own
+    /// answer) while Settings said "Set up…" (AI Juggler's record, empty
+    /// as the grant came from elsewhere). One read: the system first.
+    #[test]
+    fn system_events_has_one_answer_the_systems_first() {
+        use juggler_platform::os_prompt::Status;
+        assert_eq!(
+            system_events_from(Some(Status::Allowed), None),
+            Some(Status::Allowed)
+        );
+        // Taken back in System Settings: the old record doesn't keep it on.
+        assert_eq!(
+            system_events_from(Some(Status::NotAllowed), Some(true)),
+            Some(Status::NotAllowed)
+        );
+        assert_eq!(
+            system_events_from(Some(Status::NotAsked), Some(true)),
+            Some(Status::NotAsked)
+        );
+        // System Events not running: AI Juggler's record of its ask.
+        assert_eq!(system_events_from(None, Some(true)), Some(Status::Allowed));
+        assert_eq!(
+            system_events_from(None, Some(false)),
+            Some(Status::NotAllowed)
+        );
+        assert_eq!(system_events_from(None, None), None);
     }
 
     #[test]

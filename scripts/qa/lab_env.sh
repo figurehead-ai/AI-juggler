@@ -32,6 +32,9 @@ if [ "${1:-}" = "--selftest" ]; then
   # The lab's stand-ins reach the app (lab_scenario.sh open names them).
   out="$(AI_JUGGLER_CLAUDE_BIN=/tmp/aij-lab-x/.aij-lab-bin/claude "$0" /usr/bin/env)"
   echo "$out" | grep -q '^AI_JUGGLER_CLAUDE_BIN=/tmp/aij-lab-x/.aij-lab-bin/claude$' || { echo "lab_env selftest: the stand-in's path was dropped" >&2; exit 1; }
+  # 0.5.1 F96: the Dev bundle lab_scenario.sh opens is named through it.
+  out="$(AIJ_DEV_APP="/tmp/aij-lab-dev/AI Juggler Dev.app" "$0" /usr/bin/env)"
+  echo "$out" | grep -q '^AIJ_DEV_APP=/tmp/aij-lab-dev/AI Juggler Dev.app$' || { echo "lab_env selftest: AIJ_DEV_APP was dropped" >&2; exit 1; }
   echo "lab_env selftest: ok"; exit 0
 fi
 keep=(HOME CFFIXED_USER_HOME PATH USER LOGNAME SHELL TMPDIR LANG LC_ALL TERM RUSTFLAGS RUSTC_WRAPPER AJ_LAB_OUT)
@@ -41,7 +44,9 @@ for name in "${keep[@]}"; do
 done
 while IFS='=' read -r name _; do
   case "$name" in
-    CARGO_*|RUSTUP_*|AIJ_LAB_*|AIJ_QA_*|AIJ_DEV_BRIDGE|AIJ_DEV_BRIDGE_ORIGIN) args+=("$name=${!name}") ;;
+    # AIJ_DEV_APP: which Dev bundle lab_scenario.sh opens (0.5.1 F96: a
+    # walk wrapping it in lab_env lost a custom bundle); a path, no secret.
+    CARGO_*|RUSTUP_*|AIJ_LAB_*|AIJ_QA_*|AIJ_DEV_BRIDGE|AIJ_DEV_BRIDGE_ORIGIN|AIJ_DEV_APP) args+=("$name=${!name}") ;;
     # 0.4.7: the lab's stand-ins for the tools (lab_standin.sh), which
     # lab_scenario.sh names: a lab never runs the real ones.
     AI_JUGGLER_CLAUDE_BIN|AI_JUGGLER_CODEX_BIN|AI_JUGGLER_OPENCODE_BIN|AI_JUGGLER_KIMI_BIN|AI_JUGGLER_GROK_BIN) args+=("$name=${!name}") ;;

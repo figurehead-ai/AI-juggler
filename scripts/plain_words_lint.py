@@ -71,6 +71,9 @@ BANNED: dict[str, tuple[re.Pattern[str], str]] = {
     # R8 (the 0.5.0 re-walk): "Messages in «Notes» are paused". A name or
     # a quote is said with the app's own quotes, never guillemets.
     "guillemets": (re.compile("[\u00ab\u00bb]"), "plain quotes: \u201cNotes\u201d"),
+    # D-144 (AJ-E3823): Bot is AI and conversation only; finding records
+    # is Search's. "Look-ups" was the no-AI Bot's word for itself.
+    "look-ups": (re.compile(r"\b[Ll]ook-?ups\b"), "Bot \"answers\"; finding records is \"Search\""),
 }
 # A one-word literal that is a banned tag on its own still counts.
 TAGS = {"COMP", "MEAS", "EST", "Comp", "Meas", "Est", "tok"}

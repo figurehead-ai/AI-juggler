@@ -91,7 +91,8 @@ describe("Going to a session", () => {
   it("the exact window is set up here, and says On once macOS allows it", async () => {
     pane();
     const row = await screen.findByTestId("desktop-exact-window");
-    expect(row.textContent).toContain("Needs Accessibility");
+    // 0.5.1 F23: names both of setup's Mac access cards it stands for.
+    expect(row.textContent).toContain("Needs Accessibility, and Automation of System Events");
     await act(async () => {
       fireEvent.click(await within(row).findByRole("button", { name: "Set up…" }));
     });

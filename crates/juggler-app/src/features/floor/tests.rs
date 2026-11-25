@@ -468,8 +468,9 @@ fn the_floor_names_apps_by_the_rails_identity_and_lights_what_runs() {
 }
 
 /// 0.4.1 bug (b), D-84: the Floor's Apps are the rail's. An app only
-/// seen running (no folder, not added, kept alive or named) is an offer,
-/// never an area; a CLI App leaves with its folder.
+/// seen running (not added, kept alive or named) is an offer, never an
+/// area, even one linked to a folder (AJ-E1552); a CLI App leaves with
+/// its folder.
 #[test]
 fn the_floor_shows_only_the_users_apps() {
     let mut seen = app("app:host:/tmp/lab", "desktop", "tool-a", None);
@@ -485,7 +486,11 @@ fn the_floor_shows_only_the_users_apps() {
     let all = vec![
         app("cli:f-work", "cli", "tool-a", Some("f-work")),
         app("cli:f-gone", "cli", "tool-a", Some("f-gone")),
-        app("app:host:/x/b-work", "desktop", "tool-a", Some("f-work")),
+        App {
+            added: true,
+            ..app("app:host:/x/b-work", "desktop", "tool-a", Some("f-work"))
+        },
+        app("app:host:/x/b-linked", "desktop", "tool-a", Some("f-work")),
         seen,
         added,
         hidden,

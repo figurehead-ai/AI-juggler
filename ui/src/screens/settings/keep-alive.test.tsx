@@ -286,3 +286,38 @@ describe("Settings › Desktop apps: Forget on a running app", () => {
     expect(screen.getByTestId("desktop-place-restart").textContent).toContain("Restart…");
   });
 });
+
+// F19 (0.5.1 PL1 D3): Settings › Desktop apps had no add entry: with
+// nothing offered, a removed App could only come back by the file chooser.
+describe("F19 Settings › Desktop apps: an add entry, always", () => {
+  it("with nothing offered, Add apps has Find my apps…, which opens Find my apps", async () => {
+    seams().__AIJ_PLACES__ = { places: [], offers: [] };
+    const { FIND_APPS } = await import("../../lib/found-tools");
+    let opened = 0;
+    const count = () => (opened += 1);
+    window.addEventListener(FIND_APPS, count);
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const row = await screen.findByTestId("desktop-find-apps");
+    expect(row.closest("section")?.textContent).toContain("Add apps");
+    fireEvent.click(within(row).getByRole("button", { name: "Find my apps…" }));
+    expect(opened).toBe(1);
+    window.removeEventListener(FIND_APPS, count);
+  });
+
+  it("with offers, each has Add, and Find my apps… is at their foot", async () => {
+    seams().__AIJ_PLACES__ = { places: [], offers: [{ id: "app:claude-app:/Users/you/ClaudeProfiles/work", label: "Claude app · work" }] };
+    render(
+      <ConversationsProvider>
+        <DesktopAppsPane />
+      </ConversationsProvider>,
+    );
+    const offer = await screen.findByTestId("desktop-offer");
+    const section = offer.closest("section")!;
+    expect(section.textContent).toContain("Found on this computer");
+    expect(within(section).getByTestId("desktop-find-apps")).toBeTruthy();
+  });
+});

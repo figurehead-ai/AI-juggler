@@ -142,7 +142,7 @@ export function History({
   const filtered = filtersOn(filters) > 0;
   // A session ended, was archived or went: the filters' values read again.
   const [stamp, setStamp] = useState(0);
-  const [replay, setReplay] = useState<string | null>(null);
+  const [replay, setReplay] = useState<{ id: string; tool: string } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const names = new Map(projects.map((project) => [project.id, project.name]));
@@ -264,7 +264,7 @@ export function History({
 
   // AJ-E1537: what History gives each row's menu.
   const historyHost: ActionHost = {
-    replay: (session) => setReplay(session.id),
+    replay: (session) => setReplay({ id: session.id, tool: session.provider }),
     archive: (session) => act(session, () => instanceArchive(session.id), "archived — nothing deleted", () => instanceUnarchive(session.id)),
     unarchive: (session) => act(session, () => instanceUnarchive(session.id), "unarchived", () => instanceArchive(session.id)),
     isArchived: archived,
@@ -381,7 +381,7 @@ export function History({
           groupOf={(row) => dayWords(row.last, Date.now())}
         />
       </ActionHostProvider>
-      {replay && <ReplayDialog sessionId={replay} onClose={() => setReplay(null)} />}
+      {replay && <ReplayDialog sessionId={replay.id} tool={replay.tool} onClose={() => setReplay(null)} />}
       {deleting && (
         <DeleteInstanceDialog
           sessionId={deleting}

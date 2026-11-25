@@ -20,7 +20,7 @@ import { DISK, DOWNLOAD, JOB_NAMES, OTHERS, listWords } from "./models-words";
 
 const TAG_WORDS: Record<ModelTag, string> = { smallest: OTHERS.smallest, fastest: OTHERS.fastest };
 
-function Licence({ model }: { model: CatalogModel }): JSX.Element | null {
+export function Licence({ model }: { model: CatalogModel }): JSX.Element | null {
   if (!model.licence_name) return null;
   return (
     <button
@@ -80,14 +80,16 @@ function ModelCard({
           </ul>
         </Disclosure>
       )}
-      <div className="mt-auto flex items-center gap-2 border-t border-divider pt-3">
-        <span className="flex min-w-0 flex-1 items-center gap-1.5 text-label text-muted">
+      {/* The button names what it downloads (AJ-E3823), so the row wraps
+          as a whole rather than squeezing the line beside it. */}
+      <div className="mt-auto flex flex-wrap-reverse items-center justify-end gap-x-2 gap-y-2 border-t border-divider pt-3">
+        <span className="flex min-w-max flex-1 items-center gap-1.5 text-label whitespace-nowrap text-muted">
           {short ? <IconDisk width={13} height={13} aria-hidden="true" /> : <IconLock width={13} height={13} aria-hidden="true" />}
           {short ? DISK.cardNeeds(model.free_disk_needed_bytes) : OTHERS.stays}
         </span>
         <Button size="sm" disabled={short || busy} onClick={() => onDownload(model)} data-testid="model-download">
           <IconDownload width={13} height={13} aria-hidden="true" />
-          {DOWNLOAD.button(model.size_bytes ?? 0)}
+          {DOWNLOAD.button(model.name, model.size_bytes ?? 0)}
         </Button>
       </div>
     </article>

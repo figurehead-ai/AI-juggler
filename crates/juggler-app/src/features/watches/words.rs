@@ -53,14 +53,16 @@ const fn p(one: &'static str, many: &'static str) -> Phrase {
 
 /// `finishes`.
 pub const FINISHES: CondWords = CondWords {
-    en: p("finishes", "finish"),
+    en: p("finishes its turn", "finish their turn"),
     en_param: None,
-    de: p("fertig ist", "fertig sind"),
+    de: p("mit seinem Zug fertig ist", "mit ihrem Zug fertig sind"),
     de_param: None,
-    label_en: "Finishes",
-    label_de: "Ist fertig",
-    told_en: "finished",
-    told_de: "ist fertig",
+    // AJ-E1548 #8: "finishes" alone means a session ended on its own
+    // (Notifications, the feed); this condition is a turn's end.
+    label_en: "Its turn ends",
+    label_de: "Sein Zug endet",
+    told_en: "finished its turn",
+    told_de: "ist mit seinem Zug fertig",
 };
 
 /// `ends`.

@@ -19,7 +19,7 @@ import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import type { ConversationInfo } from "./ipc/conversations";
 import type { PoolOf } from "./rail-places";
 
-export const SHOW_KEYS = ["inactive", "quiet", "ended", "background", "subagents", "otherMacs", "archived"] as const;
+export const SHOW_KEYS = ["inactive", "quiet", "ended", "background", "otherMacs", "archived"] as const;
 export type ShowKey = (typeof SHOW_KEYS)[number];
 export const ONLY_KEYS = ["app", "profile", "account", "project", "pool", "mac"] as const;
 export type OnlyKey = (typeof ONLY_KEYS)[number];
@@ -34,7 +34,7 @@ export interface RailView {
  * other Macs fold after this Mac. */
 export const DEFAULT_VIEW: RailView = {
   group: "place",
-  show: { inactive: false, quiet: false, ended: false, background: false, subagents: false, otherMacs: false, archived: false },
+  show: { inactive: false, quiet: false, ended: false, background: false, otherMacs: false, archived: false },
   only: {},
 };
 
@@ -43,7 +43,6 @@ export const SHOW_LABELS: Record<ShowKey, string> = {
   quiet: "Quiet ones",
   ended: "Ended today",
   background: "Background runs",
-  subagents: "Subagents",
   otherMacs: "Other Macs",
   archived: "Archived",
 };
@@ -56,7 +55,6 @@ export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
   quiet: "idle ones, folded away",
   ended: "closed since midnight",
   background: "from scripts",
-  subagents: "a count on each session",
   otherMacs: "your paired Macs' sessions",
   archived: "ones you put away",
 };
@@ -64,7 +62,8 @@ export const SHOW_NOTES: Partial<Record<ShowKey, string>> = {
 const KEY = "aij.rail.view.v1";
 const GROUPS: GroupBy[] = ["place", "project", "pool", "account"];
 
-/** A stored view, checked field by field. */
+/** A stored view, checked field by field. A Show part no longer offered
+ * (0.5.1, F10: "Subagents", the count every row now shows) is ignored. */
 export function parseView(raw: string | null): RailView {
   if (!raw) return DEFAULT_VIEW;
   try {
@@ -177,7 +176,6 @@ const IS_WORDS: Record<string, ShowKey | "asks"> = {
   quiet: "quiet",
   archived: "archived",
   asks: "asks",
-  subagents: "subagents",
 };
 
 export interface RailQuery {

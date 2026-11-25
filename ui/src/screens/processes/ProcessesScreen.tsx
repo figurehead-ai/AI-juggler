@@ -12,6 +12,7 @@ import { Page } from "../../components/Page";
 import { Button } from "../../components/primitives";
 import { processesCounts, processesSnapshot, onProcessesChanged, type ProcessCountsInfo } from "../../lib/ipc/processes";
 import { RemoteCleanup } from "../../components/RemoteCleanup";
+import { BackupsCleanupRow } from "../../components/switch/MovesBackups";
 import { RulesPanel } from "./RulesPanel";
 import { ProcessesView } from "./ProcessesView";
 import type { Choice, ViewId } from "./Toolbar";
@@ -90,6 +91,8 @@ export function ProcessesScreen({
         <Tally value={counts?.zombies ?? 0} label="waiting for their parent" tone="neutral" testId="tally-zombies" />
         <Tally value={counts?.processes ?? 0} label={`running in ${counts?.sessions ?? 0} sessions`} tone="neutral" testId="tally-running" />
       </div>
+      {/* AJ-E2325: the move backups the top bar's count includes. */}
+      <BackupsCleanupRow />
       <ProcessesView view={view} onOpenSession={onOpenSession} onOpenConversation={onOpenConversation} accounts={accounts} projects={projects} />
       <RulesPanel />
       {/* AJ-E707: what a paired Mac left behind, cleaned there (shows only

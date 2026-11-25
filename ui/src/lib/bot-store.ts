@@ -213,12 +213,19 @@ export function setAnchor(anchor: string | null): void {
  * turn that remembers lands; lib/bot-memory re-exports it). */
 export const MEMORY_CHANGED = "aij:bot-memory-changed";
 
-export async function ask(question?: string): Promise<BotTurnInfo | null> {
+/** AJ-E1548 #2: Ask again: the turn whose answer was marked wrong, its
+ * question asked once more with its own chip, saying so. */
+export interface AskAgain {
+  turn: string;
+  scope: BotScope | null;
+}
+
+export async function ask(question?: string, again?: AskAgain): Promise<BotTurnInfo | null> {
   const words = (question ?? state.draft).trim();
   if (!words || state.asking) return null;
   set({ asking: true, error: null, draft: question === undefined ? "" : state.draft });
   try {
-    const turn = await botAsk({ question: words, scope: state.scope });
+    const turn = await botAsk(again ? { question: words, scope: again.scope, again: again.turn } : { question: words, scope: state.scope });
     set({ turns: [...state.turns, turn], asking: false, loaded: true });
     // "What Bot remembers" reads again at once (the 0.5 walk's N-03: it
     // said 0 beside a note just kept until the tab was opened).
@@ -228,6 +235,11 @@ export async function ask(question?: string): Promise<BotTurnInfo | null> {
     set({ asking: false, error: errorText(cause), draft: question === undefined ? words : state.draft });
     return null;
   }
+}
+
+/** AJ-E1548 #2: a turn's answer marked wrong (or its Undo), as kept. */
+export function markWrong(id: string, flagged: boolean): void {
+  set({ turns: state.turns.map((turn) => (turn.id === id ? { ...turn, flagged } : turn)) });
 }
 
 /** New topic: follow-ups start fresh; nothing is deleted. */

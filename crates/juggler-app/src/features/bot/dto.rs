@@ -267,6 +267,9 @@ pub enum BotUnknown {
     Costs,
     /// AI Juggler doesn't record who wrote what.
     Authors,
+    /// D-144: the AI couldn't give an answer that checks out against the
+    /// records it looked at (they are shown as what it checked).
+    Unverified,
 }
 
 /// The nearest screen that answers it (no AI needed).
@@ -465,4 +468,9 @@ pub struct BotAskInput {
     pub question: String,
     /// The chip, when one rides on it.
     pub scope: Option<BotScope>,
+    /// AJ-E1548 #2: Ask again: the turn whose answer was marked wrong
+    /// (its question asked again with a note saying so).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub again: Option<String>,
 }

@@ -10,9 +10,13 @@
  */
 import { useState, type JSX } from "react";
 import { Picker, Segmented, type PickerOption } from "./controls";
-import { MenuItem, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { IconProfiles } from "./icons";
+import { IconCheck } from "./icons-controls";
+import { IconRead } from "./icons-menu";
 import { cliAppName } from "../lib/app-name";
 import { filtered } from "../lib/feed-state";
+import { MARK_HINTS } from "../lib/feed-words";
 import { THIS_MACHINE } from "../lib/machine-words";
 import type { FeedFiltersInfo } from "../lib/ipc/feed";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -39,6 +43,12 @@ export interface Facets {
   accounts: readonly AccountInfo[];
   subscriptions: readonly SubscriptionInfo[] | null;
   pools: PoolsInfo | null;
+}
+
+/** The picked one with its kind ("billing · Project"); `undefined` for Everything. */
+function facetLabel(options: readonly PickerOption[], facet: string): string | undefined {
+  const picked = options.find((option) => option.value === facet);
+  return picked?.hint ? `${picked.label} · ${picked.hint}` : undefined;
 }
 
 function facetOptions(facets: Facets): { options: PickerOption[]; suggested: string[] } {
@@ -105,7 +115,12 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
             options={options}
             groups={[{ label: "Recent projects", values: suggested }]}
             onChange={(value) => onChange(withFacet(filters, value, facets))}
-            ariaLabel="Show one project, App, pool or Account"
+            // AJ-E1548 #21: closed, it says what it narrows: "Showing:
+            // Everything", or the picked one with its kind; its name reads
+            // the same (axe: label-content-name-mismatch).
+            ariaLabel="Showing"
+            prefix="Showing:"
+            label={facetLabel(options, facet)}
             heading="Show one"
             allHeading="All"
             searchLabel="Search projects, Apps and pools"
@@ -119,13 +134,24 @@ export function HomeFeedFilters({ filters, onChange, facets, toReview, onReviewA
         </button>
         {menu && (
           <RowMenu heading="Feed" ariaLabel="Feed options" at={menu} onClose={() => setMenu(null)} testId="feed-menu">
+            {/* 0.5.1 F60 (N8): every line carries its icon, as every menu's. */}
             <MenuItem checked={filters.include_mine} onClick={() => onChange({ ...filters, include_mine: !filters.include_mine })} testId="feed-include-mine">
-              Include my actions
+              <MenuLine icon={IconProfiles} label="Include my actions" tick={filters.include_mine} />
             </MenuItem>
-            <MenuItem onClick={onReadAll} testId="feed-read-all">Mark all read</MenuItem>
+            {/* AJ-E1548 #19: each "mark all" says what it clears. */}
+            {/* A mark-all is done once chosen: the menu closes (it stayed
+                open saying "Mark all 3 reviewed" over its own toast). */}
+            <MenuItem onClick={() => { onReadAll(); setMenu(null); }} testId="feed-read-all">
+              <MenuLine icon={IconRead} label="Mark all read" labelTestId="feed-read-all-label" note={MARK_HINTS.read} />
+            </MenuItem>
             {chip === "finished" && (
-              <MenuItem disabled={toReview === 0} onClick={onReviewAll} testId="feed-review-all">
-                {toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}
+              <MenuItem disabled={toReview === 0} onClick={() => { onReviewAll(); setMenu(null); }} testId="feed-review-all">
+                <MenuLine
+                  icon={IconCheck}
+                  label={toReview === null ? "Mark all reviewed" : toReview > 0 ? `Mark all ${toReview} reviewed` : "Nothing to review"}
+                  labelTestId="feed-review-all-label"
+                  note={toReview !== 0 ? MARK_HINTS.reviewed : undefined}
+                />
               </MenuItem>
             )}
           </RowMenu>

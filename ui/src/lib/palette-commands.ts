@@ -1,8 +1,8 @@
 /**
  * ⌘K's own actions (deep/11 §4.17; E2106 Req.4): besides the selected
  * item's (the action registry's), the app's — go to a screen, a new
- * session or project, the notifications, the shortcuts, the list, and a
- * search of History for what's typed. The 0.2 walk (F7) found none:
+ * session or project, Watch a session… (AJ-E3824), the notifications,
+ * the shortcuts, the list, and a search of History for what's typed. The 0.2 walk (F7) found none:
  * typing "switch" found only folders with the word.
  *
  * Pure: App hands in what each one does; the palette filters them by
@@ -39,6 +39,15 @@ export interface AppDoings {
   searchHistory: (words: string) => void;
   /** Fleet shows (another computer is paired). */
   fleet: boolean;
+  /** AJ-E3824: a pool's board, by id (a found task's or pool's). */
+  openPool?: (id: string) => void;
+  /** AJ-E3824: an account's page, by its folder's id (a usage figure's). */
+  openAccount?: (id: string) => void;
+  /** AJ-E3824 (D-144): Watches' form, new, to pick a session. */
+  watchSession?: () => void;
+  /** F19 (0.5.1): Find my apps, the setup's Your apps (every Add's list:
+   * running profiles not added, folders not brought in). */
+  findApps?: () => void;
 }
 
 const SCREEN_ICON: Record<GlobalId | "home", PaletteCommandIcon> = {
@@ -76,6 +85,9 @@ const SCREEN_WORDS: Partial<Record<GlobalId | "home", string>> = {
   floor: "office desks screen reader accessible floor list",
 };
 
+/** D-144: the command Bot's no-AI panel had, now Search's. */
+const WATCH_A_SESSION = "Watch a session…";
+
 /** The keys a shortcut reads as on the ? sheet. */
 export function keysOf(id: ShortcutId | undefined): string | undefined {
   // AJ-E2905: the key in force (the user may have changed it).
@@ -96,6 +108,8 @@ export function appCommands(app: AppDoings): PaletteCommand[] {
       keys: keysOf(SCREEN_KEY[id]),
       run: () => app.openScreen(id),
     })),
+    ...(app.watchSession ? [{ id: "watch-session", label: WATCH_A_SESSION, icon: "bell" as const, words: "watch tell me when finishes asks notify alert", run: app.watchSession }] : []),
+    ...(app.findApps ? [{ id: "find-apps", label: "Find my apps…", icon: "accounts" as const, words: "add app apps profile desktop import bring in again", run: app.findApps }] : []),
     { id: "notifications", label: "Notifications", icon: "bell", words: "needs you alerts bell", keys: keysOf("notifications"), run: app.notifications },
     { id: "shortcuts", label: "Keyboard shortcuts", icon: "keyboard", words: "keys help", keys: keysOf("help"), run: app.shortcuts },
     { id: "toggle-rail", label: "Show or hide the list", icon: "list", words: "rail sidebar icons fold", keys: keysOf("toggle-rail"), run: app.toggleRail },

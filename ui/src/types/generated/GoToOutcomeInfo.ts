@@ -13,7 +13,7 @@ outcome: string,
  * The step reached: `thread`, `tab`, `folder`, `app`, `started`,
  * `pending` (still on it after 1.5 s), `lost` (0.3.8: it runs but
  * lost its window when the system restarted the display; the toast offers
- * Restart) or `none`.
+ * Restart), `quit` (0.5.1 F98: Quit… closed it) or `none`.
  */
 reached: string, 
 /**

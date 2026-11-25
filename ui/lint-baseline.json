@@ -75,7 +75,6 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/ConversationPage.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(no-unstable-nested-components)": 1,
   "react(refs)": 8,
   "react(set-state-in-effect)": 1,
@@ -96,9 +95,7 @@
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/components/CrossMachineSwitchBack.tsx": {
-  "jsx-a11y(label-has-associated-control)": 2,
-  "jsx-a11y(no-noninteractive-tabindex)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1
+  "jsx-a11y(no-noninteractive-tabindex)": 1
  },
  "src/components/CrossMachineSwitchFlow.tsx": {
   "typescript(consistent-return)": 2
@@ -375,10 +372,6 @@
  "src/components/ReplayDialog.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1
  },
- "src/components/ReplayTerminal.tsx": {
-  "import(no-unassigned-import)": 1,
-  "typescript(consistent-return)": 1
- },
  "src/components/ReportBugSheet.tsx": {
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
@@ -412,7 +405,7 @@
  },
  "src/components/SessionCards.tsx": {
   "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-tabindex)": 2,
+  "jsx-a11y(no-noninteractive-tabindex)": 1,
   "react(purity)": 1
  },
  "src/components/SessionRow.test.tsx": {
@@ -455,9 +448,7 @@
   "typescript(no-unnecessary-type-assertion)": 1
  },
  "src/components/SwitchGraph.tsx": {
-  "eslint(complexity)": 1,
-  "jsx-a11y(no-noninteractive-element-interactions)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1
+  "jsx-a11y(no-noninteractive-element-interactions)": 1
  },
  "src/components/SwitchSetUpsCard.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1,
@@ -527,17 +518,12 @@
  "src/components/ViewPopover.tsx": {
   "react(refs)": 1
  },
- "src/components/Welcome.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
  "src/components/WorkflowRail.tsx": {
-  "eslint(complexity)": 2,
+  "eslint(complexity)": 1,
   "eslint(max-lines)": 1,
-  "jsx-a11y(no-noninteractive-tabindex)": 1,
   "react(exhaustive-effect-dependencies)": 1,
   "react(purity)": 1,
-  "react(refs)": 1,
-  "typescript(no-unnecessary-type-conversion)": 1
+  "react(refs)": 1
  },
  "src/components/WorktreeGit.tsx": {
   "react(exhaustive-effect-dependencies)": 2,
@@ -760,8 +746,7 @@
   "typescript(no-unsafe-type-assertion)": 4
  },
  "src/components/new-project-sheet.test.tsx": {
-  "typescript(no-unnecessary-type-assertion)": 1,
-  "typescript(no-unsafe-type-assertion)": 5
+  "typescript(no-unsafe-type-assertion)": 2
  },
  "src/components/new-session-drop.test.tsx": {
   "typescript(no-unsafe-type-assertion)": 1
@@ -1744,16 +1729,11 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/messages/MessagesView.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 1
  },
  "src/pages/messages/SharedDocs.tsx": {
-  "jsx-a11y(no-noninteractive-tabindex)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 1
- },
- "src/pages/messages/ThreadView.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(set-state-in-effect)": 1
+  "jsx-a11y(no-noninteractive-tabindex)": 1
  },
  "src/pages/messages/messages.test.tsx": {
   "import(default)": 6,
@@ -1791,8 +1771,6 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/pool/InspectNode.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(set-state-in-effect)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
  "src/pages/pool/InspectPool.tsx": {
@@ -1883,7 +1861,7 @@
  "src/pages/session/ConversationSwitcher.tsx": {
   "jsx-a11y(control-has-associated-label)": 1,
   "react(purity)": 1,
-  "typescript(consistent-return)": 2
+  "typescript(consistent-return)": 1
  },
  "src/pages/session/ConversationTurn.tsx": {
   "react(purity)": 1
@@ -1893,7 +1871,7 @@
  },
  "src/pages/session/LastMessages.tsx": {
   "jsx-a11y(no-noninteractive-tabindex)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 5
+  "jsx-a11y(prefer-tag-over-role)": 4
  },
  "src/pages/session/Markdown.tsx": {
   "eslint(complexity)": 1,
@@ -1916,9 +1894,6 @@
  "src/pages/session/SessionHead.tsx": {
   "typescript(consistent-return)": 1,
   "typescript(no-unsafe-type-assertion)": 1
- },
- "src/pages/session/SessionPools.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/session/TurnWork.tsx": {
   "typescript(no-unsafe-type-assertion)": 2
@@ -1994,9 +1969,6 @@
   "react(purity)": 1
  },
  "src/pages/subagents/SubagentDetail.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(exhaustive-effect-dependencies)": 1,
-  "react(set-state-in-effect)": 1,
   "typescript(no-meaningless-void-operator)": 1,
   "typescript(no-unsafe-type-assertion)": 1
  },
@@ -2012,7 +1984,7 @@
  "src/pages/subagents/SubagentsView.tsx": {
   "eslint(complexity)": 1,
   "eslint(no-shadow)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 2,
+  "jsx-a11y(prefer-tag-over-role)": 1,
   "react(immutability)": 1,
   "react(set-state-in-effect)": 1,
   "typescript(no-unnecessary-type-arguments)": 1
@@ -2037,15 +2009,13 @@
   "typescript(no-unsafe-type-assertion)": 3
  },
  "src/pages/tasks/PoolTasks.tsx": {
-  "eslint(complexity)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 3,
+  "jsx-a11y(prefer-tag-over-role)": 2,
   "react(set-state-in-effect)": 1
  },
  "src/pages/tasks/TaskView.tsx": {
   "eslint(complexity)": 1,
   "jsx-a11y(no-autofocus)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 2,
-  "react(set-state-in-effect)": 1
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/pages/tasks/tasks.test.tsx": {
   "eslint(max-lines)": 1,
@@ -2128,14 +2098,15 @@
  "src/screens/FirstRun.tsx": {
   "eslint(complexity)": 3,
   "eslint(max-lines)": 1,
-  "eslint(no-shadow)": 14,
-  "jsx-a11y(label-has-associated-control)": 1,
-  "jsx-a11y(prefer-tag-over-role)": 7,
+  "eslint(no-shadow)": 13,
+  "jsx-a11y(prefer-tag-over-role)": 5,
   "react(set-state-in-effect)": 1,
   "react(use-memo)": 1,
-  "typescript(consistent-return)": 1,
   "typescript(no-unnecessary-boolean-literal-compare)": 1,
   "typescript(no-unsafe-type-assertion)": 2
+ },
+ "src/screens/FirstRunFrame.tsx": {
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/FleetScreen.tsx": {
   "eslint(complexity)": 1,
@@ -2163,7 +2134,6 @@
   "typescript(consistent-return)": 2
  },
  "src/screens/NewProjectSheet.tsx": {
-  "eslint(complexity)": 1,
   "jsx-a11y(no-static-element-interactions)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(no-misused-promises)": 1
@@ -2200,7 +2170,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/WorkPanels.tsx": {
-  "eslint(complexity)": 1,
   "typescript(no-misused-promises)": 1
  },
  "src/screens/accounts-no-limits.test.tsx": {
@@ -2301,7 +2270,6 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/pools/PoolsScreen.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(consistent-return)": 1
  },
  "src/screens/pools/new-pool.test.tsx": {
@@ -2324,9 +2292,7 @@
   "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/processes/HistoryView.tsx": {
-  "jsx-a11y(prefer-tag-over-role)": 1,
-  "react(purity)": 1,
-  "react(set-state-in-effect)": 1
+  "jsx-a11y(prefer-tag-over-role)": 1
  },
  "src/screens/processes/ProcessTree.tsx": {
   "jsx-a11y(click-events-have-key-events)": 1,

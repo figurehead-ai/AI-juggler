@@ -3,6 +3,7 @@
  * I-11), moved out of WorkflowRail.tsx (AJ-E2104) so the rail stays
  * within its size. The rail's own rows are RailRow and the place rows.
  */
+import { RUNWAY_FILL, runwayState } from "../lib/runway-look";
 import { useId } from "react";
 import { identityWords } from "../lib/identity";
 import { parkedWords } from "../lib/parked";
@@ -25,10 +26,12 @@ import {
   ageSummary,
   type StateChipTone,
 } from "./indicator";
-import { QuotaBar, Sparkline } from "./primitives";
+import { QuotaBar, Sparkline, WARNING_CHIP } from "./primitives";
 import { RowDetails } from "./row-details";
 import { memorySize } from "../lib/compact";
 import { ProfileBadge } from "./ProfileBadge";
+import { driftOf, driftWords } from "./ModelDriftMark";
+import { IconModelChanged } from "./icons";
 import { sessionAppKey } from "../lib/rail-items";
 import { SELECTED_FILL } from "./controls/selected";
 
@@ -36,10 +39,11 @@ import { SELECTED_FILL } from "./controls/selected";
 export const chipToneClasses: Record<StateChipTone, string> = {
   neutral: "bg-surface-2 text-muted border-hairline",
   success: "bg-success-soft text-success border-success/25",
-  warning: "bg-warning-soft text-warning border-warning/25",
+  // 0.5.1 F76: the kit's one warning chip (no amber behind words).
+  warning: `${WARNING_CHIP} border-hairline`,
   danger: "bg-danger-soft text-danger border-danger/25",
   live: "bg-live-soft text-live border-live/25",
-  accent: "bg-accent-soft text-accent-hi border-accent/25",
+  accent: "bg-accent-soft text-accent-hi border-transparent",
 };
 
 /**
@@ -92,6 +96,7 @@ export function SessionRow({
   const chip = stateChip(session.status);
   const suffix = attentionSuffix(session);
   const tokens = tokenSummary(session.tokens);
+  const drift = driftOf(session);
   const samples = rememberResourceSample(session.id, session.cpu_pct, session.rss_bytes);
   const resources =
     session.cpu_pct !== null && session.rss_bytes !== null
@@ -173,11 +178,8 @@ export function SessionRow({
               <span
                 className={
                   "absolute inset-y-0 left-0 rounded-full " +
-                  (100 - session.quota.used_percentage <= 10
-                    ? "bg-danger"
-                    : 100 - session.quota.used_percentage <= 30
-                      ? "bg-warning"
-                      : "bg-accent")
+                  // PAT-COLOR: the room's colour, as every runway bar.
+                  RUNWAY_FILL[runwayState(Math.round(100 - session.quota.used_percentage))]
                 }
                 style={{ width: `${Math.max(2, session.quota.used_percentage)}%` }}
               />
@@ -247,7 +249,7 @@ export function SessionRow({
         {session.kind === "desktop" && (
           <span
             title="desktop app session"
-            className="shrink-0 rounded-full border border-accent/25 bg-accent-soft px-1 text-label font-medium text-accent-hi"
+            className="shrink-0 rounded-full border border-transparent bg-accent-soft px-1 text-label font-medium text-accent-hi"
             data-testid="rail-app-chip"
           >
             app
@@ -256,15 +258,11 @@ export function SessionRow({
         <span className="min-w-0 shrink truncate text-label text-muted" title={session.model ?? "default model"}>
           {session.model ?? <span className="text-muted">default model</span>}
         </span>
-        {modelDrift(session) && (
-          <span
-            title={modelDrift(session)!}
-            aria-label={modelDrift(session)!}
-            tabIndex={0}
-            data-testid="model-drift"
-            className="shrink-0 rounded-full border border-warning/25 bg-warning-soft px-1 text-label font-medium text-warning outline-none focus-visible:ring-1 focus-visible:ring-accent/60"
-          >
-            ⇄
+        {/* Inside the row's own button: the mark and its words, no control of its own (F77). */}
+        {drift !== null && (
+          <span className="inline-flex shrink-0 text-muted" data-testid="model-drift-row">
+            <IconModelChanged aria-hidden="true" width={12} height={12} />
+            <span className="sr-only">{driftWords(drift)}</span>
           </span>
         )}
         <span className="ml-auto inline-flex shrink-0 items-center gap-1">

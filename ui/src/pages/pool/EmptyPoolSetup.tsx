@@ -6,7 +6,7 @@
  * a project's own pool keeps its scope) — with "Show the diagram" beside
  * its title. Set up, or with members, the pool opens on its diagram.
  */
-import type { JSX } from "react";
+import { useState, type JSX } from "react";
 
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -15,6 +15,8 @@ import type { PoolRuleInfo } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import type { PoolRules } from "../../lib/pool-rules";
 import { asRole } from "../../lib/pool-words";
+import { useReadState } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { NewPool } from "../../screens/pools/NewPool";
 import type { ExistingPool } from "../../screens/pools/NewPoolFrame";
 
@@ -51,6 +53,23 @@ export function EmptyPoolSetup({ pool, rules, projects, sessions, accounts, onDi
         }}
       />
     </div>
+  );
+}
+
+/** AJ-E1552: an empty pool's setup while its rules are read: the
+ * skeleton only while they load, "Still loading…" after 3 s, then an
+ * error with Retry (one record: never empty). */
+export function SetupLoading({ title, rules }: { title: string; rules: PoolRules }): JSX.Element {
+  const [round, setRound] = useState(0);
+  const read = useReadState(rules.rules, "this pool's setup", { error: rules.error, round, isEmpty: () => false });
+  const retry = () => {
+    setRound((was) => was + 1);
+    rules.reload();
+  };
+  return (
+    <LoadingState state={read.state} slow={read.slow} what="this pool's setup" skeleton={<SetupSkeleton title={title} />} empty={null} onRetry={retry}>
+      {null}
+    </LoadingState>
   );
 }
 

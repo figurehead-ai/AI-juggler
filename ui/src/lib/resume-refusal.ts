@@ -27,3 +27,14 @@ export const OPEN_ELSEWHERE = "It's open in another session now: close it there 
 export function continueWhy(conversation: { live: boolean; resume_refusal?: ResumeRefusalInfo | null }): string | null {
   return conversation.live ? OPEN_ELSEWHERE : resumeRefusalWords(conversation.resume_refusal);
 }
+
+/** AJ-E2326 R3: a move holds the conversation (it runs, or it was refused
+ * or undone a moment ago and the conversation is opening again where it
+ * was): Continue in AI Juggler isn't offered, the move's next steps are. */
+export function heldByMove(conversation: { resume_refusal?: ResumeRefusalInfo | null }): boolean {
+  return conversation.resume_refusal?.moving === true;
+}
+
+/** AJ-E2326 R3: what Continue in AI Juggler does, said on it when the
+ * conversation's own app is the page's primary. */
+export const CONTINUE_IN_TERMINAL = "Starts it in a terminal here, on this account";

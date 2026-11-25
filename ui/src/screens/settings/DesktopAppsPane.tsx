@@ -24,7 +24,7 @@ import { IconMore } from "../../components/icons-canvas";
 import { IconRemove } from "../../components/icons-actions";
 import { showToast } from "../../components/Toast";
 import { showGoTo } from "../../lib/go-to";
-import { askRestart } from "../../components/RestartApp";
+import { askQuit, askRestart } from "../../components/RestartApp";
 import { placesForget, placesKeepAlive, placesOpen, type KnownPlaceInfo } from "../../lib/ipc/places";
 import { usePlaceOffers } from "../../components/PlaceOffers";
 import { FoundOnThisMac, ForgottenRow, type Forgotten, type Offers } from "./DesktopAppsOffers";
@@ -35,6 +35,8 @@ import { knownAppWord } from "../../lib/rail-apps";
 import { Pane, PaneSection, RowNote, SettingRow, Switch, SwitchRow } from "./parts";
 import { GoToKeyControl, GoToKeyError, useGoToKey } from "./KeyCapture";
 import { PathText } from "../../components/PathText";
+import { MovingSection } from "./MovingSection";
+import { MovesSection } from "./MovesSection";
 
 /** AJ-E2102: Go to it may select a session's tab in Terminal or iTerm;
  * off until turned on here. */
@@ -94,7 +96,9 @@ function ExactWindowRow(): JSX.Element {
   return (
     <SettingRow
       title="Bring the exact window to the front"
-      description="Needs Accessibility. Without it, Go to it brings the right app forward, and you pick the window."
+      // 0.5.1 F23: setup asks for these two on two cards; this row is On
+      // when both are, from the same reads.
+      description="Needs Accessibility, and Automation of System Events. Without them, Go to it brings the right app forward, and you pick the window."
       testId="desktop-exact-window"
       control={
         entry === null ? (
@@ -249,6 +253,11 @@ export function PlaceRow({ place, name: named, linked = true, onForgot }: { plac
                       Restart…
                     </MenuItem>
                   )}
+                  {running && (
+                    <MenuItem onClick={() => (setMenuAt(null), askQuit({ placeId: place.id, name, keepAlive: place.keep_alive }))} testId="desktop-place-quit">
+                      Quit…
+                    </MenuItem>
+                  )}
                   <MenuItem
                     danger
                     disabled={forgetWhy !== null}
@@ -370,6 +379,9 @@ export function DesktopAppsPane({ anchor }: { anchor?: string }): JSX.Element {
       <ShowSessionsFrom />
       <FoundOnThisMac offers={offers} held={held} />
       <YourApps offers={offers} held={held} onForgot={(one) => setHeld((now) => [...now.filter((was) => was.id !== one.id), one])} onSettle={() => setHeld([])} />
+      <MovingSection />
+      {/* AJ-E2321: every move, with Undo and Finish by its id. */}
+      <MovesSection />
       <PaneSection
         id="go-to"
         title="Going to a session"

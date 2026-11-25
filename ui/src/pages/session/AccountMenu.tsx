@@ -112,8 +112,8 @@ export function appIdOfSession(model: Parameters<typeof sessionAppMark>[0], plac
 
 /** A session's App, one read for every place that names it: its page's
  * id (`null`: none to open), its full name, that name's two parts and
- * its mark's key. */
-function useSessionApp(model: SessionModel): { id: string | null; name: string; words: AppWords; mark: string } {
+ * its mark's key. F40: the Switch account dialog's "Now in …" too. */
+export function useSessionApp(model: SessionModel): { id: string | null; name: string; words: AppWords; mark: string } {
   const places = useKnownPlaces();
   const recorded = recordPlaceOf(model, places);
   const words = recorded ? { app: knownAppWord(recorded), profile: desktopProfile(recorded.instance, recorded.profile) } : sessionAppWords(model);

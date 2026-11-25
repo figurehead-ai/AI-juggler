@@ -20,9 +20,14 @@ export const ShortcutSheet = lazyNamed(() => import("./components/ShortcutSheet"
 export const History = lazyNamed(() => import("./screens/History"), "History");
 export const AddProviderSheet = lazyNamed(() => import("./screens/AddProviderSheet"), "AddProviderSheet");
 export const FirstRun = lazyNamed(() => import("./screens/FirstRun"), "FirstRun");
+// AJ-E1545: the setup wizard (first run's discovery is its first step).
+export const SetupWizard = lazyNamed(() => import("./components/setup/SetupWizard"), "SetupWizard");
 export const UsageScreen = lazyNamed(() => import("./screens/Usage"), "UsageScreen");
 export const LimitDialog = lazyNamed(() => import("./components/LimitDialog"), "LimitDialog");
-export const NewSessionModal = lazyNamed(() => import("./screens/NewSession"), "NewSessionModal");
+// The most used sheet right after start: at the head of the idle queue
+// (0.5.1 F49: behind the setup wizard's chunk, a New session clicked soon
+// after start waited on React's 300 ms reveal, L3 New session at 1024).
+export const NewSessionModal = lazyNamed(() => import("./screens/NewSession"), "NewSessionModal", true);
 export const NewProjectSheet = lazyNamed(() => import("./screens/NewProjectSheet"), "NewProjectSheet");
 export const FleetScreen = lazyNamed(() => import("./screens/FleetScreen"), "FleetScreen");
 export const SettingsScreen = lazyNamed(() => import("./screens/Settings"), "SettingsScreen");

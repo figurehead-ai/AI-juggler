@@ -47,14 +47,16 @@ export interface NoticeSeed {
 const BANNER_KINDS = new Set(["quota"]);
 
 
-/** `ticked`: the preview's Needs you has been worked out once (D-103.6). */
-type Stand = { synced: NoticeInfo[]; ticked: boolean; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; snoozes: Map<string, number | null>; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
+/** `ticked`: the preview's Needs you has been worked out once (D-103.6);
+ * `read`: a needs list has shown a page read since (0.5.1 F54: the list
+ * kept its pre-tick rows until its answer landed). */
+type Stand = { synced: NoticeInfo[]; ticked: boolean; read: boolean; keys: Map<string, NoticeInfo>; app: NoticeInfo[]; earlier: NoticeInfo[]; mutes: NoticeMuteInfo[]; snoozes: Map<string, number | null>; quiet: string | null; next: number; listeners: Set<(summary: NoticeSummaryInfo) => void> };
 let stand: Stand | null = null;
 
 function standIn(): Stand {
   if (stand) return stand;
   const seed = (window as unknown as { __AIJ_NOTICES__?: NoticeSeed }).__AIJ_NOTICES__ ?? {};
-  stand = { synced: [], ticked: false, keys: new Map(), app: structuredClone(seed.app ?? []), earlier: structuredClone(seed.earlier ?? []), mutes: structuredClone(seed.mutes ?? []), snoozes: new Map(), quiet: seed.quiet_until ?? null, next: 10_000, listeners: new Set() };
+  stand = { synced: [], ticked: false, read: false, keys: new Map(), app: structuredClone(seed.app ?? []), earlier: structuredClone(seed.earlier ?? []), mutes: structuredClone(seed.mutes ?? []), snoozes: new Map(), quiet: seed.quiet_until ?? null, next: 10_000, listeners: new Set() };
   return stand;
 }
 
@@ -142,7 +144,9 @@ export async function notificationsPage(section: NoticeSection, request: PageReq
   if (!hasLiveBackend()) {
     const s = standIn();
     const rows = section === "needs" ? openRows(s) : section === "banners" ? bannersOf(s) : s.earlier.map((row) => shaped(s, row));
-    return pageOf(rows, request);
+    const page = pageOf(rows, request);
+    if (section === "needs" && s.ticked) servedAfterTick.add(page.items);
+    return page;
   }
   return call("notifications_page", { section, request });
 }
@@ -150,14 +154,29 @@ export async function notificationsPage(section: NoticeSection, request: PageReq
 /** The preview's Needs you at once (the first render, no read to wait
  * for); `null` with a backend. */
 export function standInNeedsPage(limit: number): Page<NoticeInfo> | null {
-  return hasLiveBackend() ? null : pageOf(openRows(standIn()), { cursor: null, limit });
+  if (hasLiveBackend()) return null;
+  const s = standIn();
+  const page = pageOf(openRows(s), { cursor: null, limit });
+  if (s.ticked) servedAfterTick.add(page.items);
+  return page;
 }
+
+/** The needs pages the stand-in served after its first tick (0.5.1 F54). */
+const servedAfterTick = new WeakSet<readonly NoticeInfo[]>();
 
 /** D-103.6: whether Needs you is known yet. The backend keeps it in its
  * storage, so its first read has it; the preview's stand-in has it once
- * its first tick worked it out (until then Home holds its place). */
-export function standInNeedsKnown(): boolean {
-  return hasLiveBackend() || standIn().ticked;
+ * its first tick worked it out and the needs list shows a page read
+ * after it (`shown`, the list's rows; then for good). Until then Home
+ * holds its place. 0.5.1 F54: "ticked" alone said known while the shared
+ * list still showed its pre-tick (empty) rows, being read again, so for a
+ * few frames Home dropped Needs you and its Apps' need lines, then put
+ * them back (0.21 of layout shift twice, on a loaded machine). */
+export function standInNeedsKnown(shown?: readonly NoticeInfo[]): boolean {
+  if (hasLiveBackend()) return true;
+  const s = standIn();
+  if (s.ticked && !s.read && shown !== undefined && servedAfterTick.has(shown)) s.read = true;
+  return s.ticked && s.read;
 }
 
 /** The preview's stand-in for the backend's tick: Needs you now (the

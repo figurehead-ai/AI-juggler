@@ -181,6 +181,19 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, "done on Desktop");
   });
 
+  test(`0.5.1 F69 done — sent to Desktop, not seen open — ${theme}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as Record<string, unknown>).__AIJ_SWITCH_EXECUTE_NOT_SEEN__ = true;
+    });
+    await openWith(page, theme, NOTES_ONLY, FROM_DESKTOP);
+    await toConfirm(page);
+    await page.getByTestId("switch-confirm").click();
+    await expect(page.getByTestId("switch-done-where")).toHaveText(/^Sent to Claude app · /);
+    await expect(page.getByTestId("switch-done-open")).toBeVisible();
+    await page.getByTestId("switch-flow").screenshot({ path: resolve(OUT, `where-done-sent-${theme}.png`) });
+    await axeClean(page, "sent to Desktop, not seen open");
+  });
+
   test(`0.3.5 confirm — narrow window, cards stacked — ${theme}`, async ({ page }) => {
     await openWith(page, theme, NOTES_ONLY, FROM_DESKTOP, { width: 560, height: 900 });
     await toConfirm(page);

@@ -1,4 +1,4 @@
-<!-- captures: c13bed29ca93 -->
+<!-- captures: 259589920aa9 -->
 # 90-processes: the Processes page, what sessions and apps run and left behind, ports, cleanup history, automatic cleanup and stopping, at 1280, 1680 and 2000
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -14,3 +14,11 @@ The four count tiles (7 to clean up in amber, 1 didn't stop in red, 1 waiting, 2
 - filters-1680x1000-dark.png, filters-1680x1000-light.png: the Filters popover ends on its "App" heading with the options cut.
 - large-1680x1000-dark.png, large-1680x1000-light.png: "2500 %" CPU on the group row reads as a mistake.
 - stop-1680x1000-dark.png, stop-1680x1000-light.png: the What to stop radios sit at the dialog's right edge, away from their labels.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The Processes table is unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77); on the session tab the rail holds Needs you's late rows behind its "new above" pill (nothing moves after it appears). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -511,6 +511,7 @@ fn the_gallery_of_golden_frames() {
             mouse: shot.mouse,
             card: None,
             opened: None,
+            intro: false,
         };
         frames.push((
             shot.name,
@@ -531,6 +532,7 @@ fn the_gallery_of_golden_frames() {
             mouse: shot.mouse,
             card: None,
             opened: None,
+            intro: false,
         };
         frames.push((
             format!("full-{}", shot.name),
@@ -553,6 +555,7 @@ fn the_gallery_of_golden_frames() {
         mouse: hover.mouse,
         card: None,
         opened: None,
+        intro: false,
     };
     let mut picked = Vec::new();
     for full in [true, false, true, false] {
@@ -596,6 +599,7 @@ fn the_gallery_of_golden_frames() {
             mouse: None,
             card: None,
             opened: None,
+            intro: false,
         };
         for full in [false, true] {
             renderer.set_full(full);
@@ -623,6 +627,7 @@ fn the_gallery_of_golden_frames() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     frames.push((
         "reflow-after".into(),
@@ -816,6 +821,7 @@ fn area_chips_never_overlap() {
                             labels,
                             card: None,
                             opened: None,
+                            intro: false,
                         },
                     );
                     let at = format!(
@@ -953,6 +959,7 @@ fn the_design_proposal_frames() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let floor = View {
         focus: Some(0),
@@ -1246,6 +1253,7 @@ fn the_second_pass_frames() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let sky = Sky::always_day();
     let first = Look {
@@ -1501,6 +1509,7 @@ fn opening_and_closing_does_not_grow() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let mut marks = Vec::new();
     for k in 0..30 {
@@ -1557,6 +1566,7 @@ fn the_label_bands() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let views = [
         (
@@ -1701,6 +1711,7 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
                         labels: juggler_floor::flags::Labels::Smart,
                         card: Some(&card),
                         opened: None,
+                        intro: false,
                     },
                 );
                 let out = out.unwrap_or_else(|| panic!("{state:?}: a card"));
@@ -1790,6 +1801,7 @@ fn hover_cards_stay_on_screen_with_their_buttons() {
                         mouse: Some(pt),
                         card: Some(&card),
                         opened: None,
+                        intro: false,
                     },
                 )
                 .unwrap();
@@ -1823,6 +1835,7 @@ fn the_decay_and_daylight_captures() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let live = Live {
         t: 2.0,
@@ -1927,6 +1940,7 @@ fn the_quiet_floor_captures() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let live = Live {
         t: 2.0,
@@ -2004,6 +2018,7 @@ fn the_building_captures() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let live = Live {
         t: 2.0,
@@ -2063,6 +2078,7 @@ fn the_building_view_open_and_close_loop() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let mut marks = Vec::new();
     for _ in 0..12 {
@@ -2272,6 +2288,7 @@ fn the_model_sheet() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     let live = Live {
         t: 0.6,
@@ -2333,6 +2350,7 @@ fn the_building_view_frames() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     for (sky_name, sky) in [
         ("day", Sky::always_day()),
@@ -2406,6 +2424,7 @@ fn the_office_frames() {
         mouse: None,
         card: None,
         opened: None,
+        intro: false,
     };
     for (sky_name, sky) in [("day", Sky::always_day()), ("night", Sky::always_night())] {
         for (detail, full) in [("pixel", false), ("full", true)] {

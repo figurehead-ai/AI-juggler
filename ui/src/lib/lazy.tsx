@@ -5,7 +5,7 @@
  * the rest is fetched in idle time ([`prefetchLazy`]), so opening a
  * screen doesn't wait.
  */
-import { lazy, Suspense, useEffect, useState, type ComponentProps, type ComponentType, type JSX, type ReactNode } from "react";
+import { createContext, lazy, Suspense, useContext, useEffect, useState, type ComponentProps, type ComponentType, type JSX, type ReactNode } from "react";
 
 const loaders: { load: () => Promise<unknown>; first: boolean }[] = [];
 
@@ -49,6 +49,13 @@ export function loadingPart<T>(work: Promise<T>): Promise<T> {
   return counted(() => work)();
 }
 
+/** What a part with no `placeholder` of its own draws while its code
+ * loads (AJ-E1549, SK-8): inside a screen or a page, that area's skeleton
+ * (`ScreenBoundary`, the work area); elsewhere nothing, as a sheet or a
+ * dialog opens over a page that is already drawn. A sheet inside a page
+ * says `() => null`. */
+export const PartPlaceholder = createContext<(() => ReactNode) | undefined>(undefined);
+
 /** `module[name]`, loaded on first use. It waits on its own (nothing
  * around it blanks while it loads), and is fetched after first paint
  * anyway: `first` puts it at the head of that queue (what's opened most
@@ -56,7 +63,8 @@ export function loadingPart<T>(work: Promise<T>): Promise<T> {
  * earlier use) it renders at once: a first open never goes through
  * Suspense, whose reveal React holds for 300 ms (a blank main area on
  * the first open of Projects, Usage, History or Tasks). `placeholder` is
- * drawn while its code loads (SK-8: a skeleton, never an empty box). */
+ * drawn while its code loads (SK-8: a skeleton, never an empty box); with
+ * none, the area's own ([`PartPlaceholder`]). */
 export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: K, first = false, placeholder?: () => ReactNode): M[K] {
   type C = ComponentType<Record<string, unknown>>;
   let ready: C | null = null;
@@ -72,18 +80,48 @@ export function lazyNamed<M, K extends keyof M>(loader: () => Promise<M>, name: 
     // Decided once per use: a part shown while it loaded keeps its
     // Suspense, so its arrival never remounts it (and its state).
     const [direct] = useState(() => ready);
+    const inherited = useContext(PartPlaceholder);
     if (direct) {
       const Ready = direct;
       return <Ready {...props} />;
     }
     return (
-      <Suspense fallback={<Pending>{placeholder?.()}</Pending>}>
+      <Suspense fallback={<Pending>{(placeholder ?? inherited)?.()}</Pending>}>
         <Lazy {...props} />
       </Suspense>
     );
   }
   Loaded.displayName = `Lazy(${String(name)})`;
+  parts.set(Loaded, { load, ready: () => ready !== null });
   return Loaded as unknown as M[K];
+}
+
+/** Each lazy part's own loader, by the component `lazyNamed` returned. */
+const parts = new WeakMap<object, { load: () => Promise<unknown>; ready: () => boolean }>();
+
+/** Whether to show `part`: `wanted`, and its code here (loaded when it isn't).
+ * A sheet opened by a click shows once its code has come (at once when it
+ * was prefetched) rather than through Suspense, whose reveal React holds
+ * up to 300 ms after the code is here (0.5.1 F49: New session clicked
+ * before its prefetch finished, under load). A part that fails to load is
+ * shown anyway, so its boundary says so. */
+export function usePartShown(part: unknown, wanted: boolean): boolean {
+  const entry = typeof part === "function" || (typeof part === "object" && part !== null) ? parts.get(part) : undefined;
+  const [failed, setFailed] = useState(false);
+  const [, setArrived] = useState(0);
+  const ready = !entry || entry.ready() || failed;
+  useEffect(() => {
+    if (!wanted || ready || !entry) return undefined;
+    let live = true;
+    entry.load().then(
+      () => live && setArrived((n) => n + 1),
+      () => live && setFailed(true),
+    );
+    return () => {
+      live = false;
+    };
+  }, [wanted, ready, entry]);
+  return wanted && ready;
 }
 
 /** Reads a main screen's first data in the same idle queue, after the

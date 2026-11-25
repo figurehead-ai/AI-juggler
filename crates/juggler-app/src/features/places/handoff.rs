@@ -1,7 +1,9 @@
 //! 0.3.5: a switch continues where the user picks, in the desktop app or
 //! in a terminal: "Desktop" or "CLI".
 //!
-//! Desktop hands the session to the target account's profile of the app,
+//! Desktop hands the session to the App the user picked in the switch
+//! list, by its place id (AJ-E2317: never one found from the account; two
+//! profiles on one account are each pickable),
 //! the way Claude Code's own `--desktop` and the user's own launcher do:
 //! the app takes a session of its tool by a link
 //! ([`HostApp::handoff_link`](juggler_adapter::live::HostApp::handoff_link)),
@@ -64,7 +66,8 @@ pub struct DesktopDestinationInfo {
 }
 
 /// The two choices for a switch to `account` (its id and label) of a
-/// session that `ran_in_desktop`.
+/// session that `ran_in_desktop`, Desktop being the App the user picked in
+/// the switch list (`picked`, its place id).
 #[must_use]
 pub fn destinations(
     state: &Arc<AppState>,
@@ -72,16 +75,25 @@ pub fn destinations(
     label: &str,
     ran_in_desktop: bool,
     terminal_signed_in: bool,
+    picked: Option<&str>,
 ) -> DestinationsInfo {
-    let desktop = profile_for(state, account).map(|(id, place)| DesktopDestinationInfo {
+    let apps = apps_on(state, account);
+    let many = apps.len() > 1;
+    let desktop = picked_app(apps, picked).map(|(id, place)| DesktopDestinationInfo {
         running: running_now(state, &id).is_some(),
         name: named(state, &place),
         app_id: place.app_id.clone(),
         place_id: id,
     });
-    let desktop_why_not = desktop
-        .is_none()
-        .then(|| why_no_desktop(state, account, label));
+    let desktop_why_not = desktop.is_none().then(|| match picked {
+        Some(_) => {
+            format!("The app you picked isn't on {label} any more: pick again from the list.")
+        }
+        None if many => format!(
+            "{label} has more than one desktop app: pick the one to continue in from the list."
+        ),
+        None => why_no_desktop(state, account, label),
+    });
     // 0.4: signed in through its app and not in a terminal: CLI says why
     // not, and the confirm step picks Desktop (`suggested` stays where the
     // original ran, its "Same as the original").
@@ -117,7 +129,7 @@ pub fn cli_not_signed_in(label: &str, app: &str) -> String {
 /// back: a switch continues in that profile.
 #[must_use]
 pub fn signs_in_through_app(state: &Arc<AppState>, account: &str) -> bool {
-    profile_for(state, account).is_some()
+    !apps_on(state, account).is_empty()
 }
 
 /// 0.4: every folder [`signs_in_through_app`] says yes to, at once, for a
@@ -159,17 +171,29 @@ fn why_no_desktop(state: &Arc<AppState>, account: &str, label: &str) -> String {
     )
 }
 
-/// The remembered profile whose sessions run on `account`, of an app that
-/// takes sessions: the running one first, else the one seen last.
-pub(crate) fn profile_for(state: &Arc<AppState>, account: &str) -> Option<(String, KnownPlace)> {
-    let places = super::places_on(state, account, |_, host| {
+/// The remembered profiles on `account` of an app that takes sessions,
+/// each a desktop App the switch list offers on a row of its own. Listed,
+/// never one picked from the account (AJ-E2317).
+pub(crate) fn apps_on(state: &Arc<AppState>, account: &str) -> Vec<(String, KnownPlace)> {
+    super::places_on(state, account, |_, host| {
         host.handoff_link.is_some() && host.handoff_record.is_some()
-    })?;
-    let running = places
-        .iter()
-        .find(|(id, _)| running_now(state, id).is_some())
-        .cloned();
-    running.or_else(|| places.into_iter().max_by_key(|(_, place)| place.seen_ms))
+    })
+    .unwrap_or_default()
+}
+
+/// AJ-E2317: the App a Copy hand-off continues in: the one the user picked
+/// in the switch list, by its place id (it must still be one of the
+/// account's `apps`). With no pick (a caller that carries none), only an
+/// account's sole App: two are never chosen between.
+fn picked_app(
+    mut apps: Vec<(String, KnownPlace)>,
+    picked: Option<&str>,
+) -> Option<(String, KnownPlace)> {
+    match picked {
+        Some(picked) => apps.into_iter().find(|(id, _)| id == picked),
+        None if apps.len() == 1 => apps.pop(),
+        None => None,
+    }
 }
 
 /// A profile's main process, as found now.
@@ -218,10 +242,19 @@ impl System for Real {
         super::start_place(state, place, &hosts, &start::System, false)
     }
 
+    /// AJ-E1548: through AJ-E1547's gate, at the user's click: our sheet
+    /// first for an entry not primed; Not now sends nothing.
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
-        juggler_platform::apps::send_link(pid, link).map_err(|error| error.to_string())
+        use juggler_platform::os_prompt::{self, Gated, user};
+        match os_prompt::send_link(crate::os_prompts::registry::APP_LINKS, user(), pid, link) {
+            Gated::Called { value, .. } => value.map_err(|error| error.to_string()),
+            Gated::NotNow | Gated::Waiting => Err(NOT_SENT.to_owned()),
+        }
     }
 }
+
+/// A link the user chose not to let AI Juggler send yet.
+const NOT_SENT: &str = "not sent: AI Juggler may not send links to apps yet";
 
 /// How long a hand-off waits: for a started profile to come up, and for
 /// the profile to record the session.

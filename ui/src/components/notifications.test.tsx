@@ -167,7 +167,7 @@ describe("the notification centre", () => {
     render(<NotificationCentre summary={behind} sessions={[]} onClose={() => {}} />);
     const rows = await screen.findByTestId("notices-needs");
     await waitFor(() => expect(within(rows).getAllByRole("listitem")).toHaveLength(2));
-    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs action · 2");
+    expect(screen.getByTestId("notices-needs-heading").textContent).toBe("Needs you · 2");
   });
 
   it("lists Needs action and Earlier; opening it changes nothing by itself", async () => {
@@ -181,7 +181,7 @@ describe("the notification centre", () => {
     const needs = await screen.findByTestId("notices-needs");
     expect(within(needs).getAllByTestId("notice-need").map((row) => row.getAttribute("data-kind"))).toEqual(["asks", "quota"]);
     expect(within(screen.getByTestId("notices-earlier")).getAllByTestId("notice-earlier").map((row) => row.getAttribute("data-kind"))).toEqual(["restarted"]);
-    expect(screen.getByText("Needs action · 2")).toBeTruthy();
+    expect(screen.getByText("Needs you · 2")).toBeTruthy();
     // Rendering it read nothing, snoozed nothing, opened nothing.
     expect(await notificationsSummary()).toEqual(before);
     expect(onClose).not.toHaveBeenCalled();
@@ -276,7 +276,7 @@ describe("the notification centre", () => {
     expect(digestLine({ finished: 4, restarted: 1, resets: 0, updates: 1, next_reset_account: "Work Max", next_reset_ms: T0 + 60_000 }, T0)).toMatch(/^Today: 4 finished · 1 restarted · 1 update · Work Max resets .+$/);
     expect(digestLine({ finished: 0, restarted: 0, resets: 0, updates: 0, next_reset_account: null, next_reset_ms: null }, T0)).toBeNull();
     // 0.3.2: a reminder at the reset, named by its time; none when the reset isn't known.
-    expect(secondOf(quota)?.label).toMatch(/^Remind me at .+$/);
+    expect(secondOf(quota)?.label).toMatch(/^Remind me at .+ · a watch$/);
     expect(secondOf({ ...quota, facts: { ...quota.facts, resets_at_ms: null } })).toBeNull();
     expect(secondOf(notice({ kind: "asks", needs: true }))?.label).toBe("Snooze 1 h");
     expect(secondOf(notice({ kind: "review", needs: true, target: { ...target, session_id: "s" } }))?.label).toBe("Mark reviewed");
@@ -305,7 +305,7 @@ describe("your menu", () => {
     expect(within(menu).getByTestId("user-menu-who").textContent).toContain("On this Mac · no Figurehead account");
     const labels = within(menu).getAllByRole("menuitem").map((item) => item.querySelector("[data-label]")?.textContent);
     // D-49: My Macs shows only with a Figurehead account.
-    expect(labels).toEqual(["Connect a Figurehead account (optional)", "Settings", "This Mac", "Processes", "Privacy", "Keyboard shortcuts", "Help and guides", "Report a bug…", "About and updates"]);
+    expect(labels).toEqual(["Connect a Figurehead account (optional)", "Settings", "This Mac", "Processes", "Privacy", "Keyboard shortcuts", "Help and guides", "Take the tour", "Report a bug…", "About and updates"]);
     for (const item of within(menu).getAllByRole("menuitem")) expect(item.querySelector("svg")).not.toBeNull();
     expect(within(menu).getAllByRole("separator")).toHaveLength(2);
     expect(within(menu).getAllByRole("menuitemradio").map((radio) => radio.textContent)).toEqual(["Light", "Dark", "Auto"]);
@@ -322,7 +322,7 @@ describe("your menu", () => {
     expect(labels.slice(0, 2)).toEqual(["Cloud backup", "My Macs"]);
     expect(labels.at(-1)).toBe("Disconnect Figurehead…");
     expect(labels).not.toContain("Connect a Figurehead account (optional)");
-    expect(shortEmail("faruk@example.com")).toBe("f…@example.com");
+    expect(shortEmail("alex@example.com")).toBe("a…@example.com");
   });
 
   it("Appearance changes the theme in place; Settings opens Settings", async () => {

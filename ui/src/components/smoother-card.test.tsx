@@ -1,7 +1,8 @@
 /**
- * AJ-E1527 — "Make it smoother": the optional permissions on the welcome,
- * in the same rows as first run's, never required; Home's small reminder
- * for the first one still missing; "Not now" remembered.
+ * AJ-E1527 — the optional permissions, never required: Home's small
+ * reminder for the first one still missing, in first run's rows; "Not
+ * now" remembered (AJ-E1545 moved the welcome's card into the setup
+ * wizard's permissions step).
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -31,38 +32,32 @@ afterEach(() => {
 });
 
 describe("Make it smoother", () => {
-  it("the welcome lists what's missing in the shared rows; Allow asks the system", async () => {
-    w().__AIJ_OS_ACCESS__ = [entry("focus", "not_asked"), entry("preview", "allowed")];
-    render(<SmootherCard variant="welcome" />);
-    const card = await screen.findByTestId("smoother");
-    expect(card.textContent).toContain("Optional: AI Juggler works without them.");
-    expect(screen.getByTestId("smoother-focus")).toBeTruthy();
-    expect(screen.getByTestId("smoother-preview").textContent).toContain("Allowed");
+  it("isn't shown when everything is allowed", async () => {
+    w().__AIJ_OS_ACCESS__ = [entry("focus", "allowed")];
+    const { container } = render(<SmootherCard />);
+    await waitFor(() => expect(container.textContent).toBe(""));
+  });
+
+  it("an earlier Not now on the welcome's old card still puts the reminder away", async () => {
+    w().__AIJ_OS_ACCESS__ = [entry("focus", "not_asked")];
+    localStorage.setItem("aij.smoother.dismissed", JSON.stringify(["all"]));
+    const { container } = render(<SmootherCard />);
+    await waitFor(() => expect(container.textContent).toBe(""));
+  });
+
+  it("Allow on the reminder asks the system", async () => {
+    w().__AIJ_OS_ACCESS__ = [entry("focus", "not_asked")];
+    render(<SmootherCard />);
+    await screen.findByTestId("smoother-reminder-focus");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Allow Jump to/ }));
     });
     expect(w().__AIJ_OS_ACCESS_CALLS__).toEqual(["request:focus"]);
   });
 
-  it("isn't shown when everything is allowed", async () => {
-    w().__AIJ_OS_ACCESS__ = [entry("focus", "allowed")];
-    const { container } = render(<SmootherCard variant="welcome" />);
-    await waitFor(() => expect(container.textContent).toBe(""));
-  });
-
-  it("the welcome's Not now hides it and Home's reminder, for good", async () => {
-    w().__AIJ_OS_ACCESS__ = [entry("focus", "not_asked")];
-    render(<SmootherCard variant="welcome" />);
-    fireEvent.click(await screen.findByTestId("smoother-not-now"));
-    expect(screen.queryByTestId("smoother")).toBeNull();
-    cleanup();
-    const { container } = render(<SmootherCard variant="reminder" />);
-    await waitFor(() => expect(container.textContent).toBe(""));
-  });
-
   it("Home's reminder shows the first one missing; its Not now puts away that one only", async () => {
     w().__AIJ_OS_ACCESS__ = [entry("focus", "not_allowed", { action: "settings" }), entry("preview", "not_asked")];
-    render(<SmootherCard variant="reminder" />);
+    render(<SmootherCard />);
     expect(await screen.findByTestId("smoother-reminder-focus")).toBeTruthy();
     expect(screen.queryByTestId("smoother-reminder-preview")).toBeNull();
     fireEvent.click(screen.getByTestId("smoother-reminder-not-now"));

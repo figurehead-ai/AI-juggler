@@ -12,7 +12,9 @@ import { useActionHost } from "../../components/ItemMenu";
 import { IconPool } from "../../components/icons-actions";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { levelLabel, roleLabel } from "../../lib/pools";
-import { useSessionPools } from "./useSessionPools";
+import { useSessionPoolsRead } from "./useSessionPools";
+import { useReadState } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import { MACHINE_WORD } from "../../lib/machine-words";
 
 /** How it got into a pool, in words. */
@@ -33,24 +35,43 @@ export function viaWords(via: string): string {
   }
 }
 
+/** In no pool, and how to put it in one. */
+function NoPool(): JSX.Element {
+  return (
+    <p className="max-w-prose text-meta text-ink-2" data-testid="session-pools-none">
+      <span className="font-medium text-ink">In no pool now.</span> Add it to one from a pool's diagram, or make a pool with New pool.
+    </p>
+  );
+}
+
 export function SessionPools({ session }: { session: InstanceInfo }): JSX.Element {
   const host = useActionHost();
-  const shown = useSessionPools(session.id);
+  const { info: shown, error, round, retry } = useSessionPoolsRead(session.id);
+  const read = useReadState(shown, "its pools", { error, round, isEmpty: (info) => info.pools.length === 0 && info.skipped.length === 0 && !info.account_unknown });
   // A skeleton at once, never a blank tab (the P4 walk: blank for 2.5 s
-  // while a busy backend read the pools).
-  if (shown === null)
+  // while a busy backend read the pools); AJ-E1552: only while it reads.
+  if (shown === null || read.state === "empty")
     return (
-      <div className="flex flex-col gap-2" role="status" aria-label="Reading its pools" data-testid="session-pools-loading">
-        <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
-      </div>
+      <LoadingState
+        state={read.state}
+        slow={read.slow}
+        what="its pools"
+        skeleton={
+          <output className="flex flex-col gap-2" aria-label="Reading its pools" data-testid="session-pools-loading">
+            <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+            <span className="h-14 rounded-lg bg-skeleton motion-safe:animate-pulse" />
+          </output>
+        }
+        empty={<NoPool />}
+        onRetry={retry}
+      >
+        {null}
+      </LoadingState>
     );
   return (
     <div className="flex w-full max-w-content flex-col gap-4" data-testid="session-pools">
       {shown.pools.length === 0 ? (
-        <p className="max-w-prose text-meta text-ink-2" data-testid="session-pools-none">
-          <span className="font-medium text-ink">In no pool now.</span> Add it to one from a pool's diagram, or make a pool with New pool.
-        </p>
+        <NoPool />
       ) : (
         <ul className="flex flex-col divide-y divide-hairline/70 rounded-card border border-hairline bg-surface" data-testid="session-pools-list">
           {shown.pools.map((place) => (

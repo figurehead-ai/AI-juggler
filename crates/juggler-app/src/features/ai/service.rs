@@ -249,6 +249,13 @@ pub fn mac_now(state: &AppState) -> Option<MacFacts> {
     service().mac_facts(&state.data_dir, Probe::IfStale)
 }
 
+/// This Mac's facts after asking the engines again now (Check again,
+/// AJ-E3823).
+#[must_use]
+pub fn mac_checked(state: &AppState) -> Option<MacFacts> {
+    service().mac_facts(&state.data_dir, Probe::Now)
+}
+
 /// The query: every routed job's answer, probing the engines when the
 /// last probe is stale; and whether the answer changed.
 ///
@@ -317,6 +324,17 @@ pub fn set_pick(
             .set(&jobs::pick_key(job.job()), model_id.unwrap_or(""))?;
     }
     answer_now(state, Probe::Never)
+}
+
+/// Before a model's file is removed: every engine lets go of what it
+/// holds, so a loaded helper exits (its drop kills and reaps it) and the
+/// file's space is free the moment Remove says so (AJ-E3821; the Qwen
+/// check found an idle helper pinning the deleted file for minutes).
+/// Nothing to do when no job has asked yet.
+pub fn release_engines() {
+    if let Some(service) = SERVICE.get() {
+        service.engines().release();
+    }
 }
 
 /// After `model_id` was removed: every job picked for it goes back to

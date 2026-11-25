@@ -12,7 +12,14 @@ import { cleanupAlerts, cleanupPauseSet, cleanupResumeAfterCrash, cleanupStatus,
 import { errorText } from "../../lib/bridge";
 import { statsEvent } from "../../lib/ipc/usage-stats";
 
-const BANNER = "flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/5 px-3 py-2 text-meta text-ink";
+// 0.5.1 B3 (PAT-COLOR-2, PAT-SURF-1; F59, F66): a notice is a tone line,
+// never an amber wash with an amber edge; what waits on the user carries
+// the amber needs-you mark before its words.
+const BANNER = "flex flex-wrap items-center gap-2 rounded-lg bg-surface px-3 py-2 text-meta text-ink";
+
+function NeedsYouMark(): JSX.Element {
+  return <span aria-hidden="true" className="level-mark" data-level={2} data-testid="cleanup-needs-you-mark" />;
+}
 
 function Tier2Notices({ status, onDecide }: { status: CleanupStatusData; onDecide: (pid: number) => void }): JSX.Element {
   const [now, setNow] = useState(Date.now());
@@ -26,6 +33,7 @@ function Tier2Notices({ status, onDecide }: { status: CleanupStatusData; onDecid
         const left = Math.max(0, Math.ceil((notice.deadline_ms - now) / 1000));
         return (
           <li key={notice.pid} className={BANNER} data-testid={`cleanup-tier2-notice-${notice.pid}`}>
+            <NeedsYouMark />
             <span className="min-w-0 flex-1">
               {notice.cmdline_trunc} (PID {notice.pid}) outlived a crash: it will be tidied{left > 0 ? ` in ${left} s` : " now"} unless you keep it.
             </span>
@@ -79,6 +87,7 @@ export function CleanupStatus({ degraded, onFind }: { degraded: boolean; onFind:
       )}
       {status?.suspended && (
         <div className={BANNER} role="status" data-testid="cleanup-suspended-banner">
+          <NeedsYouMark />
           <span className="min-w-0 flex-1">AI Juggler closed unexpectedly, so automatic cleanup waits for you to re-confirm it (up to 24 h).</span>
           <Button
             size="sm"
@@ -108,6 +117,7 @@ export function CleanupStatus({ degraded, onFind }: { degraded: boolean; onFind:
       {status && pending > 0 && <Tier2Notices status={status} onDecide={(pid) => void cleanupTier2Decide(pid, true).then(setStatus)} />}
       {degraded && (
         <p className={BANNER} role="alert" data-testid="cleanup-degraded-banner">
+          <NeedsYouMark />
           AI Juggler can't record what it starts right now, so nothing can be stopped from here until it restarts.
         </p>
       )}
@@ -116,7 +126,7 @@ export function CleanupStatus({ degraded, onFind }: { degraded: boolean; onFind:
         <div role="status" aria-live="polite" aria-label="Alerts about processes" data-testid="cleanup-alerts">
           <ul className="flex flex-col gap-1.5">
             {alerts.map((alert) => (
-              <li key={`${alert.kind}-${alert.pid}`} className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline bg-surface px-3 py-2 text-meta text-ink" data-testid={`${alert.kind === "hog" ? "hog-alert" : "idle-nudge"}-${alert.pid}`}>
+              <li key={`${alert.kind}-${alert.pid}`} className="flex flex-wrap items-center gap-2 rounded-lg bg-surface px-3 py-2 text-meta text-ink" data-testid={`${alert.kind === "hog" ? "hog-alert" : "idle-nudge"}-${alert.pid}`}>
                 <span className="min-w-0 flex-1">{alert.text}</span>
                 <Button
                   size="sm"

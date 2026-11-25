@@ -1182,7 +1182,7 @@ impl PairingStateInfo {
     }
 }
 
-fn link_settings_enabled(state: &Arc<AppState>) -> bool {
+pub(crate) fn link_settings_enabled(state: &Arc<AppState>) -> bool {
     state
         .storage
         .lock()
@@ -1248,7 +1248,24 @@ pub fn resume_if_enabled(state: Arc<AppState>) {
                 if !link_settings_enabled(&state) {
                     return;
                 }
-                if let Err(error) = start(&state)
+                // AJ-E1547: a launch never asks about the local network
+                // for a Link nobody went through the sheet for: it waits,
+                // and says so where Link is turned on.
+                let gated = juggler_platform::os_prompt::gate().through(
+                    crate::os_prompts::registry::LOCAL_NETWORK,
+                    juggler_platform::os_prompt::Presence::Background,
+                    &|| None,
+                    || start(&state),
+                );
+                let Some(started) = gated.value() else {
+                    if let Ok(mut last) = state.link.last_error.lock() {
+                        *last = Some(
+                            "Link waits for you: turn it off and on again to let the system ask about your network.".to_owned(),
+                        );
+                    }
+                    return;
+                };
+                if let Err(error) = started
                     && let Ok(mut last) = state.link.last_error.lock()
                 {
                     *last = Some(error.wire().user_message);
@@ -1962,12 +1979,29 @@ pub async fn link_set_enabled(
     // Starting/stopping blocks briefly (bind, mDNS goodbye packets):
     // never on the main thread or an async worker.
     let state = Arc::clone(state.inner());
-    tauri::async_runtime::spawn_blocking(move || link_set_enabled_impl(&state, enabled))
-        .await
-        .map_err(|e| AppError::Io {
-            context: "Fleet link",
-            message: e.to_string(),
-        })?
+    tauri::async_runtime::spawn_blocking(move || {
+        // AJ-E1547: turning Link on is when the system first asks about
+        // the local network: our sheet first. Not now leaves it off.
+        if enabled
+            && !matches!(
+                juggler_platform::os_prompt::gate().through(
+                    crate::os_prompts::registry::LOCAL_NETWORK,
+                    juggler_platform::os_prompt::user(),
+                    &|| None,
+                    || ()
+                ),
+                juggler_platform::os_prompt::Gated::Called { .. }
+            )
+        {
+            return Ok(link_status_impl(&state));
+        }
+        link_set_enabled_impl(&state, enabled)
+    })
+    .await
+    .map_err(|e| AppError::Io {
+        context: "Fleet link",
+        message: e.to_string(),
+    })?
 }
 
 /// AJ-E704: machines on the network that aren't paired.
@@ -2019,7 +2053,7 @@ pub struct FleetPromptInfo {
     pub id: u64,
     /// Which machine asks.
     pub peer_label: String,
-    /// What it asks for, in plain words ("stop Work Max (claude-code)").
+    /// What it asks for, in plain words ("stop “Fix the flaky login test” in Claude Code CLI · Work Max").
     pub action: String,
     /// When it is denied by default, epoch ms.
     #[ts(type = "number")]

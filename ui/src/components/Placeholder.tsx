@@ -9,7 +9,8 @@ import type { JSX } from "react";
 
 export type PlaceholderShape = "rail" | "home" | "card";
 
-function Bar({ className }: { className: string }): JSX.Element {
+/** A skeleton bar (its size and shape in `className`). */
+export function Bar({ className }: { className: string }): JSX.Element {
   return <span className={`block rounded bg-skeleton ${className}`} />;
 }
 
@@ -87,7 +88,7 @@ export function RowPlaceholders({
 
 /** A text line's box (`1lh` of its type), so a placeholder line is as
  * tall as the line it stands in for. */
-function Line({ text, className }: { text: string; className: string }): JSX.Element {
+export function Line({ text, className }: { text: string; className: string }): JSX.Element {
   return (
     <span className={`flex h-[1lh] items-center ${text}`}>
       <Bar className={className} />

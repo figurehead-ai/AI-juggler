@@ -33,6 +33,12 @@
 > AJ-E3809 are not shipped by D-120's rule (ADR-0033 verdicts); AJ-E3803
 > (the disk rules) is part of D-131's Models area (AJ-E3810 to AJ-E3813) now. Each task says which parts.
 >
+> **Amended by D-144 (2026-11-23).** "Bot" is AI and conversation only:
+> with an AI ready, a conversation whose answers are the AI's, citing the
+> records its read tools find; with none, only "Set up Bot" (AJ-E3823).
+> The look-up view and the no-model look-ups no longer ship; finding
+> records is Search's (⌘K, AJ-E3824).
+>
 > **Planned for 0.6 (D-123).** The orchestrator bot (a model that acts:
 > sending, switching, stopping, approving). It will sit on this router and
 > Chat, behind pool levels, approvals and its own design. Nothing in this
@@ -109,6 +115,7 @@
 ### AJ-E3804 Bot: the top-right icon, the side panel, calm design and accessibility | Status: IN-PROGRESS (2026-11-19: built 8c76d145d: the icon (⌘J), the docked panel 340–560 px and the sheet under 1100, the Bot page, one conversation; open: the Sonnet walk and `docs/qa/evidence/AJ-E3804/manifest.md`) — was TODO (rescoped 2026-11-18: Bot ships as the look-up view, ADR-0033 659da7fec; re-scoped 2026-11-19 under D-131: the look-up view stays the default and the no-model path, and written answers ship as opt-in Beta through the router where a model passes Bot in round 3's table, docs/qa/evidence/AJ-E3709/v5-final.md, on Apple's model or a downloaded one) | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3708
 **Under D-136 (2026-11-19)**: named Bot; one conversation for good (day dividers, New topic, search, clear) replaces separate chats and their list; a docked panel and a full page hold it; built to the approved mock-up (`~/Dev/AIJuggler-design-refs/chat-panel/`).
 **Rescoped 2026-11-18**: Bot ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). The icon opens the look-up view: found records with links and no written answer. Req 1's "shown only when the answer job is available" becomes always shown; Req 3's "thinking" state and Stop for a running answer are not shipped by D-120's rule. Req 2, 4, 5 and 6 stand.
+**Amended by D-144 (2026-11-23, built under AJ-E3823)**: Bot is AI and conversation only. With an AI ready, Bot is a conversation whose answers are the AI's, citing the records its read tools found; an answer that can't be checked is the AI's "I don't know" with what it checked. With no AI ready, Bot's panel shows only "Set up Bot" (AJ-E3823's guide): no question box, no results, no shortcuts; the look-up view described here no longer ships, and finding records is Search's (AJ-E3824).
 **Goal**: A Bot icon at the top right opens a calm side panel where the user asks about what is going on and reads the answer.
 **User story**: As a vibe-coder with six agents running, I click the Bot icon and ask "what is blocked?" and get an answer I can check, without leaving the screen I was on.
 **Requirements**:
@@ -130,6 +137,7 @@
 ### AJ-E3805 Bot's look-up tools over AI Juggler's data, with sources and "I don't know" | Status: IN-PROGRESS (2026-11-19: built a5cf7176a (look-ups by code over sessions, tasks and Accounts, the scope, I don't know) and 8c76d145d (the view); open: the 60-question set, the 50 ms fixture timing, other apps' conversations as rows) — was TODO (rescoped 2026-11-18: Bot ships as the look-up view, ADR-0033 659da7fec; re-scoped 2026-11-19 under D-131: the look-up view stays the default and the no-model path, and written answers ship as opt-in Beta through the router where a model passes Bot in round 3's table, docs/qa/evidence/AJ-E3709/v5-final.md, on Apple's model or a downloaded one) | Priority P0 | Effort XL | Depends: AJ-E3802, AJ-E3708
 **Under D-136 (2026-11-19)**: named Bot; one conversation for good (day dividers, New topic, search, clear) replaces separate chats and their list; a docked panel and a full page hold it; built to the approved mock-up (`~/Dev/AIJuggler-design-refs/chat-panel/`).
 **Rescoped 2026-11-18**: Bot ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). The look-ups run in the app and return found records with links; no model reads them or writes an answer. Req 1's "the model SHALL reach data", Req 2's context budget, the written answer behind Req 3's "every answer" and the 60-question answer-quality set and blind review of 30 answers are not shipped by D-120's rule. Req 4 becomes a plain "nothing found" with the nearest look-up; Req 5 and 6 stand.
+**Amended by D-144 (2026-11-23, built under AJ-E3823)**: Bot is AI and conversation only. With an AI ready, Bot is a conversation whose answers are the AI's, citing the records its read tools found; an answer that can't be checked is the AI's "I don't know" with what it checked. With no AI ready, Bot's panel shows only "Set up Bot" (AJ-E3823's guide): no question box, no results, no shortcuts; the look-up view described here no longer ships, and finding records is Search's (AJ-E3824).
 **Goal**: Bot answers from AI Juggler's own data through small, checked look-ups, never by pouring transcripts into the model.
 **User story**: As a user, I ask "what did the login agent change yesterday?" and the answer names the files and links to the session, or says it doesn't know.
 **Requirements**:
@@ -172,6 +180,7 @@
 ### AJ-E3807 The no-model panel: look-ups that need no AI, and the approved download offer | Status: IN-PROGRESS (2026-11-19: built 8c76d145d: look-ups with no model, the shortcuts, the one offer; open: the walk with Apple Intelligence off) — was TODO (rescoped 2026-11-18: Bot ships as the look-up view, ADR-0033 659da7fec; re-scoped 2026-11-19 under D-131: the look-up view stays the default and the no-model path, and written answers ship as opt-in Beta through the router where a model passes Bot in round 3's table, docs/qa/evidence/AJ-E3709/v5-final.md, on Apple's model or a downloaded one) | Priority P1 | Effort M | Depends: AJ-E3804, AJ-E3803
 **Under D-136 (2026-11-19)**: named Bot; one conversation for good (day dividers, New topic, search, clear) replaces separate chats and their list; a docked panel and a full page hold it; built to the approved mock-up (`~/Dev/AIJuggler-design-refs/chat-panel/`).
 **Rescoped 2026-11-18**: Bot ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). Req 1 is the look-up view itself and stands. Req 2 and 3 (the download offer, turning into Bot after a download) are not shipped by D-120's rule: no model is offered. Req 4 stands without the offer.
+**Amended by D-144 (2026-11-23, built under AJ-E3823)**: Bot is AI and conversation only. With an AI ready, Bot is a conversation whose answers are the AI's, citing the records its read tools found; an answer that can't be checked is the AI's "I don't know" with what it checked. With no AI ready, Bot's panel shows only "Set up Bot" (AJ-E3823's guide): no question box, no results, no shortcuts; the look-up view described here no longer ships, and finding records is Search's (AJ-E3824).
 **Goal**: On a Mac that cannot run a model, the Bot icon still helps, and offers the one download only with the user's approval.
 **User story**: As someone with an older Mac, I click the Bot icon and get useful shortcuts, and a clear, optional offer to add chat.
 **Requirements**:
@@ -191,6 +200,7 @@
 ### AJ-E3808 Bot history: local, clearable, never off the Mac | Status: IN-PROGRESS (2026-11-19: built aca6ce824 and 8c76d145d: on this Mac, paged, found, cleared whole (secure delete, WAL folded); open: the Local cache entry and Clear cache) — was TODO (rescoped 2026-11-18: Bot ships as the look-up view, ADR-0033 659da7fec; re-scoped 2026-11-19 under D-131: the look-up view stays the default and the no-model path, and written answers ship as opt-in Beta through the router where a model passes Bot in round 3's table, docs/qa/evidence/AJ-E3709/v5-final.md, on Apple's model or a downloaded one) | Priority P1 | Effort S | Depends: AJ-E3804
 **Under D-136 (2026-11-19)**: named Bot; one conversation for good (day dividers, New topic, search, clear) replaces separate chats and their list; a docked panel and a full page hold it; built to the approved mock-up (`~/Dev/AIJuggler-design-refs/chat-panel/`).
 **Rescoped 2026-11-18**: Bot ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). History keeps the user's lookups and the records found, with their ids; Req 4's "the answers" reads as "the found records". The rest stands.
+**Amended by D-144 (2026-11-23, built under AJ-E3823)**: Bot is AI and conversation only. With an AI ready, Bot is a conversation whose answers are the AI's, citing the records its read tools found; an answer that can't be checked is the AI's "I don't know" with what it checked. With no AI ready, Bot's panel shows only "Set up Bot" (AJ-E3823's guide): no question box, no results, no shortcuts; the look-up view described here no longer ships, and finding records is Search's (AJ-E3824).
 **Goal**: The user's conversations with Bot stay on the Mac and can be cleared whenever they like.
 **User story**: As a privacy-minded user, I can see that my questions stay local and clear them in one click.
 **Requirements**:
@@ -210,6 +220,7 @@
 ### AJ-E3809 The newcomer walk: Bot on a real Mac, by hand | Status: TODO (rescoped 2026-11-18: Bot ships as the look-up view, ADR-0033 659da7fec; re-scoped 2026-11-19 under D-131: the look-up view stays the default and the no-model path, and written answers ship as opt-in Beta through the router where a model passes Bot in round 3's table, docs/qa/evidence/AJ-E3709/v5-final.md, on Apple's model or a downloaded one) | Priority P0 | Effort M | Depends: AJ-E3804, AJ-E3805, AJ-E3806, AJ-E3807, AJ-E3808
 **Under D-136 (2026-11-19)**: named Bot; one conversation for good (day dividers, New topic, search, clear) replaces separate chats and their list; a docked panel and a full page hold it; built to the approved mock-up (`~/Dev/AIJuggler-design-refs/chat-panel/`).
 **Rescoped 2026-11-18**: Bot ships as the look-up view: found records with links, no written answer (ADR-0033, 659da7fec; D-120's rule, D-121 point 4). The walk covers the look-up view only: Req 1's "a Mac with Apple's model and one without" is one run, and the written-answer and "no model offer" steps are not shipped by D-120's rule.
+**Amended by D-144 (2026-11-23, built under AJ-E3823)**: Bot is AI and conversation only. With an AI ready, Bot is a conversation whose answers are the AI's, citing the records its read tools found; an answer that can't be checked is the AI's "I don't know" with what it checked. With no AI ready, Bot's panel shows only "Set up Bot" (AJ-E3823's guide): no question box, no results, no shortcuts; the look-up view described here no longer ships, and finding records is Search's (AJ-E3824).
 **Goal**: Bot is proven useful to a person who has never seen it, not just correct in tests.
 **User story**: As a newcomer with a few agents running, I open Bot and get an answer I trust within a minute.
 **Requirements**:
@@ -440,3 +451,63 @@
 **Files to touch**: `crates/juggler-app/src/features/ai/` (the review job's consumer), the turn-end path (AJ-E3705), `ui/src/pages/session/`, the feed item, `crates/juggler-app/src/features/ai/jobs.rs` (the flag's default at R4).
 **Research basis**: ADR-0033 (the review's rules and verdicts), D-131 (v5-final.md), D-127.
 **Handover note**: Opus builds this. Share the guard with Bot's (AJ-E3806); do not write a second one.
+
+### AJ-E3821 Remove frees a model's disk at once: the local helper lets go of the file before it is deleted | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3803
+**Found** in the Qwen3-1.7B download-and-remove check (2026-11-22, `docs/qa/evidence/AJ-E3712/qwen-download-check.md`): Remove said "Frees 1.8 GB" and deleted the file, but the idle `juggler-local-ai` helper still held it open, so the space came back only at the helper's idle exit, about 4–6 minutes later.
+**UI**: no
+**Requirements**:
+1. Remove lets every engine go of what it holds before the file is deleted (the helper is killed and reaped), so the disk is free when Remove returns.
+2. A job running on the model ends with the engine's usual stop, never a crash report.
+**Quality gates**: `just keep-going verify-static`; the local engine's release test; the E2323 PL1 walk re-checks Remove's free space at once.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3712/qwen-download-check.md` (re-check row).
+
+### AJ-E3822 Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | Status: DONE (0.5.1) | Priority P1 | Effort S | Depends: AJ-E3802
+**Found** by the maintainer on the 0.5.0 nightly (2026-11-23): opening Bot showed macOS's prompt '"(null)" differs from previously opened versions. Are you sure you want to open it?'. Nightly's `juggler-apple-ai` is `ai.figurehead.juggler.apple-ai` signed with the team's Developer ID; the Dev and lab builds ran the same identifier signed ad hoc, so macOS's app-data protection saw one identifier with two signers and asked. "(null)" because the helpers' embedded Info.plist has no CFBundleName.
+**UI**: no
+**Requirements**:
+1. Every helper (`juggler-apple-ai`, `juggler-local-ai`, `juggler-agent`, and any later one) takes its identifier from the build's identity: Dev and lab builds carry the Dev identity's prefix, as the app does, so they never share one with Nightly or Stable (which share the team's signer). Whatever reads the identifier at run time (sandbox container, cache folder, a code requirement) follows the same identity.
+2. Each helper's embedded plist has CFBundleName and CFBundleDisplayName ("AI Juggler"), so no system prompt says "(null)".
+3. A test or lint over the build scripts and build.rs: helper identifiers follow the identity, and every embedded plist names itself.
+4. A release-notes line: Nightly testers who ran a Dev build may see this prompt once; it is our signed helper.
+**Quality gates**: `just keep-going verify-static`; the new lint; a Dev build's helpers checked with `codesign -dv` (identifier and plist).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3822/manifest.md`.
+
+### AJ-E3823 One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3822, AJ-E1545, AJ-E1547
+**Found** by the maintainer on the 0.5.0 nightly (2026-11-23): Bot's "Get short written answers · Beta" card said "Download · 1.8 GB" without naming what it downloads, and Apple's own model was never offered or explained. "We always must guide the user. Assume our user doesn't know anything."
+**Root cause (checked read-only, 2026-11-23)**: (1) on the maintainer's Mac the nightly's Apple helper shares its identifier and sandbox container with the Dev builds' ad hoc one (AJ-E3822); the container was touched when Bot was opened and the "(null) differs" prompt showed, so the helper's probe got no answer. (2) `apple::Seen::apple_ai()` maps a probe that failed or never answered to `AppleAi::Unavailable` ("this Mac can't run it"), so the recommendation went straight to the Qwen download with nothing said about Apple. The router's order is already Apple first when its probe says ready; the Dev lab walk on the same Mac had Apple's model as the automatic pick.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Anyone opening Bot or Settings › AI › Models for the first time. They expect "Bot" to be an AI assistant that answers (D-144), and its setup to tell them which AI writes the answers and what it costs.
+(2) "Checking what this Mac can do…" first, then each AI in plain words: Apple's (no download, private, needs Apple Intelligence on, with how to turn it on), and Qwen3 1.7B named (a small AI from the Qwen team, 1.8 GB, runs only on this Mac, free disk shown). A recommended badge, buttons that say what they do, and a "What is this?" disclosure.
+(3) One setup component in three places (Meet Bot, Bot's panel, Models), never three copies. With no AI, Bot shows only this setup (D-144).
+(4) Apple's AI off: "Turn on Apple Intelligence (free, nothing to download)" with its steps. Blocked or couldn't check: says so, with what to do, never "this Mac can't". No AI possible: one line on what it needs, and Skip.
+(5) The Apple helper's first start ("Setting up Bot", AJ-E1547). Opening System Settings' pane raises no prompt.
+(6) Watch for: "Download · 1.8 GB" without a name; a download recommended while Apple's AI was only unchecked; an input box with no AI behind it; "model" and "look-ups" as unexplained words.
+**Requirements**:
+1. A failed or blocked probe is its own state ("couldn't check" / "AI Juggler's helper was blocked by macOS"), never "this Mac can't run it"; it never leads to recommending a download.
+2. **One component** (no copies), used in the wizard's "Meet Bot" step, Bot's panel card and Settings › AI › Models: "Checking what this Mac can do…" first, then each engine's state in plain words. Apple's built-in AI: ready; turned off (the exact steps, and a button that opens System Settings › Apple Intelligence & Siri); still being downloaded by macOS; this Mac can't run it; or AI Juggler's helper was blocked by macOS (what to do). The downloadable one by name: "Qwen3 1.7B, a small AI from the Qwen team, 1.8 GB, runs only on this Mac", with the free disk.
+3. A side-by-side choice in plain words ("the small AI that writes Bot's answers", never a bare "model"): Apple's (no download, no disk, private, fast; needs Apple Intelligence on) and Qwen (works without Apple Intelligence, 1.8 GB, private, removable any time).
+4. The recommended badge: Apple's when ready; "Turn on Apple Intelligence (free, nothing to download)" when this Mac can run it but it is off; Qwen only when Apple's can't run here.
+5. Buttons name what they do ("Use Apple's AI", "Download Qwen3 1.7B · 1.8 GB"); a "What is this?" disclosure says what it is, where it is kept, where it comes from, that nothing asked leaves this Mac, and how to remove it.
+6. The router's order is Apple first, proven by a test; anything here that can raise a system prompt goes through AJ-E1547's gate.
+7. **D-144 (the maintainer's ruling, 2026-11-23): Bot is AI and conversation only.** With an AI ready, Bot is conversational: its record look-ups are the AI's own tools for grounding and cited links, never a user-facing mode; answers always come from the AI, and one the records can't answer gets the AI's "I don't know" with what it checked. With no AI, Bot's icon stays but its panel shows only "Set up Bot" (this guide), with no input box and no results. "Ask Bot" anywhere (Watches and others) shows only when Bot's AI is ready. No "look-ups" wording anywhere; Bot is "your AI assistant for everything AI Juggler sees". E38's tasks, ADR-0034's Chat section and the design system say so. Search's side is AJ-E3824.
+**Quality gates**: `just keep-going verify-static`; unit tests for each state and the badge; the router-order test; the a11y gate; an Opus critique in both themes; the persona walk covers each state, and both of D-144's (no AI: setup only; AI ready: a conversation).
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3823/manifest.md`.
+
+### AJ-E3824 Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | Status: DONE (0.5.1) | Priority P0 | Effort M | Depends: AJ-E3823
+**D-144 (the maintainer's ruling, 2026-11-23)**: all search belongs to Search (⌘K); plain search never lives in Bot's input.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Anyone looking for a session, task, pool or usage figure, or wanting a quick view such as "what needs me". They expect ⌘K Search to find everything, with Bot reserved for conversation (D-144).
+(2) The empty query shows the suggested entries (What needs me, What finished today, Runway by account, What's running) and "Watch a session…", each named plainly.
+(3) One search for the whole app, with no second search inside Bot.
+(4) No results: says what was searched and suggests the entries. Search needs no AI, so it never has a setup state.
+(5) None.
+(6) Watch for: the same result appearing twice; Search and Bot both offering look-ups; a shortcut leading to an empty page with no word of why.
+**Requirements**:
+1. Search finds the records Bot's look-up view found: sessions, tasks, pools and usage, through the same backend look-ups (one implementation, no copy), each result opening its page.
+2. The "Or go straight to" shortcuts (What needs me, What finished today, Runway by account, What's running) are Search's suggested entries when the query is empty.
+3. "Watch a session…" is a Search command.
+4. One search, no duplicate: Bot's own look-up input and results are gone (AJ-E3823), and no other surface keeps a second search.
+**Quality gates**: `just keep-going verify-static`; tests for each record kind, the suggested entries, the command; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3824/manifest.md`.

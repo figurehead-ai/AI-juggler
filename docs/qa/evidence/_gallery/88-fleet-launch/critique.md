@@ -1,4 +1,4 @@
-<!-- captures: 858d6d1381ef -->
+<!-- captures: 3255e0febfdd -->
 # 88-fleet-launch: Fleet, starting a session on another Mac, and Usage split by machine
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -17,3 +17,15 @@ remote-sheet is a clear chooser: Runs on as three chips with Mac mini outlined i
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 New session on Mac mini: Runs on chips, folder and app tiles, one filled "Start there →". Usage by machine says "~$" in the list and "≈ $" on the card (two marks for one meaning).
+
+## 0.5.1
+
+Re-captured against 0.5.1: the Runs on chips and the chosen folder and app rows now carry F53's chosen fill, visible against their siblings in both themes, and the Usage by machine card is a soft tonal card. Both pages are otherwise unchanged.
+
+F89: usage-by-machine no longer opens with the top edge through the cost tiles' titles. The capture scrolls back to their first line while the "Last 24 hours, by machine" card stays whole: "Per finished task" and "Crashed or probably stuck" read whole at the top (both themes), only the tiles' top padding sits under the edge, and the machine card ends above the window's bottom with its footnote.
+
+Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

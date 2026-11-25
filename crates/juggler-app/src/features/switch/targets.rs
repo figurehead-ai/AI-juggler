@@ -115,16 +115,59 @@ fn unless_signed_out<T: Clone>(
 }
 
 /// 0.4.1: the ranked accounts a desktop app profile signed in on them
-/// takes a switch in (Desktop), read before storage is held.
+/// takes a switch in (Desktop), each with those profiles' place ids (the
+/// one seen last first), read before storage is held. AJ-E2317: each is a
+/// row of its own, so the App picked is the one a move goes into.
 fn desktop_accounts(
     state: &Arc<AppState>,
     ranked: &[RankedRowInfo],
-) -> std::collections::HashSet<String> {
+) -> std::collections::HashMap<String, Vec<String>> {
     ranked
         .iter()
-        .filter(|row| crate::features::places::handoff::profile_for(state, &row.account).is_some())
-        .map(|row| row.account.clone())
+        .filter_map(|row| {
+            let mut places = crate::features::places::places_on(state, &row.account, |_, host| {
+                host.handoff_link.is_some() && host.handoff_record.is_some()
+            })?;
+            places.sort_by_key(|(id, place)| (std::cmp::Reverse(place.seen_ms), id.clone()));
+            let ids: Vec<String> = places.into_iter().map(|(id, _)| id).collect();
+            (!ids.is_empty()).then(|| (row.account.clone(), ids))
+        })
         .collect()
+}
+
+/// The desktop Apps (place ids) of `account` that take a switch of this
+/// tool's (none across tools).
+fn apps_of<'a>(
+    desktops: &'a std::collections::HashMap<String, Vec<String>>,
+    account: &str,
+    cross: bool,
+) -> &'a [String] {
+    desktops
+        .get(account)
+        .filter(|_| !cross)
+        .map_or(&[][..], Vec::as_slice)
+}
+
+/// AJ-E2317: an account's rows, one per desktop App (`apps`), else one.
+fn rows_of(apps: &[String]) -> Vec<Option<String>> {
+    if apps.is_empty() {
+        vec![None]
+    } else {
+        apps.iter().cloned().map(Some).collect()
+    }
+}
+
+/// F94 (the AJ-E2317 class): whether a row is where the conversation is
+/// already: the desktop App it is in (`source_app`, by its id, whatever
+/// launch settings list it), or its own launch settings in a terminal
+/// (`own`; that is Continue in AI Juggler, not a switch). Another desktop
+/// App on its own folder that takes sessions is a row: a terminal
+/// conversation continues there, a desktop App's moves to its twin.
+fn is_source(place_id: Option<&str>, own: bool, source_app: &str) -> bool {
+    match place_id {
+        Some(place) => place == source_app,
+        None => own,
+    }
 }
 
 /// Why a target is greyed: the source has no turn yet (the rc29 walk:
@@ -147,6 +190,24 @@ fn door_reason(
         })
 }
 
+/// AJ-E210: one pair's badge and validated state, from the validation
+/// matrix merged with any recorded live cell (a passing cell validates only
+/// real-CI rows — D-04). A profile through another service is its own side
+/// (AJ-E1601).
+fn matrix_row_of(
+    storage: &juggler_core::storage::Storage,
+    dogfood: &std::collections::BTreeMap<String, juggler_handover::validation::DogfoodCell>,
+    source_side: &str,
+    account: &juggler_core::model::Account,
+) -> Option<juggler_handover::validation::PairCell> {
+    let side = crate::features::service_accounts::switch_side_in(storage, account);
+    let cell = dogfood.get(&dogfood_key(source_side, &side));
+    juggler_handover::validation::pair_cell(source_side, &side).map(|row| match cell {
+        Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
+        None => row,
+    })
+}
+
 /// Core implementation shared with integration tests.
 ///
 /// # Errors
@@ -157,6 +218,9 @@ pub fn switch_targets_impl(
     session_id: &str,
 ) -> AppResult<Vec<SwitchTargetInfo>> {
     let (source, source_account) = handover_source(state, session_id)?;
+    // F94: the App it is in, by its id (a desktop App's Code tab
+    // conversation is that desktop App's), read before storage is held.
+    let from = super::source_app::source_app_of(state, session_id, &source, &source_account);
     let not_yet = super::execute::not_yet_words(state, &source, &source_account);
     let context = switch_rank_context_of(state, &source, &source_account)?;
     let ranked = rank_candidates_for(
@@ -204,62 +268,60 @@ pub fn switch_targets_impl(
         let signed_out = !super::execute::terminal_signed_in(state, &account);
         let reason = door_reason(not_yet.as_ref(), row, blocker.as_ref(), first_run);
         for recipe in storage.profiles().list_by_account(&account.id)? {
-            if recipe.id == source.profile {
-                continue; // the source itself is not a destination
-            }
+            let own = recipe.id == source.profile;
             let cross = account.harness.as_str() != context.source_provider;
             // A signed-in desktop app profile takes it: the account's room
             // is its own then, whatever the terminal says.
-            let no_room = signed_out && (cross || !desktops.contains(account.id.as_str()));
+            let apps = apps_of(&desktops, account.id.as_str(), cross);
+            let no_room = signed_out && apps.is_empty();
             let carry = carry_lists_of(&juggler_handover::fidelity::base_dispositions(
                 context.source_provider.as_str(),
                 account.harness.as_str(),
             ));
-            // AJ-E210: the badge and validated state come from the
-            // validation matrix merged with any recorded live cells
-            // (a passing cell validates only real-CI rows — D-04). A
-            // profile through another service is its own side (AJ-E1601).
-            let side = crate::features::service_accounts::switch_side_in(&storage, &account);
-            let cell = dogfood.get(&dogfood_key(context.source_side.as_str(), &side));
-            let matrix_row = juggler_handover::validation::pair_cell(
-                context.source_side.as_str(),
-                &side,
-            )
-            .map(|row| match cell {
-                Some(record) => juggler_handover::validation::with_dogfood(row, record.clone()),
-                None => row,
-            });
+            let matrix_row = matrix_row_of(&storage, &dogfood, &context.source_side, &account);
             let validated = matrix_row
                 .as_ref()
                 .is_some_and(juggler_handover::validation::PairCell::validated);
             if !validated && !beta {
                 continue;
             }
-            out.push(SwitchTargetInfo {
-                recipe_id: recipe.id.to_string(),
-                provider: account.harness.to_string(),
-                account_id: account.id.to_string(),
-                account_label: account.label.clone(),
-                badge: matrix_row.as_ref().map_or_else(
-                    || "Handover notes · Beta".to_owned(),
-                    juggler_handover::validation::PairCell::badge,
-                ),
-                validated,
-                cross_provider: cross,
-                drops: carry.dropped.clone(),
-                score: row.score,
-                filtered_reason: reason.clone(),
-                not_yet: not_yet.clone(),
-                held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
-                first_run,
-                signed_out,
-                desktop: !cross && desktops.contains(account.id.as_str()),
-                top_factors: unless_signed_out(&row.top_factors, no_room, |words| words),
-                factors: unless_signed_out(&row.factors, no_room, |(words, _)| words),
-                confidence: row.confidence.clone(),
-                tte_min: row.tte_min,
-                suggested: row.suggested && reason.is_none(),
-            });
+            // AJ-E2317: one row per desktop App on the account (else one).
+            // F94: each App a row by its own id; the source's App never.
+            let rows = rows_of(apps)
+                .into_iter()
+                .filter(|place_id| !is_source(place_id.as_deref(), own, &from.id));
+            out.extend(rows.map(|place_id| {
+                SwitchTargetInfo {
+                    app_id: place_id
+                        .clone()
+                        .unwrap_or_else(|| juggler_core::storage::cli_app_id(account.id.as_str())),
+                    recipe_id: recipe.id.to_string(),
+                    provider: account.harness.to_string(),
+                    account_id: account.id.to_string(),
+                    account_label: account.label.clone(),
+                    badge: matrix_row.as_ref().map_or_else(
+                        || "Handover notes · Beta".to_owned(),
+                        juggler_handover::validation::PairCell::badge,
+                    ),
+                    validated,
+                    cross_provider: cross,
+                    drops: carry.dropped.clone(),
+                    score: row.score,
+                    filtered_reason: reason.clone(),
+                    not_yet: not_yet.clone(),
+                    held_back: (row.filtered_reason.is_none() && set_up).then_some(HeldBack::SetUp),
+                    first_run,
+                    signed_out,
+                    desktop: !apps.is_empty(),
+                    place_id,
+                    top_factors: unless_signed_out(&row.top_factors, no_room, |words| words),
+                    factors: unless_signed_out(&row.factors, no_room, |(words, _)| words),
+                    confidence: row.confidence.clone(),
+                    tte_min: row.tte_min,
+                    // Its own account gives no new room: never the suggestion.
+                    suggested: row.suggested && reason.is_none() && account.id != source_account.id,
+                }
+            }));
         }
     }
     Ok(out)

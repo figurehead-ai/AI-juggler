@@ -189,7 +189,7 @@ export function Notes({
         <MachineAdviceLine advice={advice} nameOf={sessionName} />
       </div>,
     );
-  return lines.length > 0 ? <div className="mt-2 border-t border-accent/20 pt-1">{lines}</div> : null;
+  return lines.length > 0 ? <div className="mt-2 border-t border-hairline pt-1">{lines}</div> : null;
 }
 
 function Note({ children, testId, tone = "plain" }: { children: ReactNode; testId: string; tone?: "plain" | "warning" }): JSX.Element {

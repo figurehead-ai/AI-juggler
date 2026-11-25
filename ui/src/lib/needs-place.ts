@@ -13,6 +13,12 @@ export type KeptShape = { rows: number; height: number };
 
 /** Home's Needs you card. */
 export const NEEDS_PLACE = "aij.home.needs-place";
+/** The rail's Needs you section (AJ-E1551: it held no place and pushed
+ * Open now down when the needs arrived). */
+export const RAIL_NEEDS_PLACE = "aij.rail.needs-place";
+/** Home's Your apps card (AJ-E1551: its rows' need marks arrive with the
+ * needs, and one that wraps made the card taller, pushing Runway down). */
+export const HOME_APPS_PLACE = "aij.home.apps-place";
 
 /** The shape kept under `key` (`null`: never shown here, a first run). */
 export function keptShape(key: string): KeptShape | null {
@@ -27,7 +33,8 @@ export function keptShape(key: string): KeptShape | null {
   }
 }
 
-function keepShape(key: string, shape: KeptShape): void {
+/** Keeps `shape` under `key` (a place that works its shape out itself). */
+export function keepShape(key: string, shape: KeptShape): void {
   const text = JSON.stringify(shape);
   if (readKept(key) !== text) keep(key, text);
 }

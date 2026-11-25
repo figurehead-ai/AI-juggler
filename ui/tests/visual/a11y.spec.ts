@@ -1128,12 +1128,12 @@ for (const theme of ["dark", "light"] as const) {
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByRole("button", { name: /Work in ai-juggler/ })).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("project-account")).toBeVisible();
-    // Tab reaches Start session →; Enter launches (preview mode's
-    // honest error proves the activation arrived).
-    await page.getByTestId("start-session").focus();
-    await expect(page.getByTestId("start-session")).toBeFocused();
-    await page.keyboard.press("Enter");
+    // 0.5.1 F68: New session opens on that folder; its start, from the
+    // keyboard, launches (preview mode's honest error proves it arrived).
+    await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+    await page.getByTestId("launch-now").focus();
+    await expect(page.getByTestId("launch-now")).toBeFocused();
+    await page.keyboard.press("Meta+Enter");
     await expect(page.getByText("Preview mode — no backend connected.")).toBeVisible();
   });
 }
@@ -1318,8 +1318,12 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
-    // AJ-E1022: first run's folder step (picker → check → copy).
-    await page.getByRole("button", { name: "Import from another folder…" }).click();
+    // AJ-E1022: first run's folder step (picker → check → copy), in the
+    // setup wizard (AJ-E1545): the Welcome's Get started, then Your apps'
+    // Add from another folder… in the wizard's foot (0.5.1 F47).
+    await page.getByTestId("welcome-get-started").click();
+    await expect(page.getByTestId("setup-wizard")).toHaveAttribute("data-step", "apps");
+    await page.getByRole("button", { name: "Add from another folder…" }).click();
     const panel = page.getByTestId("first-run-folder-check");
     await expect(panel).toBeVisible();
     await panel.getByText("What's in it").click();
@@ -1503,7 +1507,7 @@ for (const theme of ["dark", "light"] as const) {
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.getByTestId("cloud-turn-on").click();
     await page.getByTestId("cloud-unlink").click();
-    const sheet = page.getByRole("alertdialog", { name: "Unlink this computer from Figurehead?" });
+    const sheet = page.getByRole("alertdialog", { name: "Unlink this Mac from Figurehead?" });
     await expect(sheet.getByRole("button", { name: "Cancel" })).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
     await page.keyboard.press("Escape");
@@ -1617,7 +1621,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.keyboard.press("Escape");
     await page.evaluate(() => {
       (window as unknown as Record<string, unknown>).__AIJ_FLEET_PROMPTS__ = [
-        { id: 1, peer_label: "Mac mini", action: "stop Work Max (claude-code)", expires_at_ms: Date.now() + 20_000 },
+        { id: 1, peer_label: "Mac mini", action: "stop “Fix the flaky login test” in Claude Code CLI · Work Max", expires_at_ms: Date.now() + 20_000 },
       ];
     });
     await expect(page.getByRole("alertdialog", { name: "Mac mini asks to act on this Mac" })).toBeVisible({ timeout: 8000 });
@@ -1823,7 +1827,7 @@ for (const theme of ["dark", "light"] as const) {
     await page.getByTestId("cross-back-go").click();
     await expect(page.getByTestId("conflict-later")).toBeFocused();
     expect(await scanSeriousWithConfirm(page)).toHaveLength(0);
-    await page.getByTestId("conflict-keep_mine").focus();
+    await page.getByTestId("conflict-keep_mine").locator("input").focus();
     await page.keyboard.press("Space");
     await expect(page.getByTestId("conflict-apply")).toBeEnabled();
   });

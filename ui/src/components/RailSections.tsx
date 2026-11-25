@@ -12,7 +12,7 @@ import { outside, useConversations } from "../lib/conversations";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { RowGroup } from "../lib/railview";
-import { useBackendNeeds } from "../lib/needs-you";
+import { useRailNeeds } from "../lib/rail-sign-ins"; // 0.5.1 F27: a sign-in once in the rail
 import { useNoticeActions } from "../lib/notice-actions";
 import { RailNoticeRow } from "./RailNoticeRow";
 import { itemsOf, needsYou } from "../lib/rail-items";
@@ -24,6 +24,8 @@ import { NeedRow } from "./PlaceRows";
 import { SELECTED } from "./controls/selected";
 import { loudLines } from "../lib/needs-order";
 import { useMessageAbout } from "../lib/ipc/messages";
+import { RAIL_NEEDS_PLACE, keptShape, useKeepShape } from "../lib/needs-place";
+import { LoadingState } from "./LoadingState";
 
 const ENDED = new Set(["finished", "stopped", "failed", "handed_over"]);
 
@@ -148,7 +150,7 @@ function Rows({ rows, selectedId, density, now }: RowProps & { rows: Conversatio
  * the notes (L1) come last under "To review", uncounted. */
 export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }: RowProps & { rows: InstanceInfo[]; sessions: InstanceInfo[]; projects: ProjectInfo[]; onSelect: (id: string) => void }): JSX.Element | null {
   const { all } = useConversations();
-  const { needOf, rows: needs } = useBackendNeeds();
+  const { needOf, rows: needs, known, held } = useRailNeeds();
   const seen = useSeen();
   const actions = useNoticeActions(sessions);
   const about = useMessageAbout(); // D-118: an agent's message, subject first
@@ -163,16 +165,32 @@ export function NeedsYouSection({ rows, sessions, projects, onSelect, ...props }
   const loudRest = others.filter((notice) => counted(noticeLevel(notice)));
   const notes = items.filter((item) => !counted(itemLevel(item)));
   const notesRest = others.filter((notice) => !counted(noticeLevel(notice)));
-  if (items.length + others.length === 0) return null;
-  const count = loud.length + loudRest.length;
-  const level = highest([...loud.map(itemLevel), ...loudRest.map(noticeLevel)]);
+  const loudHeld = held; // 0.5.1 F34: a sign-in its Sign-ins entry shows: counted here, not listed
+  // AJ-E1551 (D-103.6's rule, as Home's Needs you): until the needs are
+  // known the section holds the place it had last time, so the same needs
+  // arriving push nothing below; none last time, no place.
+  const box = useKeepShape<HTMLElement>(RAIL_NEEDS_PLACE, known, items.length + others.length + loudHeld.length);
+  if (!known) {
+    const kept = keptShape(RAIL_NEEDS_PLACE);
+    if (kept && kept.rows > 0 && kept.height > 0) {
+      const skeleton = <span className="mb-1 block rounded-lg bg-skeleton motion-safe:animate-pulse" style={{ height: kept.height }} />;
+      return (
+        <LoadingState state="loading" what="what needs you" skeleton={skeleton} empty={null} onRetry={() => undefined}>
+          {null}
+        </LoadingState>
+      );
+    }
+  }
+  if (items.length + others.length + loudHeld.length === 0) return null;
+  const count = loud.length + loudRest.length + loudHeld.length;
+  const level = highest([...loud.map(itemLevel), ...loudRest.map(noticeLevel), ...loudHeld.map(noticeLevel)]);
   const broken = [...brokenOf(loud, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)];
   const needRow = (item: (typeof items)[number]) => (
     <NeedRow key={item.key} item={item} selected={props.selectedId === (item.session?.id ?? item.conversation?.id)} onSelect={onSelect} now={props.now} compact={props.density === "compact"} />
   );
   const noticeRow = (notice: (typeof others)[number]) => <RailNoticeRow key={notice.subject} notice={notice} now={props.now} onOpen={actions.primary} canHandOver={actions.canHandOver(notice)} about={about.get(notice.subject ?? "")} />;
   return (
-    <section aria-label="Needs you" data-testid="rail-needs-you" className="mb-1 flex flex-col gap-0.5">
+    <section ref={box} aria-label="Needs you" data-testid="rail-needs-you" className="mb-1 flex flex-col gap-0.5">
       <SectionHead id="needs" testId={null} count={count} level={level} broken={broken} open={open} onToggle={() => setOpen((now) => !now)} />
       {open && (
         <>

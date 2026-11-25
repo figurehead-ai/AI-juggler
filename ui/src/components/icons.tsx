@@ -94,21 +94,15 @@ export function IconTerminal(props: SVGProps<SVGSVGElement>) {
 }
 
 export function IconJuggler(props: SVGProps<SVGSVGElement>) {
-  // Mark: three balls mid-juggle over a dashed throw arc. The balls are
-  // the three harnesses in flight (violet, bright violet, live cyan).
+  // AJ-E1545: the app icon's mark at small sizes (AppMark draws the full
+  // icon): the same arc and three balls, lavender on top, indigo left,
+  // cyan right, without the tile and the glow.
   return (
     <svg {...base(props)}>
-      <path
-        d="M6.8 16C8.4 7.4 15.6 7.4 17.2 16"
-        stroke="currentColor"
-        strokeOpacity={0.35}
-        strokeWidth={1.25}
-        strokeDasharray="2.2 2.6"
-        fill="none"
-      />
-      <circle cx={6.8} cy={16} r={2.3} fill="var(--color-accent)" />
-      <circle cx={12} cy={8.6} r={2.5} fill="var(--color-accent-hi)" />
-      <circle cx={17.2} cy={16} r={2.3} fill="var(--color-live)" />
+      <path d="M6.5 14.6C7.2 10.7 9.4 8.6 12 8.6C14.6 8.6 16.8 10.7 17.5 14.6" stroke="var(--color-brand-mark-left)" strokeWidth={1.6} fill="none" />
+      <circle cx={6.3} cy={16.6} r={2.5} fill="var(--color-brand-mark-left)" stroke="none" />
+      <circle cx={12} cy={8.6} r={2.7} fill="var(--color-brand-mark-top)" stroke="none" />
+      <circle cx={17.7} cy={16.6} r={2.5} fill="var(--color-brand-mark-right)" stroke="none" />
     </svg>
   );
 }
@@ -296,6 +290,17 @@ export function IconPin(props: SVGProps<SVGSVGElement>) {
     <svg {...base(props)}>
       <path d="M9 4h6l-1 5 3 3v1.5H7V12l3-3Z" />
       <path d="M12 13.5V20" />
+    </svg>
+  );
+}
+
+/** 0.5.1 F77: a session's model changed since it started (a chip, the
+ * model's own mark; never Switch account's ⇄). */
+export function IconModelChanged(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...base(props)}>
+      <rect x="7" y="7" width="10" height="10" rx="2" />
+      <path d="M10 3.5V7M14 3.5V7M10 17v3.5M14 17v3.5M3.5 10H7M3.5 14H7M17 10h3.5M17 14h3.5" />
     </svg>
   );
 }

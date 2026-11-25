@@ -20,8 +20,6 @@ import type { Page } from "../../types/generated/Page";
 import type { PageRequest } from "../../types/generated/PageRequest";
 import type { ProcessCountsInfo } from "../../types/generated/ProcessCountsInfo";
 import type { ProcessGraphRowInfo } from "../../types/generated/ProcessGraphRowInfo";
-import type { ProcRowInfo } from "../../types/generated/ProcRowInfo";
-import type { RollupInfo } from "../../types/generated/RollupInfo";
 import type { CleanupEventInfo } from "../../types/generated/CleanupEventInfo";
 import type { RulePreviewInfo } from "../../types/generated/RulePreviewInfo";
 import type { CleanupPolicyInfo } from "../../types/generated/CleanupPolicyInfo";
@@ -33,21 +31,18 @@ export type {
   CleanupPolicyInfo,
   Page,
   ProcessCountsInfo,
-  ProcessGraphChangedInfo,
   ProcessGraphRowInfo,
   ProcessQueryInput,
   ProcessStatusInfo,
   ProcessSnapshotInfo,
-  ProcRowInfo,
-  RollupInfo,
   RulePreviewInfo,
 };
 
 /** The event the backend sends when the graph changed. */
-export const PROCESSES_CHANGED = "processes://changed";
+const PROCESSES_CHANGED = "processes://changed";
 /** AJ-E805: the counts alone. AJ-E812: told only when the top bar's
  * count (`to_clean`) moves. */
-export const PROCESS_COUNTS = "processes://counts";
+const PROCESS_COUNTS = "processes://counts";
 
 /** A query with every filter off (the page's default). */
 export function processQuery(over: Partial<ProcessQueryInput> = {}): ProcessQueryInput {

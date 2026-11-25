@@ -176,10 +176,13 @@ for (const theme of ["dark", "light"] as const) {
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
+    // F20 (0.5.1): the Welcome first; Get started opens the wizard.
+    await page.getByTestId("welcome-get-started").click();
     const found = page.getByTestId("first-run-found");
     await expect(found.getByTestId("first-run-group-codex")).toBeVisible();
     await expect(found.getByTestId("first-run-no-codex")).toBeVisible();
-    await expect(found.getByTestId("first-run-bring-in")).toHaveText("Bring in 3 apps");
+    // AJ-E1545: Bring in sits in the setup wizard's foot, always in view.
+    await expect(page.getByTestId("setup-wizard").getByTestId("first-run-bring-in")).toHaveText("Bring in 3 apps");
     await page.screenshot({ path: resolve(OUT, `first-run-codex-1280x800-${theme}.png`) });
     await axeClean(page, "first run with Codex");
   });
@@ -345,7 +348,8 @@ for (const theme of ["dark", "light"] as const) {
     await terminalDrawn(page);
     await openSwitch(page);
     const rows = page.getByTestId("switch-target-rows");
-    await expect(rows.locator('[data-room="credits"]')).toContainText("Using credits · 14,150 left");
+    // The card carries its room kind too (TargetCard's wrapper): the room's own line.
+    await expect(rows.locator('[data-testid="target-room"][data-room="credits"]')).toContainText("Using credits · 14,150 left");
     await rows.scrollIntoViewIfNeeded();
     await page.screenshot({ path: resolve(OUT, `switch-credits-1280x800-${theme}.png`) });
     await axeClean(page, "switch list with credits");

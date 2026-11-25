@@ -31,4 +31,13 @@ model: MoveOutcomeInfo,
 /**
  * What the user should know.
  */
-notes: Array<string>, };
+notes: Array<string>, 
+/**
+ * AJ-E2322: the App to offer Open in, when the conversation isn't
+ * seen open there (`None`: it is, or it moved to a terminal folder).
+ */
+open_place_id: string | null, 
+/**
+ * The moved conversation's id (what Open opens).
+ */
+conversation: string, };

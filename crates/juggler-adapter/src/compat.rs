@@ -290,8 +290,10 @@ impl Gate {
 
 /// A tool's version as adapters report it (`2.1.4`, `v2.1.4`,
 /// `2.1.4 (Claude Code)`): its first word, without a leading `v`. A
-/// two-part version reads as `.0`.
-fn parse_tool_version(text: &str) -> Option<Version> {
+/// two-part version reads as `.0`. An app's version from its bundle
+/// (`5.11492.5`) reads the same way.
+#[must_use]
+pub fn parse_tool_version(text: &str) -> Option<Version> {
     let word = text.split_whitespace().next()?;
     let word = word.strip_prefix('v').unwrap_or(word);
     word.parse()

@@ -264,6 +264,15 @@ fn every_0_3_pool_kind_and_its_content_moves_with_additions_only() {
             // The default pools' "everyone in scope" rows, one per pool.
             assert_eq!(added.len(), 3, "{added:?}");
             assert!(added.iter().all(|row| row[2] == "'all'"), "{added:?}");
+        } else if table == "app_settings" {
+            // AJ-E1552 (d68855029): the mark that the once-per-database
+            // step ran, written at every open; a setting of its own, never
+            // a pool's.
+            assert_eq!(
+                added,
+                [&vec!["'apps.linked_added'".to_string(), "'1'".to_string()]],
+                "{added:?}"
+            );
         } else {
             assert!(added.is_empty(), "{table} gained rows: {added:?}");
         }

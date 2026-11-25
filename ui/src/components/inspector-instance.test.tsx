@@ -297,7 +297,7 @@ describe("AJ-E1533 a session's page: no empty tabs, actions in the header", () =
     // The filled button is the page's one primary (principle 9).
     expect(resume.className).toContain("shadow-glow-accent");
     expect(relaunch.className).not.toContain("shadow-glow-accent");
-    expect(relaunch.className).toContain("bg-surface-2");
+    expect(relaunch.className).toContain("bg-control");
   });
 
   it("AJ-E2908 R6: a running session's header has no Resume and no Relaunch", () => {

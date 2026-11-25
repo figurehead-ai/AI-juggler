@@ -140,7 +140,7 @@ describe("AJ-E2108 Continue on another account", () => {
     expect(screen.getByTestId("continue-no-room").textContent).toContain("Work 2");
 
     fireEvent.click(codex!);
-    expect(onPick).toHaveBeenCalledWith("recipe-codex", "Codex Personal");
+    expect(onPick).toHaveBeenCalledWith("recipe-codex", "Codex Personal", null);
 
     const outside = screen.getByTestId("continue-outside");
     expect(outside.textContent).toContain("The original stays open in the Claude app, untouched.");
@@ -166,7 +166,7 @@ describe("AJ-E2108 Continue on another account", () => {
     const home = screen.getAllByTestId("continue-target").find((row) => row.textContent?.includes("Home")) as HTMLButtonElement;
     expect(home.disabled).toBe(false);
     fireEvent.click(home);
-    expect(onPick).toHaveBeenCalledWith("recipe-home", "Home");
+    expect(onPick).toHaveBeenCalledWith("recipe-home", "Home", null);
   });
 
   it("a session another app ran, closed now, can also be continued on its own profile", async () => {
@@ -192,7 +192,7 @@ describe("AJ-E2108 Continue on another account", () => {
     expect(targets).toHaveBeenCalledWith("sess-1");
     expect(screen.queryByTestId("continue-outside")).toBeNull();
     fireEvent.click(screen.getAllByTestId("continue-target")[0]!);
-    expect(onPick).toHaveBeenCalledWith("recipe-work", "Work");
+    expect(onPick).toHaveBeenCalledWith("recipe-work", "Work", null);
   });
 
   it("a target the ranking holds back says why and can't be picked", async () => {
@@ -219,6 +219,17 @@ describe("AJ-E2108 Continue on another account", () => {
     // Opening the dialog asks again too (the walk re-opened it five times).
     focusHandover("sess-3");
     await waitFor(() => expect(targets).toHaveBeenCalledTimes(3));
+  });
+
+  it("AJ-E2317: two desktop Apps on one account are two rows, and the pick carries the App's id", async () => {
+    withTargets([
+      target("home", "Home", "claude-code", false, { desktop: true, place_id: "app:claude-app:/Users/you/Profiles/lab" }),
+      target("home", "Home", "claude-code", false, { desktop: true, place_id: "app:claude-app:/Users/you/Profiles/team-b" }),
+    ]);
+    const onPick = show(fromConversation(conversation({})));
+    await waitFor(() => expect(screen.getAllByTestId("continue-target").length).toBe(2));
+    fireEvent.click(screen.getAllByTestId("continue-target")[1]!);
+    expect(onPick).toHaveBeenCalledWith("recipe-home", "Home", "app:claude-app:/Users/you/Profiles/team-b");
   });
 
   it("the key a switch takes: AI Juggler's session, else the conversation's own", () => {

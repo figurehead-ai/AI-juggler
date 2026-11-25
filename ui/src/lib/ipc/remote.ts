@@ -104,10 +104,16 @@ export async function remoteAbout(): Promise<RemoteAboutInfo> {
   return call("remote_config_about");
 }
 
-/** AJ-E2023 Req.3: Settings ▸ Privacy "Check for configuration
- * updates" (on by default, D-129). */
-export async function remoteConfigSetCheck(enabled: boolean): Promise<void> {
-  await call("remote_config_set_check", { enabled });
+/** Settings › Privacy "Check for configuration updates" on or off
+ * (AJ-E1548 #15; on by default, D-129). */
+export async function remoteCheckSet(on: boolean): Promise<void> {
+  if (!hasLiveBackend()) {
+    const host = preview();
+    host.about = { ...(await remoteAbout()), checking: on };
+    window.dispatchEvent(new Event(REMOTE_CHANGED));
+    return;
+  }
+  return call("remote_config_set_check", { on });
 }
 
 /** Calls `on` whenever the configuration changes: the backend's word

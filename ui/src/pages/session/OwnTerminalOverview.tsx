@@ -42,7 +42,7 @@ export function OwnTerminalOverview({
   details: ReactNode;
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
   /** A driven session's model as its tool reports it (its driver card's),
    * until its transcript says. */
   reportedModel?: string | null;

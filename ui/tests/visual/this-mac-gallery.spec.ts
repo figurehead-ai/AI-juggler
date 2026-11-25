@@ -42,9 +42,11 @@ const STATES: State[] = [
   // The 0.1.4 review: pressure while other apps hold most of the memory.
   { name: "pressure-from-other-apps", fixture: calm, machine: "others", expect: "Under memory pressure" },
 ];
+// 0.5.1 batch B3 (F51's rule): 390×844 is below the window's minimum
+// (1024×680), so This Mac is captured at the window's sizes: 1280 and 1024.
 const VIEWPORTS = [
   { name: "1280x800", width: 1280, height: 800 },
-  { name: "390x844", width: 390, height: 844 },
+  { name: "1024x680", width: 1024, height: 680 },
 ] as const;
 
 test.beforeAll(() => mkdirSync(OUT, { recursive: true }));

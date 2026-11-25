@@ -3,19 +3,20 @@
  * thread's state (E18), a task's status (E19). One look for both.
  */
 import type { JSX, ReactNode } from "react";
+import { WARNING_CHIP } from "./primitives";
 
 export type PillTone = "neutral" | "warning" | "danger" | "accent" | "live" | "success";
 
 const TONES: Record<PillTone, string> = {
-  neutral: "border-hairline bg-surface-2 text-muted",
-  // Its tint on the plain surface, not on the row's: on a selected row
-  // (surface-3) the light theme's amber fell under 4.5:1 (axe, a task in
-  // review, 2026-10-27).
-  warning: "border-warning/30 bg-surface [background-image:linear-gradient(var(--color-warning-soft),var(--color-warning-soft))] text-warning",
-  danger: "border-danger/30 bg-danger-soft text-danger",
-  accent: "border-accent/25 bg-accent-soft text-accent-hi",
-  live: "border-live/25 bg-live-soft text-live",
-  success: "border-success/25 bg-success-soft text-success",
+  // AJ-E1550 (PAT-SURF): a tag is its fill; the edge only under Increase
+  // Contrast.
+  neutral: "border-frame bg-surface-2 text-muted",
+  // 0.5.1 F76: the kit's one warning chip (no amber behind words).
+  warning: `border-frame ${WARNING_CHIP}`,
+  danger: "border-frame bg-danger-soft text-danger",
+  accent: "border-frame bg-accent-soft text-accent-hi",
+  live: "border-frame bg-live-soft text-live",
+  success: "border-frame bg-success-soft text-success",
 };
 
 /** `wrap`: a sentence, not a word — it may take two lines where its

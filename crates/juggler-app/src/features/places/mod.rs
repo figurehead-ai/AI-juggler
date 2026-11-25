@@ -19,18 +19,30 @@
 pub mod book;
 pub mod commands;
 pub mod handoff;
-pub mod keep;
-mod link;
+pub mod hold;
+mod move_hold;
 #[cfg(test)]
-use link::folder_for_profile;
+pub(crate) use move_hold::HELD_UNFINISHED;
+#[cfg(test)]
+pub(crate) use move_hold::{CONVERSATION_MOVING, CONVERSATION_SETTLING};
+pub use move_hold::{
+    ConversationHold, MoveHold, SETTLE_MS, any_move, conversation_held, held_for_move, moving_here,
+    settle_conversation, why_held,
+};
+pub(crate) use move_hold::{HELD, why_held_on_disk};
+pub mod keep;
+pub(crate) mod link;
 use link::link_its_folder;
+pub(crate) use link::{LinkNote, Linked, link_note};
 pub mod open_session;
 pub mod profiles;
+pub mod quit;
 pub mod reach;
 mod records;
 pub use records::{RecordIndex, record_index};
 pub mod start;
-mod store;
+pub(crate) use start::{start_held, start_place};
+pub(crate) mod store;
 pub mod tree;
 
 use crate::events::{AppEvent, EmitEvent as _};
@@ -47,6 +59,7 @@ use crate::features::conversations::goto::{self, Desktop};
 use crate::features::conversations::places::{Host, HostRegistry, RunningApp, running_apps};
 use crate::features::conversations::procs;
 use crate::features::conversations::scan::LiveEntry;
+use crate::features::ownership;
 use crate::state::AppState;
 
 /// The event the window hears when a place changed (started, stopped,
@@ -82,6 +95,13 @@ pub struct Places {
     /// 0.4.3 (D-102): the profiles whose folder link was checked against
     /// their own records, this run (`link::correct_by_records`).
     link_checked: Mutex<HashSet<String>>,
+    /// AJ-E2327: what the last look for each App's tool folder found
+    /// (`link::LinkNote`): its row says it.
+    link_notes: Mutex<std::collections::HashMap<String, link::LinkNote>>,
+    /// AJ-E2327: when a look that found nothing (or only a recalled or
+    /// guessed folder) is tried again, and whether the App ran then (a
+    /// start looks at once).
+    link_retry: Mutex<std::collections::HashMap<String, (Instant, bool)>>,
     /// ADR-0031: the profiles a move (a switch by move) holds closed while
     /// it changes their files: keep alive, Open, Restart and the automation
     /// watch leave them alone until the move lets go ([`MoveHold`]).
@@ -104,6 +124,9 @@ pub struct MadeUpMac {
     pub table: procs::Table,
     /// The user's home.
     pub home: std::path::PathBuf,
+    /// AJ-E2327: the tool folders discovery finds on it (`None`: this
+    /// Mac's own scan).
+    pub installs: Option<Vec<juggler_adapter::environment::DiscoveredInstall>>,
 }
 
 impl Places {
@@ -135,54 +158,6 @@ impl Places {
 }
 
 pub use crate::features::presence::watch::{RECONCILE_EVERY_MS, reconcile, running_at_last_look};
-
-/// ADR-0031: holds `ids` closed for a move while it lives: nothing in AI
-/// Juggler starts them or writes their records meanwhile.
-pub struct MoveHold {
-    state: Arc<AppState>,
-    ids: Vec<String>,
-}
-
-impl MoveHold {
-    /// Holds `ids`, or none when another move holds one of them.
-    #[must_use]
-    pub fn take(state: &Arc<AppState>, ids: &[String]) -> Option<Self> {
-        let mut now = state.places.moving.lock().ok()?;
-        if ids.iter().any(|id| now.contains(id)) {
-            return None;
-        }
-        now.extend(ids.iter().cloned());
-        Some(Self {
-            state: Arc::clone(state),
-            ids: ids.to_vec(),
-        })
-    }
-}
-
-impl Drop for MoveHold {
-    fn drop(&mut self) {
-        if let Ok(mut now) = self.state.places.moving.lock() {
-            for id in &self.ids {
-                now.remove(id);
-            }
-        }
-    }
-}
-
-/// Whether a move holds `id` closed now.
-#[must_use]
-pub fn held_for_move(state: &Arc<AppState>, id: &str) -> bool {
-    state.places.moving.lock().is_ok_and(|now| now.contains(id))
-}
-
-/// Whether any move is running now.
-#[must_use]
-pub fn any_move(state: &Arc<AppState>) -> bool {
-    state.places.moving.lock().is_ok_and(|now| !now.is_empty())
-}
-
-/// The words for a place a move holds.
-const HELD: &str = "a switch is moving conversations into or out of this profile; it starts again by itself when the move is done";
 
 impl std::fmt::Debug for Places {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -378,7 +353,9 @@ fn read_records(state: &Arc<AppState>) -> bool {
     let mut titles = std::collections::HashMap::new();
     let mut index = RecordIndex::default();
     for (id, app_id, dir, unlinked) in places {
-        let first_look = unlinked
+        // AJ-E2327: unlinked, or linked by a recalled or guessed folder
+        // only (looked at again, throttled, until evidence settles it).
+        let first_look = (unlinked || !link::proven(state, &id))
             && state
                 .places
                 .looked
@@ -421,8 +398,7 @@ fn read_records(state: &Arc<AppState>) -> bool {
                     .lock()
                     .is_ok_and(|mut seen| seen.insert(id.clone()))
             {
-                let ids: Vec<String> = records.iter().map(|record| record.id.clone()).collect();
-                changed |= link::correct_by_records(state, &id, harness.as_str(), &ids);
+                changed |= link::correct_by_records(state, &id);
             }
             if let Some(folder) = &folder {
                 index.read.insert(id.clone());
@@ -617,8 +593,34 @@ pub fn app_of(
         .unwrap_or_else(|| juggler_core::storage::cli_app_id(folder.unwrap_or_default()))
 }
 
-/// The name of the account `place`'s sessions ran on.
-fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
+/// The App `id` the person added, after `touch` (stored when it changes
+/// it), and its name: refused in words when it is gone or a move holds it
+/// (Restart's and Quit's one check before they quit anything).
+pub(crate) fn added_and_free(
+    state: &Arc<AppState>,
+    id: &str,
+    touch: impl FnOnce(&mut KnownPlace),
+) -> Result<(KnownPlace, String), String> {
+    let place = with_book(state, |book| {
+        book.places
+            .get_mut(id)
+            .filter(|place| place.users)
+            .map(|place| {
+                touch(place);
+                place.clone()
+            })
+    })
+    .map_err(|error| error.to_string())?
+    .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
+    if let Some(why) = why_held(state, id) {
+        return Err(why.to_owned());
+    }
+    let label = named(state, &place);
+    Ok((place, label))
+}
+
+/// The account `place`'s sessions ran on.
+fn account_of(state: &Arc<AppState>, place: &KnownPlace) -> Option<juggler_core::model::Account> {
     let id = place.account_id.as_deref()?;
     state
         .storage
@@ -627,11 +629,13 @@ fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
         .accounts()
         .get(&juggler_core::model::AccountId::new(id.to_owned()))
         .ok()
-        .map(|account| account.label)
 }
 
-/// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
-/// started with it so the profile stays on that account.
+/// The name of the account `place`'s sessions ran on.
+fn account_label(state: &Arc<AppState>, place: &KnownPlace) -> Option<String> {
+    account_of(state, place).map(|account| account.label)
+}
+
 /// ADR-0028: the instance folder of the app profile `id`, when known.
 pub(crate) fn instance_dir_of(state: &Arc<AppState>, id: &str) -> Option<std::path::PathBuf> {
     with_book(state, |book| {
@@ -643,16 +647,10 @@ pub(crate) fn instance_dir_of(state: &Arc<AppState>, id: &str) -> Option<std::pa
     .flatten()
 }
 
+/// 0.3.5: the tool folder `place`'s sessions use: its account's folder,
+/// started with it so the profile stays on that account.
 pub(crate) fn tool_folder(state: &Arc<AppState>, place: &KnownPlace) -> Option<std::path::PathBuf> {
-    let id = place.account_id.as_deref()?;
-    state
-        .storage
-        .lock()
-        .ok()?
-        .accounts()
-        .get(&juggler_core::model::AccountId::new(id.to_owned()))
-        .ok()
-        .map(|account| account.state_dir)
+    account_of(state, place).map(|account| account.state_dir)
 }
 
 /// `place` in words, its profile named by its account (as the screens
@@ -807,7 +805,7 @@ pub fn tick_with(
             None => {
                 match found
                     .iter()
-                    .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == *id)
+                    .find(|app| app.runs(&place.app_id, place.instance_dir.as_deref()))
                 {
                     Some(app) => {
                         watch.found(id, app.pid, app.start);
@@ -1001,11 +999,14 @@ pub fn offers(state: &Arc<AppState>) -> AppResult<Vec<(String, String)>> {
 }
 
 /// D-84: the user adds offer `id` (or answers "Not now": `add` false).
+/// AJ-E2327: Add is the consent to bring in the tool folder its sessions
+/// use, found by evidence (`link::link_by_evidence`); what it linked, or
+/// why nothing, is returned for Add's confirmation.
 ///
 /// # Errors
 ///
 /// [`AppError::Refused`] for an id that isn't an offer; storage errors.
-pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()> {
+pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<Linked> {
     {
         let storage = crate::commands::lock_storage_arc(state)?;
         if add {
@@ -1018,19 +1019,19 @@ pub fn answer_offer(state: &Arc<AppState>, id: &str, add: bool) -> AppResult<()>
             storage.apps().decline(id)?;
         }
     }
-    if add {
-        link_its_folder(state, id, true);
-    }
+    let linked = if add {
+        link::link_by_evidence(state, id, true).1
+    } else {
+        Linked::default()
+    };
     // The book reads its rows again: the place is the user's now (or
     // declined).
-    if let Ok(mut slot) = state.places.book.lock() {
-        *slot = None;
-    }
+    store::read_rows_again(state);
     if add {
         read_records(state);
     }
     changed(state);
-    Ok(())
+    Ok(linked)
 }
 
 /// Forgets `id` (it's remembered again the next time it runs).
@@ -1086,7 +1087,7 @@ pub fn is_its_process(
 }
 
 /// The process `id` runs as now: the watch's, when it's still that one,
-/// else looked for in the whole list.
+/// else looked for in the whole list ([`ownership::running_place`]).
 pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
     let (known, exe) = state
         .places
@@ -1110,10 +1111,10 @@ pub(crate) fn running_now(state: &Arc<AppState>, id: &str) -> Option<(u32, Optio
     {
         return Some((pid, start));
     }
+    let place = with_book(state, |book| book.places.get(id).cloned()).ok()??;
     let hosts = HostRegistry::of(&state.registry);
-    let app = running_apps(&state.places.table(), &hosts, &state.places.home())
-        .into_iter()
-        .find(|app| book::place_id(&app.app_id, app.instance.as_deref()) == id)?;
+    let (table, home) = (state.places.table(), state.places.home());
+    let app = ownership::running_place(&table, &hosts, &home, &place, &ownership::system_holder)?;
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.found(id, app.pid, app.start);
         watch.note_exe(id, &app.exe);
@@ -1199,23 +1200,11 @@ pub fn restart(
     wait: QuitWait,
     now: i64,
 ) -> Result<String, String> {
-    let place = with_book(state, |book| {
-        book.places
-            .get_mut(id)
-            .filter(|place| place.users)
-            .map(|place| {
-                if !background {
-                    place.paused = None;
-                }
-                place.clone()
-            })
-    })
-    .map_err(|error| error.to_string())?
-    .ok_or_else(|| "AI Juggler doesn't remember that app any more".to_owned())?;
-    if held_for_move(state, id) {
-        return Err(HELD.to_owned());
-    }
-    let label = named(state, &place);
+    let (place, label) = added_and_free(state, id, |place| {
+        if !background {
+            place.paused = None;
+        }
+    })?;
     let hosts = HostRegistry::of(&state.registry);
     // Checked before anything is quit: it starts again as it ran.
     start::plan(&place, &hosts, None, background)?;
@@ -1234,11 +1223,11 @@ pub fn restart(
                     "{label} has its window, so it wasn't restarted. Open brings it forward"
                 ));
             }
-            mark_restarting(state, id, now);
-            starter
-                .quit(pid)
-                .map_err(|why| format!("Couldn't quit {label}: {why}"))?;
-            if !wait_until(wait, || !starter.alive(pid, start)) {
+            // AJ-E2320: only the very process looked at, as Move quits
+            // (F98: the one quit, Quit…'s too).
+            if !quit::ask_to_quit(starter, &label, pid, start, wait, || {
+                mark_restarting(state, id, now);
+            })? {
                 return Err(format!(
                     "{label} didn't quit within {} seconds, so it wasn't started again. Quit it in Activity Monitor, then start it here",
                     wait.limit.as_secs()
@@ -1337,8 +1326,8 @@ pub fn open(
             })
     })?
     .ok_or_else(|| AppError::Refused(NOT_ADDED.to_owned()))?;
-    if held_for_move(state, id) {
-        return Err(AppError::Refused(HELD.to_owned()));
+    if let Some(why) = why_held(state, id) {
+        return Err(AppError::Refused(why.to_owned()));
     }
     if let Ok(mut watch) = state.places.watch.lock() {
         watch.drop_place(id);
@@ -1438,26 +1427,6 @@ pub fn open(
     }))
 }
 
-/// Starts `place` (its tool's folder found here), and on success has
-/// the live view look for it every tick for a while: every door's Start,
-/// Restart and Keep alive says it runs within seconds.
-pub(crate) fn start_place(
-    state: &Arc<AppState>,
-    place: &KnownPlace,
-    hosts: &HostRegistry,
-    starter: &dyn start::Starter,
-    background: bool,
-) -> Result<(), String> {
-    start::start(
-        place,
-        hosts,
-        tool_folder(state, place).as_deref(),
-        starter,
-        background,
-    )
-    .inspect(|()| crate::features::conversations::look_for_started(state))
-}
-
 fn outcome(text: String, reached: &str) -> GoToOutcomeInfo {
     GoToOutcomeInfo {
         outcome: text,
@@ -1536,5 +1505,9 @@ mod d84_tests;
 mod desktop_apps_tests;
 #[cfg(test)]
 pub(crate) mod fakes;
+#[cfg(test)]
+mod launch_tests;
+#[cfg(test)]
+mod link_tests;
 #[cfg(test)]
 mod tests;

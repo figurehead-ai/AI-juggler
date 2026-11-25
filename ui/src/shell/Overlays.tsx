@@ -4,7 +4,7 @@
  * account, the limit and switch flows, the New session and New project
  * sheets, and the toast a close that hid the window owes (D-112).
  */
-import { useEffect, type JSX } from "react";
+import { useCallback, useEffect, useRef, type JSX } from "react";
 import { CrashReportPrompt } from "../components/CrashReports";
 import { FleetPromptDialog } from "../components/FleetPromptDialog";
 import { IdentityMismatchDialog } from "../components/IdentityMismatchDialog";
@@ -21,18 +21,36 @@ import { watchCloseNote } from "../lib/close-note";
 import { desktopFocus } from "../lib/ipc/desktop";
 import { fleetRemoteFocus } from "../lib/ipc/fleet-remote";
 import { goToHotkeySet } from "../lib/ipc/settings";
-import { funnelEvent } from "../lib/funnel";
-import { lazyNamed } from "../lib/lazy";
+import { funnelEvent, funnelStep } from "../lib/funnel";
+import { lazyNamed, usePartShown } from "../lib/lazy";
+import { cliAppId } from "../lib/app-name";
+import { openWatches } from "../lib/watches-open";
+import { expectArrival } from "../lib/arriving";
 import { setCentreOpen } from "../lib/notices-store";
-import { AddProviderSheet, FirstRun, LimitDialog, NewProjectSheet, NewSessionModal, PortWarningSheet, ShortcutSheet, SwitchBackFlow, SwitchFlow } from "../lazyParts";
+import { TourHost } from "../components/tour/TourHost";
+import { AddProviderSheet, FirstRun, LimitDialog, SetupWizard, NewProjectSheet, NewSessionModal, PortWarningSheet, ShortcutSheet, SwitchBackFlow, SwitchFlow } from "../lazyParts";
 import type { Shell } from "./use-shell";
 
 const GoToPalette = lazyNamed(() => import("../components/GoToPalette"), "GoToPalette", true); // AJ-E2901: out of the first bundle, fetched first after paint (⌘K is the key used soonest)
 
 export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
   const { portWarning, recovery, sessions, projects, accounts, refresh, selectSession, inspectRemote, switchFlow, limitFor, newSheet, selection } = shell;
+  // F49: New session shows once its code is here, never behind Suspense's 300 ms reveal.
+  const newSheetShown = usePartShown(NewSessionModal, newSheet.open);
   // D-112: the toast the first close that hid the window owes.
   useEffect(() => watchCloseNote(), []);
+  // F68: New project hands its folder to New session (flow (b)'s start).
+  const fromNewProject = useRef(false);
+  const { setNewProjectDir } = shell;
+  const showNewSheet = newSheet.show;
+  const openOnFolder = useCallback(
+    (dir: string) => {
+      fromNewProject.current = true;
+      setNewProjectDir(null);
+      showNewSheet({ dir });
+    },
+    [setNewProjectDir, showNewSheet],
+  );
   return (
     <>
       {portWarning && (
@@ -92,16 +110,21 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           openScreen: (id) => (id === "home" ? shell.openHome() : id === "settings" ? shell.openSettings() : shell.setGlobal(id)),
           newSession: shell.newSessionHere, newProject: shell.newProject, notifications: () => setCentreOpen(true),
           shortcuts: () => shell.setShortcutsOpen(true), toggleRail: shell.toggleRail, searchHistory: (words) => (shell.setHistoryQuery(words), shell.setGlobal("history")), fleet: shell.pairedCount > 0,
+          // AJ-E3824: found records open their pages, by id; Watch a session… opens Watches' form.
+          openPool: (id) => shell.openPage({ kind: "pool", id }), openAccount: (id) => shell.openPage({ kind: "app", id: cliAppId(id) }), watchSession: () => openWatches({ kind: "new" }),
+          // F19 (0.5.1): ⌘K's add is Find my apps, as Accounts' and Usage's.
+          findApps: () => shell.setFirstRun(true),
         }}
         projects={projects} accounts={accounts}
         onChanged={() => void refresh()}
       />
 
+      {/* AJ-E1545: a new install, and the Welcome's Get started, open the setup wizard. */}
       {shell.firstRun && (
-        <FirstRun
+        <SetupWizard
           resumeAtAccess={shell.firstRunAtAccess}
           openLoginTerminal={shell.openLoginTerminal}
-          onDone={() => {
+          onClose={() => {
             localStorage.setItem("aij.onboarding.dismissed", "1");
             shell.setFirstRunAtAccess(false);
             shell.setFirstRun(false);
@@ -110,6 +133,8 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           onAccountsChanged={shell.accountsChanged}
         />
       )}
+      {/* AJ-E1546: the tour, and after an update the once-only "New in". */}
+      <TourHost offerAllowed={accounts.length > 0 && !shell.firstRun} />
 
       {shell.chooseTool && (
         <AddProviderSheet
@@ -150,7 +175,7 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           }}
           onContinue={(target) => {
             shell.setLimitFor(null);
-            shell.setSwitchFlow({ sessionId: limitFor, targetProfileId: target.recipe_id, targetLabel: target.account_label });
+            shell.setSwitchFlow({ sessionId: limitFor, targetProfileId: target.recipe_id, targetLabel: target.account_label, targetPlaceId: target.place_id ?? null });
           }}
         />
       )}
@@ -159,8 +184,12 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           sessionId={switchFlow.sessionId}
           targetProfileId={switchFlow.targetProfileId}
           targetLabel={switchFlow.targetLabel}
+          targetPlaceId={switchFlow.targetPlaceId ?? null}
           onClose={() => shell.setSwitchFlow(null)}
           onSwitched={(sessionId, undo) => {
+            // 0.5.1 F74: its page says where it went until the list has it.
+            const original = sessions.find((s) => s.id === switchFlow.sessionId);
+            expectArrival(sessionId, switchFlow.targetLabel, original ? (original.label ?? original.title ?? null) : null);
             const done = () => {
               shell.setSwitchFlow(null);
               void refresh();
@@ -208,10 +237,11 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
       <QuitSheet />
       <PoolSheetHost sessions={shell.railSessions} projects={projects} />
       <ReportBugHost />
-      {newSheet.open && (
+      {newSheetShown && (
         <NewSessionModal
-          // Start another opens it afresh on the next project (D-96 F).
-          key={`${newSheet.dir ?? ""}|${newSheet.after?.roots.join("|") ?? ""}`}
+          // Start another opens it afresh on the next project (D-96 F);
+          // another App's Start, on that App (AJ-E2314 L6).
+          key={`${newSheet.dir ?? ""}|${newSheet.account ?? ""}|${newSheet.after?.roots.join("|") ?? ""}`}
           projects={shell.shownProjects}
           accounts={accounts}
           sessions={sessions}
@@ -221,11 +251,17 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
           onStartAnother={(at) => newSheet.show(at)}
           openLoginTerminal={shell.openLoginTerminal}
           onProjectsChanged={() => void refresh()}
-          onClose={newSheet.close}
+          // F68: New project's flow (b) ends on New session's start.
+          onStarting={() => fromNewProject.current && funnelStep("b-new-project", "launch")}
+          onClose={() => {
+            fromNewProject.current = false;
+            newSheet.close();
+          }}
           onLaunched={(sessionId) => {
             // AJ-E309 Req.6: once per install (the backend dedupes and
             // computes seconds_since_install itself).
             funnelEvent("first_launch");
+            fromNewProject.current = false;
             newSheet.close();
             void refresh();
             selectSession(sessionId);
@@ -237,26 +273,18 @@ export function ShellOverlays({ shell }: { shell: Shell }): JSX.Element {
         />
       )}
 
-      {/* AJ-E305 flow (b): New project — 2 steps, ≤ 3 clicks, no
-          typed paths; an empty preset means "no directory yet". */}
+      {/* AJ-E305 flow (b): New project, ≤ 3 clicks, no typed paths; an
+          empty preset means "no directory yet". F68: it chooses where,
+          then New session opens on that folder and chooses the App. */}
       {shell.newProjectDir !== null && (
         <NewProjectSheet
           projects={shell.shownProjects}
           accounts={accounts}
           initialDirectory={shell.newProjectDir === "" ? null : shell.newProjectDir}
           onClose={() => shell.setNewProjectDir(null)}
-          onLaunched={(sessionId) => {
-            funnelEvent("first_launch");
-            shell.setNewProjectDir(null);
-            void refresh();
-            selectSession(sessionId);
-          }}
+          onFolder={openOnFolder}
           openLoginTerminal={shell.openLoginTerminal}
           onAccountsChanged={shell.accountsChanged}
-          onManageLaunchSettings={() => {
-            shell.setNewProjectDir(null);
-            shell.setGlobal("accounts");
-          }}
         />
       )}
     </>

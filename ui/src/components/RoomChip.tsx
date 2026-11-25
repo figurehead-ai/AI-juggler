@@ -8,6 +8,7 @@
  */
 import type { JSX } from "react";
 import { IconGaugeEmpty, IconGaugeLow } from "./icons";
+import { WARNING_CHIP } from "./primitives";
 import type { RoomMark } from "../lib/room-mark";
 import { READINGS_EVERY_MS, useQuotaDisplays } from "../lib/kept-reads";
 import { useSubscriptions } from "../lib/subscriptions";
@@ -17,12 +18,15 @@ import { clocksWhole } from "../lib/time-words";
 import { openAccounts } from "../lib/accounts-filter";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 
+// AJ-E1550 (PAT-SURF, PAT-COLOR): the level's tint and its words in the
+// level's colour (AA), with its icon; no edge (Increase Contrast's frame).
 const TONE: Record<RoomMark["kind"], string> = {
-  out: "border-danger/30 bg-danger-soft text-danger",
-  low: "border-warning/35 bg-warning-soft text-warning",
+  out: "border-frame bg-danger-soft text-danger",
+  // 0.5.1 F76: the kit's one warning chip (no amber behind words).
+  low: `border-frame ${WARNING_CHIP}`,
 };
 
-export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; testId?: string }): JSX.Element | null {
+export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false, brief = false, testId = "room-chip" }: { mark: RoomMark | null; size?: "sm" | "md"; compact?: boolean; iconOnly?: boolean; /** Its icon and short word ("Out"): when it resets is said beside it (Home's runway line, F43). */ brief?: boolean; testId?: string }): JSX.Element | null {
   if (!mark) return null;
   const Icon = mark.kind === "out" ? IconGaugeEmpty : IconGaugeLow;
   // D-100 (the 0.4.2 review): in the rail's App header the mark is its
@@ -71,7 +75,7 @@ export function RoomChip({ mark, size = "sm", compact = false, iconOnly = false,
         </span>
       )}
       <span aria-hidden="true" className="min-w-0 break-words">
-        {compact ? mark.short : clocksWhole(mark.label)}
+        {compact || brief ? mark.short : clocksWhole(mark.label)}
       </span>
       <span className="sr-only">{mark.title}</span>
     </span>

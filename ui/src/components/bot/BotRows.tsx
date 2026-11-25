@@ -9,6 +9,7 @@
  */
 import { useId, type JSX, type ReactNode } from "react";
 import { RowMarkFor } from "./BotRowMark";
+import { RUNWAY_FILL, runwayState } from "../../lib/runway-look";
 import { IconArrowRight, IconBookmark, IconEye } from "./bot-icons";
 import { useBotNav } from "./bot-nav";
 import { Marked } from "./Marked";
@@ -57,7 +58,7 @@ function Facts({ row, alias }: { row: BotRowInfo; alias?: string }): JSX.Element
   if (row.kind === "account" && row.used_percent !== null) {
     return (
       <div className="col-span-2 col-start-2 mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3" aria-hidden="true">
-        <i className="block h-full rounded-full bg-ink-2 opacity-70" style={{ width: `${Math.min(100, row.used_percent)}%` }} />
+        <i className={`block h-full rounded-full ${RUNWAY_FILL[runwayState(100 - row.used_percent)]}`} style={{ width: `${Math.min(100, row.used_percent)}%` }} />
       </div>
     );
   }

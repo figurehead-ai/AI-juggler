@@ -124,3 +124,31 @@ describe("0.4.3 a running App unfolds to its sessions", () => {
   });
 
 });
+
+// 0.5.1 F87: searching "is:ended pagination" listed one ended session
+// twice: under its running App in Open now (a match in its past) and
+// again under Ended today. One session, one row, by its key.
+describe("0.5.1 F87 an ended session is listed once", () => {
+  const drawnKeys = (out: Line[]) =>
+    out.flatMap((line) => (line.kind === "row" || line.kind === "past" || line.kind === "plain" ? [line.item.key] : []));
+
+  it("a search with is:ended lists it under Ended today only, not again under its running App", () => {
+    const places = [running("Personal", 41, { account_id: "a1" })];
+    const rows = [past("p1", 5, { app: "app:claude-app:/p/Personal", title: "Add pagination to the orders endpoint" }), past("p2", 6, { app: "app:claude-app:/p/Personal", title: "Tidy the docs" })];
+    const out = buildLines({ items: itemsOf(rows), view: DEFAULT_VIEW, query: parseQuery("is:ended pagination"), now: NOW, toggled: new Set(), frozen: null, known: places }).lines;
+    const keys = drawnKeys(out);
+    expect(keys).toEqual(["c:a1/p1"]);
+    expect(kinds(out)).toContain("label");
+    expect(out.find((line) => line.kind === "label")).toMatchObject({ id: "ended", count: 1 });
+  });
+
+  it("with Ended today shown and an App's recent ones unfolded, each session is drawn once", () => {
+    const places = [running("East", 41, { account_id: "a1" })];
+    const rows = [talk("live", { app: "app:claude-app:/p/East" }), ...[1, 2].map((n) => past(`e${n}`, n, { app: "app:claude-app:/p/East" }))];
+    const view = { ...DEFAULT_VIEW, show: { ...DEFAULT_VIEW.show, ended: true } };
+    const out = buildLines({ items: itemsOf(rows), view, query: parseQuery(""), now: NOW, toggled: new Set(["app|claude-app|East#recent"]), frozen: null, known: places }).lines;
+    const keys = drawnKeys(out);
+    expect(new Set(keys).size).toBe(keys.length);
+    expect(keys).toEqual(expect.arrayContaining(["c:a1/live", "c:a1/e1", "c:a1/e2"]));
+  });
+});

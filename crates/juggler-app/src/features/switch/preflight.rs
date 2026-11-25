@@ -34,7 +34,22 @@ pub fn switch_preflight_impl(
     session_id: &str,
     target_profile_id: &str,
 ) -> AppResult<PreflightInfo> {
-    preflight_with(state, session_id, target_profile_id)
+    preflight_with(state, session_id, target_profile_id, None)
+}
+
+/// [`switch_preflight_impl`] into the App the user picked in the switch
+/// list (`target_place`, its place id, AJ-E2317): its Desktop is that App.
+///
+/// # Errors
+///
+/// As [`switch_preflight_impl`].
+pub fn switch_preflight_in(
+    state: &Arc<AppState>,
+    session_id: &str,
+    target_profile_id: &str,
+    target_place: Option<&str>,
+) -> AppResult<PreflightInfo> {
+    preflight_with(state, session_id, target_profile_id, target_place)
 }
 
 /// [`switch_preflight_impl`] (AJ-E1513: staging checks the switch too).
@@ -42,6 +57,7 @@ pub(crate) fn preflight_with(
     state: &Arc<AppState>,
     session_id: &str,
     target_profile_id: &str,
+    target_place: Option<&str>,
 ) -> AppResult<PreflightInfo> {
     use juggler_handover::pipeline;
 
@@ -124,6 +140,7 @@ pub(crate) fn preflight_with(
         messages,
     );
     let named = stays_behind::of(state, &reference, &account_a, &account_b);
+    let from = super::source_app::source_app_of(state, session_id, &source, &account_a);
     Ok(PreflightInfo {
         mechanism: report.mechanism.as_wire().to_owned(),
         fidelity: report.pair.label.as_str().to_owned(),
@@ -139,6 +156,8 @@ pub(crate) fn preflight_with(
         source_keeps_running: stays.keeps_running,
         source_outside: stays.outside,
         source_app: stays.app,
+        source_app_id: from.id,
+        source_app_name: from.name,
         experimental_copy: move_copy(
             report.mechanism,
             validated,
@@ -160,7 +179,7 @@ pub(crate) fn preflight_with(
         source_tool: account_a.harness.to_string(),
         target_tool: account_b.harness.to_string(),
         target_account: account_b.id.to_string(),
-        destinations: switch_destinations(state, &account_a, &account_b, &reference),
+        destinations: switch_destinations(state, &account_a, &account_b, &reference, target_place),
     })
 }
 

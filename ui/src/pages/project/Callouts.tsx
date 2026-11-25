@@ -22,11 +22,16 @@ const BUTTON =
 function Item({ tone, icon, title, words, action, testId }: { tone: "warning" | "ok"; icon: JSX.Element; title: string; words: string; action?: JSX.Element; testId?: string }): JSX.Element {
   return (
     <div className="flex flex-wrap items-start gap-3 border-t border-hairline py-3 first:border-t-0 first:pt-0" data-testid={testId}>
-      <span aria-hidden="true" className={"flex size-8 shrink-0 items-center justify-center rounded-lg " + (tone === "warning" ? "bg-warning-soft text-warning" : "bg-success-soft text-success")}>
+      {/* 0.5.1 F66 (PAT-COLOR-2): what needs the user is a tone tile, its
+          glyph in amber and an amber mark by the title; never an amber fill. */}
+      <span aria-hidden="true" className={"flex size-8 shrink-0 items-center justify-center rounded-lg " + (tone === "warning" ? "bg-surface-2 text-warning" : "bg-success-soft text-success")} data-testid="callout-tile">
         {icon}
       </span>
       <span className="flex min-w-[12rem] flex-1 flex-col gap-0.5">
-        <span className="text-body font-semibold text-ink">{title}</span>
+        <span className="inline-flex items-center gap-1.5 text-body font-semibold text-ink">
+          {tone === "warning" && <span aria-hidden="true" className="level-mark" data-level={2} data-testid="callout-mark" />}
+          {title}
+        </span>
         <span className="text-meta text-muted">{words}</span>
       </span>
       {action}
@@ -47,10 +52,9 @@ export function CheckoutCallout({ project, sharedBy, className = "" }: { project
   const ahead = git?.ahead ?? 0;
   const behind = git?.behind ?? 0;
   const upstream = [ahead > 0 && `${ahead} ${ahead === 1 ? "commit" : "commits"} ahead of its upstream`, behind > 0 && `${behind} behind`].filter(Boolean).join(", ");
-  const attention = uncommitted > 0 || (rules !== null && !rules.inSync) || sharedBy > 1;
   if (git === undefined && rules === null) return null;
   return (
-    <Section title="The checkout" icon={<IconGit />} sub={git?.branch ? `on ${git.branch}` : homeRelative(project.root)} className={(attention ? "border-warning/30 " : "") + className} testId="project-checkout">
+    <Section title="The checkout" icon={<IconGit />} sub={git?.branch ? `on ${git.branch}` : homeRelative(project.root)} className={className} testId="project-checkout">
       <div className="flex flex-col">
         {git === null ? (
           <Item tone="ok" icon={<IconGit width={15} height={15} />} title="Not a git checkout" words="Nothing to commit here; AI Juggler reads git's state only where there is one." />

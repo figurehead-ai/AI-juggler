@@ -209,16 +209,16 @@ describe("the rail by place", () => {
 
 describe("a row's sub-agents (AJ-E1520, 0.2)", () => {
   it("every tool's session says how many it runs: AI Juggler's own and the ones other apps run", async () => {
-    setRailView({ ...DEFAULT_VIEW, show: { ...DEFAULT_VIEW.show, subagents: true } });
     const view = board(
       [own("aj", { subtask_count: 1 })],
       [elsewhere("codex-1", "codex", { subtask_count: 3 }), elsewhere("kimi-1", "kimi-code", { subtask_count: 1, pid: 78 }), elsewhere("grok-1", "grok-build", { pid: 79 })],
     );
     await view.findByTestId("rail-open-now");
-    const line = (selector: string) => view.getByTestId("place-board").querySelector<HTMLElement>(selector)?.closest("[data-rail-row]")?.querySelector("[data-testid='row-subagents']")?.textContent ?? null;
-    expect(line("[data-instance-id='aj']")).toBe("+1 agent");
-    expect(line("[data-conversation-id='codex-1']")).toBe("+3 agents");
-    expect(line("[data-conversation-id='kimi-1']")).toBe("+1 agent");
+    // AJ-E1554 R3: a branch and the number, what it counts in its name.
+    const line = (selector: string) => view.getByTestId("place-board").querySelector<HTMLElement>(selector)?.closest("[data-rail-row]")?.querySelector("[data-testid='row-subagents']")?.getAttribute("aria-label") ?? null;
+    expect(line("[data-instance-id='aj']")).toBe("Open its subagents: 1 subagent running");
+    expect(line("[data-conversation-id='codex-1']")).toBe("Open its subagents: 3 subagents running");
+    expect(line("[data-conversation-id='kimi-1']")).toBe("Open its subagents: 1 subagent running");
     // Not read yet: no line, never a guessed 0.
     expect(line("[data-conversation-id='grok-1']")).toBeNull();
   });

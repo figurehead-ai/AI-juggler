@@ -20,11 +20,6 @@ import { ActionHostProvider } from "../components/ItemMenu";
 import type { ActionHost } from "../lib/actions";
 import type { JSX, ReactNode } from "react";
 
-vi.mock("../components/ReplayTerminal", () => ({
-  ReplayTerminal: ({ entries }: { entries: Array<{ role: string; text: string }> }) => (
-    <div data-testid="replay-terminal">{entries.map((entry) => `${entry.role}: ${entry.text}`).join("\n")}</div>
-  ),
-}));
 
 const w = () => window as unknown as Record<string, unknown>;
 const calls = () => (w().__AIJ_HISTORY_CALLS__ as string[] | undefined) ?? [];
@@ -244,7 +239,7 @@ describe("AJ-E1007 delete", () => {
 });
 
 describe("AJ-E1007 replay", () => {
-  it("is read-only, with history, lineage and the process record", async () => {
+  it("is read-only, with what happened, its switches and its processes", async () => {
     w().__AIJ_REPLAY__ = {
       session_id: "s1", transcript_path: "/t/s1.jsonl", transcript: "{}", truncated: false, bytes: 2048,
       sha256: "ab12cd34ef56ab12cd34ef56", entries: [{ role: "user", text: "fix the invoice export" }],
@@ -252,14 +247,49 @@ describe("AJ-E1007 replay", () => {
       lineage: [{ direction: "in", other_account: "Personal", other_provider: "codex", state: "confirmed", fidelity: "F2" }],
       processes: [{ pid: 4242, role: "root", state: "exited", exit_kind: "clean", first_seen_ms: T, last_seen_ms: T + 60_000 }],
     };
-    render(<ReplayDialog sessionId="s1" onClose={() => {}} />);
-    await waitFor(() => expect(document.body.querySelector("[data-testid='replay-terminal']")).not.toBeNull());
-    expect(document.body.querySelector("#replay-title")!.textContent).toBe("Replay · read-only");
-    expect(document.body.querySelector("[data-testid='replay-proof']")!.textContent).toContain("sha256 ab12cd34ef56");
-    expect(document.body.textContent).toContain("user: fix the invoice export");
-    expect(document.body.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("· archived");
-    expect(document.body.querySelector("[data-testid='replay-lineage-list']")!.textContent).toContain("Arrived from Codex CLI · Personal");
-    expect(document.body.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("root 4242 · exited · clean");
+    render(<ReplayDialog sessionId="s1" tool="claude-code" onClose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelector("[data-testid='replay-turns']")).not.toBeNull());
+    expect(document.body.querySelector("#replay-title")!.textContent).toBe("Replay");
+    expect(document.body.querySelector("[data-testid='replay-proof']")!.textContent).toBe("Read-only: the conversation as it was stored · 2 KB");
+    expect(document.body.querySelector("[data-testid='replay-history-list']")!.textContent).toContain("Archived");
+    expect(document.body.querySelector("[data-testid='replay-lineage-list']")!.textContent).toBe("Came from Codex CLI · Personal, as the same conversation in another app");
+    expect(document.body.querySelector("[data-testid='replay-process-list']")!.textContent).toContain("The session's own process ended cleanly");
+  });
+
+  it("0.5.1 F79: draws the conversation with the session page's own turns, in plain words, no terminal or internal ids", async () => {
+    w().__AIJ_REPLAY__ = {
+      session_id: "s1", transcript_path: "/t/s1.jsonl", transcript: "{}", truncated: false, bytes: 48 * 1024,
+      sha256: "9f2c1e7a4b3d9f2c1e7a4b3d",
+      entries: [
+        { role: "user", text: "The webhook retries twice. Find out why." },
+        { role: "assistant", text: "The worker's clock is 40 s behind." },
+        { role: "system", text: "compacted" },
+        { role: "assistant", text: "Fixing the NTP config." },
+        { role: "user", text: "Ship it." },
+      ],
+      history: [{ kind: "status", what: "running", at_ms: T }, { kind: "lifecycle", what: "reviewed", at_ms: T + 60_000 }],
+      lineage: [{ direction: "in", other_account: "Personal", other_provider: "codex", state: "confirmed", fidelity: "F1" }],
+      processes: [{ pid: 48230, role: "helper", state: "exited", exit_kind: "reaped", first_seen_ms: T, last_seen_ms: T }],
+    };
+    render(<ReplayDialog sessionId="s1" tool="claude-code" onClose={() => {}} />);
+    await waitFor(() => expect(document.body.querySelector("[data-testid='replay-turns']")).not.toBeNull());
+    const turns = [...document.body.querySelectorAll<HTMLElement>("[data-testid='replay-turns'] [data-testid='last-turn']")];
+    // Yours on the right, the agent's two messages as one turn; the
+    // system line isn't part of the conversation.
+    expect(turns.map((turn) => turn.dataset.speaker)).toEqual(["you", "assistant", "you"]);
+    expect(turns[1]!.textContent).toContain("The worker's clock is 40 s behind.");
+    expect(turns[1]!.textContent).toContain("Fixing the NTP config.");
+    expect(turns[1]!.textContent).not.toContain("compacted");
+    // Read-only: nothing to type into.
+    expect(document.body.querySelector("[data-testid='replay-dialog'] textarea, [data-testid='replay-dialog'] input")).toBeNull();
+    const text = document.body.querySelector("[data-testid='replay-dialog']")!.textContent;
+    for (const raw of ["sha256", "9f2c1e7a", "48230", "reaped", "· reviewed", "confirmed", "F1", "user", "assistant"]) expect(text).not.toContain(raw);
+    expect(text).toContain("Marked reviewed");
+    expect(text).toContain("A process the session started was cleaned up by AI Juggler");
+    expect(text).toContain("Came from Codex CLI · Personal, with the full story, fresh start");
+    // Close is the kit's secondary, no outline.
+    const close = document.body.querySelector<HTMLElement>("[data-testid='replay-close']")!;
+    expect(close.className).not.toMatch(/border-hairline/);
   });
 });
 

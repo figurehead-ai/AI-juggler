@@ -99,22 +99,27 @@ export function TaskCard({
       >
         {task.title}
       </button>
-      <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-meta text-muted">
+      {/* 0.5.1 F63: one line, its parts joined only when there are two, the
+          "·" travelling with who has it (or what it waits on): the place
+          gives way (…) before them, so no line ends on a dangling "·". */}
+      <span className="flex min-w-0 items-center gap-x-1.5 text-meta text-muted" data-testid="task-card-place">
         {projectName && row.project_id ? (
           <button
             type="button"
             onClick={() => onOpenProject(row.project_id!)}
-            className="relative z-10 truncate rounded text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-current focus-visible:ring-2 focus-visible:ring-accent/60"
+            className="relative z-10 min-w-[3rem] shrink truncate rounded text-ink underline decoration-hairline underline-offset-2 outline-none hover:decoration-current focus-visible:ring-2 focus-visible:ring-accent/60"
             data-testid="task-card-project"
           >
             {projectName}
           </button>
         ) : (
-          <span className="truncate">{row.pool_name}</span>
+          row.pool_name && <span className="min-w-[3rem] shrink truncate">{row.pool_name}</span>
         )}
-        <span aria-hidden="true">·</span>
-        {task.waits_on.length > 0 ? <WaitsOn row={row} onOpenTask={onOpenTask} /> : <span className="truncate">{holderLine(row, holderApp)}</span>}
-        {urgent && <span className="font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
+        <span className="flex min-w-0 shrink-[4] items-center gap-x-1.5" data-testid="task-card-who">
+          {(projectName && row.project_id) || row.pool_name ? <span aria-hidden="true">·</span> : null}
+          {task.waits_on.length > 0 ? <WaitsOn row={row} onOpenTask={onOpenTask} /> : <span className="truncate">{holderLine(row, holderApp)}</span>}
+        </span>
+        {urgent && <span className="shrink-0 font-semibold text-warning">{PRIORITY_WORDS[task.priority]}</span>}
       </span>
       {review && (
         // D-44's two answers, on the card (AJ-E2806 R2); above the card's

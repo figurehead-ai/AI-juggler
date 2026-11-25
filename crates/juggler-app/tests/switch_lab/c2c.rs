@@ -370,13 +370,12 @@ pub fn journey() {
             tree(&claude_b.join("file-history").join(&native)),
             transcript_in(&claude_b, &native).map(|p| std::fs::read(p).unwrap_or_default()),
         );
-        let offer = moving::offer(&state, session, &profile_b);
+        let offer = moving::offer(&state, session, &profile_b, None);
         let step4 = match &offer {
             Ok(offer) if offer.applies && offer.blocks.is_empty() => {
                 match moving::execute(
                     &state,
-                    session,
-                    &profile_b,
+                    (session.as_str(), profile_b.as_str(), None),
                     NotesChoice::KeepTarget,
                     Box::new(|_| {}),
                 ) {

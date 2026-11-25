@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
-use crate::features::places::book;
+use juggler_adapter::moving::MoveSide;
 
 const SLUG: &str = "-w-proj";
 
@@ -25,6 +25,12 @@ struct Proc {
 struct Kid {
     pid: u32,
     name: &'static str,
+    /// Its arguments after its name (`--resume=main` makes it a writer of
+    /// the moving conversation).
+    args: &'static [&'static str],
+    /// AJ-E2318: it is the profile's (in its tree); else it runs outside
+    /// every profile (a terminal session).
+    in_tree: bool,
     /// The place it belongs to.
     place: String,
     alive: Arc<AtomicBool>,
@@ -32,6 +38,26 @@ struct Kid {
     /// line to the file (its last write), after the second it ends.
     /// `None`: it never ends.
     after_quit: Option<(Duration, PathBuf, &'static [u8], Duration)>,
+}
+
+/// A process of the source profile's (`in_tree`) or outside every profile,
+/// running `name` with `args`; it never ends.
+fn kid(
+    lab: &Lab,
+    pid: u32,
+    name: &'static str,
+    args: &'static [&'static str],
+    in_tree: bool,
+) -> Kid {
+    Kid {
+        pid,
+        name,
+        args,
+        in_tree,
+        place: source_id(lab),
+        alive: Arc::new(AtomicBool::new(true)),
+        after_quit: None,
+    }
 }
 
 /// Appends `line` to `path` when it is there (a writer never makes it).
@@ -52,6 +78,17 @@ struct Scripted {
     restarted_by_user: Vec<String>,
     /// Sessions of the accounts open outside the two profiles.
     elsewhere: usize,
+    /// AJ-E2318: places whose pid is given to another program between the
+    /// move's look and its signal.
+    reused_after_read: Vec<String>,
+    /// AJ-E2318: how long a main process takes to end once asked.
+    slow: Option<Duration>,
+    /// When each slow main process ends.
+    dies_at: Mutex<HashMap<u32, std::time::Instant>>,
+    /// How many profiles ran at each quit (itself included).
+    running_at_quit: Mutex<Vec<usize>>,
+    /// How often each pid was looked up.
+    looks: Mutex<HashMap<u32, usize>>,
     working: usize,
     quits: Mutex<Vec<u32>>,
     starts: Mutex<Vec<String>>,
@@ -68,9 +105,65 @@ struct Scripted {
     wait: Option<Duration>,
     /// What the move told the switch screen.
     told: Mutex<Vec<MoveProgressInfo>>,
+    /// The place an AI Juggler was started from inside (the self rule).
+    juggler_in: Option<String>,
+    /// AJ-E2317: places whose own sessions use another folder than the
+    /// one they're linked to (AJ-E2327's evidence), and that folder.
+    mismatched: Mutex<HashMap<String, PathBuf>>,
+    /// AJ-E2317: one such place, found so only once the apps quit.
+    mismatch_on_quit: Mutex<Option<(String, PathBuf)>>,
+    /// AJ-E2320: the shared move area, and whether a profile was held in
+    /// it at each quit.
+    area: Option<PathBuf>,
+    held_at_quit: Mutex<Vec<bool>>,
+    /// AJ-E2322: the target app opens the conversation on the link (its
+    /// Claude Code resumes it, [`OPENED_PID`], until the app quits).
+    opens: bool,
+    /// The app process the link went to, while it has it open.
+    linked: Mutex<Option<u32>>,
+    /// How long each settle asked for.
+    settles: Mutex<Vec<Duration>>,
+    /// AJ-E2324: the pids each exit wait was woken for.
+    exit_waits: Mutex<Vec<Vec<u32>>>,
+    /// AJ-E2324 R2: what the open-file guard finds at each look (the
+    /// first entry at the first look, and so on; none past the end).
+    open_writers: Mutex<Vec<Vec<(u32, String)>>>,
+    /// How many times the guard looked.
+    guard_looks: Mutex<usize>,
+    /// 0.5.1 F92: AI Juggler is killed while it waits for the apps it
+    /// asked to quit (PL1 J4: 1.2 s into a move).
+    crash_in_quit_wait: bool,
+    /// 0.5.1 F92: places that won't start.
+    wont_start: Vec<String>,
+    /// 0.5.1 F93: how long each start takes to return (the system's
+    /// `open`).
+    start_takes: Option<Duration>,
+    /// 0.5.1 F93: links go through this ledger's gate in the background,
+    /// as the real send does (none: every link is sent).
+    links: Option<juggler_platform::os_prompt::MemoryLedger>,
 }
 
+/// AJ-E2322: the target app's Claude Code that resumes the conversation.
+const OPENED_PID: u32 = 777;
+
 impl Scripted {
+    /// Ends the slow main processes whose time came.
+    fn settle_deaths(&self) {
+        let now = std::time::Instant::now();
+        let due: Vec<u32> = self
+            .dies_at
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, at)| **at <= now)
+            .map(|(pid, _)| *pid)
+            .collect();
+        let mut procs = self.procs.lock().unwrap();
+        for p in procs.values_mut().filter(|p| due.contains(&p.pid)) {
+            p.alive = false;
+        }
+    }
+
     fn place_of(&self, pid: u32) -> Option<String> {
         self.procs
             .lock()
@@ -83,6 +176,7 @@ impl Scripted {
 
 impl MoveSystem for Scripted {
     fn running(&self, _: &Arc<AppState>, id: &str) -> Option<(u32, Option<i64>)> {
+        self.settle_deaths();
         self.procs
             .lock()
             .unwrap()
@@ -91,7 +185,29 @@ impl MoveSystem for Scripted {
             .map(|p| (p.pid, p.start))
     }
     fn quit(&self, pid: u32) -> Result<(), String> {
+        self.settle_deaths();
         self.quits.lock().unwrap().push(pid);
+        {
+            let mut linked = self.linked.lock().unwrap();
+            if *linked == Some(pid) {
+                *linked = None;
+            }
+        }
+        if let Some(area) = &self.area {
+            let held = crate::features::places::hold::any_held(area);
+            self.held_at_quit.lock().unwrap().push(held);
+        }
+        if let Some((id, uses)) = self.mismatch_on_quit.lock().unwrap().take() {
+            self.mismatched.lock().unwrap().insert(id, uses);
+        }
+        let running = self
+            .procs
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|p| p.alive)
+            .count();
+        self.running_at_quit.lock().unwrap().push(running);
         if let Some(id) = self.place_of(pid) {
             for kid in self.kids.iter().filter(|kid| kid.place == id) {
                 let Some((write_after, path, line, end_after)) = kid.after_quit.clone() else {
@@ -122,35 +238,115 @@ impl MoveSystem for Scripted {
                         alive: true,
                     },
                 );
+            } else if let Some(slow) = self.slow {
+                self.dies_at
+                    .lock()
+                    .unwrap()
+                    .insert(pid, std::time::Instant::now() + slow);
             } else if let Some(p) = procs.get_mut(&id) {
                 p.alive = false;
             }
         }
         Ok(())
     }
-    fn alive(&self, pid: u32, start: Option<i64>) -> bool {
-        if let Some(kid) = self.kids.iter().find(|kid| kid.pid == pid) {
-            return kid.alive.load(Ordering::SeqCst) && start == Some(i64::from(pid));
+    fn identify(&self, pids: &[u32]) -> HashMap<u32, ProcId> {
+        self.settle_deaths();
+        let micros = |secs: i64| u128::try_from(secs).unwrap() * 1_000_000;
+        let mut out = HashMap::new();
+        for pid in pids {
+            let looks = {
+                let mut looks = self.looks.lock().unwrap();
+                let n = looks.entry(*pid).or_default();
+                *n += 1;
+                *n
+            };
+            if let Some(kid) = self.kids.iter().find(|kid| kid.pid == *pid) {
+                if kid.alive.load(Ordering::SeqCst) {
+                    out.insert(
+                        *pid,
+                        ProcId {
+                            pid: *pid,
+                            start_micros: micros(i64::from(*pid)),
+                        },
+                    );
+                }
+                continue;
+            }
+            let Some(id) = self.place_of(*pid) else {
+                continue;
+            };
+            let procs = self.procs.lock().unwrap();
+            let Some(p) = procs.get(&id).filter(|p| p.alive) else {
+                continue;
+            };
+            let start = p.start.unwrap_or_default();
+            // Another program on the same pid: a later start.
+            let reused =
+                self.reused.contains(&id) || (self.reused_after_read.contains(&id) && looks > 1);
+            let start = if reused { start + 7 } else { start };
+            out.insert(
+                *pid,
+                ProcId {
+                    pid: *pid,
+                    start_micros: micros(start),
+                },
+            );
         }
-        let Some(id) = self.place_of(pid) else {
-            return false;
-        };
-        if self.reused.contains(&id) {
-            return false;
-        }
-        self.procs
-            .lock()
-            .unwrap()
-            .get(&id)
-            .is_some_and(|p| p.alive && p.start == start)
+        out
+    }
+    fn table(&self, _: &Arc<AppState>) -> Table {
+        self.kids
+            .iter()
+            .filter(|kid| kid.alive.load(Ordering::SeqCst))
+            .map(|kid| {
+                let exe = format!("/Users/you/bin/{}", kid.name);
+                let args: Vec<&str> = std::iter::once(kid.name)
+                    .chain(kid.args.iter().copied())
+                    .collect();
+                crate::features::conversations::procs::fixture(kid.pid, 1, &exe, &args)
+            })
+            .map(|(pid, mut p)| {
+                p.start = Some(i64::from(pid));
+                (pid, p)
+            })
+            .chain(self.linked.lock().unwrap().map(|app| {
+                let args = ["claude", "--resume=main"];
+                let (pid, mut p) = crate::features::conversations::procs::fixture(
+                    OPENED_PID,
+                    app,
+                    "/Users/you/bin/claude",
+                    &args,
+                );
+                p.start = Some(i64::from(OPENED_PID));
+                (pid, p)
+            }))
+            .collect()
     }
     // The links sent, in order (the move sends one, to the target).
     fn send(&self, pid: u32, link: &str) -> Result<(), String> {
+        if let Some(ledger) = &self.links {
+            use juggler_platform::os_prompt::{Gate, Presence};
+            prompts::sent(Gate::new(ledger).through(
+                crate::os_prompts::registry::APP_LINKS,
+                Presence::Background,
+                &|| None,
+                || Ok(()),
+            ))?;
+        }
         self.sent.lock().unwrap().push((pid, link.to_owned()));
+        if self.opens {
+            *self.linked.lock().unwrap() = Some(pid);
+        }
         Ok(())
     }
     fn start(&self, _: &Arc<AppState>, place: &KnownPlace) -> Result<(), String> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let id = fixtures::id_of(place);
+        if self.wont_start.contains(&id) {
+            return Err("its app isn't where it was".to_owned());
+        }
+        if let Some(takes) = self.start_takes {
+            std::thread::sleep(takes);
+        }
         let mut next = self.next_pid.lock().unwrap();
         *next += 1;
         self.procs.lock().unwrap().insert(
@@ -167,10 +363,19 @@ impl MoveSystem for Scripted {
     fn working(&self, _: &Arc<AppState>, _: u32) -> usize {
         self.working
     }
-    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> usize {
-        self.elsewhere
+    // 0.5.1 F72: a terminal's session on one of the accounts, named.
+    fn open_elsewhere(&self, _: &Arc<AppState>, _: &[String], _: &[u32]) -> Vec<MoveHolder> {
+        (0..self.elsewhere)
+            .map(|n| MoveHolder {
+                name: format!("“Fix the login test {n}” in Terminal"),
+                account_id: Some("acct-a".into()),
+                conversation: Some(format!("term-{n}")),
+                ..MoveHolder::default()
+            })
+            .collect()
     }
-    fn settle(&self, _: Duration) {
+    fn settle(&self, for_: Duration) {
+        self.settles.lock().unwrap().push(for_);
         let mut writer = self.writer.lock().unwrap();
         if let Some((path, line, left)) = writer.as_mut()
             && *left > 0
@@ -179,11 +384,29 @@ impl MoveSystem for Scripted {
             append(path, line);
         }
     }
+    fn wait_exit(&self, pids: &[u32], cap: Duration) {
+        assert!(!self.crash_in_quit_wait, "AI Juggler killed mid-quit");
+        self.exit_waits.lock().unwrap().push(pids.to_vec());
+        std::thread::sleep(cap.min(Duration::from_millis(10)));
+    }
+    fn open_writers(&self, _: &[PathBuf]) -> Vec<(u32, String)> {
+        let mut looks = self.guard_looks.lock().unwrap();
+        *looks += 1;
+        let mut found = self.open_writers.lock().unwrap();
+        if found.is_empty() {
+            Vec::new()
+        } else {
+            found.remove(0)
+        }
+    }
     fn quit_wait(&self) -> Duration {
         self.wait.unwrap_or(Duration::from_millis(300))
     }
+    fn writer_wait(&self) -> Duration {
+        self.wait.unwrap_or(Duration::from_millis(300))
+    }
     fn tree(&self, _: &Arc<AppState>, place: &KnownPlace, roots: &[u32]) -> Vec<Member> {
-        let id = book::place_id(&place.app_id, place.instance_dir.as_deref());
+        let id = fixtures::id_of(place);
         let procs = self.procs.lock().unwrap();
         let main = roots
             .iter()
@@ -196,16 +419,48 @@ impl MoveSystem for Scripted {
         let kids = self
             .kids
             .iter()
-            .filter(|kid| kid.place == id && kid.alive.load(Ordering::SeqCst))
+            .filter(|kid| kid.in_tree && kid.place == id && kid.alive.load(Ordering::SeqCst))
             .map(|kid| Member {
                 pid: kid.pid,
                 start: Some(i64::from(kid.pid)),
                 name: kid.name.into(),
             });
-        main.chain(kids).collect()
+        let opened = (*self.linked.lock().unwrap())
+            .filter(|app| roots.contains(app))
+            .map(|_| Member {
+                pid: OPENED_PID,
+                start: Some(i64::from(OPENED_PID)),
+                name: "claude".into(),
+            });
+        main.chain(kids).chain(opened).collect()
     }
     fn tell(&self, progress: &MoveProgressInfo) {
         self.told.lock().unwrap().push(progress.clone());
+    }
+    fn quits_juggler(
+        &self,
+        _: &Arc<AppState>,
+        place: &KnownPlace,
+        _: u32,
+        action: &str,
+    ) -> Option<String> {
+        let id = fixtures::id_of(place);
+        (self.juggler_in.as_ref() == Some(&id)).then(|| {
+            crate::features::ownership::self_rule::words(
+                crate::features::ownership::self_rule::Juggler::Ours,
+                &place.name,
+                action,
+            )
+        })
+    }
+    fn link_mismatch(
+        &self,
+        _: &Arc<AppState>,
+        place_id: &str,
+        _: &KnownPlace,
+        _: &Path,
+    ) -> Option<PathBuf> {
+        self.mismatched.lock().unwrap().get(place_id).cloned()
     }
 }
 
@@ -243,10 +498,21 @@ fn place(state: &Arc<AppState>, root: &Path, name: &str) -> (String, KnownPlace,
     crate::features::places::remember_test_profile(state, root, name, None)
 }
 
+/// The two accounts' Claude Code folders (`acct-a`'s and `acct-b`'s), each
+/// signed in and holding the project's folder.
+fn code_folders(a_code: &Path, b_code: &Path) {
+    for (code, acct) in [(a_code, "acct-a"), (b_code, "acct-b")] {
+        std::fs::create_dir_all(code.join("projects").join(SLUG)).unwrap();
+        std::fs::write(
+            code.join(".claude.json"),
+            format!(r#"{{"oauthAccount":{{"accountUuid":"{acct}","organizationUuid":"org"}}}}"#),
+        )
+        .unwrap();
+    }
+}
+
 fn lab() -> Lab {
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().to_path_buf();
-    let state = Arc::new(AppState::init(root.join("data")).unwrap());
+    let (tmp, root, state) = fixtures::lab_state();
     let (a_id, a_place, a_host) = place(&state, &root, "b-a");
     let (b_id, b_place, b_host) = place(&state, &root, "b-b");
     let a_code = root.join("code/a");
@@ -256,14 +522,7 @@ fn lab() -> Lab {
     for dir in [&a_folder, &b_folder] {
         std::fs::create_dir_all(dir).unwrap();
     }
-    for (code, acct) in [(&a_code, "acct-a"), (&b_code, "acct-b")] {
-        std::fs::create_dir_all(code.join("projects").join(SLUG)).unwrap();
-        std::fs::write(
-            code.join(".claude.json"),
-            format!(r#"{{"oauthAccount":{{"accountUuid":"{acct}","organizationUuid":"org"}}}}"#),
-        )
-        .unwrap();
-    }
+    code_folders(&a_code, &b_code);
     let work = root.join("work");
     std::fs::create_dir_all(&work).unwrap();
     for (local, cli, parent) in [
@@ -299,7 +558,7 @@ fn lab() -> Lab {
     let side = |code: &Path, host: &Path| MoveSide {
         tool_dir: code.to_path_buf(),
         host_dir: Some(host.to_path_buf()),
-        version: Some("4.1.0".into()),
+        version: Some("5.11492.5".into()),
     };
     let sides = Sides {
         request: MoveRequest {
@@ -316,6 +575,7 @@ fn lab() -> Lab {
         target_label: "B".into(),
         source_live: false,
         accounts: vec!["acct-a".into(), "acct-b".into()],
+        stop: None,
     };
     Lab {
         _tmp: tmp,
@@ -329,7 +589,10 @@ fn lab() -> Lab {
 }
 
 fn running_both(lab: &Lab) -> Scripted {
-    let script = Scripted::default();
+    let script = Scripted {
+        opens: true,
+        ..Scripted::default()
+    };
     for (n, (id, _)) in [&lab.sides.source_place, &lab.sides.target_place]
         .into_iter()
         .flatten()
@@ -352,6 +615,14 @@ fn clones() -> bool {
     juggler_platform::transfer::clones_supported(tmp.path()).unwrap_or(false)
 }
 
+/// For a test whose case is decided before or apart from the disk's
+/// clone check: on this thread every disk makes clones, so a disk that
+/// makes none (a CI runner's ext4) can't refuse the move first. The
+/// refusal itself: `stops::a_disk_without_clones_is_refused_as_setup`.
+fn clones_on_any_disk() {
+    juggler_platform::transfer::set_clones_on_this_thread(Some(true));
+}
+
 fn unchanged(lab: &Lab) -> bool {
     lab.a_folder.join("local_main.json").is_file()
         && lab
@@ -361,6 +632,122 @@ fn unchanged(lab: &Lab) -> bool {
             .join("main.jsonl")
             .is_file()
         && !lab.b_folder.join("local_main.json").exists()
+}
+
+/// The lab, when this disk clones (the move needs it).
+fn cloning_lab() -> Option<Lab> {
+    clones().then(lab)
+}
+
+/// The target profile's id.
+fn target_id(lab: &Lab) -> String {
+    lab.sides.target_place.as_ref().unwrap().0.clone()
+}
+
+/// Both profiles' ids.
+fn place_ids(lab: &Lab) -> Vec<String> {
+    [&lab.sides.source_place, &lab.sides.target_place]
+        .into_iter()
+        .flatten()
+        .map(|(id, _)| id.clone())
+        .collect()
+}
+
+/// Both profiles held by move `id` for an owner that is gone (a crash
+/// left its markers; a kill drops no hold).
+fn held_by_a_gone_owner(lab: &Lab, id: &str) {
+    let area = hold::area_at(&lab.state.data_dir);
+    std::fs::create_dir_all(area.join("held")).unwrap();
+    for place in place_ids(lab) {
+        let marker = hold::Marker {
+            move_id: id.into(),
+            place: place.clone(),
+            owner_pid: 999_999,
+            owner_start_micros: 1,
+        };
+        std::fs::write(
+            area.join("held").join(hold::key(&place)),
+            serde_json::to_vec(&marker).unwrap(),
+        )
+        .unwrap();
+    }
+}
+
+/// `txn`'s cold checks (the adapter's and the engine's), which pass.
+fn verified_cold(lab: &Lab, txn: &mut Transaction, plan: &MovePlan) {
+    let mover = lab.sides.adapter.in_place_move().unwrap();
+    let cold = txn
+        .verify_cold(mover.verify(&lab.sides.request, plan))
+        .unwrap();
+    assert!(cold.passed(), "{:?}", cold.failures());
+}
+
+/// The same move the other way: back from B to A.
+fn moved_back(lab: &Lab) -> Sides {
+    Sides {
+        request: MoveRequest {
+            source: lab.sides.request.target.clone(),
+            target: lab.sides.request.source.clone(),
+            ..lab.sides.request.clone()
+        },
+        source_place: lab.sides.target_place.clone(),
+        target_place: lab.sides.source_place.clone(),
+        adapter: lab.sides.adapter.clone(),
+        tool: lab.sides.tool.clone(),
+        source_label: "B".into(),
+        target_label: "A".into(),
+        source_live: false,
+        accounts: lab.sides.accounts.clone(),
+        stop: None,
+    }
+}
+
+/// Both profiles running, and a writer no process names that never stops
+/// writing the source's history.
+fn still_writing(lab: &Lab) -> Scripted {
+    let system = running_both(lab);
+    *system.writer.lock().unwrap() = Some((
+        history(&lab.a_code),
+        b"{\"type\":\"cost-state\"}\n",
+        usize::MAX,
+    ));
+    system
+}
+
+/// Both profiles running; the target never quits when asked.
+fn stubborn_target(lab: &Lab) -> Scripted {
+    Scripted {
+        stubborn: vec![target_id(lab)],
+        ..running_both(lab)
+    }
+}
+
+/// Both profiles running; the person starts the target again as soon as
+/// it quits.
+fn restarted_target(lab: &Lab) -> Scripted {
+    Scripted {
+        restarted_by_user: vec![target_id(lab)],
+        ..running_both(lab)
+    }
+}
+
+/// The lab's move run with `system`, its history checked where it went.
+fn moved_with(lab: &Lab, system: &Scripted) -> MoveDoneInfo {
+    let done = run(&lab.state, &lab.sides, system).unwrap();
+    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    done
+}
+
+/// Nothing changed and no move begun.
+fn assert_nothing_begun(lab: &Lab) {
+    assert!(unchanged(lab));
+    assert!(
+        !crate::features::places::hold::journals(&crate::features::places::hold::area_at(
+            &lab.state.data_dir
+        ))
+        .exists(),
+        "no move begun"
+    );
 }
 
 /// A move run once with both profiles running, when this disk clones.
@@ -446,16 +833,14 @@ fn a_busy_profile_refuses_before_anything_is_quit_or_written() {
         .to_string();
     assert!(error.contains("2 sessions are working"), "{error}");
     assert!(system.quits.lock().unwrap().is_empty());
-    assert!(unchanged(&lab));
-    assert!(!lab.state.data_dir.join("moves").exists(), "no move begun");
+    assert_nothing_begun(&lab);
 }
 
 #[test]
 fn a_reused_pid_is_never_quit() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let source = lab.sides.source_place.as_ref().unwrap().0.clone();
     let system = Scripted {
         reused: vec![source],
@@ -474,13 +859,10 @@ fn a_reused_pid_is_never_quit() {
 
 #[test]
 fn a_profile_that_wont_quit_stops_the_move_and_the_other_starts_again() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
-    let mut system = running_both(&lab);
-    system.stubborn = vec![target];
+    };
+    let system = stubborn_target(&lab);
     let error = run(&lab.state, &lab.sides, &system)
         .unwrap_err()
         .to_string();
@@ -519,13 +901,41 @@ fn a_held_profile_is_left_alone_by_open_and_restart() {
     let lab = lab();
     let id = lab.sides.target_place.as_ref().unwrap().0.clone();
     let hold =
-        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id)).unwrap();
+        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id), "m-1")
+            .unwrap();
     assert!(crate::features::places::held_for_move(&lab.state, &id));
     assert!(
-        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id)).is_none()
+        crate::features::places::MoveHold::take(&lab.state, std::slice::from_ref(&id), "m-2")
+            .is_err()
     );
     drop(hold);
     assert!(!crate::features::places::held_for_move(&lab.state, &id));
+}
+
+/// AJ-E2320 R1: both profiles are held in the area every AI Juggler
+/// shares before the first quit; the committed move lets go.
+#[test]
+fn a_move_holds_both_profiles_for_every_ai_juggler_before_the_first_quit() {
+    let Some(lab) = cloning_lab() else {
+        return;
+    };
+    let area = crate::features::places::hold::area_at(&lab.state.data_dir);
+    let system = Scripted {
+        area: Some(area.clone()),
+        ..running_both(&lab)
+    };
+    run(&lab.state, &lab.sides, &system).unwrap();
+    let held = system.held_at_quit.lock().unwrap().clone();
+    assert!(!held.is_empty() && held.iter().all(|h| *h), "{held:?}");
+    assert!(
+        !crate::features::places::hold::any_held(&area),
+        "committed: let go"
+    );
+    assert_eq!(
+        crate::features::places::hold::all_moves(&lab.state.data_dir).len(),
+        1,
+        "its journal in the shared area"
+    );
 }
 
 #[test]
@@ -543,17 +953,60 @@ fn a_terminal_session_on_either_account_refuses_the_move() {
     assert!(unchanged(&lab));
 }
 
+/// 0.5.1 F72: Move waiting on a session open outside the apps names it
+/// (its title, where) and carries it as a holder with its Go to, in the
+/// offer and in the stop, never only a count.
 #[test]
-fn a_profile_started_by_hand_mid_move_stops_it_before_anything_changes() {
-    if !clones() {
-        return;
-    }
+fn a_session_open_elsewhere_is_named_with_its_door() {
     let lab = lab();
-    let target = lab.sides.target_place.as_ref().unwrap().0.clone();
     let system = Scripted {
-        restarted_by_user: vec![target],
+        elsewhere: 1,
         ..running_both(&lab)
     };
+    let offer = offer_of(&lab.state, &lab.sides, &system);
+    let block = offer
+        .blocks
+        .iter()
+        .find(|b| b.words.contains("outside the app"))
+        .unwrap();
+    assert_eq!(
+        block.words,
+        "“Fix the login test 0” in Terminal is open outside the app; Move becomes available once you end it"
+    );
+    let door = MoveHolder {
+        name: "“Fix the login test 0” in Terminal".into(),
+        account_id: Some("acct-a".into()),
+        conversation: Some("term-0".into()),
+        ..MoveHolder::default()
+    };
+    assert_eq!(offer.holders, vec![door.clone()]);
+    let stop = run(&lab.state, &lab.sides, &system)
+        .unwrap_err()
+        .wire()
+        .stop
+        .expect("a typed stop");
+    assert_eq!(stop.holders, vec![door]);
+}
+
+/// 0.5.1 F72: in words, as much as is known of it.
+#[test]
+fn a_session_elsewhere_is_named_by_title_and_place() {
+    assert_eq!(
+        elsewhere_name(Some("Fix it"), Some("Terminal")),
+        "“Fix it” in Terminal"
+    );
+    assert_eq!(elsewhere_name(None, Some("iTerm")), "a session in iTerm");
+    assert_eq!(elsewhere_name(Some("  "), None), "a session in a terminal");
+    let long = "x".repeat(60);
+    assert!(elsewhere_name(Some(&long), None).ends_with("…”"));
+}
+
+#[test]
+fn a_profile_started_by_hand_mid_move_stops_it_before_anything_changes() {
+    let Some(lab) = cloning_lab() else {
+        return;
+    };
+    let system = restarted_target(&lab);
     let error = run(&lab.state, &lab.sides, &system)
         .unwrap_err()
         .to_string();
@@ -563,28 +1016,11 @@ fn a_profile_started_by_hand_mid_move_stops_it_before_anything_changes() {
 
 #[test]
 fn undo_waits_for_a_later_move_of_the_same_files_and_for_quiet() {
-    if !clones() {
+    let Some((lab, system, first)) = moved() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    let first = run(&lab.state, &lab.sides, &system).unwrap();
-    // Moved back: the later move owns the files now.
-    let back = Sides {
-        request: MoveRequest {
-            source: lab.sides.request.target.clone(),
-            target: lab.sides.request.source.clone(),
-            ..lab.sides.request.clone()
-        },
-        source_place: lab.sides.target_place.clone(),
-        target_place: lab.sides.source_place.clone(),
-        adapter: lab.sides.adapter.clone(),
-        tool: lab.sides.tool.clone(),
-        source_label: "B".into(),
-        target_label: "A".into(),
-        source_live: false,
-        accounts: lab.sides.accounts.clone(),
     };
+    // Moved back: the later move owns the files now.
+    let back = moved_back(&lab);
     let second = run(&lab.state, &back, &system).unwrap();
     let error = undo_with(&lab.state, &first.move_id, &system)
         .unwrap_err()
@@ -660,6 +1096,44 @@ fn a_busy_profile_waits_in_the_offer_and_says_how() {
     }
 }
 
+/// AJ-E2315 (the self rule, the review's A1.5): AI Juggler started from
+/// inside the source profile (its Code tab) is never quit by its own move:
+/// the offer waits, saying why and how it clears, and a move run anyway
+/// refuses before anything quits.
+#[test]
+fn a_move_that_would_quit_ai_juggler_refuses_before_anything_quits() {
+    let lab = lab();
+    let system = Scripted {
+        juggler_in: Some(source_id(&lab)),
+        ..running_both(&lab)
+    };
+    let offer = offer_of(&lab.state, &lab.sides, &system);
+    assert!(
+        offer
+            .blocks
+            .iter()
+            .any(|b| b.kind == MoveBlockKind::UserCanClear
+                && b.words
+                    .contains("AI Juggler itself was started from inside")
+                && b.words.ends_with(
+                    "Move becomes available once you start AI Juggler from the Dock or Finder"
+                )),
+        "{:?}",
+        offer.blocks
+    );
+    let error = run(&lab.state, &lab.sides, &system).unwrap_err();
+    assert!(
+        error
+            .wire()
+            .user_message
+            .contains("AI Juggler itself was started from inside"),
+        "{error}"
+    );
+    assert!(system.quits.lock().unwrap().is_empty(), "nothing quit");
+    assert!(system.starts.lock().unwrap().is_empty(), "nothing started");
+    assert!(unchanged(&lab));
+}
+
 /// D-128: a new major of the app whose records fit is offered (the 0.4.6
 /// rc2 walk: the Claude app had updated to 5.11492.5 and Move showed
 /// greyed with "proven for version 4.x").
@@ -724,7 +1198,9 @@ fn source_id(lab: &Lab) -> String {
 
 /// A move's own folder of backups.
 fn backups(lab: &Lab) -> Vec<PathBuf> {
-    let moves = lab.state.data_dir.join("moves");
+    let moves = crate::features::places::hold::journals(&crate::features::places::hold::area_at(
+        &lab.state.data_dir,
+    ));
     let mut out = Vec::new();
     for entry in std::fs::read_dir(moves).unwrap().flatten() {
         for backup in std::fs::read_dir(entry.path().join("backups"))
@@ -743,23 +1219,19 @@ fn backups(lab: &Lab) -> Vec<PathBuf> {
 /// so that line moves with the history and nothing is left behind.
 #[test]
 fn a_move_waits_for_what_outlives_the_profiles_main_process() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let line: &'static [u8] = b"{\"type\":\"last-prompt\"}\n";
     let system = Scripted {
         kids: vec![Kid {
-            pid: 700,
-            name: "claude",
-            place: source_id(&lab),
-            alive: Arc::new(AtomicBool::new(true)),
             after_quit: Some((
                 Duration::from_millis(300),
                 history(&lab.a_code),
                 line,
                 Duration::from_millis(50),
             )),
+            ..kid(&lab, 700, "claude", &["--resume=main"], true)
         }],
         wait: Some(Duration::from_secs(5)),
         ..running_both(&lab)
@@ -787,29 +1259,16 @@ fn a_move_waits_for_what_outlives_the_profiles_main_process() {
 /// backup is kept.
 #[test]
 fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let system = Scripted {
-        kids: vec![Kid {
-            pid: 700,
-            name: "claude",
-            place: source_id(&lab),
-            alive: Arc::new(AtomicBool::new(true)),
-            after_quit: None,
-        }],
+        kids: vec![kid(&lab, 700, "claude", &["--resume=main"], true)],
         ..running_both(&lab)
     };
     let error = run(&lab.state, &lab.sides, &system).unwrap_err();
     assert!(
-        matches!(
-            error,
-            AppError::Move {
-                unchanged: true,
-                ..
-            }
-        ),
+        matches!(&error, AppError::Move(stop) if stop.unchanged),
         "calm, both accounts as they were: {error}"
     );
     let words = error.wire().user_message;
@@ -818,7 +1277,8 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
         words.contains("claude still runs, so nothing was moved"),
         "{words}"
     );
-    assert_eq!(system.starts.lock().unwrap().len(), 1, "the source again");
+    // AJ-E2318: both quit at once, so both start again.
+    assert_eq!(system.starts.lock().unwrap().len(), 2, "both again");
     assert_eq!(moves(&lab.state)[0].state, "undone");
     assert!(backups(&lab).is_empty());
     assert!(unchanged(&lab));
@@ -829,16 +1289,10 @@ fn a_profile_whose_tools_outlive_it_too_long_is_refused_calmly() {
 /// undone move keeps no backup.
 #[test]
 fn files_still_changing_after_the_apps_closed_refuse_in_plain_words() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
-    let system = running_both(&lab);
-    *system.writer.lock().unwrap() = Some((
-        history(&lab.a_code),
-        b"{\"type\":\"cost-state\"}\n",
-        usize::MAX,
-    ));
+    };
+    let system = still_writing(&lab);
     let error = run(&lab.state, &lab.sides, &system).unwrap_err();
     let source = place_name(&lab.state, &lab.sides.source_place.as_ref().unwrap().1);
     let wire = error.wire();
@@ -865,15 +1319,13 @@ fn files_still_changing_after_the_apps_closed_refuse_in_plain_words() {
 /// A file that settles after one more write moves with that write.
 #[test]
 fn a_file_that_settles_after_one_more_write_moves_with_it() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let line: &'static [u8] = b"{\"type\":\"cost-state\"}\n";
     let system = running_both(&lab);
     *system.writer.lock().unwrap() = Some((history(&lab.a_code), line, 1));
-    let done = run(&lab.state, &lab.sides, &system).unwrap();
-    assert_eq!(done.payload.state, "verified", "{}", done.payload.detail);
+    moved_with(&lab, &system);
     assert!(std::fs::read(history(&lab.b_code)).unwrap().ends_with(line));
 }
 
@@ -881,10 +1333,9 @@ fn a_file_that_settles_after_one_more_write_moves_with_it() {
 /// backup's bytes rise to its total.
 #[test]
 fn a_long_backup_says_how_far_it_is() {
-    if !clones() {
+    let Some(lab) = cloning_lab() else {
         return;
-    }
-    let lab = lab();
+    };
     let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
     let big = line.repeat((6 << 20) / line.len() + 1);
     std::fs::write(history(&lab.a_code), &big).unwrap();
@@ -898,6 +1349,7 @@ fn a_long_backup_says_how_far_it_is() {
             "backing_up",
             "moving",
             "starting",
+            "opening",
             "checking"
         ]
     );
@@ -906,7 +1358,8 @@ fn a_long_backup_says_how_far_it_is() {
     assert!(backing.len() >= 3, "{}", backing.len());
     assert!(backing.windows(2).all(|w| w[0].done <= w[1].done));
     let last = backing.last().unwrap();
-    assert!(last.total >= 2 * big.len() as u64);
+    // AJ-E2324: every byte read once (the clone's hash).
+    assert!(last.total >= big.len() as u64 && last.total < 2 * big.len() as u64);
     assert_eq!(last.done, last.total);
     assert!(
         last.words.starts_with("Backing up the conversation ("),
@@ -926,3 +1379,24 @@ fn an_undone_move_lets_its_backups_go() {
     assert!(backups(&lab).is_empty());
     assert!(unchanged(&lab));
 }
+
+#[path = "moving_fault_tests.rs"]
+mod faults;
+#[path = "moving_open_tests.rs"]
+mod open;
+#[path = "moving_pick_tests.rs"]
+mod picking;
+#[path = "moving_prompts_tests.rs"]
+mod prompting;
+#[path = "moving_recover_tests.rs"]
+mod recovering;
+#[path = "moving_reopen_tests.rs"]
+mod reopening;
+#[path = "moving_shape_tests.rs"]
+mod shapes;
+#[path = "moving_speed_tests.rs"]
+mod speed;
+#[path = "moving_stop_tests.rs"]
+mod stops;
+#[path = "moving_wait_tests.rs"]
+mod wait;

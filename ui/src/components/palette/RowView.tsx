@@ -9,7 +9,7 @@
 import type { JSX } from "react";
 import { highlight, type Range } from "../../lib/palette-match";
 import { homeRelative } from "../../lib/project-words";
-import { appOfConversation, appOfSession, type AppRef } from "../../lib/app-of";
+import { appOfConversation, appOfSession, appOfTool, type AppRef } from "../../lib/app-of";
 import { conversationItem, placeWords, sessionItem } from "../../lib/rail-items";
 import { conversationTitle } from "../../lib/conversations";
 import { providerDisplayName } from "../../lib/providers";
@@ -20,12 +20,14 @@ import { AppKindBadge } from "../AppKindBadge";
 import { appKindWords } from "../../lib/app-kind";
 import { ToolMark } from "../ToolMark";
 import { sessionTitle } from "../ManageWork";
-import { ActionOption, CommandOption } from "../PaletteActions";
+import { ActionOption, CommandIcon, CommandOption } from "../PaletteActions";
+import { STATE_WORDS, rowPlace } from "../../lib/bot-words";
+import type { BotRowInfo } from "../../types/generated/BotRowInfo";
 import { IconGear } from "../icons-menu";
 import type { PaletteRow } from "./rows";
 
 /** `text` with `ranges` bold. */
-export function Highlighted({ text, ranges }: { text: string; ranges: readonly Range[] }): JSX.Element {
+function Highlighted({ text, ranges }: { text: string; ranges: readonly Range[] }): JSX.Element {
   if (ranges.length === 0) return <>{text}</>;
   return (
     <>
@@ -76,7 +78,20 @@ export function rowTitle(entry: PaletteRow): string {
       return entry.account.name;
     case "setting":
       return `${entry.hit.paneLabel} › ${entry.hit.title}`;
+    case "record":
+      return entry.row.name_hidden ? "A record with a hidden name" : entry.row.title;
+    case "pool":
+      return entry.pool.name;
+    case "ask":
+      return entry.ask.label;
   }
+}
+
+/** AJ-E3824: a found record's line — where it is, then how it stands
+ * ("Claude Code · shop · Asks you", "Release · Blocked", "54 % used"). */
+function recordLine(row: BotRowInfo): string {
+  const state = row.state ? STATE_WORDS[row.state] : row.used_percent !== null ? `${row.used_percent} % used` : null;
+  return [...rowPlace(row).split(" · ").slice(1), state].filter(Boolean).join(" · ");
 }
 
 const Muted = ({ children, testId }: { children: string; testId?: string }) => (
@@ -97,6 +112,32 @@ export function RowView({ entry }: { entry: PaletteRow }): JSX.Element {
       return <ActionOption action={entry.action} />;
     case "command":
       return <CommandOption command={entry.command} />;
+    case "ask":
+      return (
+        <>
+          <CommandIcon icon="search" />
+          <span className="min-w-0 shrink truncate">{entry.ask.label}</span>
+          <End>Show</End>
+        </>
+      );
+    case "pool":
+      return (
+        <>
+          <CommandIcon icon="pool" />
+          <span className="min-w-0 shrink truncate">{entry.pool.name}</span>
+          <Muted>{entry.pool.tasks === 1 ? "1 task found" : `${entry.pool.tasks} tasks found`}</Muted>
+          <End>Open</End>
+        </>
+      );
+    case "record":
+      return (
+        <>
+          {entry.row.kind === "session" && entry.row.provider ? <AppIcon {...appOfTool(entry.row.provider)} size={16} /> : <CommandIcon icon={entry.row.kind === "task" ? "tasks" : entry.row.kind === "account" ? "usage" : "screen"} />}
+          <span className="min-w-0 shrink truncate">{rowTitle(entry)}</span>
+          <Muted testId="goto-record-line">{recordLine(entry.row)}</Muted>
+          <End>Open</End>
+        </>
+      );
     case "setting":
       return (
         <>

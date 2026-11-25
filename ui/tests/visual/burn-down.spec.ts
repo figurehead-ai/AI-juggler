@@ -82,7 +82,9 @@ for (const theme of ["dark", "light"] as const) {
       await expect(runways.getByTestId("burn-down-pace").first()).toContainText("At this pace it runs out about");
       await expect(runways.getByTestId("sessions-left").nth(1)).toHaveText("Sessions left show after a few sessions on this account");
       await expect(runways.getByTestId("burn-down-projection")).toHaveCount(1);
-      await runways.scrollIntoViewIfNeeded();
+      // 0.5.1 B3: framed from the runway card's top, so its account's name
+      // shows (it opened scrolled to the card's bottom since 0.3.2).
+      await page.getByTestId("usage-runway").evaluate((el) => el.scrollIntoView({ block: "start" }));
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `usage-1280x800-${theme}-${density}.png`) });
       await axe(page, `burn-down ${theme} ${density}`);

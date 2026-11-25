@@ -10,6 +10,7 @@
  */
 import { memo, type JSX } from "react";
 import { ToolMark } from "../../components/ToolMark";
+import { WARNING_CHIP } from "../../components/primitives";
 import type { TurnInfo } from "../../lib/ipc/conversations";
 import { agoWords } from "../../lib/time-words";
 import { Markdown } from "./Markdown";
@@ -46,7 +47,7 @@ function TurnView({ turn, tool, speaker, layout, asks, asker, startedMs, working
     return (
       <li className="flex flex-col items-end gap-1.5" data-testid="last-turn" data-speaker="you" data-turn-id={turn.id}>
         {asker ? <span className="text-label font-medium text-muted">{asker}</span> : <span className="sr-only">You</span>}
-        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md border border-accent/20 bg-accent-soft px-4 py-2.5 text-body leading-[1.5] text-ink">{words}</p>
+        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md border border-transparent bg-accent-soft px-4 py-2.5 text-body leading-[1.5] text-ink">{words}</p>
         <When ms={turn.at_ms} />
       </li>
     );
@@ -59,7 +60,7 @@ function TurnView({ turn, tool, speaker, layout, asks, asker, startedMs, working
         </span>
         <span className="text-body font-semibold text-ink">{speaker}</span>
         {asks && (
-          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-label font-semibold text-warning" data-testid="last-turn-asks">
+          <span className={"rounded-full px-2 py-0.5 text-label font-semibold " + WARNING_CHIP} data-testid="last-turn-asks">
             asks you
           </span>
         )}

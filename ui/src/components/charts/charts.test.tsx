@@ -182,7 +182,12 @@ describe("charts", () => {
     const tile = view.getByTestId("waiting");
     // The value's row, a held change line and a held sparkline.
     expect(tile.children).toHaveLength(4);
-    expect([...tile.children].slice(2).every((row) => row.getAttribute("aria-hidden") === "true")).toBe(true);
+    // AJ-E1552: the held change line is LoadingState's skeleton (hidden
+    // from readers; only a "Still loading…" would be read).
+    const [held, sparkline] = [...tile.children].slice(2);
+    expect(held?.querySelector("[data-testid='stat-hold']")?.getAttribute("aria-hidden")).toBe("true");
+    expect(held?.textContent?.trim()).toBe("");
+    expect(sparkline?.getAttribute("aria-hidden")).toBe("true");
     expect(screen.queryByTestId("stat-delta")).toBeNull();
     // With its figures, the real ones take those places.
     view.rerender(<StatTile label="Tokens" value={10} unit="tokens" before={5} period="last week" trend={[1, 2, 3]} holdSpace testId="waiting" />);

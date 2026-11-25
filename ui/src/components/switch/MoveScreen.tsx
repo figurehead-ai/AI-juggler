@@ -14,7 +14,8 @@
  *   Move faded, how it clears said under it, and Check again.
  * - `MoveBody`: a needs-you Alert that the Apps restart (true whenever
  *   they do); "What happens" as a summary panel of four fact rows (icon,
- *   label, value); the project notes as a CheckRow; the conversations
+ *   label, value), and "Also moves" when the conversation's worktree or
+ *   side-session notes go with it (AJ-E2328); the project notes as a CheckRow; the conversations
  *   behind a Disclosure with their tags and the tool output left behind;
  *   and "What does this mean?" with the guide.
  * The words are the facts the backend reports, in plain words.
@@ -24,7 +25,7 @@ import type { MoveOfferInfo } from "../../lib/ipc/switch-move";
 import { GUIDE } from "../../lib/switch-words";
 import { Alert } from "../Alert";
 import { CheckRow, Disclosure, RadioCard, RadioCards, RowList } from "../controls";
-import { IconCarryIn, IconCopy, IconGoTo, IconPage, IconReplay } from "../icons-actions";
+import { IconCopy, IconGoTo, IconMove, IconPage, IconReplay } from "../icons-actions";
 import { IconMessage } from "../icons-canvas";
 import { IconCheck } from "../icons-controls";
 import { IconHistory } from "../icons-places";
@@ -34,6 +35,7 @@ import { LogoTile, ToolLogo } from "../ToolLogo";
 import { Explain } from "./Explain";
 import { Fact, FactPanel } from "./Facts";
 import { SwitchHeader } from "./SwitchHeader";
+import { HolderDoors } from "./HolderDoors";
 
 export type How = "move" | "copy";
 
@@ -91,7 +93,7 @@ export function MoveHeader({
   const kind = offer.app ? "desktop" : "cli";
   return (
     <SwitchHeader
-      icon={IconCarryIn}
+      icon={IconMove}
       title={`Continue on ${to}`}
       sub={`${title ?? "This conversation"} · now on ${from}`}
       from={{ name: from, logo: <ToolLogo tool={tool} kind={kind} size={24} /> }}
@@ -128,7 +130,7 @@ export function MoveChoice({
       <RadioCards label="How it continues" value={value} onChange={(how) => onChange(how === "move" ? "move" : "copy")} columns={2} testId="switch-how-cards">
         <RadioCard align="start"
           value="move"
-          logo={<LogoTile icon={IconCarryIn} size={32} on={value === "move"} />}
+          logo={<LogoTile icon={IconMove} size={32} on={value === "move"} />}
           title={
             <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
               Move
@@ -171,6 +173,9 @@ export function MoveChoice({
           ))}
         </ul>
       )}
+      {/* 0.5.1 F72: what holds the files, each with its door (the
+          reason above names it), as a stop names them (AJ-E2319). */}
+      {!ready && <HolderDoors holders={offer.holders ?? []} testId="switch-how-holders" />}
       {!ready && onCheckAgain && (
         <button type="button" onClick={onCheckAgain} className="w-fit text-meta font-medium text-accent-hi underline-offset-2 hover:underline" data-testid="switch-how-again">
           Check again
@@ -232,6 +237,15 @@ export function MoveBody({
             {archived > 0 && <Pill tone="neutral">{archived} archived</Pill>}
             {gone > 0 && <Pill tone="neutral">{gone} folder{gone === 1 ? "" : "s"} gone</Pill>}
           </Fact>
+          {offer.carried.length > 0 && (
+            <Fact icon={IconMove} label="Also moves" testId="switch-move-carried">
+              <span className="flex min-w-0 flex-col gap-1">
+                {offer.carried.map((line) => (
+                  <span key={line}>{sentence(line)}</span>
+                ))}
+              </span>
+            </Fact>
+          )}
           <Fact icon={IconHistory} label="Original" testId="switch-move-original">
             {source} no longer lists it; {target} does, as the same conversation. Undo puts both back exactly.
           </Fact>
@@ -272,7 +286,7 @@ export function MoveBody({
                 {member.side === "relinked" ? (
                   <IconCheck aria-hidden="true" width={16} height={16} className="shrink-0 text-success" />
                 ) : (
-                  <IconCarryIn aria-hidden="true" width={16} height={16} className="shrink-0 text-accent-hi" />
+                  <IconMove aria-hidden="true" width={16} height={16} className="shrink-0 text-accent-hi" />
                 )}
                 <ToolLogo tool={tool} kind={offer.app ? "desktop" : "cli"} size={24} />
                 <span className="min-w-0 flex-1 truncate text-body text-ink" title={member.title}>

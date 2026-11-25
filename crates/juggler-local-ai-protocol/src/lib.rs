@@ -41,9 +41,11 @@ pub const PROTOCOL: u32 = 3;
 /// The helper's file name, in the app's bundle beside AI Juggler.
 pub const PROGRAM: &str = "juggler-local-ai";
 
-/// The identifier the helper is signed as (its embedded Info.plist); the
+/// The last part of the identifier the helper is signed as (its embedded
+/// Info.plist): the build's identity's prefix, then this (AJ-E3822: the
+/// app's `Edition::helper_identifier`, `scripts/helper_identity.sh`). The
 /// app runs no helper signed as anything else.
-pub const IDENTIFIER: &str = "ai.figurehead.juggler.local-ai";
+pub const IDENTIFIER_SUFFIX: &str = "local-ai";
 
 /// The one argument the helper takes, followed by the models' folder.
 pub const MODELS_DIR_ARG: &str = "--models-dir";

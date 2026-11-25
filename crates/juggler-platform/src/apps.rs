@@ -12,6 +12,13 @@
 //!   when the app runs several (a Claude profile beside another), `-g`
 //!   leaves it behind the app in front (a restart nobody clicked never
 //!   takes the keyboard). Windows and Linux: not built yet, said plainly.
+//!   F65 (0.5.1): `open` runs with an empty environment
+//!   ([`crate::process::launcher`]), so the app gets the login session's
+//!   and only its own `--env`, never AI Juggler's (`HOME` included).
+//!
+//! - [`open`] (F67, 0.5.1): a link, a file or a folder handed to the app
+//!   that opens it (a browser, the editor, Finder, System Settings), by
+//!   the same launcher: the one way out of AI Juggler to other apps.
 //!
 //! - [`detached`] (0.3.8): an app process that outlived its display. When
 //!   macOS restarts its window server (the watchdog ended `WindowServer`
@@ -65,13 +72,30 @@ pub fn open_command(
     ("/usr/bin/open".to_owned(), out)
 }
 
+/// The command [`open_app`] runs: [`open_command`]'s, through the
+/// [`crate::process::launcher`] (nothing of AI Juggler's environment).
+#[must_use]
+pub fn launch_command(
+    bundle: &Path,
+    start: Start,
+    env: &[(String, String)],
+    args: &[String],
+) -> std::process::Command {
+    let (program, words) = open_command(bundle, start, env, args);
+    let mut command = crate::process::launcher(program);
+    command.args(words);
+    command
+}
+
 /// Starts the app at `bundle` with `args`, and returns once the system
 /// took the request (the app comes up on its own after that).
 ///
 /// # Errors
 ///
-/// The system refused (no such app, or it couldn't start), or starting
-/// apps isn't built on this system yet.
+/// The system refused (no such app, or it couldn't start), starting apps
+/// isn't built on this system yet, or (AJ-E1547) the app came from the
+/// internet and was never opened, so the system would ask first: the
+/// user opens it once themselves.
 pub fn open_app(
     bundle: &Path,
     start: Start,
@@ -81,9 +105,21 @@ pub fn open_app(
     if !cfg!(target_os = "macos") {
         return Err(crate::unsupported("starting an app"));
     }
-    let (program, words) = open_command(bundle, start, env, args);
-    let out = crate::process::helper(program)
-        .args(words)
+    // AJ-E1547: never the system's "downloaded from the Internet. Are you
+    // sure you want to open it?" for an app the user never opened.
+    if let Some(why) = crate::os_prompt::first_open_refusal(bundle) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            why,
+        ));
+    }
+    run_quietly(launch_command(bundle, start, env, args))
+}
+
+/// Runs `command` (`/usr/bin/open`) with nothing in and nothing out;
+/// its error words when the system refused.
+fn run_quietly(mut command: std::process::Command) -> std::io::Result<()> {
+    let out = command
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
@@ -95,6 +131,74 @@ pub fn open_app(
             String::from_utf8_lossy(&out.stderr).trim().to_owned(),
         ))
     }
+}
+
+/// Something handed to the system to open in another app (F67): a link,
+/// a file or folder, or one shown in Finder.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Opening<'a> {
+    /// A web address or a system page (`x-apple.systempreferences:…`), in
+    /// the app that handles it.
+    Link(&'a str),
+    /// A file or folder in `app` (an app's name or bundle), else in the
+    /// app the system picks for it.
+    Path {
+        /// What opens.
+        path: &'a Path,
+        /// The app it opens in.
+        app: Option<&'a str>,
+    },
+    /// A file or folder shown selected in Finder.
+    Reveal(&'a Path),
+}
+
+/// The command [`open`] runs for `opening`: `/usr/bin/open` through the
+/// [`crate::process::launcher`], so the app that opens it (a browser, the
+/// editor, System Settings) gets the login session's environment, never
+/// AI Juggler's, as with [`launch_command`].
+#[must_use]
+pub fn opening_command(opening: Opening<'_>) -> std::process::Command {
+    let mut command = crate::process::launcher("/usr/bin/open");
+    match opening {
+        Opening::Link(link) => {
+            command.arg(link);
+        }
+        Opening::Path { path, app } => {
+            if let Some(app) = app {
+                command.arg("-a").arg(app);
+            }
+            command.arg(path);
+        }
+        Opening::Reveal(path) => {
+            command.arg("-R").arg(path);
+        }
+    }
+    command
+}
+
+/// Opens `opening` in another app (F67: the one way links, files and
+/// Finder are handed out, through the launcher like [`open_app`]).
+///
+/// # Errors
+///
+/// The system couldn't open it (its message), or this isn't built on
+/// this system yet.
+pub fn open(opening: Opening<'_>) -> std::io::Result<()> {
+    if !cfg!(target_os = "macos") {
+        return Err(crate::unsupported("opening links and files"));
+    }
+    let word = match opening {
+        Opening::Link(link) => link.to_owned(),
+        Opening::Path { path, .. } | Opening::Reveal(path) => path.to_string_lossy().into_owned(),
+    };
+    // Never read by `open` as one of its options.
+    if word.is_empty() || word.starts_with('-') {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "nothing to open",
+        ));
+    }
+    run_quietly(opening_command(opening))
 }
 
 /// Sends `link` to the running process `pid` as the system's "open this
@@ -501,6 +605,103 @@ mod tests {
                 "--user-data-dir=/Users/you/Profiles/work"
             ]
         );
+    }
+
+    /// F65: an app starts with only its own launch settings: `open` gets
+    /// none of AI Juggler's variables (it would pass them on to the app;
+    /// a lab's `HOME` gave a restarted Claude app no keychain).
+    #[test]
+    fn an_app_starts_with_none_of_our_environment() {
+        let command = launch_command(
+            &PathBuf::from("/Applications/Claude.app"),
+            Start {
+                new_instance: true,
+                background: true,
+            },
+            &[(
+                "CLAUDE_CONFIG_DIR".to_owned(),
+                "/Users/someone/CodeProfiles/work".to_owned(),
+            )],
+            &["--user-data-dir=/Users/someone/Profiles/work".to_owned()],
+        );
+        assert_eq!(command.get_program(), "/usr/bin/open");
+        let envs: Vec<_> = command.get_envs().collect();
+        assert!(envs.is_empty(), "no HOME, TMPDIR or PATH of ours: {envs:?}");
+        assert_eq!(
+            command.get_args().collect::<Vec<_>>(),
+            [
+                "-n",
+                "-g",
+                "--env",
+                "CLAUDE_CONFIG_DIR=/Users/someone/CodeProfiles/work",
+                "-a",
+                "/Applications/Claude.app",
+                "--args",
+                "--user-data-dir=/Users/someone/Profiles/work"
+            ]
+        );
+    }
+
+    /// F67: a link, a file in the editor, a folder in Finder and a system
+    /// page open through the launcher too: none of AI Juggler's variables
+    /// reach the browser, the editor or System Settings.
+    #[test]
+    fn links_files_and_finder_open_with_none_of_our_environment() {
+        let file = PathBuf::from("/Users/someone/code/app/main.rs");
+        for (opening, words) in [
+            (
+                Opening::Link("https://example.com/a"),
+                vec!["https://example.com/a"],
+            ),
+            (
+                Opening::Link("x-apple.systempreferences:com.apple.settings.Storage"),
+                vec!["x-apple.systempreferences:com.apple.settings.Storage"],
+            ),
+            (
+                Opening::Path {
+                    path: &file,
+                    app: Some("Visual Studio Code"),
+                },
+                vec![
+                    "-a",
+                    "Visual Studio Code",
+                    "/Users/someone/code/app/main.rs",
+                ],
+            ),
+            (
+                Opening::Path {
+                    path: &file,
+                    app: None,
+                },
+                vec!["/Users/someone/code/app/main.rs"],
+            ),
+            (
+                Opening::Reveal(&file),
+                vec!["-R", "/Users/someone/code/app/main.rs"],
+            ),
+        ] {
+            let command = opening_command(opening);
+            assert_eq!(command.get_program(), "/usr/bin/open");
+            let envs: Vec<_> = command.get_envs().collect();
+            assert!(envs.is_empty(), "{opening:?}: nothing of ours: {envs:?}");
+            assert_eq!(command.get_args().collect::<Vec<_>>(), words);
+        }
+    }
+
+    /// F67: nothing `open` would read as one of its own options.
+    #[test]
+    fn an_opening_that_looks_like_an_option_is_refused() {
+        if !cfg!(target_os = "macos") {
+            return;
+        }
+        for opening in [
+            Opening::Link("-a"),
+            Opening::Link(""),
+            Opening::Reveal(Path::new("-R")),
+        ] {
+            let error = open(opening).unwrap_err();
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        }
     }
 
     #[test]

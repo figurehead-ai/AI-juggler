@@ -86,3 +86,14 @@ export function inactiveLines(app: IdleApp, searching: boolean, toggled: Readonl
   if (rest.length > RECENT_INLINE) lines.push({ kind: "all", app: app.key, count: app.sessions.length, group: null, idle: app });
   return { open, lines };
 }
+
+export type Recent = { count: number; open: boolean } | null;
+/** 0.4.3: an App with something open: its past ones' count (shown in place on a click). */
+export function recentOf(counts: boolean, group: RailGroup, idle: ReadonlyMap<string, RailItem[]>, toggled: ReadonlySet<string>): Recent {
+  const before = counts && group.items.length > 0 ? (idle.get(group.key) ?? []).filter((item) => !item.pinned).length : 0;
+  return before > 0 ? { count: before, open: toggled.has(`${group.key}#recent`) } : null;
+}
+/** AJ-E1554 R4: a footer only when there is more. */
+export function footerOf(group: RailGroup, fold: { hidden: number; words: "quiet" | "more" }, recent: Recent): Line[] {
+  return fold.hidden > 0 || recent ? [{ kind: "more", group, quiet: fold.hidden, words: fold.words, recent }] : [];
+}

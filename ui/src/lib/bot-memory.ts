@@ -4,7 +4,7 @@
  * words back in the box, Undo forgets what was just kept. The Bot page's
  * "What Bot remembers" tab reads the list (lazily, when it opens).
  */
-import { useEffect, useState } from "react";
+import { sharedRead, useSharedReadState } from "./shared-read";
 import { botForget, botMemories, type BotMemoriesInfo } from "./ipc/bot";
 import { MEMORY_CHANGED, botState, openBot, setDraft } from "./bot-store";
 import { errorText } from "./bridge";
@@ -50,23 +50,15 @@ export async function forgetMemory(key: string): Promise<void> {
   window.dispatchEvent(new Event(MEMORY_CHANGED));
 }
 
+/** AJ-E1548 #1: one read of the list for every view of it (the tab's
+ * count, the side card, the list), read again once when it changes
+ * (Remember, Forget, Undo), so a count never disagrees with its list. */
+const MEMORIES = sharedRead(botMemories, "Bot's memory");
+if (typeof window !== "undefined") window.addEventListener(MEMORY_CHANGED, () => void MEMORIES.refresh());
+
 /** The list, read when a view wants it, again when it changes. */
 export function useMemories(): { info: BotMemoriesInfo | null; error: string | null } {
-  const [info, setInfo] = useState<BotMemoriesInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    const read = () => {
-      void botMemories()
-        .then((next) => live && setInfo(next))
-        .catch((cause) => live && setError(errorText(cause)));
-    };
-    read();
-    window.addEventListener(MEMORY_CHANGED, read);
-    return () => {
-      live = false;
-      window.removeEventListener(MEMORY_CHANGED, read);
-    };
-  }, []);
-  return { info, error };
+  const { data, state } = useSharedReadState(MEMORIES);
+  const failure = state === "error" ? MEMORIES.failure() : undefined;
+  return { info: data ?? null, error: failure === undefined ? null : errorText(failure) };
 }

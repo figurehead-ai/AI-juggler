@@ -50,7 +50,9 @@ export function ParkCard({
     }
   };
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-hairline px-2.5 py-2 text-label" data-testid="park-card">
+    // 0.5.1 B3 (PAT-SURF-1): a step of tone inside its card, no outline
+    // (a box drawn in a box, 12-model not-reported).
+    <div className="flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 px-2.5 py-2 text-label" data-testid="park-card">
       {words ? (
         <>
           <span className={PARK_WORDS} data-testid="park-state">
@@ -71,7 +73,7 @@ export function ParkCard({
             <button
               type="button"
               onClick={() => void act(() => parkedResume(session.id), "Resuming the same conversation…")}
-              className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-accent-hi"
+              className="rounded border border-transparent bg-accent-soft px-2 py-0.5 text-accent-hi"
               data-testid="park-resume"
             >
               Resume the same conversation
@@ -87,7 +89,7 @@ export function ParkCard({
           <button
             type="button"
             onClick={() => void act(() => sessionResume(session.id), "Resuming the same conversation…")}
-            className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-accent-hi"
+            className="rounded border border-transparent bg-accent-soft px-2 py-0.5 text-accent-hi"
             data-testid="park-resume"
           >
             Resume the same conversation
@@ -102,7 +104,7 @@ export function ParkCard({
           <button
             type="button"
             onClick={() => void act(() => instancePark(session.id), "Parked until the reset.")}
-            className="rounded border border-accent/40 bg-accent-soft px-2 py-0.5 text-accent-hi"
+            className="rounded border border-transparent bg-accent-soft px-2 py-0.5 text-accent-hi"
             data-testid="park-go"
           >
             Park until reset

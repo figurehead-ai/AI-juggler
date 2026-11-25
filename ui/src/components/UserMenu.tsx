@@ -25,6 +25,8 @@ import { updateStatus } from "../lib/ipc/updates";
 import type { FigureheadStatusInfo } from "../types/generated/FigureheadStatusInfo";
 import { appHelpOpen, appUserGet } from "../lib/ipc/app";
 import { openReportBug } from "../lib/report-bug";
+import { startTour } from "../lib/tour";
+import { IconBot } from "./bot/bot-icons";
 import { agoWords } from "../lib/time-words";
 import { GLOBAL_NAV } from "../lib/nav";
 import { setTheme, storedTheme, THEME_EVENT, type ThemeChoice } from "../theme";
@@ -184,6 +186,10 @@ export function UserMenu(): JSX.Element {
           <MenuSeparator />
           <MenuItem onClick={run(() => void appHelpOpen())}>
             <Line icon={IconHelp} label="Help and guides" />
+          </MenuItem>
+          {/* AJ-E1546: the guided tour, any time. */}
+          <MenuItem onClick={run(() => startTour())} testId="user-menu-tour">
+            <Line icon={IconBot} label="Take the tour" />
           </MenuItem>
           <MenuItem onClick={run(() => openReportBug())} testId="user-menu-report-bug">
             <Line icon={IconAsk} label="Report a bug…" />

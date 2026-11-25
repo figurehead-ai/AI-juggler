@@ -1,4 +1,4 @@
-<!-- captures: a9be66109f82 -->
+<!-- captures: 428cd0db2907 -->
 # 20-kill: the "Stop vite?" sheet for a process AI Juggler started: choosing what to stop, the 5-second wait, the outcome, and when the PID now belongs to another program
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -15,3 +15,11 @@ The verify-* sheets read top to bottom as they should: what was checked, a Detai
 - verification-failed-*: "Juggler" and "AI Juggler" in the same sheet; the only button is "Cancel".
 
 **0.5.0 (the re-walk's R3, CI on bfbc2013c):** outcome-freed-* now show the Processes page with the success toast, "Stopped vite (PID 8123). :5173 is free. Saved in Cleanup history.", and a Cleanup history action: a plain success closes the sheet (one press, one stop) instead of drawing a report inside it. The report itself still shows for a stop that left something behind (outcome-report-*). Checked by eye at 1440x900 light.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The stop dialogs are unchanged; the red Stop button and radio rows are filled by tone, not ringed.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

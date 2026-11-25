@@ -4,7 +4,7 @@
  * the 208 px minimum since the first release.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { readWidth } from "./WorkflowRail";
+import { readWidth } from "./RailSplitter";
 
 afterEach(() => localStorage.clear());
 

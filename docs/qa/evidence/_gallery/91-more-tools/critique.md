@@ -1,4 +1,4 @@
-<!-- captures: 546260728f2d -->
+<!-- captures: 77a2198b9f56 -->
 # 91-more-tools: adding accounts for more tools, the tool chooser and first run finding four setups
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -13,3 +13,9 @@ add-account-chooser lists four installed tools (Claude Code, OpenCode, Kimi Code
 - first-run-found-1280x800-dark.png, first-run-found-1280x800-light.png: the button that brings the setups in is below the first screen.
 - tools-on-this-mac-1280x800-*: under Tools on this computer the rows are not doors; nothing on a row opens that tool's page or its accounts.
 - tools-on-this-mac-1280x800-*: the rail shows "Also: History ›" above "Nothing open yet", the footnote before the message.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the Add an app chooser and the setup step keep their rows as tonal cards, the ticked rows use the F53 fill, and the Tools on this computer card is calm in both themes. Content did not change.
+
+Nothing broken (checked both themes).

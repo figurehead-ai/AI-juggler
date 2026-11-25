@@ -139,19 +139,23 @@ export function KeepApartSheet({
               {words.example}
             </p>
           </section>
-          <Alert level="info" title={`${words.notTitle}.`} live={null} testId="keep-apart-not">
-            {words.not}
-          </Alert>
-          <Explain tips={words.tips} guide={KEEP_APART_GUIDE} testId="keep-apart-explain" />
+          {/* 0.5.1 F84 (progressive disclosure): one yes/no shows its lead,
+              the drawing and its three facts; what it doesn't do and the
+              pool it makes wait behind "What does this mean?". */}
+          <Explain tips={words.tips} guide={KEEP_APART_GUIDE} testId="keep-apart-explain">
+            <p className="mt-1.5 leading-relaxed" data-testid="keep-apart-not">
+              <span className="font-medium">{words.notTitle}.</span> {words.not}
+            </p>
+            <p className="mt-1.5 leading-relaxed" data-testid="keep-apart-makes">
+              {words.makes(draft.name, joinSentence(project.name, everyone?.role ?? null, draft.level))}
+            </p>
+          </Explain>
           {error && (
             <Alert level="broken" title={`${words.failed}.`} testId="keep-apart-error">
               {error}
             </Alert>
           )}
         </div>
-        <p className="mt-4 text-meta text-muted" data-testid="keep-apart-makes">
-          {words.makes(draft.name, joinSentence(project.name, everyone?.role ?? null, draft.level))}
-        </p>
       </div>
     </Modal>
   );

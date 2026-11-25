@@ -22,6 +22,8 @@ import { terminalKept } from "../../lib/ipc/terminal-io";
 import { providerDisplayName } from "../../lib/providers";
 import { pastWhen, since } from "../../lib/time-words";
 import { endedCause } from "../../lib/ended-how";
+import { logLoadFailure, useReadState, withDeadline } from "../../lib/loading";
+import { LoadingState } from "../../components/LoadingState";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
 import { LastMessages } from "./LastMessages";
 import { fromInstance } from "./model";
@@ -39,32 +41,56 @@ export function forgetKept(): void {
 /** Whether the terminal `key` names kept output to replay: the kept
  * answer at once, else `null` while asked (and for no `key`: one still
  * running). */
-function useKept(id: string | null, key: string | null): boolean | null {
-  const [answer, setAnswer] = useState<{ key: string; kept: boolean } | null>(null);
+function useKept(id: string | null, key: string | null): { kept: boolean | null; error: unknown; round: number; retry: () => void } {
+  const [answer, setAnswer] = useState<{ key: string; kept: boolean | null; error: unknown } | null>(null);
+  // AJ-E1552: a failed ask is an error with Retry, never a skeleton for ever.
+  const [round, setRound] = useState(0);
+  const asked = key === null ? null : `${key}#${round}`;
   useEffect(() => {
-    if (id === null || key === null || answered.has(key)) return undefined;
+    if (id === null || key === null || asked === null || answered.has(key)) return undefined;
     let alive = true;
-    void terminalKept(id).then((kept) => {
-      answered.set(key, kept);
-      if (alive) setAnswer({ key, kept });
-    });
+    void withDeadline("what its terminal kept", terminalKept(id)).then(
+      (kept) => {
+        answered.set(key, kept);
+        if (alive) setAnswer({ key: asked, kept, error: undefined });
+      },
+      (error: unknown) => {
+        if (!alive) return;
+        logLoadFailure("what its terminal kept", error);
+        setAnswer({ key: asked, kept: null, error });
+      },
+    );
     return () => {
       alive = false;
     };
-  }, [id, key]);
-  if (key === null) return null;
-  return answered.get(key) ?? (answer?.key === key ? answer.kept : null);
+  }, [id, key, asked]);
+  const retry = () => setRound((was) => was + 1);
+  if (key === null) return { kept: null, error: undefined, round, retry };
+  const mine = answer?.key === asked ? answer : null;
+  return { kept: answered.get(key) ?? mine?.kept ?? null, error: mine?.error, round, retry };
 }
 
 /** The terminal's shape while what it kept is asked: never a blank pane. */
-function Asking(): JSX.Element {
+function Asking({ error, round, onRetry }: { error: unknown; round: number; onRetry: () => void }): JSX.Element {
+  const read = useReadState(null, "what its terminal kept", { error, round });
   return (
     <Card className="flex min-h-[280px] flex-1 flex-col p-5" data-testid="ended-terminal-asking">
-      <output aria-label="Reading what its terminal kept" className="flex flex-col gap-3">
-        <span className="h-3 w-1/3 rounded bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-3 w-2/3 rounded bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-3 w-1/2 rounded bg-skeleton motion-safe:animate-pulse" />
-      </output>
+      <LoadingState
+        state={read.state}
+        slow={read.slow}
+        what="what its terminal kept"
+        skeleton={
+          <output aria-label="Reading what its terminal kept" className="flex flex-col gap-3" data-testid="ended-terminal-skeleton">
+            <span className="h-3 w-1/3 rounded bg-skeleton motion-safe:animate-pulse" />
+            <span className="h-3 w-2/3 rounded bg-skeleton motion-safe:animate-pulse" />
+            <span className="h-3 w-1/2 rounded bg-skeleton motion-safe:animate-pulse" />
+          </output>
+        }
+        empty={null}
+        onRetry={onRetry}
+      >
+        {null}
+      </LoadingState>
     </Card>
   );
 }
@@ -93,11 +119,11 @@ function startAgain(session: InstanceInfo): void {
 }
 
 export function SessionTerminal({ session, live, terminal, now }: { session: InstanceInfo; live: boolean; terminal: ReactNode; now: number }): JSX.Element {
-  const kept = useKept(live ? null : session.id, live ? null : `${session.id}@${session.last_activity_ms ?? session.started_at_ms}`);
+  const { kept, error, round, retry } = useKept(live ? null : session.id, live ? null : `${session.id}@${session.last_activity_ms ?? session.started_at_ms}`);
   // Seen running here: its terminal stays while what it kept is asked.
   const [seenLive, setSeenLive] = useState(live);
   if (live && !seenLive) setSeenLive(true);
-  if (!live && kept === null && !seenLive) return <Asking />;
+  if (!live && kept === null && !seenLive) return <Asking error={error} round={round} onRetry={retry} />;
   if (live || kept !== false) {
     return (
       <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid={live ? undefined : kept ? "ended-terminal-kept" : "ended-terminal-asked-live"}>

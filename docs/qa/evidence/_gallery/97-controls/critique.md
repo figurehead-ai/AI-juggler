@@ -1,4 +1,4 @@
-<!-- captures: 9ed5824d40b9 -->
+<!-- captures: 7c0537ce7790 -->
 # 97-controls: the shared controls and the rail's View
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -58,3 +58,11 @@ The View menu (view-open, view-changed-only-open) and History's Project picker (
 
 - **control-states-1280x800** (both themes, new): the row order's three choices disabled as while a change saves. "Your order" stays on with a muted fill, and the other two are off with dashed rings, so "on but can't change now" reads apart from "off". The chosen theme, reached with Tab, wears the app's focus ring (AJ-E2801 R2).
 - Weak: a disabled line's label keeps full ink, so the ring alone says it can't change; its reason is the hint, read by screen readers.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Settings General is unchanged; the list gained AI and Models.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

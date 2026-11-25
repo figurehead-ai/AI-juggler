@@ -1,4 +1,4 @@
-<!-- captures: bae61129df7b -->
+<!-- captures: 42a1e5c3fc82 -->
 # 50-cross-switch: continuing a session on another account or Mac: the target list, the switch wizard's steps, progress, conflicts and switching back
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -23,3 +23,38 @@ Its last button names where it continues, as on this Mac: "Switch to CLI on Mac 
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 The dialog is titled "Continue in another app · Now in Claude Code · Work Max" (the earlier notes quote "Continue on another account"); badges "Same conversation, another app · Not proven yet"; the confirm step's stepper tinted with checks and one filled "Switch to CLI on Mac mini". The keyboard sweep reached every step and the final button by Tab (Esc closed it). 1280 only.
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5, batch B2)
+
+Re-captured after F53 and this batch's fix, every state, both themes at 1280×800, opened as dark|light pairs. The wizard steps (wizard-t2-ready, -blocked, path-mapping, carried, confirm, progress) are the switch frame of 28-switch with "Switch to CLI on Mac mini"; they changed only behind (F53).
+
+**Fixed (c3fd24f78), targets:** under "Continue on another machine" each paired Mac's App was a bordered row with an amber-ringed "Same conversation, another app · Beta" chip on every row (PAT-SURF-1, PAT-COLOR: amber that means nothing), unlike this Mac's target cards above it. They are now the same `TargetButton` cards: the App's logo, "Claude Code CLI · Desktop Max", its launch settings, how much carries as a quiet line, the readiness ("✓ Ready — same version, same project path", "◐ Needs you to pick the project there"), a tone step, no line. Gate baseline `50-cross-switch/targets-1280x800-dark` re-rendered.
+
+| # | Line | Targets + wizard | Switch back + diverged | Note |
+|---|---|---|---|---|
+| 1 | Job | 5 | 4 | Continue on another Mac; come back; settle a divergence. |
+| 2 | Prominence | 4 | 4 | Machines after this Mac's Apps, under their own heading. |
+| 3 | Default | 5 | 4 | Diverged waits on a choice ("Choose one" faded), its reason in the title. |
+| 4 | Mode | 5 | 4 | F71 (23d2a125f): both on the switch frame, its icon tile and the from → to strip (This Mac · Desktop Max → Laptop · Work Max). |
+| 5 | Mock-up | 4 | 4 | §8's frame: fixed header and footer, one primary last. |
+| 6 | Areas | 4 | 4 | The update on a tinted inset; Here and On Laptop as a fact panel; the choices as RadioCards; no outlined boxes. |
+| 7 | Colour | 4 | 4 | After the fix, no amber chips; the diverged title's ⚠ glyph. |
+| 8 | Type | 5 | 4 | The update in body type, the turn labels muted. |
+| 9 | Actions | 5 | 4 | "Switch back to Laptop"; the sheet's primary names the choice ("Keep both on Laptop"), its reason line while none is chosen. |
+| 10 | Serious | 5 | 4 | Diverged says nothing was merged or run. |
+| 11 | Doors | 4 | 4 | |
+| 12 | Words | 4 | 4 | The turns read "You" and "Reply"; "last active 30 min ago" (the date and time on hover); no "switch pack". |
+| 13 | States | 4 | 4 | Ready, blocked, mapping, progress, conflict, resolved. |
+| 14 | Consistency | 4 | 4 | SwitchHeader, FactPanel, RadioCards, DoneHead and the kit's Alert, as the switch. |
+| 15 | Accessibility | 4 | 4 | Keyboard sweep (a11y.spec) reaches every step; a step opens on its first control, never a heading (F75, 5192775f5): progress has Stop sending. |
+| 16 | Hand walk | 4 | 4 | Preview. |
+| 17 | System prompts | 5 | 5 | None. |
+| 18 | Usability | 4 | 4 | |
+
+Lowest: 3 (switch back and the diverged sheet: lines 4, 5, 6, 12, 14), logged as F71. Targets fixed to 4.
+
+**Fixed after the critique (F71, F75), re-captured (switch-back-preview, conflict-sheet, conflict-keep-both, resolved, progress; both themes, opened as pairs):** switch back is "Switch back to Laptop · The original on Work Max resumes there, never overwritten." with the strip, "What the original receives · One update: 4 new turns from here" as You/Reply turns on a tinted inset, Keep this session running too as a CheckRow, and Cancel · Switch back to Laptop. The sheet is "Both sides moved on · Nothing was merged and nothing ran. Choose what to keep.", a fact panel (Here: 4 new turns on Desktop Max; On Laptop: 2 new turns in the original, last active 30 min ago), What to keep as three RadioCards with icons, "Choose what to keep first." until one is chosen, Review later (focused) · Keep both on Laptop. resolved: "Back on Laptop" with the outcome, Done. Lowest now: 4 (both columns).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

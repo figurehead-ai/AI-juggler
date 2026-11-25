@@ -3,6 +3,8 @@
  * (AJ-E1518): moved out of FirstRun.tsx (its size budget).
  */
 import type { JSX } from "react";
+import { Disclosure } from "../components/controls";
+import { THIS_MACHINE_IN_TEXT } from "../lib/machine-words";
 import { ToolMark } from "../components/ToolMark";
 import { toolSpec } from "../lib/tools";
 import { trustOpen } from "../lib/ipc/trust";
@@ -11,11 +13,12 @@ export type Step = "found" | "fresh" | "folder" | "signin" | "access";
 
 /** First run's and Add account's steps; D-97 (2): no account step (the
  * optional Figurehead account is offered in Settings). */
-export function StepMarks({ step, skipAccess }: { step: Step; skipAccess: boolean }): JSX.Element {
-  // The fresh-account and folder steps are the first step's other doors.
-  const first = step === "fresh" ? "Name the app" : step === "folder" ? "Check the folder" : "Bring in your apps";
+export function StepMarks({ step, door = step, skipAccess }: { step: Step; door?: Step; skipAccess: boolean }): JSX.Element {
+  // The fresh-account and folder steps are the first step's other doors;
+  // the later steps keep the name of the door taken (F29).
+  const first = door === "fresh" ? "Name the app" : door === "folder" ? "Check the folder" : "Bring in your apps";
   const steps: Array<{ id: Step; label: string }> = [
-    { id: step === "fresh" || step === "folder" ? step : "found", label: first },
+    { id: door === "fresh" || door === "folder" ? door : "found", label: first },
     { id: "signin", label: "Sign in where needed" },
     ...(skipAccess ? [] : [{ id: "access" as Step, label: "Computer access" }]),
   ];
@@ -72,4 +75,35 @@ export function TermsLine({ tools }: { tools: string[] }): JSX.Element | null {
       ))}
     </ul>
   );
+}
+
+/** AJ-E1545 step 1's words, in the user's terms (the coordinator's redesign). */
+export const YOUR_APPS = {
+  heading: "Which AI apps do you use?",
+  lead: `We found these on your ${THIS_MACHINE_IN_TEXT.replace(/^this /, "")}. Tick the ones AI Juggler should show. Nothing is copied or changed: they keep working exactly as now.`,
+};
+
+/** The closed terms' one name everywhere (AJ-E1548 R11). */
+export const PROVIDERS_TERMS = "Providers’ terms";
+
+/** PAT-SER-7 (the maintainer, 2026-11-23): the providers' terms are never
+ * shown open. One closed disclosure at the foot, opened only by the user;
+ * a line per provider with its link inside. */
+export function ProvidersTerms({ tools }: { tools: string[] }): JSX.Element | null {
+  if (!tools.some((id) => toolSpec(id).terms)) return null;
+  return (
+    <Disclosure summary={<span className="font-medium">{PROVIDERS_TERMS}</span>} testId="first-run-terms">
+      <div className="mt-3">
+        <TermsLine tools={tools} />
+      </div>
+    </Disclosure>
+  );
+}
+
+/** A step's heading and lead: the setup wizard's own look (as Your apps
+ * and every other wizard step), or the standalone flow's larger one. */
+export function stepWords(wizard: boolean): { heading: string; lead: string } {
+  return wizard
+    ? { heading: "type-title", lead: "max-w-2xl text-body leading-relaxed text-ink-2" }
+    : { heading: "text-stat font-semibold leading-tight tracking-tight", lead: "max-w-2xl text-section leading-relaxed text-ink-2" };
 }

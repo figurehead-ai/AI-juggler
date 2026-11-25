@@ -7,9 +7,13 @@
  * profiles come from one shared read (data.ts), not one per page.
  */
 import { SwitchAccountButton } from "../../components/SwitchAccountButton";
+import { MoveRows, useMoves } from "../../components/switch/MovesDoor";
+import { Card } from "../../components/primitives";
+import { CardTitle } from "./CardTitle";
 import { useSwitchNotYet } from "../../lib/switch-not-yet";
 import type { JSX } from "react";
 import type { SwitchBackSuggestionData } from "../../lib/ipc/switchBack";
+import type { PickTarget } from "../../lib/ipc/switch-targets";
 import { accountDisplay, accountOfProfile, useSubscriptions } from "../../lib/subscriptions";
 import { sessionAccountWords } from "./account-words";
 import { LastMessages } from "./LastMessages";
@@ -32,7 +36,7 @@ export type OverviewProps = {
   onGoTo?: () => void;
   /** Opens the switch screen from this session (AI Juggler's or another
    * app's alike, AJ-E2108). */
-  onPick?: (recipeId: string, label: string) => void;
+  onPick?: PickTarget;
   onCarryIn?: () => void;
   /** rc21: why Continue in AI Juggler can't run (its tool won't open it
    * by its id), or null. */
@@ -40,6 +44,18 @@ export type OverviewProps = {
   switchBack?: SwitchBackSuggestionData | null;
   onSwitchBack?: () => void;
 };
+
+/** AJ-E2321: the conversation's moves; none: no card. */
+function SessionMoves({ conversation }: { conversation: string }): JSX.Element | null {
+  const [moves, reload] = useMoves(conversation);
+  if (!moves || moves.length === 0) return null;
+  return (
+    <Card className="flex flex-col gap-1 p-5" data-testid="session-moves">
+      <CardTitle>Moves</CardTitle>
+      <MoveRows moves={moves} onChanged={reload} />
+    </Card>
+  );
+}
 
 export function SessionOverview(props: OverviewProps): JSX.Element {
   const { model } = props;
@@ -67,6 +83,8 @@ export function SessionOverview(props: OverviewProps): JSX.Element {
         <>
           <WhereItRuns model={model} outside={props.outside ?? false} accountWords={named.where}
             accountId={account?.state === "signed_in" ? (account.account_id ?? null) : null} />
+          {/* AJ-E2321: its moves, with Undo and Finish by their id. */}
+          {!props.remoteMac && model.conversationId && <SessionMoves conversation={model.conversationId} />}
           <Runway display={display} title={named.runway} profile={profiles.find((p) => p.id === model.profileId) ?? null} />
           {!props.remoteMac && (
             <ContinueOn

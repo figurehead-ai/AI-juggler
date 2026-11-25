@@ -311,6 +311,33 @@ impl ListInputs {
     }
 }
 
+/// F94 (the AJ-E2317 class): the App `account_id`'s conversation `id` is
+/// in, decided as its row's ([`owner`]): a switch's source is that App,
+/// by its id, never its folder's CLI App found again from the account.
+///
+/// # Errors
+///
+/// [`AppError::Refused`](crate::error::AppError) when the conversation
+/// isn't there any more.
+pub(crate) fn app_of_conversation(
+    state: &Arc<AppState>,
+    account_id: &str,
+    id: &str,
+) -> AppResult<String> {
+    let conversation = super::find(state, account_id, id)?;
+    let live = state
+        .conversations
+        .live_entry(account_id, &conversation.tool, id);
+    let desktop = crate::features::places::desktop_apps(state);
+    Ok(owner(
+        state,
+        &mut HashMap::new(),
+        &desktop,
+        &conversation,
+        live.as_ref(),
+    ))
+}
+
 /// ADR-0032: a conversation's App, from its process while it's open,
 /// else where it was last seen (`hosts`: each tool's host apps, read once).
 fn owner(

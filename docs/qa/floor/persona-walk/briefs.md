@@ -17,6 +17,8 @@ The exact text each agent gets. The Builder fills the `{…}` slots; nothing els
 >
 > Any other command, file or search ends the run. Start with `main shot`.
 >
+> If the operating system shows a dialog of its own (a permission, a warning, a question), write down its exact words and what you saw just before it.
+>
 > After each step write one record: what you did; what you expected; what happened (the picture's path); success (yes / partly / no); ease 1–7; value 1–7; clarity 1–7; feeling (one word); the settle time. At the end: did you reach the goal, how sure you are, and the one thing you'd change.
 
 ## Critic (Opus, `model: "opus"`, a fresh agent)

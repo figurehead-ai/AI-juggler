@@ -3808,3 +3808,38 @@ Every session and agent brief carries this rule.
 - **One name** (supersedes D-62's label, not its meaning): every switch action is "Switch account…" (the row menus, Home's needs, the notices, the palette, the shortcut sheet), its dialog "Switch account", and the card behind the button "Apps that can take it over". The destination is still named as its App and Account ("Claude Code CLI · Personal").
 - **Recorded as** DESIGN-SYSTEM PAT-SW, checked by VALIDATION N21 and a walk step: from any session page, the switch is one visible click.
 - Sources: the coordinating session's messages, 2026-11-21, quoting the maintainer.
+
+### D-144 "Bot" is AI and conversation only; all search is Search (⌘K); with no AI, Bot shows only "Set up Bot" — SETTLED (2026-11-23)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-23, after finding Bot's composer line "Look-ups need no AI…" confusing: "how does the bot work then?"): "Bot" is reserved for AI and conversation, period. Plain search never lives in Bot's input; all search belongs to Search (⌘K). It replaces the coordinator's footer amendment of the same day.
+- **With an AI ready**, Bot is conversational. Its record look-ups stay as the AI's own tools for grounding and cited links, never a user-facing mode; answers always come from the AI, and a question the records can't answer gets the AI's own "I don't know" with what it checked.
+- **With no AI**, Bot's icon stays (a headline feature), but its panel shows only "Set up Bot": the engine-setup guide (AJ-E3823: Apple's AI first, Qwen named, guided), no input box and no results. This is D-127's "disabled only if the user can clear it".
+- **Search (⌘K) takes over** what the no-AI Bot did: the record look-ups (sessions, tasks, pools, usage); the "Or go straight to" shortcuts (What needs me, What finished today, Runway by account, What's running) as suggested entries; "Watch a session…" as a command. One search, no duplicate.
+- **"Ask Bot"** anywhere (Watches and others) shows only when Bot's AI is ready; otherwise it is hidden (D-127).
+- **Words:** Bot is introduced everywhere (Welcome's lead card, Meet Bot, the tour) as "your AI assistant for everything AI Juggler sees"; no "look-ups" wording anywhere.
+- **Amends** D-131's Bot rows (the look-up view as Bot's default and no-model path) and ADR-0033's look-up Bot; ADR-0034's Chat section, E38's tasks and the design system follow. Built in 0.5.1 under AJ-E3823 (and AJ-E1545/E1546 for the words); the persona walk checks both states.
+- Sources: the coordinating session's messages, 2026-11-23, quoting the maintainer.
+
+### D-145 Runway's Out chip keeps "Out · resets <time>", and Low starts at 25 % left everywhere (amends AJ-E1550's PAT-COLOR amendment) — SETTLED (2026-11-23)
+
+- **Ruling** (the coordinating session, 2026-11-23, on the two departures AJ-E1550's builder left open): keep the chip's words "Out · resets <day time>" (not "Out · back …"): it is the wording every Out chip, notice and test already uses, and "resets" says why the room comes back. "Low" starts at 25 % left (`LOW_LEFT`), the same in every place: the bar's amber, the Low mark, the header's count and "stops suggesting it" all read one number.
+- **Not changed:** the hollow grey dot for not-running Apps stays out; the "Not running" group's words and position say it.
+- **Recorded in** DESIGN-SYSTEM §5 PAT-COLOR's runway table (already reads so) and AJ-E1550 requirement 5.
+- Sources: the coordinating session's brief to the 0.5.1 builder, 2026-11-23.
+
+### D-146 juggler-platform's second audited `unsafe`: one read-only `getattrlist(ATTR_CMNEXT_PRIVATESIZE)` call, so a move backup says exactly what deleting it frees (amends D-131's single carve-out) — SETTLED (2026-11-23)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-23, choosing "Exact size now (Recommended)" over shipping the "up to" ceiling and adding it in 0.5.2): AJ-E2325 R6 ships in 0.5.1. A backup says "frees <exact size>", not a ceiling.
+- **Why it needs `unsafe`:** on APFS a clone shares blocks with its original, so the allocated size overstates what deleting frees (an untouched clone frees 0). Only `getattrlist` with `ATTR_CMNEXT_PRIVATESIZE` reports a file's private (unshared) bytes; neither `libc` nor `nix` binds it safely.
+- **Decision:** juggler-platform may hold exactly TWO audited `unsafe` calls: D-131's `thread::background_io` (`setiopolicy_np`) and this one, in `room` beside `reclaimable`. The same rules as D-131's carve-out: `#[allow(unsafe_code, reason)]` at the one site, a SAFETY note there (the buffer's size and alignment, the attribute list, every error path, read-only: it reads metadata and writes nothing), and the single-`unsafe` source test raised to exactly 2, naming both calls, so a third fails.
+- **Tests:** an untouched clone frees 0; after an append it frees what was appended (rounded to blocks); a non-APFS volume or a failing call falls back to the "up to" ceiling and its wording, never an error and never a wrong exact number.
+- **Not changed:** the crate stays `deny(unsafe_code)`; every other seam is safe bindings. Windows and Linux use their own safe measures.
+- Sources: the coordinating session's message, 2026-11-23, quoting the maintainer's pick; AJ-E2325's builder's probe on this Mac (0 for an untouched clone, 8 KiB after an append).
+
+### D-147 A move's resume and Write after a move are proven on the maintainer's first real move; the lab closes R6(a) on what it can prove live, and never gets a keychain — SETTLED (2026-11-24)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-24, choosing "Ship; prove on first real move (Recommended)"): AJ-E2323 R6(a)'s resume and Write in the moved session (PL1 I7/I8) close on the live lab proof plus the unit and matrix tests. The live lab proof is the claim on the target on its real branch (I6), and 0 "was recycled", 0 worktree-write-guard and 0 reaped lines in the Claude app's log across the move and the real restart (I5).
+- **Why the lab can't do it:** a lab profile's Claude app runs with the lab HOME, which has no login keychain, so a Claude sign-in there can't store its key, and the move's restart raised macOS's "Keychain Not Found" (F39, a lab artefact). A Dev on a lab HOME sees only the lab's processes (ADR-0027), so the real `aij-test` can't be a target either.
+- **Follow-up:** the maintainer's first real Move or Repair ownership after 0.5.1 ships is the final check; the coordinating session reads its Claude-app log lines (recycled, write-guard, reaped) with the maintainer. R6(b), the source's cleanup sweep (I9), is covered by `claude_move_matrix`'s sweep case, with the same follow-up.
+- **Never:** a keychain is never created in a lab (`security create-keychain` can change the user's keychain search list); the lab sign-in request is withdrawn.
+- Sources: the coordinating session's message, 2026-11-24, quoting the maintainer's pick.

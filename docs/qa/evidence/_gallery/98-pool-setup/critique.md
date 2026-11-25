@@ -1,4 +1,4 @@
-<!-- captures: 2c4fde4a784d -->
+<!-- captures: ee3508999c28 -->
 # 98-pool-setup: the pool setup a newcomer understands (AJ-E3011)
 
 Design critique (D-57, AJ-E2814) against the reference screens: Settings' choice lines, the switch dialog's "What does this mean?", and the calm UI round 2 mocks (levels, section labels, surface tone). Every step of New pool, empty (the first pool: the intro full, nothing chosen, the defaults filled in) and filled (a name, two Apps, an App's next session leading, a Reviewer, a pair blocked, waking, the seal), dark and light, 1280×800. Fixture names only.
@@ -133,3 +133,38 @@ Checked side by side with `d126-rich-ui` who and review in both themes. The coor
   - Logos are generic in the gate's container, because installed apps' icons are read at run time (D-38).
   - Review adds "What each member can do here" (parity with the canvas).
   - The step count follows the fixture: Team tools is asked only where it isn't answered (8 or 9 steps).
+
+## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
+
+Opened at full size: setup-who-filled (dark) and setup-review-filled (light) from the 0.5.1 shoot, side by side with `d126-rich-ui/who-dark.png` and `review-*`, then the re-rendered steps after the fix. What 0.5.1 changed: calm surfaces (the form's cards and the preview separated by tone, the preview card on the raised tone), the steps' foot (below), and AJ-E1548 #27 on the pool page once made (99-pool-selection).
+
+- **Every step, before the fix:** the steps' foot "New to pools? Read the 2-minute guide ↗" wrapped at 1280 into two centred lines with ↗ floating at the column's right edge (the mock, at 1440, fits it on one line). **Fixed** (7e858e860, d7f2693cd, `GuideLink`): it wraps left-aligned and ↗ stays beside its last word (the container's font fits it on one line; this Mac's capture wraps to "Read the 2-minute / guide ↗"); the step heads' own "learn" links are unchanged on one line. Re-rendered (gate and gallery) and checked by eye.
+- **Who's in:** "Every new session in storefront" with its switch, the app cards with icon, kind and how many are open, the sessions open now; the preview's nodes draw what is chosen. Against the mock: the chosen cards' accent ring is ~2 px with a dark gap, heavier than the mock's 1 px line, and the chosen card is also a lighter fill. Under AJ-E1550 a chosen card is its fill; here the mock (D-126) keeps a line, so it stays, but at the mock's weight would be calmer. Weak, not a fix this round (the card is shared with 97-pool-canvas's New pool).
+- **Review:** "Ready to make “Storefront team”", "Everything it needs is set" with a filled accent check square (accent as a status mark; a green ✓ or no mark would say done), seven rows each with Change, the preview with "First thing to tell your lead" and Copy, and Make pool as the one filled button with its ✓. WIZ-4 holds. The step list's foot ("New to pools?") sits under the foot's hairline at 800 px tall: the list scrolls there.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | A newcomer makes a working team in one flow; review looks like the result. |
+| 2 | Prominence | 4 | The form first, the preview beside; the guide at the list's foot. |
+| 3 | Default | 5 | "How they work · prefilled"; Make pool now with "The rest is prefilled." |
+| 4 | Mode | 4 | Rich, as D-126. |
+| 5 | Mock-up | 4 | Matches the who and review mocks; deviations: the chosen-card ring weight, and 8 steps where the mock has 9 (Team tools shows only while the tools are off: setup-tools-empty). |
+| 6 | Areas | 4 | Steps, form, preview; no box in a box but the preview's diagram well. |
+| 7 | Colour | 4 | Accent for the step, selection, preview and the primary; Review's "set" mark in accent (above). |
+| 8 | Type | 4 | Eyebrow, 22 px title, body ink-2, section labels. |
+| 9 | Actions | 5 | Next names its step, Make pool now secondary with its note, Make pool last and filled. |
+| 10 | Serious | 4 | Kept apart explained on its row; nothing destructive here. |
+| 11 | Doors | 5 | Every review row has Change; the guide opens. |
+| 12 | Words | 4 | Plain; "Everyone in storefront checks the work. Everyone else builds." |
+| 13 | States | 4 | Empty and filled for every step captured. |
+| 14 | Consistency | 4 | The FlowLayout kit, shared with the setup wizard. |
+| 15 | Accessibility | 4 | aria-current on the step; not re-walked this round. |
+| 16 | Hand walk | 4 | Rounds 1–7 newcomer walks; not re-walked here. |
+| 17 | System prompts | 5 | None (the connector's consent is in-app). |
+| 18 | Usability | 4 | AJ-E1548 #27 holds on the made pool (99-pool-selection). |
+
+Lowest: 4 (no line under 4 after the fix).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Member/Reviewer's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

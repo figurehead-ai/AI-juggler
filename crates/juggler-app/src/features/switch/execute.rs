@@ -82,6 +82,7 @@ pub fn switch_execute_to(
         &[],
         Some(destination),
         None,
+        None,
     )
 }
 
@@ -107,6 +108,7 @@ pub fn switch_execute_cut(
         &[],
         "manual",
         &[],
+        None,
         None,
         Some(cut),
     )
@@ -136,6 +138,7 @@ pub fn switch_execute_with(
         redaction_unredact,
         "manual",
         approved,
+        None,
         None,
         None,
     )
@@ -194,6 +197,7 @@ pub(crate) fn switch_execute_core(
     trigger: &'static str,
     approved: &[String],
     destination: Option<&str>,
+    target_place: Option<&str>,
     cut: Option<juggler_adapter::handover::Cut>,
 ) -> AppResult<SwitchExecutedInfo> {
     use juggler_handover::pipeline::{self, Mechanism};
@@ -201,9 +205,10 @@ pub(crate) fn switch_execute_core(
 
     let freeze = freeze_of(freeze_choice);
     let sides = switch_sides(state, session_id, target_profile_id)?;
-    // 0.3.5: Desktop continues in the target account's app profile; CLI
-    // (the default) in a terminal.
-    let desktop = desktop_place(state, &sides, destination)?;
+    // 0.3.5: Desktop continues in the App the user picked (its place id,
+    // AJ-E2317), never one found again from the account; CLI (the
+    // default) in a terminal.
+    let desktop = desktop_place(state, &sides, destination, target_place)?;
     // AJ-E1304 (D-11): across Providers the conversation REPLAYS into a
     // primed session — one vendor's file is never installed into the
     // other's home.
@@ -258,6 +263,9 @@ pub(crate) fn switch_execute_core(
         .get(&account_b.harness)
         .ok_or_else(|| AppError::UnknownHarness(account_b.harness.to_string()))?;
     let new_session = SessionId::new(format!("sess-{}", unique_suffix()));
+    // 0.5.1 F69: the history's length as the link went to the app.
+    let linked = std::cell::Cell::new(None);
+    let mover_of = adapter.clone();
     let mut launch_hook = make_launch_hook(
         state,
         adapter,
@@ -265,7 +273,7 @@ pub(crate) fn switch_execute_core(
         &profile_b,
         &source,
         &new_session,
-        desktop.as_deref(),
+        (desktop.as_deref(), &linked),
     );
     // ADR-0028: the sessions started from it move with it.
     let family = crate::features::handover::family::find(state, &account_a, &reference);
@@ -290,6 +298,19 @@ pub(crate) fn switch_execute_core(
             return Err(error);
         }
     };
+    // 0.5.1 F69: "Opened" only when the app shows it open, by Move's own
+    // check (AJ-E2322); else the done step says it was sent, with Open.
+    let opened_seen = desktop.as_deref().is_some_and(|place| {
+        copy_seen_open(
+            state,
+            place,
+            pid,
+            &account_b,
+            mover_of.as_ref(),
+            &record.install.reference,
+            linked.get(),
+        )
+    });
     // In Desktop the session is the app's: kept by its account and id, as
     // every session another app runs is.
     let conversation_key = desktop.as_ref().map(|_| landed_key(&account_b, &record));
@@ -376,7 +397,39 @@ pub(crate) fn switch_execute_core(
         automation_copy_place: automation.copy_waits,
         automation_original_waits: automation.original_waits,
         automation_kept: automation.kept,
+        open_place_id: desktop.clone().filter(|_| !opened_seen),
+        opened_seen,
     })
+}
+
+/// 0.5.1 F69: whether the app profile `place` (its process `pid`) shows
+/// the copy (`installed`, its history as `linked` long when the link
+/// went) open, by Move's own check; a tool with no such check never says
+/// it is.
+fn copy_seen_open(
+    state: &Arc<AppState>,
+    place: &str,
+    pid: u32,
+    account: &juggler_core::model::Account,
+    adapter: &dyn juggler_adapter::HarnessAdapter,
+    installed: &juggler_core::model::TranscriptRef,
+    linked: Option<u64>,
+) -> bool {
+    let (Some(mover), Some(conversation)) =
+        (adapter.in_place_move(), installed.native_id.as_deref())
+    else {
+        return false;
+    };
+    let history = linked.map(|len| (installed.path.clone(), len));
+    crate::features::handover::moving::seen_open_after_link(
+        state,
+        (place, pid),
+        mover,
+        (&account.state_dir, conversation),
+        history.as_ref(),
+        &crate::features::handover::moving::Real::quiet(),
+    )
+    .is_some()
 }
 
 /// ADR-0028: the conversation ids the switch changed (a fork on a
@@ -450,11 +503,13 @@ pub(crate) fn user_warnings(report: &juggler_handover::pipeline::PreflightReport
 
 /// 0.3.5: the preflight's two choices. A session the desktop app started
 /// (its tool says so) stays in the app by default; across tools only CLI.
+/// Desktop is the App picked (`target_place`, its place id, AJ-E2317).
 pub(crate) fn switch_destinations(
     state: &Arc<AppState>,
     account_a: &Account,
     account_b: &Account,
     reference: &juggler_core::model::TranscriptRef,
+    target_place: Option<&str>,
 ) -> crate::features::places::handoff::DestinationsInfo {
     use crate::features::places::handoff::{DestinationsInfo, destinations};
     if account_a.harness != account_b.harness {
@@ -479,6 +534,7 @@ pub(crate) fn switch_destinations(
         &account_b.label,
         ran_in_desktop,
         terminal_signed_in(state, account_b),
+        target_place,
     )
 }
 
@@ -503,12 +559,15 @@ fn landed_key(account: &Account, record: &juggler_handover::pipeline::SwitchReco
 }
 
 /// 0.3.5: the profile a switch continues in when the user picked Desktop
-/// (`None` for CLI); refused in words when there's none to pick, or the
-/// switch crosses tools (a replay starts a new session in a terminal).
+/// (`None` for CLI): AJ-E2317, the App picked in the switch list
+/// (`target_place`, its place id), never one found from the account;
+/// refused in words when there's none to pick, or the switch crosses
+/// tools (a replay starts a new session in a terminal).
 fn desktop_place(
     state: &Arc<AppState>,
     sides: &SwitchSides,
     destination: Option<&str>,
+    target_place: Option<&str>,
 ) -> AppResult<Option<String>> {
     if destination == Some("cli")
         && sides.account_a.harness == sides.account_b.harness
@@ -526,6 +585,7 @@ fn desktop_place(
             &sides.account_b.label,
             true,
             false,
+            target_place,
         );
         return Err(AppError::Refused(offered.cli_why_not.unwrap_or_else(
             || "It signs in through its desktop app: continue there".to_owned(),
@@ -546,6 +606,7 @@ fn desktop_place(
         &sides.account_b.label,
         true,
         true,
+        target_place,
     );
     match offered.desktop {
         Some(desktop) => Ok(Some(desktop.place_id)),

@@ -38,7 +38,7 @@
 >   the account. Cards may show an account's label, never an email, a plan
 >   or another detail.
 
-### AJ-E1701 The spike, ADR-0020 and the policy rulings | Status: IN-PROGRESS (Req.1 done — ADR-0020 + D-28–D-33; Req.2's headless lab PASS 2026-10-25, evidence docs/qa/evidence/AJ-E1701/manifest.md; the interactive §17 pass is the maintainer's) | Priority P0 | Effort S | Depends: —
+### AJ-E1701 The spike, ADR-0020 and the policy rulings | Status: TODO | Priority P0 | Effort S | Depends: —
 **Goal**: The bridge's approach is proven on real tools, and the policy is written before code relies on it.
 **User story**: As the maintainer, I rule on D-28 to D-33 (ruled 2026-10-24), and I see the bridge load in Claude Code and Codex without prompts.
 **Requirements**:
@@ -57,7 +57,6 @@
 **Research basis**: `pools-messaging-tasks.md` §2–3.
 **Handover note**: The live part runs in separate lab profiles on the maintainer's existing accounts (D-107): agents set them up and drive the spike; the maintainer only signs them in.
 *2026-10-25:* ADR-0020 is written with AJ-E1704 (Req.1's ADR; D-28 to D-33 were already in the log). Req.2 stays open: MAINTAINER-STEPS §17.
-*2026-11-23:* Req.2's headless substance is evidenced (the 2026-10-25 lab, all three points PASS; the `--verbose` bug it found is fixed) — see `docs/qa/evidence/AJ-E1701/manifest.md`. What remains is the maintainer's interactive §17 walkthrough (the TUI screens, `/mcp`, the turn-note hook): the same maintainer-waiting class as AJ-E804/E805.
 
 ### AJ-E1702 Pools, the default pool, roles and permissions | Status: DONE-EVIDENCED (IN-REVIEW until the release PR) | Priority P0 | Effort M | Depends: —
 **Goal**: Sessions belong to pools that the user creates and controls.

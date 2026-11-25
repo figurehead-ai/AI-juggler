@@ -439,6 +439,11 @@ const FONT: &[(char, [&str; 7])] = &[
     ),
     ('·', [".", ".", ".", "#", ".", ".", "."]),
     ('-', ["...", "...", "...", "###", "...", "...", "..."]),
+    // AJ-E1548 #24's floor tabs ("APPS 1–10"): without it the range read "APPS 1 10"
+    (
+        '–',
+        ["....", "....", "....", "####", "....", "....", "...."],
+    ),
     ('.', [".", ".", ".", ".", ".", ".", "#"]),
     // a date in a reset ("THU, NOV 5 8:00 AM")
     (',', ["..", "..", "..", "..", ".#", ".#", "#."]),
@@ -506,7 +511,20 @@ pub fn draw_text(img: &mut Img, x: i32, y: i32, text: &str, col: Rgba, scale: i3
 
 #[cfg(test)]
 mod tests {
-    use super::{Img, draw_text, noise2, text_width};
+    use super::{Img, draw_text, glyph, noise2, text_width};
+
+    /// 0.5.1: every character the Floor's own labels use draws (the floor
+    /// tab's range dash read as a gap in CI's golden frames).
+    #[test]
+    fn every_label_character_has_a_glyph() {
+        let blank = glyph('\u{1}');
+        for c in "APPS 1–10 · FLOOR 2 ! ? : / + % , . -"
+            .chars()
+            .filter(|c| *c != ' ')
+        {
+            assert_ne!(glyph(c), blank, "{c:?} has no glyph");
+        }
+    }
 
     #[test]
     fn shapes_fill_inside_and_blend_by_alpha() {

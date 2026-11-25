@@ -23,7 +23,7 @@ export function OwnSessionOverview({
 }: {
   session: InstanceInfo;
   visible: boolean;
-  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string) => void;
+  onHandover: (sessionId: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
   switchBackSuggestions?: SwitchBackSuggestionData[];
   onSwitchBack?: (sessionId: string) => void;
 }): JSX.Element {
@@ -46,7 +46,7 @@ export function OwnSessionOverview({
       model={model}
       visible={visible}
       onGoTo={desktop && !host.focusSession ? undefined : goTo}
-      onPick={(recipeId, label) => onHandover(session.id, recipeId, label)}
+      onPick={(recipeId, label, placeId) => onHandover(session.id, recipeId, label, placeId)}
       switchBack={switchBackSuggestions.find((suggestion) => suggestion.session_id === session.id) ?? null}
       onSwitchBack={onSwitchBack ? () => onSwitchBack(session.id) : undefined}
     />

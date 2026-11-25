@@ -89,6 +89,14 @@ pub fn metadata(provider: &str, dir: &Path) -> Option<std::fs::Metadata> {
     std::fs::metadata(dir.join(name)).ok()
 }
 
+/// AJ-E1553: a provider's sign-in file's size and time in a config folder
+/// (its metadata: never its contents), so a new sign-in written over an
+/// old one is seen.
+#[must_use]
+pub fn stamp(provider: &str, dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+    metadata(provider, dir).map(|meta| juggler_adapter::SignInStamp::of(&meta))
+}
+
 /// What Codex's `auth.json` says, by shape.
 pub(crate) enum CodexAuth {
     /// No file (the Keychain may hold the sign-in).

@@ -1,4 +1,4 @@
-<!-- captures: 68ad4b0377a0 -->
+<!-- captures: 4bdd2bec148e -->
 # 79-pages: account, project, session and settings pages at 1024 and 1280
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -31,3 +31,13 @@ Recaptured: project-sessions and project-overview, at 1024 and 1280, in both the
 Before, the state led the second line, and the App sat in a column of its own on wide windows.
 
 **project-overview.** The tab count now reads 27 to match the list. The Open sessions card lists its rows in the order Needs you, Working, Open, with section headings when more than one is present.
+
+## 0.5.1
+
+Re-captured against 0.5.1: the project, session, account and tool pages use tonal cards with soft shadows in light and a stepped tone in dark; the chosen tab and rail segment show the F53 fill. Content did not change.
+
+Nothing broken (checked both themes).
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The asks-you chip is the neutral chip with amber words and their mark (F76). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

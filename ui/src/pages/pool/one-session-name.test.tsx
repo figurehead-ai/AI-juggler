@@ -15,7 +15,10 @@ import type { PagedList } from "../../lib/paged";
 import type { ContextCard, PoolMemberRow } from "../../lib/ipc/pools";
 import { sessionNames } from "../../lib/session-titles";
 import { instance } from "../../test/fixtures";
-import { nodeTitles } from "./node-title";
+import { nodeTitles, pageNames } from "./node-title";
+import { shapeOfPool } from "./PoolSummary";
+import { whoSentence } from "../../lib/pool-sentences";
+import type { PoolInfo } from "../../types/generated/PoolInfo";
 import { heldOf } from "./pool-count";
 import { drawnMembers } from "./useCanvas";
 
@@ -70,5 +73,38 @@ describe("one name for a session, on every surface (SK48-3)", () => {
     expect(a.get("w2")!.title).toBe("web (2)");
     // Its start under its title tells it apart: no number of this pool's own.
     expect(a.get("w3")!.title).toBe("web");
+  });
+
+  it("AJ-E2314 L3: on a pool's page a twin has the diagram's name everywhere, Who's in in its order", () => {
+    const web = (id: string, ms: number) => instance({ id, label: undefined, title: undefined, git_branch: null, cwd: "/Users/you/lab/web", project_id: "web", status: "running", started_at_ms: ms });
+    const W1 = web("w1", AT + 8 * 60_000);
+    const W2 = web("w2", AT + 8 * 60_000 + 5_000);
+    const live = new Map([W1, W2].map((session) => [session.id, session]));
+    const names = sessionNames([W1, W2]);
+    // As the pool's page holds them: w2 read first.
+    const drawn = drawnMembers([row(W2), row(W1)], live, 0, names);
+    const titles = nodeTitles(drawn, AT + 60 * 60_000, names);
+    const called = pageNames(drawn, titles);
+    expect(called.get("w1")).toBe("web (1)");
+    expect(called.get("w2")).toBe("web (2)");
+    const members = drawn.map((member) => ({ ...member, name: called.get(member.id)! }));
+    const pool: Pick<PoolInfo, "access" | "sealed"> = { access: { level: "work_together", actions: [], hop_limit: 5, delivery_stopped: false }, sealed: false };
+    const shape = shapeOfPool(pool, null, members, () => "");
+    expect(whoSentence(shape)).toMatch(/^web \(1\), web \(2\)\./);
+    // The List view's row reads the same.
+    render(<PoolCardRows list={listOf([row(W1)])} sessions={[W1, W2]} names={called} now={AT + 60 * 60_000} />);
+    expect(screen.getByTestId("pool-card-name").textContent).toBe("web (1)");
+  });
+
+  it("AJ-E2314 L3: two alike titles started apart keep the start the node shows", () => {
+    const web = (id: string, ms: number) => instance({ id, label: undefined, title: undefined, git_branch: null, cwd: "/Users/you/lab/web", project_id: "web", status: "running", started_at_ms: ms });
+    const W1 = web("w1", AT);
+    const W3 = web("w3", AT + 45 * 60_000);
+    const names = sessionNames([W1, W3]);
+    const drawn = drawnMembers([row(W1), row(W3)], new Map([W1, W3].map((session) => [session.id, session])), 0, names);
+    const titles = nodeTitles(drawn, AT + 60 * 60_000, names);
+    const called = pageNames(drawn, titles);
+    expect(called.get("w1")).toBe(`web · ${titles.get("w1")!.when}`);
+    expect(called.get("w3")).not.toBe(called.get("w1"));
   });
 });

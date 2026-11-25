@@ -29,7 +29,7 @@ import { tidyLayout } from "./tidy-layout";
 import { nameOf } from "./actions";
 import { namedByFacts, sessionNames, tellApart } from "../../lib/session-titles";
 import { rememberCanvas, rememberedCanvas } from "./prefetch";
-import { nodeTitles, type NodeTitle } from "./node-title";
+import { nodeTitles, pageNames, type NodeTitle } from "./node-title";
 
 /** The most members drawn on one canvas (smooth at that many). */
 export const CANVAS_NODES = 60;
@@ -146,7 +146,8 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
   }, [poolId, drawn]);
   const members: MemberNode[] = useMemo(() => {
     const titles = nodeTitles(drawn, Date.now(), names);
-    return drawn.map((member) => ({ ...member, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
+    const called = pageNames(drawn, titles);
+    return drawn.map((member) => ({ ...member, name: called.get(member.id) ?? member.name, title: titles.get(member.id), ...(pendingRoles.has(member.id) ? { role: pendingRoles.get(member.id)!, pending: true } : {}) }));
   }, [drawn, pendingRoles, names]);
   const desktopKey = desktop.join("|");
   const ids = useMemo(() => [...members.map((member) => member.id), ...(desktopKey ? desktopKey.split("|") : [])], [members, desktopKey]);
@@ -164,6 +165,9 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
   }, []);
   const [pulses, setPulses] = useState<Map<string, number>>(new Map());
   const lastSeen = useRef<Map<string, number> | null>(null);
+  // AJ-E1552: why the last read failed (cleared by the next answer), so a
+  // canvas never read says so with Retry instead of a skeleton for ever.
+  const [failed, setFailed] = useState<unknown>(undefined);
   const read = useCallback(async () => {
     if (ids.length === 0) {
       // No member drawn: nothing to place or join, but the pool's stream
@@ -171,9 +175,11 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
       setCanvas((was) => (was && was.pool_id === poolId && was.edges.length === 0 ? was : { pool_id: poolId, positions: [], edges: [], asks: [], stream: [], since_ms: Date.now(), anchors: {} }));
       try {
         const next = await poolCanvas(poolId, []);
+        setFailed(undefined);
         setCanvas((was) => (was && was.pool_id === poolId && sameStream(was.stream, next.stream) ? was : { ...next, positions: [], edges: [], asks: [] }));
-      } catch {
+      } catch (cause) {
         // Keep what was there.
+        setFailed(cause);
       }
       return;
     }
@@ -188,9 +194,11 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
       }
       lastSeen.current = new Map(next.edges.map((edge) => [edgeKey(edge.from_session_id, edge.to_session_id), edge.last_at_ms]));
       if (moved.size > 0) setPulses((was) => new Map([...was, ...moved]));
+      setFailed(undefined);
       setCanvas(next);
-    } catch {
+    } catch (cause) {
       // Keep what was there: a canvas a moment old is still true enough.
+      setFailed(cause);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolId, idsKey]);
@@ -322,6 +330,7 @@ export function useCanvas(poolId: string, sessions: InstanceInfo[], desktop: rea
     place,
     tidy,
     reread: read,
+    failed,
   };
 }
 

@@ -44,6 +44,8 @@ pub enum AppEvent {
     QuitRequested,
     /// The app menu's Report a bug item.
     ReportBug,
+    /// The app menu's Help › Take the tour (AJ-E1546).
+    TakeTour,
     /// An embedded terminal's output.
     TerminalOutput,
     /// An embedded terminal exited.
@@ -94,11 +96,20 @@ pub enum AppEvent {
     /// What a Go to it or an Open did, after it said it was still on it
     /// (0.4.6, the rc3c walk; carries its `GoToOutcomeInfo` and ticket).
     GoToLate,
+    /// AJ-E1547: the system is about to ask the user something; the
+    /// window shows our sheet first (carries its `OsPromptInfo`) and
+    /// answers with `os_prompt_answer`.
+    OsPromptAsk,
+    /// AJ-E1547: what came of a call the user said go to (carries its
+    /// `OsPromptOutcomeInfo`).
+    OsPromptOutcome,
+    /// AJ-E1553: the sign-ins changed (carries every `SignInInfo`).
+    SignInsChanged,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 40] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -113,6 +124,7 @@ impl AppEvent {
         Self::UpdateStatus,
         Self::QuitRequested,
         Self::ReportBug,
+        Self::TakeTour,
         Self::TerminalOutput,
         Self::TerminalExit,
         Self::TerminalWindows,
@@ -135,6 +147,9 @@ impl AppEvent {
         Self::AiModelsChanged,
         Self::AiModelsProgress,
         Self::GoToLate,
+        Self::OsPromptAsk,
+        Self::OsPromptOutcome,
+        Self::SignInsChanged,
     ];
 
     /// The wire name the UI listens to.
@@ -155,6 +170,7 @@ impl AppEvent {
             Self::UpdateStatus => "update://status",
             Self::QuitRequested => "app://quit-requested",
             Self::ReportBug => "app://report-bug",
+            Self::TakeTour => "app://take-tour",
             Self::TerminalOutput => "terminal://output",
             Self::TerminalExit => "terminal://exit",
             Self::TerminalWindows => "terminal://windows",
@@ -177,6 +193,9 @@ impl AppEvent {
             Self::AiModelsChanged => "ai-models://changed",
             Self::AiModelsProgress => "ai-models://progress",
             Self::GoToLate => "go-to://late",
+            Self::OsPromptAsk => "os-prompt://ask",
+            Self::OsPromptOutcome => "os-prompt://outcome",
+            Self::SignInsChanged => "sign-ins://changed",
         }
     }
 }

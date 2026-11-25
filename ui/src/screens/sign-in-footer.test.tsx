@@ -29,20 +29,17 @@ function panel(terminal: { id: string; title: string; ended: boolean; account?: 
   );
 }
 
-describe("the Sign in terminal's footer", () => {
+describe("a sign-in's own page (AJ-E1553 R4)", () => {
   beforeEach(() => setToolsForTests([claude, kimi]));
   afterEach(cleanup);
 
-  it("names the signed-in App's own tool, not another vendor", () => {
-    panel({ id: "login-1", title: "Sign in · lab A", ended: true, account: "kimi-a" });
-    const footer = screen.getByTestId("sign-in-footer").textContent ?? "";
-    expect(footer).toContain("Complete Kimi Code's sign-in above");
-    expect(footer).not.toContain("Anthropic");
-    expect(footer).not.toContain("Claude");
-  });
-
-  it("is not shown for a terminal that signs no App in", () => {
-    panel({ id: "login-2", title: "Main", ended: true });
+  it("names the App's own tool and never asks to check again from Accounts", () => {
+    panel({ id: "login-1", title: "Sign in · lab A", ended: false, account: "kimi-a" });
+    const page = screen.getByTestId("sign-in-panel").textContent ?? "";
+    expect(page).toContain("Kimi Code's sign-in runs below");
+    expect(page).toContain("Terminal");
+    expect(page).not.toContain("Anthropic");
+    expect(page).not.toMatch(/check the app again|from Accounts|flips to ready/);
     expect(screen.queryByTestId("sign-in-footer")).toBeNull();
   });
 });

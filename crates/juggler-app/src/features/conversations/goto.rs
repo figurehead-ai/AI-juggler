@@ -166,6 +166,21 @@ fn link_path(path: &Path) -> String {
     juggler_adapter::desktop_app::link_escape(&path.to_string_lossy())
 }
 
+/// What a script waiting on its app's prompt says (it never ran).
+const SCRIPT_WAITING: &str = "not authorized yet: turn on window focus in Settings";
+
+/// The prompt a script can raise: the app it tells (AJ-E1547's registry).
+fn script_prompt(source: &str) -> juggler_platform::os_prompt::Prompt {
+    use crate::os_prompts::registry::{ITERM, SYSTEM_EVENTS, TERMINAL};
+    if source.contains("tell application \"iTerm") {
+        ITERM
+    } else if source.contains("tell application \"Terminal\"") {
+        TERMINAL
+    } else {
+        SYSTEM_EVENTS
+    }
+}
+
 /// The window count and how many are minimised, through System Events:
 /// only called when the user turned window focus on.
 fn windows(desktop: &dyn Desktop, pid: u32) -> Option<(usize, usize)> {
@@ -665,8 +680,9 @@ impl Desktop for MacDesktop {
         juggler_platform::apps::detached(pid, start)
     }
 
+    // F65: a link may start its app: none of AI Juggler's environment.
     fn open_link(&self, link: &str) -> bool {
-        juggler_adapter::process::helper("/usr/bin/open")
+        juggler_adapter::process::launcher("/usr/bin/open")
             .arg(link)
             .status()
             .is_ok_and(|status| status.success())
@@ -691,28 +707,36 @@ impl Desktop for MacDesktop {
         self.osascript_with(source, &[])
     }
 
+    /// AJ-E1547 (AJ-E1548): through the gate, as background work: it runs
+    /// only once its app's entry (System Events, or Terminal or iTerm for
+    /// a tab script) is primed or already allowed, so Go to it never
+    /// raises a prompt nobody was told about.
     fn osascript_with(&self, source: &str, args: &[&str]) -> Result<String, String> {
-        let out = juggler_adapter::process::helper("/usr/bin/osascript")
-            .arg("-e")
-            .arg(source)
-            .arg("--")
-            .args(args)
-            .output()
-            .map_err(|error| error.to_string())?;
-        if out.status.success() {
-            Ok(String::from_utf8_lossy(&out.stdout).trim().to_owned())
-        } else {
-            Err(String::from_utf8_lossy(&out.stderr).trim().to_owned())
-        }
+        juggler_platform::os_prompt::script(
+            script_prompt(source),
+            juggler_platform::os_prompt::Presence::Background,
+            source,
+            args,
+        )
+        .value()
+        .unwrap_or_else(|| Err(SCRIPT_WAITING.to_owned()))
     }
 
     fn send_link_to(&self, pid: u32, link: &str, may_ask: bool) -> LinkSent {
-        use juggler_platform::apps::{LinkRefused, send_link, send_link_quietly};
+        use juggler_platform::apps::{LinkRefused, send_link_quietly};
+        use juggler_platform::os_prompt::{self, Gated, user};
         if may_ask {
-            return if send_link(pid, link).is_ok() {
-                LinkSent::Sent
-            } else {
-                LinkSent::Failed
+            // AJ-E1548: the user's click, through the gate: our sheet first
+            // for an entry not primed; Not now sends nothing.
+            return match os_prompt::send_link(
+                crate::os_prompts::registry::APP_LINKS,
+                user(),
+                pid,
+                link,
+            ) {
+                Gated::Called { value: Ok(()), .. } => LinkSent::Sent,
+                Gated::NotNow | Gated::Waiting => LinkSent::NeedsConsent,
+                Gated::Called { value: Err(_), .. } => LinkSent::Failed,
             };
         }
         match send_link_quietly(pid, link) {

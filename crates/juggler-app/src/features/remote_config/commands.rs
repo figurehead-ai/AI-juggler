@@ -2,8 +2,11 @@
 //! section's values in effect (`useRemote(section)`), and "About this
 //! configuration". Both answer from memory.
 
+use std::sync::Arc;
+
 use super::dto::{RemoteAboutInfo, RemoteSection, RemoteValuesInfo};
 use crate::error::AppResult;
+use crate::state::AppState;
 
 /// `section`'s values in effect, typed per section.
 ///
@@ -27,21 +30,21 @@ pub async fn remote_config_about() -> AppResult<RemoteAboutInfo> {
     Ok(super::current().about())
 }
 
-/// AJ-E2023 Req.3: Settings ▸ Privacy "Check for configuration
-/// updates" — writes `remote_config_check` (D-129; on by default).
-/// The next pass consults the setting through the run's `checking`
-/// flag; a freshly-enabled check resumes on the next daily pass.
+/// Settings › Privacy "Check for configuration updates" (AJ-E1548 #15,
+/// AJ-E2023 Req 3): on by default (D-129); off, nothing is fetched.
 ///
 /// # Errors
 ///
-/// Returns the typed storage error.
+/// Storage errors.
 #[tauri::command]
 pub async fn remote_config_set_check(
-    state: tauri::State<'_, std::sync::Arc<crate::state::AppState>>,
-    enabled: bool,
+    state: tauri::State<'_, Arc<AppState>>,
+    on: bool,
 ) -> AppResult<()> {
-    crate::commands::lock_storage_arc(&state)?
-        .app_settings()
-        .set(super::service::CHECK_KEY, if enabled { "1" } else { "off" })?;
-    Ok(())
+    crate::ipc::blocking(
+        state.inner(),
+        "configuration updates setting",
+        move |state| super::service::set_checking(state, on),
+    )
+    .await
 }

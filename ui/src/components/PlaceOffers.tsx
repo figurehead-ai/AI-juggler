@@ -13,13 +13,34 @@ import { appKindOfKey, appKindWords } from "../lib/app-kind";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { onPlacesChanged, placesOfferAnswer, placesOffers } from "../lib/ipc/places";
+import { addedNote } from "../lib/app-folder";
+import { chooseAppFolder } from "../lib/choose-app-folder";
+import { showToast } from "./Toast";
 import type { PlaceOfferInfo } from "../types/generated/PlaceOfferInfo";
+import type { PlaceAddedInfo } from "../types/generated/PlaceAddedInfo";
+
+/** AJ-E2327: Add's confirmation, wherever Add is (the rail, Settings,
+ * first run, an App page's Find them): the App and the tool folder that
+ * came with it, where it is; or why none did, with Choose its folder…. */
+function sayAdded(offer: PlaceOfferInfo, added: PlaceAddedInfo): void {
+  const note = addedNote(offer.label, added.folder);
+  showToast({
+    id: `place-added-${offer.id}`,
+    tone: note.unlinked ? "neutral" : "success",
+    message: note.message,
+    detail: note.detail ?? undefined,
+    action: note.unlinked ? { label: "Choose its folder…", run: () => void chooseAppFolder(offer.id, offer.label) } : undefined,
+    actionBelow: note.unlinked,
+    waits: note.unlinked,
+  });
+}
 
 /** The offers (`null` until read), again whenever a place changes;
- * `only` keeps the ones of one app (its icon's id). */
+ * `only` keeps the ones of one app (its icon's id). `answer` says what
+ * Add did (`sayAdded`) and resolves with it (`null` when it failed). */
 export function usePlaceOffers(only: string | null = null): {
   offers: PlaceOfferInfo[] | null;
-  answer: (offer: PlaceOfferInfo, add: boolean) => void;
+  answer: (offer: PlaceOfferInfo, add: boolean) => Promise<PlaceAddedInfo | null>;
   note: string | null;
   /** Reads them now (after Find them: its answer, not an older one). */
   reload: () => Promise<void>;
@@ -33,9 +54,16 @@ export function usePlaceOffers(only: string | null = null): {
   }, []);
   const answer = (offer: PlaceOfferInfo, add: boolean) => {
     setNote(null);
-    placesOfferAnswer(offer.id, add).then(
-      () => setOffers((now) => (now ?? []).filter((one) => one.id !== offer.id)),
-      (cause) => setNote(errorText(cause)),
+    return placesOfferAnswer(offer.id, add).then(
+      (added) => {
+        setOffers((now) => (now ?? []).filter((one) => one.id !== offer.id));
+        if (add) sayAdded(offer, added);
+        return added;
+      },
+      (cause) => {
+        setNote(errorText(cause));
+        return null;
+      },
     );
   };
   const reload = () => placesOffers().then(setOffers, () => setOffers([]));
@@ -48,15 +76,22 @@ function offerOf(id: string): string | null {
   return kind === "app" && app ? app : null;
 }
 
+/** 0.5.1 F99 (the F95 class): an offer's button named with its App ("Add
+ * Claude app · personal", "Not now, Claude app · personal"), its visible
+ * words first, so a screen reader tells the rows' buttons apart. */
+function offerActionName(action: "Add" | "Not now", label: string): string {
+  return action === "Add" ? `Add ${label}` : `Not now, ${label}`;
+}
+
 /** One offer's row: its name, Add and Not now. */
 export function OfferRow({ offer, onAnswer }: { offer: PlaceOfferInfo; onAnswer: (add: boolean) => void }): JSX.Element {
   return (
     <li className="flex flex-wrap items-center gap-3 px-4 py-2.5" data-testid="desktop-offer">
       <span className="min-w-0 flex-1 truncate text-sm text-ink">{offer.label}</span>
-      <Button size="sm" variant="secondary" onClick={() => onAnswer(true)} data-testid="desktop-offer-add">
+      <Button size="sm" variant="secondary" onClick={() => onAnswer(true)} aria-label={offerActionName("Add", offer.label)} data-testid="desktop-offer-add">
         Add
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => onAnswer(false)} data-testid="desktop-offer-not-now">
+      <Button size="sm" variant="ghost" onClick={() => onAnswer(false)} aria-label={offerActionName("Not now", offer.label)} data-testid="desktop-offer-not-now">
         Not now
       </Button>
     </li>
@@ -90,7 +125,8 @@ export function RailOfferRow({ offer, onAdd }: { offer: PlaceOfferInfo; onAdd: (
         title={`Add ${offer.label} to your apps`}
         data-rail-nav
         data-testid="rail-offer-add"
-        className="flex h-6 shrink-0 items-center rounded-md border border-hairline px-2 text-label font-medium text-ink outline-none hover:border-accent/40 focus-visible:ring-1 focus-visible:ring-accent/60"
+        // AJ-E1554 (PAT-SURF): a fill and its hover by tone, never a line.
+        className="flex h-6 shrink-0 items-center rounded-md bg-control px-2 text-label font-medium text-ink outline-none transition-colors hover:bg-control-hi focus-visible:ring-1 focus-visible:ring-accent/60"
       >
         Add
       </button>

@@ -10,6 +10,7 @@
  */
 import type { JSX } from "react";
 import { IconJuggler } from "./icons";
+import { TipButton } from "./NameTip";
 import type { AppInfo } from "../types/generated/AppInfo";
 import { useKeys } from "../lib/use-keys";
 
@@ -20,10 +21,13 @@ export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info
     // 0.4.1 (the Floor session's walk): folded, the 60 px column sits under
     // the window's traffic lights (the overlay title bar's top 28 px), and
     // the Dev mark landed on them; the logo and mark start below that band.
-    <div className={"flex shrink-0 items-center overflow-hidden " + (minimal ? "min-h-14 flex-col justify-end gap-0.5 px-1 pb-1 pt-7" : "h-14 gap-2.5 px-4")} data-testid="rail-header">
-      <button
-        type="button"
-        title={minimal ? `Show the list (${keys.words})` : `Icons only (${keys.words})`}
+    // 0.5.1 F22: unfolded, the logo sat under the traffic lights (the
+    // green one over it); it starts past them (`pl-titlebar`, the design
+    // system's title-bar inset), in the same row as the page's top bar.
+    <div className={"flex shrink-0 items-center overflow-hidden " + (minimal ? "min-h-14 flex-col justify-end gap-0.5 px-1 pb-1 pt-7" : "h-14 gap-2.5 pl-titlebar pr-4")} data-testid="rail-header">
+      {/* 0.5.1 F61: its name drawn on hover and keyboard focus, never a title. */}
+      <TipButton
+        tip={minimal ? `Show the list (${keys.words})` : `Icons only (${keys.words})`}
         aria-label={minimal ? "Show the list" : "Show icons only"}
         aria-keyshortcuts={keys.aria}
         onClick={onToggle}
@@ -33,11 +37,11 @@ export function RailHeader({ minimal, info, onToggle }: { minimal: boolean; info
         <span className="block">
           <IconJuggler width={22} height={22} />
         </span>
-      </button>
-      {!minimal && <span className="whitespace-nowrap text-section font-semibold tracking-tight">AI Juggler</span>}
+      </TipButton>
+      {!minimal && <span className="min-w-0 truncate whitespace-nowrap text-section font-semibold tracking-tight" title="AI Juggler">AI Juggler</span>}
       {edition && (
         <span
-          className={"shrink-0 rounded-full border border-accent/40 bg-accent-soft font-semibold text-ink " + (minimal ? "px-1 text-label leading-4" : "px-1.5 py-0.5 text-label")}
+          className={"shrink-0 rounded-full border border-transparent bg-accent-soft font-semibold text-ink " + (minimal ? "px-1 text-label leading-4" : "px-1.5 py-0.5 text-label")}
           data-testid="edition-badge"
           title={`${info!.name}: its own data, separate from AI Juggler`}
         >

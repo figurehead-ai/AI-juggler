@@ -112,7 +112,7 @@
 **Research basis**: D-35.
 **Handover note**: —
 
-### AJ-E2207 A session's usage | Status: DONE-EVIDENCED (mounted on the session page's Usage tab with the 0.1.5 charts; evidence docs/qa/evidence/AJ-E2207/manifest.md, audited 2026-11-23) | Priority P1 | Effort S | Depends: AJ-E2202, AJ-E2203
+### AJ-E2207 A session's usage | Status: IN-PROGRESS (built; waits for the session page's Usage tab to mount it) | Priority P1 | Effort S | Depends: AJ-E2202, AJ-E2203
 **Goal**: A session's tokens turn by turn, by kind and model, and its share of its windows.
 **User story**: As a user, I see what one session cost and how much of my limits it took.
 **Requirements**:

@@ -10,6 +10,8 @@ import { appName } from "../../lib/app-name";
 
 import { AskCard } from "../../components/AskCard";
 import { Button } from "../../components/primitives";
+import { LoadingState } from "../../components/LoadingState";
+import { useReadState, type LoadState } from "../../lib/loading";
 import { ShellOnly, useShellOnly } from "../../components/ShellOnly";
 import { useActionHost } from "../../components/ItemMenu";
 import { formatTokens } from "../../components/indicator";
@@ -45,20 +47,35 @@ function asCard(ask: NodeAskInfo, sessionId: string): AskInfo {
   };
 }
 
-function useMemberTasks(sessionId: string): TaskInfo[] | null {
+/** AJ-E1552: the member's tasks as a read: a skeleton only while they're
+ * read, an error with Retry when it fails or runs past its deadline. */
+function useMemberTasks(sessionId: string): { tasks: TaskInfo[] | null; state: LoadState; slow: boolean; retry: () => void } {
   const [tasks, setTasks] = useState<TaskInfo[] | null>(null);
+  const [failed, setFailed] = useState<unknown>(undefined);
+  const [round, setRound] = useState(0);
   useEffect(() => {
     let alive = true;
     setTasks(null);
-    const read = () => void tasksOfSession(sessionId, { cursor: null, limit: TASKS_SHOWN }).then((page) => alive && setTasks(page.items), () => alive && setTasks([]));
+    const read = () =>
+      void tasksOfSession(sessionId, { cursor: null, limit: TASKS_SHOWN }).then(
+        (page) => alive && (setFailed(undefined), setTasks(page.items)),
+        (cause: unknown) => alive && setFailed(cause),
+      );
     read();
     const off = onTasksChanged(read);
     return () => {
       alive = false;
       off();
     };
-  }, [sessionId]);
-  return tasks;
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, round]);
+  const { state, slow } = useReadState(tasks, "its tasks", { error: failed, round });
+  const retry = () => {
+    setFailed(undefined);
+    setRound((was) => was + 1);
+  };
+  return { tasks, state, slow, retry };
 }
 
 export function InspectNode({
@@ -149,19 +166,26 @@ export function InspectNode({
       </Section>
 
       <Section title="Tasks" testId="inspect-node-tasks">
-        {tasks === null ? (
-          <span className="h-10 rounded-lg bg-skeleton motion-safe:animate-pulse" role="status" aria-label="Reading its tasks" />
-        ) : tasks.length === 0 ? (
-          <p className="text-label text-muted">It hasn't held or worked a task here.</p>
-        ) : (
+        <LoadingState
+          state={tasks.state}
+          slow={tasks.slow}
+          what="its tasks"
+          skeleton={<output className="h-10 rounded-lg bg-skeleton motion-safe:animate-pulse" aria-label="Reading its tasks" data-testid="inspect-node-tasks-skeleton" />}
+          empty={
+            <p className="text-label text-muted" data-testid="inspect-node-tasks-empty">
+              It hasn't held or worked a task here.
+            </p>
+          }
+          onRetry={tasks.retry}
+        >
           <ul className="-mx-2 flex flex-col">
-            {tasks.map((task) => (
+            {(tasks.tasks ?? []).map((task) => (
               <li key={task.id}>
                 <TaskRow task={task} selected={false} now={now} onOpen={() => onOpenTask(task)} />
               </li>
             ))}
           </ul>
-        )}
+        </LoadingState>
       </Section>
 
       <Section title="Talks to" testId="inspect-node-edges">

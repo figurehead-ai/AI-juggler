@@ -164,6 +164,18 @@ pub enum MoveStep {
         /// The new place (must not exist).
         to: PathBuf,
     },
+    /// AJ-E2328: rewrites another of the app's own files, whole (a
+    /// profile's worktree file: who owns each worktree, what its cleanup
+    /// has seen), every field the adapter doesn't know kept as it was. The
+    /// engine backs it up first like every touched path, so Undo restores
+    /// it byte for byte; it is applied only while the file is exactly its
+    /// backup.
+    WriteAppFile {
+        /// The file.
+        path: PathBuf,
+        /// Its whole new content.
+        value: serde_json::Value,
+    },
 }
 
 impl MoveStep {
@@ -171,9 +183,10 @@ impl MoveStep {
     #[must_use]
     pub fn paths(&self) -> Vec<&Path> {
         match self {
-            Self::MakeDir { path } | Self::Hold { path, .. } | Self::WriteRecord { path, .. } => {
-                vec![path]
-            }
+            Self::MakeDir { path }
+            | Self::Hold { path, .. }
+            | Self::WriteRecord { path, .. }
+            | Self::WriteAppFile { path, .. } => vec![path],
             Self::Rename { from, to, .. } | Self::Clone { from, to } => vec![from, to],
         }
     }
@@ -272,6 +285,33 @@ pub struct MovePlan {
     /// The gate watch lists them with the tool's version.
     #[serde(default)]
     pub shape: Vec<String>,
+    /// AJ-E2328: what the app keeps for the family outside its records and
+    /// histories that moves with it (a worktree's ownership, side-session
+    /// notes), for the preview's words.
+    #[serde(default)]
+    pub carried: Vec<Carried>,
+}
+
+/// AJ-E2328: one thing outside the records and histories that a move
+/// carries with the family.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Carried {
+    /// A worktree the family works in: the target app owns it after the
+    /// move (its files never move or change).
+    Worktree {
+        /// The worktree's folder name.
+        name: String,
+        /// The branch it is on (read from the worktree itself).
+        branch: Option<String>,
+    },
+    /// A conversation's side-session notes folder.
+    Notes {
+        /// The conversation's title, else its id.
+        of: String,
+        /// How many files it holds.
+        files: usize,
+    },
 }
 
 impl MovePlan {
@@ -305,6 +345,7 @@ impl MovePlan {
                 MoveStep::Hold { .. } => "hold",
                 MoveStep::WriteRecord { .. } => "write",
                 MoveStep::Clone { .. } => "clone",
+                MoveStep::WriteAppFile { .. } => "edit",
             };
             let paths: Vec<String> = step
                 .paths()
@@ -342,6 +383,101 @@ pub enum Appended {
     Unknown,
 }
 
+/// AJ-E2318 (the review's B2): one running process as the move's
+/// [`InPlaceMove::writers`] hook reads it, as the OS lists it. Nothing
+/// else of the process (never its environment) is handed to an adapter.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProcView<'a> {
+    /// Its pid.
+    pub pid: u32,
+    /// Its parent's pid, when known.
+    pub ppid: Option<u32>,
+    /// Its executable, when the OS reports it.
+    pub exe: Option<&'a Path>,
+    /// Its arguments, the first being the program.
+    pub args: &'a [String],
+    /// When it started, epoch seconds.
+    pub start_secs: Option<i64>,
+}
+
+/// What tells that a process writes a conversation the move touches.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WriterEvidence {
+    /// The tool's own per-session file names it (Claude Code's
+    /// `<tool_dir>/sessions/<pid>.json`), its recorded start matching the
+    /// live process's.
+    SessionFile,
+    /// It was started to resume the conversation (`--resume=<id>`).
+    ResumeArg,
+    /// It holds the tool's own writer lock of the conversation (Codex's
+    /// `thread-writer-locks/<id>.lock`).
+    HeldLock,
+    /// It holds a file the move touches open for writing (a backup for
+    /// writers no hook names).
+    OpenFile,
+}
+
+/// A process that can write a conversation the move touches now, with
+/// the evidence that says so.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Writer {
+    /// Its pid.
+    pub pid: u32,
+    /// When it started, epoch seconds, as the OS lists it.
+    pub start_secs: Option<i64>,
+    /// The conversation it writes, when the evidence names one.
+    pub conversation: Option<String>,
+    /// How it is known.
+    pub evidence: WriterEvidence,
+}
+
+/// AJ-E2328: a conversation whose app-side ownership of an outside
+/// resource (its worktree) sits in another app profile than the one that
+/// holds the conversation, or names another branch than the worktree is
+/// on: the damage a move before 0.5.1 could leave. Found by
+/// [`InPlaceMove::splits`], put right by [`InPlaceMove::repair`].
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Split {
+    /// A stable key for it (the worktree's folder name and both profiles).
+    pub key: String,
+    /// The worktree's folder name.
+    pub worktree: String,
+    /// The app profile that owns it now (holds its lease).
+    pub owner: PathBuf,
+    /// The app profile that holds the conversation.
+    pub holder: PathBuf,
+    /// The conversation's id in the tool.
+    pub conversation: String,
+    /// The app's title for it, when it has one.
+    pub title: Option<String>,
+    /// The branch the worktree is on (read from the worktree), when known.
+    pub branch: Option<String>,
+    /// The branch the app has for it differs from that.
+    pub branch_differs: bool,
+    /// Other app profiles that clean up unused folders where the worktree
+    /// is (said in the repair's words, left as they are).
+    pub also_swept_by: Vec<PathBuf>,
+    /// The worktree the conversation's record names now, when it is
+    /// another one (one conversation, two worktrees: the app made a fresh
+    /// one). The repair keeps both.
+    #[serde(default)]
+    pub other_worktree: Option<String>,
+}
+
+/// AJ-E2328: a worktree one app profile owns that another profile's
+/// cleanup of unused folders has seen (and so may remove once it looks
+/// unused there). Told, never changed.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Tidied {
+    /// The worktree's folder name.
+    pub worktree: String,
+    /// The app profile that owns it.
+    pub owner: PathBuf,
+    /// The other profiles whose cleanup has seen it.
+    pub by: Vec<PathBuf>,
+}
+
 /// A tool's in-place move ([`crate::ToolHandover::in_place_move`]).
 pub trait InPlaceMove: Send + Sync {
     /// Plans a move of `request.conversation` and its whole family from
@@ -365,6 +501,67 @@ pub trait InPlaceMove: Send + Sync {
     /// The link that opens `conversation` in the target's app, sent to
     /// that app's own process.
     fn resume_link(&self, conversation: &str) -> Option<String>;
+
+    /// AJ-E2318 (the review's B2): the processes in `table` that can write
+    /// any of `conversations` under the tool folder `tool_dir` now, each
+    /// with its evidence. The move waits only on these and the apps' main
+    /// processes; it asks for both accounts' folders, whatever the place.
+    /// Reads only. Default: none known.
+    fn writers(
+        &self,
+        tool_dir: &Path,
+        conversations: &[String],
+        table: &[ProcView<'_>],
+    ) -> Vec<Writer> {
+        let _ = (tool_dir, conversations, table);
+        Vec::new()
+    }
+
+    /// AJ-E2328: the conversations among the app profiles `hosts` whose
+    /// ownership is split ([`Split`]). Reads only. Default: none.
+    ///
+    /// # Errors
+    ///
+    /// A profile's files are in a format the adapter doesn't know (in
+    /// words): nothing can be told then.
+    fn splits(&self, hosts: &[PathBuf]) -> Result<Vec<Split>, String> {
+        let _ = hosts;
+        Ok(Vec::new())
+    }
+
+    /// AJ-E2328: the worktrees among the app profiles `hosts` that one
+    /// owns and another's cleanup has seen ([`Tidied`]). Reads only.
+    /// Default: none.
+    ///
+    /// # Errors
+    ///
+    /// As [`InPlaceMove::splits`].
+    fn also_tidied(&self, hosts: &[PathBuf]) -> Result<Vec<Tidied>, String> {
+        let _ = hosts;
+        Ok(Vec::new())
+    }
+
+    /// AJ-E2328 req 9: whether moves (and the repair) were checked on the
+    /// app's installed `version`; `None`: this tool's moves have no such
+    /// gate.
+    fn moves_checked(&self, version: Option<&str>) -> Option<bool> {
+        let _ = version;
+        None
+    }
+
+    /// AJ-E2328: the plan that puts `split` right (its ownership moved to
+    /// the profile holding the conversation, the branch the worktree is
+    /// on recorded), made again from the disk now, with `version` the
+    /// app's installed version. Never a step inside the worktree. A
+    /// split that no longer holds, or that can't be put right exactly,
+    /// is a plan with refusals. Reads only.
+    fn repair(&self, split: &Split, version: Option<&str>) -> MovePlan {
+        let _ = (split, version);
+        MovePlan {
+            refusals: vec![Refusal::setup("this tool has nothing to repair")],
+            ..MovePlan::default()
+        }
+    }
 }
 
 /// Whether `path` is inside one of `roots` (by its components, never by

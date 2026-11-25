@@ -3,9 +3,10 @@
 //! still run beside it; their names and folders would show on the lab's
 //! screens (and in its walk captures). Once the lab mode is on
 //! ([`set`], by `dev_bridge::lab` only), the process table the app
-//! discovers apps and sessions from keeps the lab's own: a process whose
-//! program or an argument names a path in the lab, or one this app
-//! started (its descendants). Never a process's environment.
+//! discovers apps and sessions from keeps the lab's own ([`keep_in`]: its
+//! program, or its app instance, inside the lab, or one this app started,
+//! and what runs below those; never an argument's value, AJ-E2315). Never
+//! a process's environment.
 //!
 //! The same holds for any run whose home ([`juggler_platform::user::home`])
 //! isn't the user record's: a release candidate or replica started on
@@ -14,10 +15,13 @@
 //! at all — on the user's own home, which is every run from Finder or at
 //! login.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::features::conversations::procs::Table;
+use crate::features::conversations::places::{HostRegistry, outer_bundle};
+use crate::features::conversations::procs::{Proc, Table};
+use crate::features::ownership;
 
 static LAB: OnceLock<PathBuf> = OnceLock::new();
 
@@ -79,38 +83,86 @@ pub fn keep(table: &mut Table) {
     keep_in(table, lab, std::process::id());
 }
 
-/// [`keep`] for `lab` and the app's own pid `me` (pure, testable).
+/// [`keep`] for `lab` and the app's own pid `me` (pure but for the
+/// instance lock its apps' processes may be asked about).
+///
+/// AJ-E2315 (the review's E12): a process is the lab's by evidence the
+/// system gives, never by an argument's value: it is this app or runs
+/// below it (what the lab's AI Juggler started), its program is inside the
+/// lab, it is a process of a known app whose instance (its instance flag,
+/// from the registry, read strictly, else the lock it holds) is inside the
+/// lab, or a wrapper of a known app's bundle whose program (the one after
+/// `--`) is; and whatever runs below one of those. A real session given
+/// `--add-dir=<lab>` (an agent driving the lab) stays out, and the lab's
+/// folder is compared part by part (`/tmp/aij-lab1` never holds
+/// `/tmp/aij-lab10/…`).
 pub fn keep_in(table: &mut Table, lab: &Path, me: u32) {
-    let spellings = spellings(lab);
-    let names_lab = |text: &str| {
-        spellings
-            .iter()
-            .any(|lab| text.starts_with(lab.as_str()) || text.contains(&format!("={lab}")))
-    };
-    let descends = |pid: u32| {
-        let mut at = Some(pid);
-        for _ in 0..64 {
-            match at {
-                Some(found) if found == me => return true,
-                Some(found) => at = table.get(&found).and_then(|process| process.ppid),
-                None => return false,
+    use juggler_platform::real_path::{canonical, lexical};
+    let mut labs: Vec<PathBuf> = Vec::new();
+    for spelling in spellings(lab) {
+        for path in [
+            lexical(Path::new(&spelling)),
+            canonical(Path::new(&spelling)),
+        ] {
+            if !labs.contains(&path) {
+                labs.push(path);
             }
         }
-        false
+    }
+    let in_lab = |path: &Path| labs.iter().any(|lab| path.starts_with(lab));
+    let hosts = registry();
+    let marked = |process: &Proc| {
+        let exe = process.exe.as_deref().map(lexical);
+        if exe.as_deref().is_some_and(in_lab) {
+            return true;
+        }
+        let Some(app) = exe
+            .as_deref()
+            .and_then(outer_bundle)
+            .and_then(|(dir, _)| hosts.by_bundle_dir(&dir))
+        else {
+            return false;
+        };
+        let given = ownership::instance::instance_with(
+            process,
+            app,
+            None,
+            &ownership::instance::system_holder,
+        )
+        .ok()
+        .and_then(|instance| instance.given);
+        given.is_some_and(|dir| in_lab(&canonical(&dir)))
+            || ownership::program_run(&process.args).is_some_and(|run| in_lab(&canonical(run)))
     };
-    let ours: Vec<u32> = table
-        .iter()
-        .filter(|(pid, process)| {
-            descends(**pid)
-                || process
-                    .exe
-                    .as_deref()
-                    .is_some_and(|exe| names_lab(&exe.to_string_lossy()))
-                || process.args.iter().any(|arg| names_lab(arg))
+    let roots: HashSet<u32> = table
+        .values()
+        .filter(|process| process.pid == me || marked(process))
+        .map(|process| process.pid)
+        .collect();
+    let ours: HashSet<u32> = table
+        .keys()
+        .copied()
+        .filter(|pid| {
+            let mut at = Some(*pid);
+            for _ in 0..64 {
+                match at {
+                    Some(found) if roots.contains(&found) => return true,
+                    Some(found) if found > 1 => {
+                        at = table.get(&found).and_then(|process| process.ppid);
+                    }
+                    _ => return false,
+                }
+            }
+            false
         })
-        .map(|(pid, _)| *pid)
         .collect();
     table.retain(|pid, _| ours.contains(pid));
+}
+
+/// The apps the registry knows (their instance flags and locks), read once.
+fn registry() -> &'static HostRegistry {
+    static HOSTS: OnceLock<HostRegistry> = OnceLock::new();
+    HOSTS.get_or_init(|| HostRegistry::new(Vec::new()))
 }
 
 /// The lab's path as processes may spell it (`/private/tmp/…` and `/tmp/…`).
@@ -166,7 +218,6 @@ pub(crate) fn store_scope_script(data_dir: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::features::conversations::procs::Proc;
 
     #[test]
     fn the_adopted_folders_conversations_outside_the_lab_stay_out_of_its_index() {
@@ -187,6 +238,8 @@ mod tests {
         assert!(!hides_in(lab, real, &own, Some(Path::new("/elsewhere"))));
     }
 
+    const CLAUDE: &str = "/Applications/Claude.app/Contents/MacOS/Claude";
+
     /// The shared fixture with no start time known.
     fn proc(pid: u32, ppid: u32, exe: &str, args: &[&str]) -> (u32, Proc) {
         let (pid, mut process) =
@@ -205,15 +258,18 @@ mod tests {
             proc(
                 200,
                 1,
-                "/Applications/Claude.app/Contents/MacOS/Claude",
-                &["--user-data-dir=/tmp/aij-lab-x/profiles/work"],
+                CLAUDE,
+                &[CLAUDE, "--user-data-dir=/tmp/aij-lab-x/profiles/work"],
             ),
             // This Mac's own: the real profile and an app with no folder.
             proc(
                 300,
                 1,
-                "/Applications/Claude.app/Contents/MacOS/Claude",
-                &["--user-data-dir=/Users/someone/Library/Profiles/real"],
+                CLAUDE,
+                &[
+                    CLAUDE,
+                    "--user-data-dir=/Users/someone/Library/Profiles/real",
+                ],
             ),
             proc(
                 301,
@@ -234,6 +290,87 @@ mod tests {
         let mut kept: Vec<u32> = table.keys().copied().collect();
         kept.sort_unstable();
         assert_eq!(kept, [100, 101, 200]);
+    }
+
+    /// AJ-E2315 (the review's E12): an argument's value never makes a
+    /// process the lab's. A real profile's Code tab given `--add-dir=` into
+    /// the lab (an agent driving it) stays out, and so does anything under
+    /// a lab whose name only starts alike (`aij-lab1` and `aij-lab10`). The
+    /// old string match kept both.
+    #[test]
+    fn an_add_dir_into_the_lab_never_makes_a_real_session_the_labs() {
+        let real = "/Users/you/Library/Application Support/ClaudeProfiles/work";
+        let code = format!("{real}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
+        let add_dir = "--add-dir=/tmp/aij-lab1/repos/web";
+        let d = "/Applications/Claude.app/Contents/Helpers/disclaimer";
+        let mut table: Table = [
+            proc(100, 1, "/build/debug/juggler-app", &[]),
+            proc(
+                300,
+                1,
+                CLAUDE,
+                &[CLAUDE, &format!("--user-data-dir={real}")],
+            ),
+            proc(303, 300, d, &[d, "--pgroup", "--", &code, add_dir]),
+            proc(304, 303, &code, &[&code, add_dir]),
+            proc(
+                305,
+                304,
+                "/opt/homebrew/bin/node",
+                &["node", "/tmp/aij-lab1/x.js"],
+            ),
+            // Another lab, whose name starts like this one's.
+            proc(400, 1, "/tmp/aij-lab10/bin/tool", &["tool"]),
+            proc(
+                401,
+                1,
+                CLAUDE,
+                &[CLAUDE, "--user-data-dir=/tmp/aij-lab10/profiles/lab"],
+            ),
+        ]
+        .into_iter()
+        .collect();
+        keep_in(&mut table, Path::new("/tmp/aij-lab1"), 100);
+        let kept: Vec<u32> = table.keys().copied().collect();
+        assert_eq!(kept, [100]);
+    }
+
+    /// What the lab's profile runs is the lab's, by its instance and what
+    /// runs below it: its helpers launchd took over (their instance flag),
+    /// its wrapper (the program it runs, after `--`) and a server its Code
+    /// tab started.
+    #[test]
+    fn what_a_lab_profile_runs_is_the_labs() {
+        let lab = "/tmp/aij-lab-y/profiles/lab";
+        let code = format!("{lab}/claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
+        let d = "/Applications/Claude.app/Contents/Helpers/disclaimer";
+        let helper = "/Applications/Claude.app/Contents/Frameworks/Claude Helper.app/Contents/MacOS/Claude Helper";
+        let mut table: Table = [
+            proc(100, 1, "/build/debug/juggler-app", &[]),
+            proc(200, 1, CLAUDE, &[CLAUDE, &format!("--user-data-dir={lab}")]),
+            proc(
+                201,
+                1,
+                helper,
+                &[helper, &format!("--user-data-dir={lab}/")],
+            ),
+            proc(203, 1, d, &[d, "--pgroup", "--", &code]),
+            proc(204, 203, "/usr/bin/env", &["env", "claude"]),
+            proc(205, 204, "/opt/homebrew/bin/node", &["node", "server.js"]),
+            // A flag the app might read otherwise is no instance.
+            proc(
+                206,
+                1,
+                helper,
+                &[helper, "--", &format!("--user-data-dir={lab}")],
+            ),
+        ]
+        .into_iter()
+        .collect();
+        keep_in(&mut table, Path::new("/private/tmp/aij-lab-y"), 100);
+        let mut kept: Vec<u32> = table.keys().copied().collect();
+        kept.sort_unstable();
+        assert_eq!(kept, [100, 200, 201, 203, 204, 205]);
     }
 
     /// rc32: two labs keep apart what the window remembers; the user's

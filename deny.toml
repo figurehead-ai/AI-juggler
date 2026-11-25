@@ -67,7 +67,6 @@ bypass = [
     { crate = "tauri-plugin-fs", allow-globs = ["api-iife.js"] },
     { crate = "tauri-plugin-global-shortcut", allow-globs = ["api-iife.js"] },
     { crate = "tauri-plugin-notification", allow-globs = ["api-iife.js", "src/init-iife.js"] },
-    { crate = "tauri-plugin-opener", allow-globs = ["api-iife.js", "src/init-iife.js"] },
     { crate = "tauri-plugin-updater", allow-globs = ["api-iife.js"] },
     { crate = "tauri-utils", allow-globs = ["src/pattern/isolation.js"] },
     { crate = "js-sys", allow-globs = ["src/futures/task/worker.js"] },

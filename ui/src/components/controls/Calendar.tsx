@@ -146,7 +146,7 @@ export function Calendar({
       open
       aria-labelledby={titleId}
       style={style}
-      className="fixed z-50 m-0 flex w-64 flex-col gap-2 rounded-xl border border-hairline bg-surface p-2.5 text-ink shadow-card"
+      className="fixed z-50 m-0 flex w-64 flex-col gap-2 rounded-xl border border-hairline bg-overlay p-2.5 text-ink shadow-popover"
       data-testid={testId}
     >
       <div className="flex items-center justify-between gap-2">

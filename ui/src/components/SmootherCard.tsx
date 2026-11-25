@@ -1,19 +1,17 @@
 /**
- * AJ-E1527 — "Make it smoother": the optional permissions, early and never
- * required; and (AJ-E1509) opening AI Juggler at login. On the welcome, every one still missing, in the shared rows
- * (`OsAccessRows`); on Home afterwards, a small reminder for the first one
- * still missing. The welcome's "Not now" hides both for good, the
- * reminder's hides it for that permission; AI Juggler then asks only when
- * something needs it, in context. Never a modal.
+ * AJ-E1527 — the optional permissions, never required: Home's small
+ * reminder for the first one still missing, in the shared rows
+ * (`OsAccessRows`). Its "Not now" hides it for that permission; AI
+ * Juggler then asks only when something needs it, in context. Never a
+ * modal. AJ-E1545: the welcome's "Make it smoother" card became the
+ * setup wizard's permissions step (and opening at login its Keep it
+ * running step); an earlier "Not now" on that card ("all") still puts
+ * the reminder away.
  */
 import { useEffect, useState, type JSX } from "react";
-import { SectionTitle } from "./SectionTitle";
 import { OsAccessRows } from "./OsAccessRows";
-import { errorText } from "../lib/bridge";
 import { osAccessList } from "../lib/ipc/settings";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
-import { appLoginItemGet, appLoginItemSet, type LoginItemInfo } from "../lib/ipc/app";
-import { Button } from "./primitives";
 
 const DISMISSED_KEY = "aij.smoother.dismissed";
 /** Permissions Home's reminder has been shown for, in an earlier run. */
@@ -64,67 +62,13 @@ function dismiss(id: string): string[] {
   return next;
 }
 
-/** AJ-E1509: "Open AI Juggler at login" on the welcome, in the
- * permission rows' look, while it's available and off. */
-function LoginItemRow({ state, setState }: { state: LoginItemInfo["state"]; setState: (next: LoginItemInfo["state"]) => void }): JSX.Element | null {
-  const [error, setError] = useState<string | null>(null);
-  if (state !== "off") return null;
-  return (
-    <div className="flex flex-wrap items-center gap-4 rounded-xl border border-hairline bg-surface-2 px-4 py-3" data-testid="smoother-login-item">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-sm font-semibold text-ink">Open AI Juggler at login</span>
-        <span className="text-meta leading-relaxed text-muted">
-          So it's watching your sessions as soon as you log in. <span className="text-muted">You can turn it off in Settings › Sessions.</span>
-        </span>
-        {error && (
-          <span className="text-xs text-danger" role="alert">
-            {error}
-          </span>
-        )}
-      </div>
-      <Button
-        size="sm"
-        variant="secondary"
-        onClick={() => {
-          setError(null);
-          void appLoginItemSet(true).then(
-            (info) => setState(info.state),
-            (cause) => setError(errorText(cause)),
-          );
-        }}
-      >
-        Turn on <span className="sr-only">opening at login</span>
-      </Button>
-    </div>
-  );
-}
-
-export function SmootherCard({ variant }: { variant: "welcome" | "reminder" }): JSX.Element | null {
+export function SmootherCard(): JSX.Element | null {
   const [entries, setEntries] = useState<OsAccessInfo[]>([]);
   const [dismissed, setDismissed] = useState<string[]>(readDismissed);
-  const [loginItem, setLoginItem] = useState<LoginItemInfo["state"]>("unavailable");
   useEffect(() => {
     void osAccessList().then(setEntries, () => setEntries([]));
-    if (variant === "welcome") void appLoginItemGet().then((info) => setLoginItem(info.state), () => null);
-  }, [variant]);
+  }, []);
   const missing = entries.filter((entry) => entry.status !== "allowed");
-  if (variant === "welcome") {
-    if ((missing.length === 0 && loginItem !== "off") || dismissed.includes("all")) return null;
-    return (
-      <section aria-labelledby="smoother-title" className="flex flex-col gap-3" data-testid="smoother">
-        <div className="flex items-baseline justify-between gap-3">
-          <SectionTitle id="smoother-title">Make it smoother</SectionTitle>
-          <button type="button" className="text-meta text-muted hover:text-ink hover:underline" onClick={() => setDismissed(dismiss("all"))} data-testid="smoother-not-now">
-            Not now
-          </button>
-        </div>
-        <p className="text-meta leading-relaxed text-ink-2">Optional: AI Juggler works without them. Allow opens the system's own prompt.</p>
-        {missing.length > 0 && <OsAccessRows entries={entries} setEntries={setEntries} size="compact" testIdPrefix="smoother" />}
-        <LoginItemRow state={loginItem} setState={setLoginItem} />
-      </section>
-    );
-  }
-  // The welcome's "Not now" puts Home's reminder away too.
   const first = dismissed.includes("all") ? undefined : missing.find((entry) => !dismissed.includes(entry.id) && !shownBefore(entry.id));
   return first ? <Reminder key={first.id} first={first} setEntries={setEntries} setDismissed={setDismissed} /> : null;
 }

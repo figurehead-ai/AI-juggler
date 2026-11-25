@@ -2,8 +2,6 @@
 
 use std::sync::Arc;
 
-use tauri_plugin_opener::OpenerExt;
-
 use crate::error::{AppError, AppResult};
 use crate::features::expert::dto::ExpertSetupInfo;
 use crate::features::expert::{expert_reveal_target, expert_setup_info_impl};
@@ -45,19 +43,19 @@ pub async fn expert_setup_info(
 /// cannot be opened.
 #[tauri::command]
 pub async fn expert_reveal(
-    app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
     provider: String,
     account_id: Option<String>,
 ) -> AppResult<()> {
     crate::ipc::blocking(state.inner(), "expert reveal", move |state| {
         let target = expert_reveal_target(state, &provider, account_id.as_deref())?;
-        app.opener()
-            .reveal_item_in_dir(&target)
-            .map_err(|error| AppError::Io {
+        // F67: through the launcher (none of our environment).
+        juggler_adapter::apps::open(juggler_adapter::apps::Opening::Reveal(&target)).map_err(
+            |error| AppError::Io {
                 context: "reveal in Finder",
                 message: error.to_string(),
-            })
+            },
+        )
     })
     .await
 }

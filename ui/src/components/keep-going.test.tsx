@@ -10,7 +10,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionsSettingsCard } from "./SessionsSettings";
 import { AwakeLine, OwnLine } from "./this-mac-parts";
-import { SmootherCard } from "./SmootherCard";
 import { RecipeOptions } from "./RecipeOptions";
 import type { SessionPrefsInfo } from "../lib/ipc/session-prefs";
 import { mockMachineHealth } from "../preview/machine";
@@ -136,17 +135,6 @@ describe("opening AI Juggler at login", () => {
     const login = (await screen.findByLabelText("Open AI Juggler at login")) as HTMLInputElement;
     expect(login.disabled).toBe(true);
     expect(document.getElementById(login.getAttribute("aria-describedby")!)!.textContent).toBe("Only the installed AI Juggler can open at login.");
-  });
-
-  it("is offered on the welcome while it's off, and goes once on", async () => {
-    render(<SmootherCard variant="welcome" />);
-    const row = await screen.findByTestId("smoother-login-item");
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Turn on opening at login" }));
-    });
-    await waitFor(() => expect(screen.queryByTestId("smoother-login-item")).toBeNull());
-    expect(row.isConnected).toBe(false);
-    expect(seams().__AIJ_LOGIN_ITEM__).toBe("on");
   });
 
   it("This Mac says AI Juggler itself, its watchdog and opening at login", () => {

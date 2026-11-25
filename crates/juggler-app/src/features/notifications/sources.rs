@@ -761,6 +761,21 @@ fn switch_backs(
     out
 }
 
+/// A notice's data for the Account `account_id` named `label` (its Open
+/// goes there).
+fn account_data(account_id: &str, label: &str) -> String {
+    centre::data_of(
+        &NoticeTarget {
+            account_id: Some(account_id.to_owned()),
+            ..NoticeTarget::default()
+        },
+        &NoticeFacts {
+            account: Some(label.to_owned()),
+            ..NoticeFacts::default()
+        },
+    )
+}
+
 /// A plan renewing soon (the digest's line), as a notice: `account_id`
 /// is the folder it was read for (its Open goes there), `label` what it
 /// is called (D-62: the renewal is the Account's, so its name; a folder
@@ -771,16 +786,7 @@ pub fn renewal_notice(account_id: &str, label: &str, text: &str) -> NewNotice {
         key: format!("renewal:{account_id}:{text}"),
         kind: "renewal".to_owned(),
         title: format!("{label}: {text}"),
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                account: Some(label.to_owned()),
-                ..NoticeFacts::default()
-            },
-        ),
+        data: account_data(account_id, label),
         action: Some("open".to_owned()),
         ..NewNotice::default()
     }
@@ -919,16 +925,7 @@ pub fn import_notice(
             if things == 1 { "thing" } else { "things" }
         ),
         detail: lines.join("\n"),
-        data: centre::data_of(
-            &NoticeTarget {
-                account_id: Some(account_id.to_owned()),
-                ..NoticeTarget::default()
-            },
-            &NoticeFacts {
-                account: Some(label.to_owned()),
-                ..NoticeFacts::default()
-            },
-        ),
+        data: account_data(account_id, label),
         action: Some("open".to_owned()),
         ..NewNotice::default()
     })
@@ -1090,14 +1087,7 @@ pub fn finished(state: &Arc<AppState>, session_id: &str) {
         action: Some("open".to_owned()),
         ..NewNotice::default()
     };
-    let recorded = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| centre::record(&storage, &notice, now).ok().flatten());
-    if recorded.is_some() {
-        super::changed(state);
-    }
+    record_notice(state, &notice, now);
 }
 
 /// 0.3.3: an app or profile kept alive stopped and was started again
@@ -1171,7 +1161,67 @@ pub fn keep_alive_paused(state: &Arc<AppState>, place_id: &str, label: &str, why
     );
 }
 
-fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
+/// AJ-E2321: a move a crash left part way that AI Juggler couldn't settle
+/// by itself: its Apps stay closed until the person Finishes or Undoes it
+/// on the conversation's page (one notice per move).
+pub fn move_unfinished(state: &Arc<AppState>, move_id: &str, conversation: &str, finishable: bool) {
+    let now = crate::commands::now_millis();
+    let what = if finishable { "Finish or Undo" } else { "Undo" };
+    record_notice(
+        state,
+        &NewNotice {
+            key: format!("move-unfinished:{move_id}"),
+            // A crash's leftover: listed with crashes and restarts.
+            kind: "restarted".to_owned(),
+            title: "A move didn't finish".to_owned(),
+            detail: format!(
+                "AI Juggler stopped while moving this conversation. Its Apps stay closed until you {what} the move on its page."
+            ),
+            data: centre::data_of(
+                &NoticeTarget {
+                    conversation_id: Some(conversation.to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("open".to_owned()),
+            ..NewNotice::default()
+        },
+        now,
+    );
+}
+
+/// 0.5.1 F92: an App a move had quit (AI Juggler stopped part way
+/// through it) that startup recovery couldn't start again: what happened
+/// and why, with Start (one notice per App and start).
+pub fn move_app_not_started(state: &Arc<AppState>, place_id: &str, label: &str, why: &str) {
+    let now = crate::commands::now_millis();
+    record_notice(
+        state,
+        &NewNotice {
+            key: format!("move-app-not-started:{place_id}:{now}"),
+            kind: "app-not-started".to_owned(),
+            title: format!("{label} is still closed"),
+            detail: format!(
+                "AI Juggler stopped during a move that had closed it, and couldn't start it again: {}.",
+                why.trim_end_matches('.')
+            ),
+            data: centre::data_of(
+                &NoticeTarget {
+                    place_id: Some(place_id.to_owned()),
+                    page: Some("desktop_apps".to_owned()),
+                    ..NoticeTarget::default()
+                },
+                &NoticeFacts::default(),
+            ),
+            action: Some("start-app".to_owned()),
+            ..NewNotice::default()
+        },
+        now,
+    );
+}
+
+pub(crate) fn record_notice(state: &Arc<AppState>, notice: &NewNotice, now: i64) {
     let recorded = state
         .storage
         .lock()
@@ -1362,14 +1412,7 @@ pub fn update(state: &Arc<AppState>, status: &crate::updates::UpdateStatusInfo) 
         return;
     };
     let now = crate::commands::now_millis();
-    let recorded = state
-        .storage
-        .lock()
-        .ok()
-        .and_then(|storage| centre::record(&storage, &notice, now).ok().flatten());
-    if recorded.is_some() {
-        super::changed(state);
-    }
+    record_notice(state, &notice, now);
 }
 
 #[cfg(test)]

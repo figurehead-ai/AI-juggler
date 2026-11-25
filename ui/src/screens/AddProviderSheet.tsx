@@ -110,7 +110,7 @@ export function AddProviderSheet({
       tabIndex={-1}
     >
       <DialogFrame
-        className="sheen rounded-card border border-hairline bg-surface shadow-card w-full max-w-xl"
+        className="rounded-card border border-hairline bg-surface shadow-dialog w-full max-w-xl"
         headerClassName="flex items-center gap-3 px-6 py-4"
         header={
           <>
@@ -164,14 +164,20 @@ export function AddProviderSheet({
                   </div>
                   {desktop && row.single_instance_note && (
                     <span className="text-label leading-relaxed text-muted">
-                      {row.single_instance_note} — one session at a time with this tool.
+                      {/* The backend's note names how AI Juggler tracks it
+                          ("Juggler tracks, cannot isolate"); here, what that
+                          means for the user. */}
+                      One account at a time: AI Juggler can&apos;t open a second copy of this app, so one session at a time with this tool.
                     </span>
                   )}
                 </div>
                 {ready ? (
+                  // One choice among several: a secondary each, as the
+                  // services below (0.5.1 B2 critique: three filled
+                  // primaries in one sheet, BTN-1).
                   <Button
                     size="sm"
-                    variant="primary"
+                    variant="secondary"
                     onClick={() => {
                       funnelStep("c-add-provider", "choose");
                       onChoose(row.provider);

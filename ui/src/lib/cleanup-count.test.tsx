@@ -6,7 +6,10 @@ const listened: string[] = [];
 vi.mock("./ipc/transport", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./ipc/transport")>()),
   liveBackend: true,
-  call: async () => ({ processes: 0, sessions: 0, attention: 0, to_clean: 2, left_behind: 2, zombies: 0, failed: 0 }),
+  call: async (command: string) =>
+    command === "switch_move_backups"
+      ? { count: 3, bytes: 1, exact: false, old_count: 0, old_bytes: 0, low_room: false }
+      : { processes: 0, sessions: 0, attention: 0, to_clean: 2, left_behind: 2, zombies: 0, failed: 0 },
   listen: async (event: string) => {
     listened.push(event);
     return () => undefined;
@@ -23,7 +26,8 @@ describe("the top bar's count of what is left to clean up (AJ-E805)", () => {
     vi.resetModules();
     const { useCleanupCount } = await import("./cleanup-count");
     const { result } = renderHook(() => useCleanupCount());
-    await waitFor(() => expect(result.current).toBe(2));
+    // AJ-E2325: 2 processes and 3 move backups kept for Undo.
+    await waitFor(() => expect(result.current).toBe(5));
     await waitFor(() => expect(listened).toEqual(["processes://counts"]));
   });
 });

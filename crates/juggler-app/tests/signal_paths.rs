@@ -96,12 +96,13 @@ const SINK_SITES: &[(&str, &str)] = &[
     ("features/tasks/issues::ask_gh", CHILD),
     // AJ-E3802 (ADR-0033 §4): an AI helper process an engine started
     // itself (`Child::kill`), ended when it fails to answer its hello in
-    // time (`launch`) and when the engine drops it (`drop`): Apple's
+    // time (`launch_checked`, which `launch` goes through since AJ-E3823)
+    // and when the engine drops it (`drop`): Apple's
     // helper, and since D-131 the local-model helper `juggler-local-ai`
     // (dropped on a crash, a broken answer, a load or a generation that
     // didn't stop within its grace, idle past its own exit, and release);
     // never anything else.
-    ("features/ai/engines/helper::launch", CHILD),
+    ("features/ai/engines/helper::launch_checked", CHILD),
     ("features/ai/engines/helper::drop", CHILD),
     // ADR-0032 (a test): the stand-in Claude.app the launch-and-quit bound
     // test started itself, stopped when it has seen it; never anything else.
@@ -123,6 +124,13 @@ const SINK_SITES: &[(&str, &str)] = &[
     ("features/runtime/launch::try_driven", SESSION),
     ("features/runtime/commands::handover_impl", SESSION),
     ("features/runtime::release_for_switch", SESSION),
+    // AJ-E1553: a sign-in's own process (a login terminal the supervisor
+    // started, `terminal::spawn_login_terminal_impl`), through the
+    // supervisor: ended once its tool reads signed in (`watch::run`), or
+    // when the user dismisses a running one (`dismiss`); never anything
+    // else.
+    ("features/sign_ins/watch::run", SESSION),
+    ("features/sign_ins::dismiss", SESSION),
 ];
 
 /// The Tauri commands that can send a signal, and the paths they take.
@@ -155,11 +163,20 @@ const SIGNALLING_COMMANDS: &[(&str, &[&str])] = &[
     // AJ-E2908: Resume on an ended session's page, through the same
     // resume path as parked_resume and epoch_resume.
     ("session_resume", &[SESSION]),
+    // A conversation's Continue resumes it through the same spawn path
+    // (`conversations::continue_impl`; listed once `super::` calls
+    // resolved, 0.5.1).
+    ("conversations_continue", &[SESSION]),
     ("packs_open_start", &[SESSION]),
     // E19: "Start a session for it…" goes through the one spawn path.
     ("tasks_start", &[SESSION]),
     ("runtime_handover", &[SESSION]),
     ("runtime_resume", &[SESSION]),
+    // AJ-E1553: a sign-in's terminal starts its watch, which ends the
+    // sign-in's own process through the supervisor once it reads signed
+    // in; Dismiss ends a running one the same way.
+    ("terminal_spawn_login", &[SESSION]),
+    ("sign_ins_dismiss", &[SESSION]),
 ];
 
 fn crate_src(name: &str) -> PathBuf {
@@ -485,6 +502,28 @@ impl Graph {
         let Some(modules) = self.by_name.get(name) else {
             return Vec::new();
         };
+        // `super::f(` is the module above the caller's file (a command in
+        // `x/commands.rs` calling `super::f(` reaches `x::f`); an inline
+        // `mod tests`' `super` is its own file, so with no hit above, the
+        // rules below still apply.
+        let supers = path.iter().take_while(|seg| *seg == "super").count();
+        let above: Vec<&str> = caller.split('/').collect();
+        if supers > 0 && supers < above.len() {
+            let full = above[..above.len() - supers]
+                .iter()
+                .copied()
+                .chain(path[supers..].iter().map(String::as_str))
+                .collect::<Vec<_>>()
+                .join("/");
+            let hits: Vec<String> = modules
+                .iter()
+                .filter(|module| **module == full)
+                .map(|module| format!("{module}::{name}"))
+                .collect();
+            if !hits.is_empty() {
+                return hits;
+            }
+        }
         let segments: Vec<&str> = path
             .iter()
             .map(String::as_str)

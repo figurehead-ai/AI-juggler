@@ -1,4 +1,4 @@
-<!-- captures: 9e889e0d25e2 -->
+<!-- captures: b4fb8f0ce653 -->
 # 61-account-macs: Fleet: your other Macs found through your Figurehead account, and comparing fingerprints to pair one
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -19,3 +19,11 @@ On Fleet, the Link off, Paired machines, Your Macs on Figurehead and This Mac ca
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Your Macs on Figurehead with Compare and pair…; the fingerprints still break inside a group ("8C3 / E 0D91") and the Studio row is crowded.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. The pairing dialog and Fleet page are unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

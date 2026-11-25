@@ -23,6 +23,8 @@ import { pageTabs } from "../pages/registry";
 import { conversationTitle, useConversations } from "../lib/conversations";
 import { useSubscriptions, accountOfProfile } from "../lib/subscriptions";
 import { lazyNamed } from "../lib/lazy";
+import { useReadState } from "../lib/loading";
+import { LoadingState } from "./LoadingState";
 import type { ConversationInfo } from "../lib/ipc/conversations";
 import { SessionNotices } from "./SessionNotices";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
@@ -34,7 +36,7 @@ import { fromConversation, type SessionModel } from "../pages/session/model";
 import { useHasSubagents } from "../pages/session/useSubagents";
 import { ConversationSubagents } from "./SessionNotes";
 import { useLastPlace } from "../lib/places";
-import { continueWhy, resumeRefusalWords } from "../lib/resume-refusal";
+import { CONTINUE_IN_TERMINAL, continueWhy, heldByMove, resumeRefusalWords } from "../lib/resume-refusal";
 import { OpenOriginal } from "./OpenOriginal";
 import { OpenInPlace } from "./OpenInPlace";
 import { WhyButton } from "./WhyTip";
@@ -71,8 +73,9 @@ function useSteadyRow(all: ConversationInfo[], accountId: string, id: string): {
 }
 
 /** Opens the switch screen from a session (its id, or the key of one
- * another app runs) to a profile's launch settings. */
-export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string) => void;
+ * another app runs) to a profile's launch settings, and (AJ-E2317) the
+ * desktop App picked, by its place id. */
+export type OpenSwitch = (source: string, targetProfileId: string, targetLabel: string, targetPlaceId?: string | null) => void;
 
 /** Its notices' snooze and reminder need no session list. */
 const NO_SESSIONS: InstanceInfo[] = [];
@@ -90,21 +93,38 @@ export function ConversationPage({
   projects?: ProjectInfo[];
   onSwitch?: OpenSwitch;
 }): JSX.Element {
-  const { all } = useConversations();
+  const { all, loaded, refresh } = useConversations();
   const { row, gone } = useSteadyRow(all, accountId, id);
-  if (gone) {
+  // AJ-E1552: the skeleton only while the list is read (Still loading
+  // after 3 s, an error with Retry at the deadline); "gone" only once the
+  // list answered without it.
+  const [round, setRound] = useState(0);
+  const read = useReadState(row, "this session", { round, isEmpty: () => false });
+  const isGone = gone && (loaded || row !== null);
+  if (!row || isGone) {
     return (
-      <Card className="m-6 p-6 text-body text-muted" data-testid="conversation-gone">
-        This conversation isn't there any more.
-      </Card>
-    );
-  }
-  if (!row) {
-    return (
-      <div className="m-6 flex flex-col gap-3" role="status" aria-label="Loading the session" data-testid="conversation-loading">
-        <span className="h-12 w-2/3 rounded-xl bg-skeleton motion-safe:animate-pulse" />
-        <span className="h-64 rounded-xl bg-skeleton motion-safe:animate-pulse" />
-      </div>
+      <LoadingState
+        state={isGone ? "empty" : read.state}
+        slow={read.slow}
+        what="this session"
+        skeleton={
+          <output className="m-6 flex flex-col gap-3" aria-label="Loading the session" data-testid="conversation-loading">
+            <span className="h-12 w-2/3 rounded-xl bg-skeleton motion-safe:animate-pulse" />
+            <span className="h-64 rounded-xl bg-skeleton motion-safe:animate-pulse" />
+          </output>
+        }
+        empty={
+          <Card className="m-6 p-6 text-body text-muted" data-testid="conversation-gone">
+            This conversation isn't there any more. Find it in History, or open another from the rail.
+          </Card>
+        }
+        onRetry={() => {
+          refresh();
+          setRound((was) => was + 1);
+        }}
+      >
+        {null}
+      </LoadingState>
     );
   }
   return <ConversationView conversation={row} now={now} projects={projects} onSwitch={onSwitch} />;
@@ -190,7 +210,7 @@ function ConversationView({
         subject={`${conversation.account_id}:${conversation.id}`}
         switchKey={model.switchSource}
         // D-103.3: an ended one's page stays quiet (its account's notice is a line under Continue).
-        notice={<SessionNotices accountId={conversation.account_id} quiet={!conversation.live} switchKey={model.switchSource} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
+        notice={<SessionNotices accountId={conversation.account_id} quiet={!conversation.live} reminderKey={`${REMINDER_CONVERSATION}${conversation.id}`} parkedId={null} sessions={NO_SESSIONS} />}
         tabs={tabs}
         header={
           <PageHeader
@@ -215,12 +235,14 @@ function ConversationView({
                   (openSession(switchFirst ? "secondary" : "primary") ?? (host.goToConversation && <GoToButton onGo={goTo} why={null} />))
                 ) : (
                   <>
-                    <WhyButton size="md" variant={switchFirst ? "secondary" : "primary"} why={refused} onClick={carryIn} data-testid="conversation-continue">
+                    {/* AJ-E2326 R3: last open in a desktop app, it opens there
+                        first; Continue in AI Juggler says it starts a terminal. */}
+                    {lastPlace && <OpenInPlace place={lastPlace} variant={switchFirst ? "secondary" : "primary"} accountId={conversation.account_id} conversationId={conversation.id} testId="conversation-open-in" />}
+                    <WhyButton size="md" variant={switchFirst || lastPlace ? "secondary" : "primary"} why={refused} onClick={carryIn} title={lastPlace ? CONTINUE_IN_TERMINAL : undefined} data-testid="conversation-continue">
                       Continue in AI Juggler
                     </WhyButton>
                     {openSession("secondary")}
                     <OpenOriginal refusal={conversation.resume_refusal} onOpen={host.openConversationById} size="md" />
-                    <OpenInPlace place={lastPlace} accountId={conversation.account_id} conversationId={conversation.id} testId="conversation-open-in" />
                     <WhyButton size="md" variant="secondary" why={refused} onClick={() => void host.copyConversationResume?.(latest.current)} data-testid="conversation-copy-resume">
                       Copy resume command
                     </WhyButton>
@@ -249,8 +271,8 @@ function ConversationView({
               visible={visible}
               outside={own === null}
               onGoTo={conversation.live && own === null && host.goToConversation ? goTo : undefined}
-              onPick={onSwitch ? (recipeId, label) => onSwitch(model.switchSource, recipeId, label) : undefined}
-              onCarryIn={host.continueConversation ? carryIn : undefined}
+              onPick={onSwitch ? (recipeId, label, placeId) => onSwitch(model.switchSource, recipeId, label, placeId) : undefined}
+              onCarryIn={host.continueConversation && !heldByMove(conversation) ? carryIn : undefined}
               carryInWhy={continueWhy(conversation)}
             />
           )

@@ -6,6 +6,8 @@
 import { useState, type JSX } from "react";
 import { Button } from "../primitives";
 import { usePagedList } from "../../lib/paged";
+import { useLoadDeadline, type LoadState } from "../../lib/loading";
+import { LoadingState } from "../LoadingState";
 import { watchesPage, type WatchInfo } from "../../lib/ipc/watch-view";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
 import { WatchRow, type WatchRowActions } from "./WatchRow";
@@ -88,20 +90,32 @@ export function WatchingSection(props: {
 
 export function EndedSection({ count, open, onToggle, book, now, appOf, actions }: { count: number; open: boolean; onToggle: () => void; book: Map<string, TargetOption>; now: number; appOf: (sessionId: string) => { id: string; name: string } | null; actions: EndedActions }): JSX.Element {
   const ended = usePagedList<WatchInfo>(open ? "watches:ended" : null, (request) => watchesPage("ended", request), { pageSize: ENDED_PAGE, keyOf: (row) => row.watch.id });
+  // AJ-E1552: a skeleton only while the first page is read.
+  const { slow } = useLoadDeadline(ended.loading, "the ended watches", { timeoutMs: Number.POSITIVE_INFINITY });
+  const endedState: LoadState = ended.loading ? "loading" : ended.items.length > 0 ? "ready" : ended.error !== null ? "error" : "empty";
   return (
     <section aria-label={PAGE.ended} className="flex flex-col gap-3">
       <FoldHead open={open} onToggle={onToggle} title={PAGE.ended} line={PAGE.endedLine(count)} controls="watches-ended" testId="watches-ended-fold" />
       {open && (
         <div id="watches-ended" className="rounded-card bg-surface p-1 inset-ring-1 inset-ring-hairline/75">
-          {ended.loading ? (
-            <div aria-hidden="true" className="m-2 h-14 animate-pulse rounded-lg bg-skeleton/60" />
-          ) : (
+          <LoadingState
+            state={endedState}
+            slow={slow}
+            what="the ended watches"
+            skeleton={<div aria-hidden="true" className="m-2 h-14 animate-pulse rounded-lg bg-skeleton/60" data-testid="watches-ended-skeleton" />}
+            empty={
+              <p className="px-3 py-2.5 text-meta text-ink-2" data-testid="watches-ended-empty">
+                {PAGE.endedNone}
+              </p>
+            }
+            onRetry={ended.refresh}
+          >
             <ul data-testid="watches-ended">
               {ended.items.map((info) => (
                 <WatchEndedRow key={info.watch.id} info={info} book={book} now={now} way={wayOf(info, appOf)} actions={actions} />
               ))}
             </ul>
-          )}
+          </LoadingState>
           {ended.hasMore && (
             <div className="border-t border-divider px-4 py-2.5">
               <Button size="sm" onClick={ended.loadMore} disabled={ended.loadingMore} data-testid="watches-ended-more">

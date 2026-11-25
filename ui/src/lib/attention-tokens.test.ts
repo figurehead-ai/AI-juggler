@@ -98,7 +98,26 @@ describe.each(["dark", "light"] as const)("the calm-attention tokens (%s)", (the
       expect(ratio(token(theme, "selected-ring"), token(theme, around)), `selected-ring vs ${around}`).toBeGreaterThanOrEqual(3);
     }
     expect(ratio(token(theme, "selected-ink"), token(theme, "selected"))).toBeGreaterThanOrEqual(4.5);
+    // A chosen card's own lines (its count, its hint) sit on the fill too
+    // (0.5.1: faint was 4.42:1 on light's fill, axe's color-contrast).
+    for (const name of ["ink-2", "muted", "faint"] as const) {
+      expect(ratio(token(theme, name), token(theme, "selected")), `${name} on selected`).toBeGreaterThanOrEqual(4.5);
+    }
     expect(token(theme, "selected-ring")).not.toBe(token(theme, "accent"));
+  });
+
+  // 0.5.1 F53 (WCAG 1.4.11): a chosen segment's fill is its state, so it
+  // stands 3:1 off the track its unselected siblings sit on (the control
+  // tint over every surface), and its words are AA on it; never the accent.
+  // The soft selected fill was 1.02:1 off light's track.
+  it("a chosen segment's fill is 3:1 off its track on every surface, its words AA", () => {
+    for (const surface of SURFACES) {
+      const track = over(token(theme, "control"), token(theme, surface));
+      expect(ratio(token(theme, "selected-strong"), track), `selected-strong vs the track over ${surface}`).toBeGreaterThanOrEqual(3);
+    }
+    expect(ratio(token(theme, "selected-strong-ink"), token(theme, "selected-strong"))).toBeGreaterThanOrEqual(4.5);
+    expect(token(theme, "selected-strong")).not.toBe(token(theme, "accent"));
+    expect(token(theme, "selected-strong")).not.toBe(token(theme, "accent-fill"));
   });
 });
 
@@ -127,7 +146,8 @@ describe("the level aliases and App tone", () => {
     expect(styles).toMatch(/--level-2:\s*var\(--color-warning\)/);
     expect(styles).toMatch(/--level-1-done:\s*var\(--color-success\)/);
     expect(styles).toMatch(/--level-1-live:\s*var\(--color-live\)/);
-    expect(styles).toMatch(/--tone-saturate:\s*0\.25/);
+    // AJ-E1550 req 5 (PAT-COLOR): App icons are never desaturated or faded.
+    expect(styles).not.toMatch(/--tone-saturate|saturate\(|grayscale\(/);
   });
 
   it("honour Increase Contrast", () => {

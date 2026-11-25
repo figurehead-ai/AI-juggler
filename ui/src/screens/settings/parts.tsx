@@ -302,7 +302,7 @@ export function Switch({
       onClick={() => onChange(!checked)}
       className={
         "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
-        (checked ? "border-accent bg-accent" : "border-muted/60 bg-surface-3")
+        (checked ? "border-accent bg-accent" : "border-faint bg-surface-3")
       }
       data-testid={testId}
     >

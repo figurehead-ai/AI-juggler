@@ -8,6 +8,10 @@
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { IsolationOfferDialog } from "./IsolationOfferDialog";
+import { NewSessionModal } from "../screens/NewSession";
+import { ISOLATION_OFFER_EVENT, type IsolationDecision } from "../lib/ipc/launch";
+import { clearSeams, recipe, setSeam } from "../test/fixtures";
+import type { AccountInfo } from "../types/generated/AccountInfo";
 import { WorktreeRemoveDialog } from "./WorktreeGit";
 import { launchSession } from "../lib/ipc/launch";
 import type { IsolationOfferInfo } from "../types/generated/IsolationOfferInfo";
@@ -188,5 +192,36 @@ describe("AJ-E1002 removal guard", () => {
     });
     expect(calls()).toEqual(["worktree-remove:/Users/dev/storefront.juggler/a1b2c3:a1b2c3"]);
     expect(document.body.textContent).toContain("The branch juggler/a1b2c3 stays");
+  });
+});
+
+describe("AJ-E2314 L7: the offer is the one dialog on screen", () => {
+  it("the New session sheet behind it steps out of sight and back after Cancel", async () => {
+    const folder = { id: "claude-work", provider: "claude-code", label: "Work", plan: null, login_state: "logged_in", cleanup_opt_in: false, renewal_date: null, preview_opt_in: false, in_place: false } as AccountInfo;
+    const recipes = [recipe({ id: "p-work", account_id: "claude-work", account_label: "Work" })];
+    setSeam("__AIJ_RECIPES__", recipes);
+    setSeam("__AIJ_RANKING__", []);
+    render(
+      <>
+        <NewSessionModal projects={[]} accounts={[folder]} recipes={recipes} sessions={[]} initialDirectory={null} onClose={() => {}} onLaunched={() => {}} />
+        <IsolationOfferDialog />
+      </>,
+    );
+    const sheet = () => document.body.querySelector<HTMLElement>("[data-testid='new-session-sheet']")!;
+    expect(sheet().className).not.toContain("invisible");
+    let decided: IsolationDecision | null = null;
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(ISOLATION_OFFER_EVENT, { detail: { offer: offer(), resolve: (decision: IsolationDecision) => (decided = decision) } }));
+    });
+    await waitFor(() => expect(document.body.querySelector("[data-testid='isolation-offer']")).not.toBeNull());
+    expect(sheet().className.split(" ")).toContain("invisible");
+    expect(sheet().hasAttribute("inert")).toBe(true);
+    await act(async () => {
+      fireEvent.click(document.body.querySelector<HTMLElement>("[data-testid='isolation-cancel']")!);
+    });
+    expect(decided).toEqual({ kind: "cancel" });
+    expect(sheet().className).not.toContain("invisible");
+    expect(sheet().hasAttribute("inert")).toBe(false);
+    clearSeams("__AIJ_RECIPES__", "__AIJ_RANKING__");
   });
 });

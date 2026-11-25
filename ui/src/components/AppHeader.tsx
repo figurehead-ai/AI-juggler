@@ -15,7 +15,8 @@ import { IconTerminal } from "./icons";
 import { IconChevronRight } from "./icons-controls";
 import { keysOf } from "../lib/shortcuts";
 import { FloorButton } from "./FloorButton";
-import { CleanupPill, MainNav } from "./MainNav";
+import { CleanupPill, MainNav, navItems } from "./MainNav";
+import { useTabFold } from "./use-tab-fold";
 import { MachineStatusLine } from "./MachineStatusLine";
 import { NotificationBell } from "./NotificationBell";
 import { BotButton } from "./bot/BotButton";
@@ -58,8 +59,15 @@ export function AppHeader({
   // its title (9aa04ae56's rule; Settings at 1280 cut "Plenty of r…").
   const thisMac = useRef<HTMLSpanElement>(null);
   useGiveWay(thisMac);
+  // 0.5.1 F57: one row at every width; the tabs that don't fit go behind
+  // More, measured against the bar's own parts (use-tab-fold).
+  const bar = useRef<HTMLElement>(null);
+  const nav = useRef<HTMLElement>(null);
+  const cluster = useRef<HTMLDivElement>(null);
+  const shown = useTabFold(navItems(PRIMARY_NAV, pairedCount).length, bar, nav, cluster);
   return (
     <header
+      ref={bar}
       data-tauri-drag-region
       // AJ-E804 (WCAG 1.4.10): at narrow widths and 200 % zoom the right
       // cluster wraps onto a second row instead of being clipped; at 1024
@@ -72,13 +80,13 @@ export function AppHeader({
           the pointer landed on the next tab. D-127 allows a disabled
           control the user's own use clears, and going to a page does. */}
       {back && <BackForward {...back} />}
-      <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} />
+      <MainNav primary={PRIMARY_NAV} global={global} page={page} pairedCount={pairedCount} onPick={onPick} shown={shown} navRef={nav} />
       {/* From 960 px the rest always fits one row beside the tabs, so the
           cluster takes the room left and This Mac's line shortens (…)
           instead of the bar wrapping (0.3.2, a longer status word). */}
       {/* AJ-E3603: under 820 px of bar its spacing closes up with the tabs'
           (MainNav), so 1024 with the list open keeps one row. */}
-      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 pl-3 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap @max-[820px]/header:pl-1" data-tauri-drag-region={false}>
+      <div ref={cluster} className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1 pl-3 xl:gap-1.5 @min-[960px]/header:grow @min-[960px]/header:basis-0 @min-[960px]/header:flex-nowrap @max-[820px]/header:pl-1" data-tauri-drag-region={false}>
         {/* AJ-E2105: This Mac's line, in the top bar (it gives way first):
             by the bar's own width, not the window's, so the list open at
             1280 px with Fleet's tab too (a paired Mac) still fits one row

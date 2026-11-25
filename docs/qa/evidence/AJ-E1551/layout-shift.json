@@ -1,0 +1,76 @@
+{
+  "budget": 0.01,
+  "viewport": "1280x800",
+  "results": {
+    "home-open-dark": {
+      "cls": 0.005,
+      "shifts": 2,
+      "worst": "span fake-desktop CLI, fake-desktop CLI · Fak"
+    },
+    "session-open-sess-1-dark": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-open-sess-2-dark": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-tab-Pools-dark": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-tab-Usage-dark": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-tab-Processes-dark": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "home-from-session-dark": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "home-open-light": {
+      "cls": 0.0054,
+      "shifts": 1,
+      "worst": "span Claude Code CLI, Claude Code CLI · Perso"
+    },
+    "session-open-sess-1-light": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-open-sess-2-light": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-tab-Pools-light": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-tab-Usage-light": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "session-tab-Processes-light": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    },
+    "home-from-session-light": {
+      "cls": 0,
+      "shifts": 0,
+      "worst": null
+    }
+  }
+}

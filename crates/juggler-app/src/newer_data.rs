@@ -655,10 +655,17 @@ pub fn at_launch(data_dir: &Path, found: i64, supported: i64) -> AppState {
 }
 
 fn show_folder(dir: &Path) {
+    // F67: on a Mac through the launcher (Finder gets none of our
+    // environment), as every other way out.
+    if cfg!(target_os = "macos") {
+        let _ = juggler_adapter::apps::open(juggler_adapter::apps::Opening::Path {
+            path: dir,
+            app: None,
+        });
+        return;
+    }
     // By absolute path (C2): never a stand-in earlier on PATH.
-    let opener = if cfg!(target_os = "macos") {
-        PathBuf::from(juggler_adapter::system_tools::OPEN)
-    } else if cfg!(windows) {
+    let opener = if cfg!(windows) {
         juggler_adapter::system_tools::explorer()
     } else {
         PathBuf::from(juggler_adapter::system_tools::XDG_OPEN)

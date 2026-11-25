@@ -76,11 +76,23 @@ export function accountAppsNow(apps: readonly AppModel[] | null | undefined, acc
   return { ids: mine.map((app) => app.id), apps: mine };
 }
 
-/** Whether some of `now`'s Apps wait for their names (a desktop App's
- * model isn't read yet; a CLI App is named by its folder). */
+/** Whether some of `now`'s Apps wait for their names: a desktop App's
+ * models aren't read yet (a CLI App is named by its folder). AJ-E1552:
+ * once they are read, an id with no model is not waited on: the backend
+ * can name an App the Apps list doesn't show (a desktop app seen running
+ * and linked to the folder, not added: `App::is_users` and the places'
+ * `users` differ), and waiting on it kept its card a skeleton for ever. */
 export function appsAwaited(now: AccountAppsNow | null): boolean {
   if (now === null) return true;
-  return now.ids.some((id) => !id.startsWith("cli:") && !(now.apps ?? []).some((app) => app.id === id));
+  if (now.apps !== null) return false;
+  return now.ids.some((id) => !id.startsWith("cli:"));
+}
+
+/** `now`'s ids that are shown: every CLI App's, and a desktop App's once
+ * its model is read (`null` while they're awaited). */
+export function shownAppIds(now: AccountAppsNow | null): readonly string[] | null {
+  if (now === null || appsAwaited(now)) return null;
+  return now.ids.filter((id) => id.startsWith("cli:") || (now.apps ?? []).some((app) => app.id === id));
 }
 
 /** An Account's Apps by name, as a line or chips say them: each one's id,
@@ -93,8 +105,9 @@ export function namedAccountApps(
   cliName: (folderId: string) => string,
 ): { id: string; name: string; mark: string | number }[] | null {
   const known = accountAppsNow(apps, account, folderIds);
-  if (known === null || appsAwaited(known)) return null;
-  return known.ids.map((id) => {
+  const shown = shownAppIds(known);
+  if (known === null || shown === null) return null;
+  return shown.map((id) => {
     const app = known.apps?.find((one) => one.id === id);
     return app ? { id, name: app.name, mark: app.slot } : { id, name: cliName(id.slice("cli:".length)), mark: id };
   });

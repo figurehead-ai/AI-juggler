@@ -100,6 +100,114 @@ fn a_profile_seen_running_but_never_added_is_only_offered() {
     assert!(offers_of(&state).is_empty());
 }
 
+/// AJ-E1552 (D-84): an Account's Apps (`subscriptions::with_apps`), the
+/// Apps list (`apps::users_apps`) and the desktop Apps the UI draws (the
+/// places list) read one rule, `App::is_users`. A profile seen running
+/// whose sessions' folder is linked to the Account, but never added, is
+/// on none of them (only offered); one the user added is on all three,
+/// now and after a restart alike. So an Account never names an App no
+/// list shows (the card that waited for ever on its model).
+#[test]
+fn an_accounts_apps_are_listed_apps_and_a_linked_offer_is_on_none() {
+    use crate::features::subscriptions::{ProfileRead, SubscriptionProfileInfo, group, with_apps};
+    let root = tempfile::tempdir().unwrap();
+    let (added_dir, offer_dir) = (profile_folder(), profile_folder());
+    let state = state(root.path());
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .accounts()
+        .insert(&crate::test_support::account(
+            "work",
+            "claude-code",
+            "Work",
+            root.path().join("work"),
+        ))
+        .unwrap();
+    observe(
+        &state,
+        &[
+            claude_in(root.path(), added_dir.path()),
+            claude_in(root.path(), offer_dir.path()),
+        ],
+        &[],
+    );
+    let added = book::place_id("claude-app", Some(added_dir.path()));
+    let offer = book::place_id("claude-app", Some(offer_dir.path()));
+    answer_offer(&state, &added, true).unwrap();
+    // Both profiles' sessions write in the Account's folder (the link
+    // `link::link_to` makes by evidence), and both are on its sign-in.
+    with_book(&state, |book| {
+        for id in [&added, &offer] {
+            book.places.get_mut(id).unwrap().account_id = Some("work".into());
+        }
+    })
+    .unwrap();
+    let mut accounts = group(vec![ProfileRead {
+        profile: SubscriptionProfileInfo {
+            id: "work".into(),
+            label: "Work".into(),
+            folder: "~/work".into(),
+            plan: None,
+            renewal_date: None,
+            fee_usd: None,
+            unchecked: None,
+            accepted_name: None,
+        },
+        tool: "claude-code".into(),
+        probe: juggler_adapter::IdentityProbe::SignedIn {
+            subject: "u-alice".into(),
+            label: "alice@example.com".into(),
+            org: None,
+        },
+        service: None,
+    }]);
+    // The Account's id as `subscriptions::list_impl` stores it.
+    let account = "acct-alice".to_owned();
+    accounts[0].account_id = Some(account.clone());
+    {
+        let storage = state.storage.lock().unwrap();
+        for id in [&added, &offer] {
+            let row = storage.apps().get(id).unwrap().unwrap();
+            assert_eq!(row.folder_id.as_deref(), Some("work"), "{id}: linked");
+            storage.apps().set_account(id, Some(&account)).unwrap();
+        }
+    }
+    for when in ["now", "after a restart"] {
+        if when == "after a restart" {
+            *state.places.book.lock().unwrap() = None;
+        }
+        let stored = crate::features::apps::list_impl(&state).unwrap();
+        with_apps(&mut accounts, &stored);
+        let named_apps = accounts[0].apps.clone().unwrap();
+        let (places, apps) = listed(&state);
+        assert!(
+            named_apps.iter().all(|id| apps.contains(id)),
+            "every App the Account names is listed"
+        );
+        let desktop: std::collections::BTreeSet<&String> =
+            apps.iter().filter(|id| !id.starts_with("cli:")).collect();
+        assert_eq!(
+            desktop,
+            places.iter().collect(),
+            "{when}: the Apps list and the places list are one set of desktop Apps"
+        );
+        assert!(
+            named_apps.contains(&added) && apps.contains(&added) && places.contains(&added),
+            "{when}: the added profile is on all three"
+        );
+        assert!(
+            !named_apps.contains(&offer) && !apps.contains(&offer) && !places.contains(&offer),
+            "{when}: a linked offer is on none"
+        );
+        assert!(
+            offers_of(&state).iter().any(|(id, _)| *id == offer),
+            "{when}: it's still offered"
+        );
+    }
+}
+
 #[test]
 fn not_now_hides_the_offer_and_adds_nothing() {
     let root = tempfile::tempdir().unwrap();
@@ -141,6 +249,110 @@ fn a_profile_in_the_temporary_folder_is_never_remembered() {
     observe(&state, &[claude_in(root.path(), &temp)], &[]);
     assert!(offers_of(&state).is_empty());
     assert!(with_book(&state, |book| book.places.is_empty()).unwrap());
+}
+
+/// F18 (0.5.1 PL1): a run whose home is under the temporary folder (a
+/// lab's HOME, `/tmp/aij-lab…`) found none of its own running profiles:
+/// every one is under `/tmp` too, so the rule above dropped them, and the
+/// wizard, the rail's "Running, not added" and Settings had nothing to
+/// offer. A profile inside the run's own home is its user's: offered
+/// (D-84: never added by itself). One outside it still isn't remembered.
+#[test]
+fn a_profile_inside_a_temporary_home_is_offered() {
+    let root = tempfile::tempdir().unwrap();
+    let state = state(root.path());
+    let home = state.places.home();
+    let profiles = home.join("Library/Application Support/ClaudeProfiles");
+    let work = profiles.join("work");
+    let personal = profiles.join("personal");
+    let outside = root.path().join("Lab Claude profile");
+    for dir in [&work, &personal, &outside] {
+        std::fs::create_dir_all(dir).unwrap();
+    }
+    assert!(juggler_core::storage::in_temporary_folder(
+        home.to_str().unwrap()
+    ));
+    let at = |dir: &Path, pid: u32| RunningApp {
+        pid,
+        ..claude_in(root.path(), dir)
+    };
+    observe(
+        &state,
+        &[at(&work, 4242), at(&personal, 4243), at(&outside, 4244)],
+        &[],
+    );
+    let mut ids: Vec<String> = offers_of(&state).into_iter().map(|(id, _)| id).collect();
+    ids.sort();
+    let mut expected = vec![
+        book::place_id("claude-app", Some(&personal)),
+        book::place_id("claude-app", Some(&work)),
+    ];
+    expected.sort();
+    assert_eq!(ids, expected, "both lab profiles, not the one outside home");
+    let (places, apps) = listed(&state);
+    assert!(places.is_empty() && apps.is_empty(), "offered, never added");
+}
+
+/// F19 (0.5.1 PL1 D2–D6): Remove (Forget) of a running App brings it
+/// back as an offer at the next look, so every Add (the rail's "Running,
+/// not added", Settings › Desktop apps' Found on this computer, the
+/// wizard's rows, ⌘K's Find my apps) can add it again.
+#[test]
+fn a_removed_running_profile_is_offered_again() {
+    let root = tempfile::tempdir().unwrap();
+    let state = state(root.path());
+    let work = state
+        .places
+        .home()
+        .join("Library/Application Support/ClaudeProfiles/work");
+    std::fs::create_dir_all(&work).unwrap();
+    let running = [claude_in(root.path(), &work)];
+    observe(&state, &running, &[]);
+    let id = book::place_id("claude-app", Some(&work));
+    answer_offer(&state, &id, true).unwrap();
+    assert!(listed(&state).1.contains(&id), "added");
+    assert!(offers_of(&state).is_empty());
+
+    forget(&state, &id).unwrap();
+    assert!(!listed(&state).1.contains(&id), "removed");
+    observe(&state, &running, &[]);
+    let offered: Vec<String> = offers_of(&state).into_iter().map(|(id, _)| id).collect();
+    assert_eq!(
+        offered,
+        std::slice::from_ref(&id),
+        "offered again while it runs"
+    );
+    answer_offer(&state, &id, true).unwrap();
+    assert!(listed(&state).1.contains(&id), "added again");
+}
+
+#[test]
+fn temporary_not_home_spares_only_the_runs_own_home() {
+    let lab = Path::new("/tmp/aij-lab-x");
+    let profile = Path::new("/tmp/aij-lab-x/Library/Application Support/ClaudeProfiles/work");
+    assert!(!book::temporary_not_home(profile, lab));
+    // Spelled through /private, either way round.
+    assert!(!book::temporary_not_home(
+        Path::new("/private/tmp/aij-lab-x/p"),
+        Path::new("/private/tmp/aij-lab-x")
+    ));
+    // Another lab's (`aij-lab-x1` isn't inside `aij-lab-x`), an installer's.
+    assert!(book::temporary_not_home(
+        Path::new("/tmp/aij-lab-x1/p"),
+        lab
+    ));
+    assert!(book::temporary_not_home(
+        Path::new("/private/var/folders/ab/T/installer/p"),
+        lab
+    ));
+    // The user's own home: nothing under /tmp is theirs.
+    let home = Path::new("/Users/someone");
+    assert!(book::temporary_not_home(profile, home));
+    assert!(!book::temporary_not_home(
+        Path::new("/Users/someone/Library/Application Support/Claude"),
+        home
+    ));
+    assert!(book::temporary_not_home(profile, Path::new("")));
 }
 
 #[test]
@@ -226,32 +438,62 @@ fn a_session_started_in_a_closed_profile_is_that_profiles() {
     .unwrap();
 }
 
-/// The go sitting (2026-11-07, finding 1): Add on a profile also brings in
-/// the folder its sessions are written to, matched by the profile's own
-/// name; one an Account already holds is left alone.
+/// The go sitting (2026-11-07, finding 1), AJ-E2315 (the review's E7): Add
+/// on a profile brings in the folder its sessions are written to, by
+/// evidence: the one whose pid files name its running sessions under its
+/// own main process. Profile `team-a`'s Code tab writes in
+/// `ClaudeCodeProfiles/work` (its launcher's folder); the old rule took the
+/// folder named like the profile, where its sessions never were.
 #[test]
-fn an_added_profiles_folder_is_the_one_with_its_name() {
-    use juggler_adapter::environment::{DiscoveredInstall, InstallOrigin, LoginProbe};
+fn an_added_profiles_folder_is_the_one_its_sessions_write_in() {
+    use crate::features::conversations::procs::fixture as proc;
     let root = tempfile::tempdir().unwrap();
     let mk = |name: &str| {
         let path = root.path().join("ClaudeCodeProfiles").join(name);
-        std::fs::create_dir_all(&path).unwrap();
-        DiscoveredInstall {
-            harness: juggler_core::model::HarnessId::new("claude-code"),
-            path,
-            origin: InstallOrigin::ManagerTool,
-            login: LoginProbe::LoggedIn,
-            bytes: 0,
-            last_used_secs: None,
-            managed: true,
-            notes: Vec::new(),
-        }
+        std::fs::create_dir_all(path.join("sessions")).unwrap();
+        super::fakes::install(path)
     };
-    let found = vec![mk("work"), mk("aij-test"), mk("aij-test-old")];
-    let picked = folder_for_profile("aij-test", &found).unwrap();
-    assert!(picked.path.ends_with("ClaudeCodeProfiles/aij-test"));
-    // Only the exact name, never a near one.
-    assert!(folder_for_profile("aij", &found).is_none());
+    let found = vec![mk("team-a"), mk("work")];
+    let profile = root.path().join("ClaudeProfiles/team-a");
+    let code = profile.join("claude-code/2.1/abc/claude.app/Contents/MacOS/claude");
+    let code = code.to_string_lossy();
+    let main = "/Applications/Claude.app/Contents/MacOS/Claude";
+    let d = "/Applications/Claude.app/Contents/Helpers/disclaimer";
+    let flag = format!("--user-data-dir={}", profile.display());
+    // The Code tab's Claude Code (14, started at 140 s) writes its pid file.
+    std::fs::write(
+        found[1].path.join("sessions/14.json"),
+        r#"{"pid":14,"sessionId":"s-1","procStart":"1970-01-01T00:02:20Z","kind":"interactive"}"#,
+    )
+    .unwrap();
+    let state = AppState::init(root.path().join("data")).unwrap();
+    let _ = state.places.made_up.set(MadeUpMac {
+        table: [
+            proc(10, 1, main, &[main, &flag]),
+            proc(13, 10, d, &[d, "--pgroup", "--", &code]),
+            proc(14, 13, &code, &[&code]),
+        ]
+        .into_iter()
+        .collect(),
+        home: root.path().join("home"),
+        installs: None,
+    });
+    let state = Arc::new(state);
+    let mut place = crate::test_support::claude_profile(&profile.to_string_lossy());
+    place.instance = Some("team-a".into());
+    let adapter = state
+        .registry
+        .get(&juggler_core::model::HarnessId::new("claude-code"))
+        .unwrap();
+    let host = adapter.host_apps().remove(0);
+    let picked = link::folder_of_its_sessions(&state, &adapter, &host, &place, &found).unwrap();
+    assert!(
+        picked.path.ends_with("ClaudeCodeProfiles/work"),
+        "{picked:?}"
+    );
+    // With its session gone, nothing tells: never the folder named like it.
+    std::fs::remove_file(found[1].path.join("sessions/14.json")).unwrap();
+    assert!(link::folder_of_its_sessions(&state, &adapter, &host, &place, &found).is_none());
 }
 
 /// The go sitting's rerun (2026-11-07): an added profile's page said "No

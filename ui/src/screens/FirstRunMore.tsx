@@ -2,23 +2,24 @@
  * AJ-E3306 — first run's found step past the setups found (the PF1
  * persona walk on rc26): the names setups come in by, each tool installed
  * with nothing set up offered as a fresh App in its own group (pass2/03 §5
- * rule 3), and the desktop apps' profiles (D-84: offered, never added by
- * themselves).
+ * rule 3), Add an app's desktop profiles (D-84: offered, never added by
+ * themselves), "Where we looked" (F33) and the choice of how they come
+ * in (ADR-0018).
  */
 import { useMemo, useState, type JSX } from "react";
-import { ToolMark } from "../components/ToolMark";
+import { Disclosure, Radio } from "../components/controls";
+import { SELECTED_CARD } from "../components/controls/selected";
 import { OfferRow, usePlaceOffers } from "../components/PlaceOffers";
-import { desktopAppWord } from "../lib/app-name";
 import { listWords } from "../lib/account-terms";
-import { providerDisplayName, toolFound, versionNotAsked, versionUnchecked } from "../lib/providers";
+import { providerDisplayName, sameAsWords, toolFound, versionNotAsked, versionUnchecked } from "../lib/providers";
 import { toolSpec } from "../lib/tools";
 import { signedIn } from "../lib/bridge";
 import { createAccount } from "../lib/ipc/accounts";
-import type { ProviderInstallData, ScanReportData } from "../lib/ipc/providers";
+import type { ProbeRowData, ProviderInstallData, ScanReportData } from "../lib/ipc/providers";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import { colourAt, freeLabel } from "./FreshAccountStep";
 import { FreshRow, type RowProgress } from "./FirstRunFoundRow";
-import type { Signin } from "./FirstRun";
+import type { Placement, Signin } from "./FirstRun";
 
 /** A group's tool, in its header: its version, or that it couldn't be
  * read (0.0.11) or wasn't asked (the bridge), never "not installed". */
@@ -112,36 +113,35 @@ export function FreshGroups({
   colourFrom: number;
   busy: boolean;
   progress: (tool: string) => RowProgress;
-}): JSX.Element {
+}): JSX.Element | null {
+  if (fresh.length === 0) return null;
+  // AJ-E1545: installed but not set up is one closed group, nothing ticked;
+  // ticking one sets it up in its own folder.
   return (
-    <>
-      {fresh.map((tool, index) => {
-        const install = installRows[tool];
-        const name = providerDisplayName(tool);
-        return (
-          <fieldset key={freshKey(tool)} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-fresh-${tool}`}>
-            <legend className="sr-only">{`${name}, not set up`}</legend>
-            <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
-              <span className="flex items-center gap-1.5 font-semibold text-ink">
-                <ToolMark tool={tool} size={14} className="text-muted" />
-                <span>{name} <span className="font-normal text-muted">· not set up</span></span>
-              </span>
-              {install && toolFound(install) && <span className="text-muted">{cliWords(name, install)}</span>}
-            </div>
-            <FreshRow
-              tool={tool}
-              name={names[tool] ?? name}
-              toolName={name}
-              colour={colourAt(colourFrom + index)}
-              checked={!!picked[tool]}
-              disabled={busy}
-              progress={progress(tool)}
-              onCheck={(checked) => onPick(tool, checked)}
-            />
-          </fieldset>
-        );
-      })}
-    </>
+    <div className="border-b border-hairline px-5 py-3 last:border-b-0" data-testid="first-run-not-set-up">
+      <Disclosure summary={<span className="font-medium">Installed, not set up yet · {fresh.length}</span>}>
+        <p className="mt-2 text-meta text-muted">Ticking one sets it up in a folder of its own, and you sign in to it after. Nothing is made until you bring it in.</p>
+        {fresh.map((tool, index) => {
+          const install = installRows[tool];
+          const name = providerDisplayName(tool);
+          return (
+            <fieldset key={freshKey(tool)} className="mt-2" data-testid={`first-run-group-fresh-${tool}`}>
+              <legend className="sr-only">{`${name}, not set up`}</legend>
+              <FreshRow
+                tool={tool}
+                name={names[tool] ?? name}
+                installed={install && toolFound(install) ? cliWords(name, install) : `${name} is installed`}
+                colour={colourAt(colourFrom + index)}
+                checked={!!picked[tool]}
+                disabled={busy}
+                progress={progress(tool)}
+                onCheck={(checked) => onPick(tool, checked)}
+              />
+            </fieldset>
+          );
+        })}
+      </Disclosure>
+    </div>
   );
 }
 
@@ -156,30 +156,106 @@ export function desktopNoneWords(apps: string[]): string {
 
 /** The desktop apps here (S10, in the words every screen uses) and their
  * profiles seen open but not added, each offered (Add / Not now) as Add
- * apps offers them; nothing when neither. */
-export function DesktopApps({ bundles, tools }: { bundles: string[]; tools: string[] }): JSX.Element | null {
-  const desktop = usePlaceOffers();
-  const apps = bundles.map((bundle) => {
-    const app = bundle.replace(/\.app$/, "");
-    return desktopAppWord(app, tools.find((tool) => toolSpec(tool).desktop_app === app) ?? null);
-  });
+ * apps offers them; nothing when neither. `only`: one tool's app (its
+ * host app id), for one tool's Add an app (F19). */
+export function DesktopApps({ only = null }: { only?: string | null } = {}): JSX.Element | null {
+  const desktop = usePlaceOffers(only);
   const offers = desktop.offers ?? [];
-  if (offers.length === 0 && apps.length === 0) return null;
+  // AJ-E1545: Add an app's (one tool) only; Your apps shows each profile
+  // as a row in its tool's group (0.5.1 F35). Only profiles seen open and
+  // not added yet are offered.
+  if (offers.length === 0) return null;
   return (
     <section className="overflow-hidden rounded-2xl border border-hairline bg-surface" aria-label="Desktop apps" data-testid="first-run-desktop">
-      <h2 className="bg-surface-2 px-5 py-2.5 text-xs font-semibold text-ink">Desktop apps</h2>
-      {offers.length > 0 ? (
-        <ul className="divide-y divide-hairline/60">
-          {offers.map((offer) => (
-            <OfferRow key={offer.id} offer={offer} onAnswer={(add) => desktop.answer(offer, add)} />
-          ))}
-        </ul>
-      ) : (
-        <p className="px-5 py-3 text-sm text-ink-2" data-testid="first-run-desktop-none">
-          {desktopNoneWords(apps)}
-        </p>
-      )}
+      <h2 className="bg-surface-2 px-5 py-2.5 text-meta font-semibold text-ink">Open now, not added yet</h2>
+      <ul className="divide-y divide-hairline/60">
+        {offers.map((offer) => (
+          <OfferRow key={offer.id} offer={offer} onAnswer={(add) => void desktop.answer(offer, add)} />
+        ))}
+      </ul>
       {desktop.note && <p className="px-5 pb-3 text-xs text-danger">{desktop.note}</p>}
     </section>
+  );
+}
+
+/** F33 (0.5.1 PL1 C3): "Where we looked", in the page under Your apps'
+ * rows, closed until opened (PAT-SER-7): each place the scan checked, and
+ * plainly what it couldn't fully check. Nothing when the scan names none. */
+export function WhereWeLooked({ probes }: { probes: ProbeRowData[] }): JSX.Element | null {
+  if (probes.length === 0) return null;
+  return (
+    <Disclosure summary="Where we looked" testId="first-run-looked">
+      <ul className="mt-2 flex flex-col gap-1.5 rounded-xl bg-surface px-4 py-3 text-xs" data-testid="first-run-looked-list">
+        {probes.map((probe) => (
+          <li key={probe.label} className="leading-relaxed">
+            <span className="text-ink">{probe.label}</span>
+            <span className="text-muted">: {probe.detail}</span>
+            {probe.health !== "ok" && (
+              <span className={"block " + (probe.health === "partial" ? "text-warning" : "text-danger")}>
+                {probe.health === "partial" ? "Partly checked" : "Couldn't check"}
+                {probe.reason ? `: ${probe.reason}` : ""}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Disclosure>
+  );
+}
+
+/** The two ways in; `tools` are the ones that can be used where they
+ * are (ADR-0018), which name what "the same" is the same as. */
+function placements(tools: string[], one: boolean): { id: Placement; title: string; detail: string }[] {
+  return [
+    {
+      id: "in_place",
+      title: one ? "Use it where it is" : "Use them where they are",
+      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to ${one ? "it" : "them"}.`,
+    },
+    {
+      id: "copy",
+      title: one ? "Make a separate copy" : "Make separate copies",
+      detail: one
+        ? "A fresh copy for AI Juggler only; your original stays as it is. The copy needs one sign-in."
+        : "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
+    },
+  ];
+}
+
+/** ADR-0018's choice, under More options (AJ-E1545: "Use them where they
+ * are" is the default, said once in the subtitle). */
+export function PlacementChoice({ tools, one, value, busy, open, onChange }: { tools: string[]; one: boolean; value: Placement; busy: boolean; open?: boolean; onChange: (placement: Placement) => void }): JSX.Element {
+  return (
+    <Disclosure summary={<span className="font-medium">More options</span>} open={open} testId="first-run-more-options">
+      <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
+        {placements(tools, one).map((option) => (
+          <label
+            key={option.id}
+            htmlFor={`first-run-placement-${option.id}-radio`}
+            className={"flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " + (value === option.id ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2/60")}
+            data-testid={`first-run-placement-${option.id}`}
+          >
+            <Radio
+              id={`first-run-placement-${option.id}-radio`}
+              name="first-run-placement"
+              value={option.id}
+              aria-labelledby={`first-run-placement-${option.id}-title`}
+              aria-describedby={`first-run-placement-${option.id}-detail`}
+              checked={value === option.id}
+              disabled={busy}
+              onChange={() => onChange(option.id)}
+              className="mt-0.5 shrink-0"
+            />
+            <span className="flex flex-col gap-0.5">
+              <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">
+                {option.title}
+                {option.id === "in_place" && <span className="ml-1.5 text-xs font-normal text-muted">Recommended</span>}
+              </span>
+              <span id={`first-run-placement-${option.id}-detail`} className="text-xs leading-relaxed text-muted">{option.detail}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </Disclosure>
   );
 }

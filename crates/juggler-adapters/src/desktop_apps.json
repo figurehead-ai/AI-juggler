@@ -2,6 +2,7 @@
   {
     "id": "claude-app", "name": "Claude", "bundle": "Claude.app", "bundle_id": "com.anthropic.claudefordesktop", "kind": "desktop",
     "instance_arg": "--user-data-dir", "default_instance": "Library/Application Support/Claude",
+    "instance_lock": "Local Storage/leveldb/LOCK",
     "shown": "Claude app", "siblings": true, "folder_env": "CLAUDE_CONFIG_DIR",
     "handoff_link": "claude://resume?session={id}", "handoff_record": "claude-code-sessions",
     "session_link": "claude://claude.ai/epitaxy/{id}",

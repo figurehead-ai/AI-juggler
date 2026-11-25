@@ -100,7 +100,9 @@ describe("Settings — Account & Cloud", () => {
     const view = render(<SettingsScreen focusCloud />);
     await view.findByTestId("cloud-consent");
     expect(switchOf(view.container, "cloudBackup").getAttribute("aria-checked")).toBe("true");
-    expect(switchOf(view.container, "fleetDiscovery").getAttribute("aria-checked")).toBe("true");
+    // AJ-E1548 #18 (D-127): Find my Macs isn't built yet: hidden, its default kept and saved.
+    expect(view.container.querySelector('[data-key="fleetDiscovery"]')).toBeNull();
+    expect(view.container.textContent).not.toContain("Find my Macs");
     const usage = switchOf(view.container, "usageSync");
     expect(usage.getAttribute("aria-checked")).toBe("false");
     expect(usage.disabled).toBe(true);

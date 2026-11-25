@@ -11,7 +11,7 @@ use super::*;
 
 /// A state whose book holds a Claude profile and the Codex app, both
 /// installed under `root` and not running.
-fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
+pub(super) fn state_with_places(root: &Path) -> (Arc<AppState>, String, String) {
     let state = super::fakes::on_made_up_mac(AppState::init(root.join("data")).unwrap(), root);
     let claude = root.join("Claude.app");
     let codex = root.join("ChatGPT.app");
@@ -133,8 +133,7 @@ fn open_in_codex_opens_the_thread_by_its_link_and_starts_nothing_else() {
 #[test]
 fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, work) = kept_alive(root.path());
     let starter = Recorder::default();
     let start = 10_000_000;
     state.places.watch.lock().unwrap().settled_at(start);
@@ -178,8 +177,7 @@ fn keep_alive_starts_a_stopped_place_behind_then_pauses_after_three() {
 #[test]
 fn nothing_starts_while_the_screen_is_locked() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, _) = kept_alive(root.path());
     let starter = Recorder::default();
     let now = 10_000_000;
     state.places.watch.lock().unwrap().settled_at(now);
@@ -192,8 +190,7 @@ fn nothing_starts_while_the_screen_is_locked() {
 #[test]
 fn a_stop_from_ai_juggler_pauses_keep_alive() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
+    let (state, work) = kept_alive(root.path());
     state
         .places
         .watch
@@ -289,10 +286,39 @@ fn a_profile_claims_only_its_own_folders_copy_of_a_conversation() {
     );
 }
 
+/// [`state_with_places`] with keep alive on for Work: the state and
+/// Work's id.
+pub(super) fn kept_alive(root: &Path) -> (Arc<AppState>, String) {
+    let (state, work, _) = state_with_places(root);
+    set_keep_alive(&state, &work, true).unwrap();
+    (state, work)
+}
+
+/// [`kept_alive`], its watch settled at `start`.
+pub(super) fn kept_alive_since(root: &Path, start: i64) -> (Arc<AppState>, String) {
+    let (state, work) = kept_alive(root);
+    state.places.watch.lock().unwrap().settled_at(start);
+    (state, work)
+}
+
+/// The Account `acct-work` ("Work Max", Claude Code's) on its tool folder
+/// `root/CodeProfiles/work`, stored; that folder.
+pub(super) fn work_max(state: &Arc<AppState>, root: &Path) -> PathBuf {
+    let folder = root.join("CodeProfiles/work");
+    let account =
+        crate::test_support::account("acct-work", "claude-code", "Work Max", folder.clone());
+    crate::commands::lock_storage_arc(state)
+        .unwrap()
+        .accounts()
+        .insert(&account)
+        .unwrap();
+    folder
+}
+
 /// The place `id` runs as this test's own process (a real pid and start,
 /// so it's found alive; nothing is ever signalled: the recorder only
 /// notes the quit).
-fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
+pub(super) fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
     let me = std::process::id();
     let start = crate::features::conversations::procs::some(&[me])
         .get(&me)
@@ -306,7 +332,7 @@ fn running_as_me(state: &Arc<AppState>, id: &str) -> (u32, Option<i64>) {
     (me, start)
 }
 
-fn quick() -> QuitWait {
+pub(super) fn quick() -> QuitWait {
     QuitWait {
         limit: Duration::from_millis(100),
         every: Duration::from_millis(5),
@@ -395,26 +421,7 @@ fn restart_quits_the_lost_process_then_starts_it_as_it_ran() {
 fn a_restarted_profile_keeps_its_tool_folder() {
     let root = tempfile::tempdir().unwrap();
     let (state, work, _) = state_with_places(root.path());
-    let folder = root.path().join("CodeProfiles/work");
-    let account = juggler_core::model::Account {
-        id: juggler_core::model::AccountId::new("acct-work"),
-        harness: juggler_core::model::HarnessId::new("claude-code"),
-        label: "Work Max".into(),
-        plan: None,
-        state_dir: folder.clone(),
-        cleanup_opt_in: false,
-        renewal_date: None,
-        preview_opt_in: false,
-        import_source_path: None,
-        import_origin: None,
-        imported_at: None,
-        in_place: false,
-    };
-    crate::commands::lock_storage_arc(&state)
-        .unwrap()
-        .accounts()
-        .insert(&account)
-        .unwrap();
+    let folder = work_max(&state, root.path());
     with_book(&state, |book| {
         book.places.get_mut(&work).unwrap().account_id = Some("acct-work".into());
     })
@@ -532,10 +539,8 @@ fn a_confirmed_restart_quits_and_starts_one_that_has_its_window() {
 #[test]
 fn keep_alive_restarts_a_place_that_lost_its_window_once() {
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
     let start = 10_000_000;
-    state.places.watch.lock().unwrap().settled_at(start);
+    let (state, work) = kept_alive_since(root.path(), start);
     let (me, _) = running_as_me(&state, &work);
     let starter = Recorder {
         lost: true,
@@ -559,10 +564,8 @@ fn keep_alive_leaves_a_lost_place_while_locked_or_while_a_session_works_in_it() 
     use crate::features::conversations::places::Host;
     use crate::features::conversations::scan::{LiveEntry, LiveModel, Place, State};
     let root = tempfile::tempdir().unwrap();
-    let (state, work, _) = state_with_places(root.path());
-    set_keep_alive(&state, &work, true).unwrap();
     let start = 10_000_000;
-    state.places.watch.lock().unwrap().settled_at(start);
+    let (state, work) = kept_alive_since(root.path(), start);
     let (me, at) = running_as_me(&state, &work);
     let starter = Recorder {
         lost: true,
@@ -793,4 +796,33 @@ fn an_app_that_stops_was_last_seen_at_the_last_look_that_saw_it() {
     // Kept: the book read again from storage says the same.
     *state.places.book.lock().unwrap() = None;
     assert_eq!(seen(&work), t0 + 10_000);
+}
+
+/// AJ-E2320 R4: keep alive's Restart quits only the very process it looked
+/// at, checked by its pid and start right before the signal
+/// (`ownership::signal::quit_checked`): a pid given to another program in
+/// between is never signalled, and nothing is started beside.
+#[test]
+fn a_restart_never_quits_a_pid_reused_since_it_looked() {
+    let root = tempfile::tempdir().unwrap();
+    let (state, work, _) = state_with_places(root.path());
+    running_as_me(&state, &work);
+    let reused = Recorder {
+        reused_after_look: true,
+        ..Recorder::default()
+    };
+    let error = restart(
+        &state,
+        &work,
+        &reused,
+        false,
+        RestartOf::Confirmed,
+        quick(),
+        10_000_000,
+    )
+    .unwrap_err();
+    assert!(error.contains("nothing was quit"), "{error}");
+    assert!(reused.quits.lock().unwrap().is_empty(), "never signalled");
+    assert!(reused.starts.lock().unwrap().is_empty(), "nothing beside");
+    assert!(*reused.looks.lock().unwrap() >= 2, "checked right before");
 }

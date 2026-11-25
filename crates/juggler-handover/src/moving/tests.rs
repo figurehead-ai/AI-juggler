@@ -88,6 +88,17 @@ fn begin(lab: &Lab, id: &str) -> Transaction {
     Transaction::begin(&lab.moves, id, "fake", request(lab), plan(lab), None, 1).unwrap()
 }
 
+/// `txn` backed up, applied and its checks before the apps start passed;
+/// the writers' word, for what comes next.
+fn applied_and_checked(txn: &mut Transaction) -> Stopped {
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    let report = txn.verify_cold(Vec::new()).unwrap();
+    assert!(report.passed(), "{:?}", report.failures());
+    stopped
+}
+
 /// Runs steps `0..until` as `apply` would, journaling each; the last one's
 /// done line is left out when `crash` (the Mac stopped right after it).
 fn run_steps(txn: &mut Transaction, until: usize, crash: bool) {
@@ -120,6 +131,36 @@ fn clones() -> bool {
     juggler_platform::transfer::clones_supported(tmp.path()).unwrap_or(false)
 }
 
+/// A disk that makes no clones refuses the move before anything is
+/// written, wherever this runs (the check stays strict; tests elsewhere
+/// set clones on their thread only to reach the case they test).
+#[test]
+fn a_disk_without_clones_refuses_the_move_before_anything_is_written() {
+    juggler_platform::transfer::set_clones_on_this_thread(Some(false));
+    let lab = lab();
+    let refused = Transaction::begin(
+        &lab.moves,
+        "1-no-clones",
+        "fake",
+        request(&lab),
+        plan(&lab),
+        None,
+        1,
+    );
+    let words = refused.err().map(|error| match error {
+        MoveError::Refused(words) => words,
+        other => format!("not a refusal: {other}"),
+    });
+    assert!(
+        words
+            .as_deref()
+            .is_some_and(|words| words.contains("can't make clone backups")),
+        "{words:?}"
+    );
+    assert!(lab.a.join("p/s.jsonl").is_file(), "nothing moved");
+    assert!(!lab.moves.join("1-no-clones").exists(), "no move begun");
+}
+
 #[test]
 fn a_move_applies_checks_and_commits() {
     if !clones() {
@@ -128,11 +169,7 @@ fn a_move_applies_checks_and_commits() {
     let lab = lab();
     let id_before = juggler_platform::transfer::file_id(&lab.a.join("p/s.jsonl")).unwrap();
     let mut txn = begin(&lab, "m1");
-    let stopped = Stopped::checked();
-    txn.back_up(&stopped).unwrap();
-    txn.apply(&stopped, 0).unwrap();
-    let report = txn.verify_cold(Vec::new()).unwrap();
-    assert!(report.passed(), "{:?}", report.failures());
+    let stopped = applied_and_checked(&mut txn);
     assert_eq!(
         juggler_platform::transfer::file_id(&lab.b.join("p/s.jsonl")).unwrap(),
         id_before,
@@ -373,6 +410,29 @@ fn a_second_move_of_the_same_folders_waits() {
     assert!(Lock::take(&roots).is_ok());
 }
 
+/// AJ-E2315 (the review's E11): two spellings of one folder are one lock
+/// (the old key was the raw path, so both moves ran).
+#[test]
+fn two_spellings_of_one_folder_are_one_lock() {
+    let lab = lab();
+    let held = Lock::take(std::slice::from_ref(&lab.a)).unwrap();
+    let slash = PathBuf::from(format!("{}/", lab.a.display()));
+    let dots = lab.a.join("x").join("..");
+    for spelling in [slash, dots] {
+        assert!(
+            Lock::take(std::slice::from_ref(&spelling)).is_err(),
+            "{spelling:?}"
+        );
+    }
+    #[cfg(unix)]
+    {
+        let link = lab.a.with_extension("link");
+        std::os::unix::fs::symlink(&lab.a, &link).unwrap();
+        assert!(Lock::take(&[link]).is_err(), "through a link");
+    }
+    drop(held);
+}
+
 fn walk(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Ok(entries) = std::fs::read_dir(dir) {
@@ -552,7 +612,7 @@ fn a_file_still_changing_on_the_second_try_refuses_and_leaves_no_clone() {
 }
 
 /// 0.4.9: a long backup says how far it is: the bytes read rise to the
-/// total (every file read twice: its baseline and its clone's check).
+/// total (AJ-E2324: every file read once, its clone's bytes).
 #[test]
 fn a_large_backup_reports_its_progress_as_it_reads() {
     if !clones() {
@@ -572,9 +632,10 @@ fn a_large_backup_reports_its_progress_as_it_reads() {
     )
     .unwrap();
     let total = seen.last().unwrap().1;
-    assert!(total >= 2 * big.len() as u64, "{total}");
+    assert!(total >= big.len() as u64, "{total}");
+    assert!(total < 2 * big.len() as u64, "read once: {total}");
     assert!(
-        seen.len() >= 12,
+        seen.len() >= 6,
         "about one report per MiB read: {}",
         seen.len()
     );
@@ -619,4 +680,395 @@ fn only_an_undone_moves_backups_are_let_go() {
         journal(&reopened).last().map(String::as_str),
         Some("backups_dropped")
     );
+}
+
+/// AJ-E2328: another app file (two profiles' worktree files) is written
+/// whole only while it is exactly its backup, checked after, and Undo puts
+/// both back byte for byte.
+#[test]
+fn an_app_file_edit_is_backed_up_checked_and_undone_byte_for_byte() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let a_file = lab.a.join("git-worktrees.json");
+    let b_file = lab.b.join("git-worktrees.json");
+    let a_bytes =
+        b"{\"schemaVersion\":2,  \"worktrees\":{\"w\":{\"leasedBy\":\"local_x\"}},\"future\":[1]}";
+    let b_bytes = b"{\"schemaVersion\":2,\"worktrees\":{}}\n";
+    std::fs::write(&a_file, a_bytes).unwrap();
+    std::fs::write(&b_file, b_bytes).unwrap();
+    let mut plan = plan(&lab);
+    plan.steps.push(MoveStep::WriteAppFile {
+        path: a_file.clone(),
+        value: serde_json::json!({"schemaVersion": 2, "worktrees": {}, "future": [1]}),
+    });
+    plan.steps.push(MoveStep::WriteAppFile {
+        path: b_file.clone(),
+        value: serde_json::json!({"schemaVersion": 2, "worktrees": {"w": {"leasedBy": "local_x"}}}),
+    });
+    assert!(plan.shape().iter().any(|line| line.starts_with("edit ")));
+    let mut txn =
+        Transaction::begin(&lab.moves, "edit-1", "fake", request(&lab), plan, None, 1).unwrap();
+    let stopped = applied_and_checked(&mut txn);
+    let now: serde_json::Value = serde_json::from_slice(&std::fs::read(&b_file).unwrap()).unwrap();
+    assert_eq!(now["worktrees"]["w"]["leasedBy"], "local_x");
+    txn.undo(&stopped, 2).unwrap();
+    assert_eq!(std::fs::read(&a_file).unwrap(), a_bytes);
+    assert_eq!(std::fs::read(&b_file).unwrap(), b_bytes);
+}
+
+/// AJ-E2328: an app file that changed after its backup stops the move
+/// there (the app wrote it meanwhile), nothing written over it.
+#[test]
+fn an_app_file_changed_since_its_backup_stops_the_move() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let file = lab.b.join("git-worktrees.json");
+    std::fs::write(&file, b"{\"schemaVersion\":2}").unwrap();
+    let mut plan = plan(&lab);
+    plan.steps.insert(
+        0,
+        MoveStep::WriteAppFile {
+            path: file.clone(),
+            value: serde_json::json!({"schemaVersion": 2, "worktrees": {}}),
+        },
+    );
+    let mut txn =
+        Transaction::begin(&lab.moves, "edit-2", "fake", request(&lab), plan, None, 1).unwrap();
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    std::fs::write(&file, b"{\"schemaVersion\":2,\"app\":\"wrote\"}").unwrap();
+    assert!(txn.apply(&stopped, 0).is_err());
+    assert_eq!(
+        std::fs::read(&file).unwrap(),
+        b"{\"schemaVersion\":2,\"app\":\"wrote\"}"
+    );
+}
+
+/// AJ-E2321 (A5.1): a move a crash left backed up never changed a file:
+/// it is let go without touching any path, even one an app wrote since.
+#[test]
+fn a_backed_up_move_left_by_a_crash_is_let_go_without_touching_a_file() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m30");
+    txn.back_up(&Stopped::checked()).unwrap();
+    std::fs::write(lab.a.join("p/s.jsonl"), b"written since\n").unwrap();
+    txn.abandon().unwrap();
+    assert_eq!(txn.manifest.phase, Phase::Undone);
+    assert_eq!(
+        std::fs::read(lab.a.join("p/s.jsonl")).unwrap(),
+        b"written since\n",
+        "the app's own write is never put aside"
+    );
+    assert!(walk(&txn.dir().join("backups")).is_empty());
+    assert!(journal(&txn).iter().any(|event| event == "abandoned"));
+    // One that changed files is Undo's, never let go.
+    let mut applied = begin(&lab, "m31");
+    applied.back_up(&Stopped::checked()).unwrap();
+    applied.apply(&Stopped::checked(), 0).unwrap();
+    assert!(applied.abandon().is_err());
+}
+
+/// AJ-E2321 (A6.4): a committed move's backups retire; Undo then has
+/// nothing to restore from, and says so.
+#[test]
+fn a_committed_moves_backups_retire_and_its_undo_goes_with_them() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let stopped = Stopped::checked();
+    let mut txn = begin(&lab, "m32");
+    txn.back_up(&stopped).unwrap();
+    assert!(txn.retire().is_err(), "a live move keeps its backups");
+    txn.apply(&stopped, 0).unwrap();
+    txn.verify_cold(Vec::new()).unwrap();
+    txn.verify_opened(&|_| Appended::Turn, Vec::new()).unwrap();
+    assert_eq!(txn.manifest.phase, Phase::Committed);
+    assert!(txn.backups_kept());
+    assert!(txn.retire().unwrap());
+    assert!(!txn.backups_kept());
+    assert!(!txn.retire().unwrap(), "nothing more to let go");
+    assert!(
+        txn.journal()
+            .iter()
+            .any(|line| line["event"] == "backups_retired")
+    );
+}
+
+/// AJ-E2321 (A6.1): the room a move asks for counts Undo's: its records
+/// written again and each path's entries, above the margin.
+#[test]
+fn the_room_a_move_needs_counts_its_undo() {
+    let lab = lab();
+    let plan = plan(&lab);
+    let record = serde_json::json!({"id": 1, "moved": true})
+        .to_string()
+        .len() as u64;
+    let needed = room_needed(&plan);
+    assert!(needed >= ROOM_MARGIN + 2 * record, "{needed}");
+    let mut bigger = plan.clone();
+    bigger.steps.push(MoveStep::MakeDir {
+        path: lab.b.join("q"),
+    });
+    assert!(room_needed(&bigger) > needed, "every path's entries count");
+}
+
+/// AJ-E2322 (the review's B7): every phase is in the journal with its
+/// time (ms), and the caller's timeline lines carry how long a phase took
+/// and its wait set, never overwriting the event's own fields.
+#[test]
+fn the_journal_keeps_a_timeline_of_every_phase_in_ms() {
+    // The timeline is the case, not the disk: on one that makes no clones
+    // (a CI runner's ext4) the backup is a plain copy of the lab's files.
+    juggler_platform::transfer::set_clones_on_this_thread(Some(true));
+    let lab = lab();
+    let mut txn = begin(&lab, "1-timeline");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.timeline(
+        "closing",
+        1234,
+        serde_json::json!({"waited": [{"program": "claude", "pid": 42, "reason": "writes it", "evidence": "its session file"}], "remained": [], "event": "not this"}),
+    )
+    .unwrap();
+    let lines = txn.journal();
+    let phases: Vec<&serde_json::Value> = lines.iter().filter(|l| l["event"] == "phase").collect();
+    assert_eq!(phases.len(), 2, "{lines:?}");
+    assert!(
+        phases.iter().all(|l| l["at_ms"].as_i64().unwrap_or(0) > 0),
+        "{lines:?}"
+    );
+    let timeline = lines.iter().find(|l| l["event"] == "timeline").unwrap();
+    assert_eq!(timeline["phase"], "closing");
+    assert_eq!(timeline["took_ms"], 1234);
+    assert!(timeline["at_ms"].as_i64().unwrap_or(0) > 0);
+    assert_eq!(timeline["waited"][0]["program"], "claude");
+    assert!(timeline["remained"].as_array().unwrap().is_empty());
+}
+
+/// AJ-E2324 R3 (the review's A6.2 and C3): a whole move (backup, apply,
+/// the check before the apps start and the one after) reads every byte
+/// of the moved history twice (the clone's hash and the after-open
+/// prefix), not four times.
+#[test]
+fn a_move_reads_every_byte_twice_not_four_times() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
+    let big = line.repeat((4 << 20) / line.len() + 1);
+    std::fs::write(lab.a.join("p/s.jsonl"), &big).unwrap();
+    let mut txn = begin(&lab, "m30");
+    state::READ.with(|read| read.set(0));
+    let _stopped = applied_and_checked(&mut txn);
+    let report = txn
+        .verify_opened(&|_| Appended::Bookkeeping, Vec::new())
+        .unwrap();
+    assert!(report.passed(), "{:?}", report.failures());
+    let read = state::READ.with(std::cell::Cell::get);
+    let big = big.len() as u64;
+    assert!(read >= 2 * big, "{read}");
+    assert!(
+        read < 2 * big + (64 << 10),
+        "two reads, not four: {read} of {big}"
+    );
+}
+
+/// AJ-E2324 R3: the check before the apps start reads no byte, yet a file
+/// written after the backup (same size, a new time of last write) fails
+/// it.
+#[test]
+fn the_cold_check_by_identity_size_and_time_catches_a_write() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m31");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    txn.apply(&stopped, 0).unwrap();
+    // The same length, other bytes, in place (the same file).
+    let moved = lab.b.join("p/s.jsonl");
+    let len = std::fs::metadata(&moved).unwrap().len();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&moved)
+        .unwrap();
+    file.write_all(&vec![b'x'; usize::try_from(len).unwrap()])
+        .unwrap();
+    drop(file);
+    let report = txn.verify_cold(Vec::new()).unwrap();
+    assert!(!report.passed());
+    assert!(
+        report
+            .failures()
+            .iter()
+            .any(|f| f.ends_with("s.jsonl has every byte it had")),
+        "{:?}",
+        report.failures()
+    );
+}
+
+/// AJ-E2324 R3: a move recorded before 0.5.1 (no times of last write)
+/// is still checked, by its bytes.
+#[test]
+fn a_move_recorded_without_times_is_checked_by_its_bytes() {
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let mut txn = begin(&lab, "m32");
+    let stopped = Stopped::checked();
+    txn.back_up(&stopped).unwrap();
+    for entry in &mut txn.manifest.entries {
+        match &mut entry.before {
+            State::File(file) => file.mtime_ns = None,
+            State::Dir(dir) => dir.files.iter_mut().for_each(|(_, f)| f.mtime_ns = None),
+            State::Absent => {}
+        }
+    }
+    txn.apply(&stopped, 0).unwrap();
+    state::READ.with(|read| read.set(0));
+    assert!(txn.verify_cold(Vec::new()).unwrap().passed());
+    assert!(state::READ.with(std::cell::Cell::get) > 0, "read its bytes");
+}
+
+/// AJ-E2324 R4, measured (run alone: `cargo test -p juggler-handover --lib
+/// -- --ignored --nocapture fixture_move_timings`): a 400 MB fixture move
+/// with real processes for the two apps (each ends when asked) and the
+/// Code tab's Claude Code (it writes its last line 0.5 s after and ends),
+/// through the real waits (`juggler_platform::wait`) and the engine:
+/// quit and wait, the files' quiet window, backup, apply and the cold
+/// check. The apps' own start and the open check come after (AJ-E2322's
+/// event-driven wait); the walk measures them on real apps.
+#[test]
+#[ignore = "a measurement: 400 MB on disk, run alone"]
+fn fixture_move_timings() {
+    use juggler_platform::wait;
+    use std::process::{Child, Command};
+    use std::time::{Duration, Instant};
+    if !clones() {
+        return;
+    }
+    let lab = lab();
+    let history = lab.a.join("p/s.jsonl");
+    let line = b"{\"type\":\"assistant\",\"pad\":\"................................\"}\n";
+    std::fs::write(&history, line.repeat((400 << 20) / line.len())).unwrap();
+    let app = || {
+        Command::new("/bin/sh")
+            .args(["-c", "trap 'exit 0' TERM; /bin/sleep 60 & wait"])
+            .spawn()
+            .unwrap()
+    };
+    let mut runs = Vec::new();
+    let mut waits_cpu = Vec::new();
+    for run in 0..10 {
+        let (from, to) = if run % 2 == 0 {
+            (&lab.a, &lab.b)
+        } else {
+            (&lab.b, &lab.a)
+        };
+        let mut apps: Vec<Child> = vec![app(), app()];
+        let mut writer = Command::new("/bin/sh")
+            .arg("-c")
+            .arg(format!(
+                "trap '' TERM; /bin/sleep 0.5; printf '{{}}\\n' >> '{}'",
+                from.join("p/s.jsonl").display()
+            ))
+            .spawn()
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(200));
+        let began = Instant::now();
+        let cpu = cpu_time::ProcessTime::now();
+        for app in &apps {
+            let _ = Command::new("/bin/kill")
+                .args(["-TERM", &app.id().to_string()])
+                .status();
+        }
+        // The apps, then the writer: each woken by its exit.
+        let wait_all = |set: &mut Vec<&mut Child>| {
+            while !set.is_empty() {
+                let pids: Vec<u32> = set.iter().map(|c| c.id()).collect();
+                let _ = wait::any_exit(&pids, Duration::from_secs(1));
+                set.retain_mut(|c| c.try_wait().unwrap().is_none());
+            }
+        };
+        wait_all(&mut apps.iter_mut().collect());
+        wait_all(&mut vec![&mut writer]);
+        let quiet = wait::quiet_for(
+            &[from.join("p")],
+            Duration::from_millis(300),
+            Duration::from_secs(9),
+        );
+        let wait_cpu = cpu.elapsed();
+        let waited = began.elapsed();
+        assert_eq!(quiet, wait::Quiet::Calm);
+        // The engine.
+        let request = MoveRequest {
+            source: MoveSide {
+                tool_dir: from.clone(),
+                host_dir: None,
+                version: None,
+            },
+            target: MoveSide {
+                tool_dir: to.clone(),
+                host_dir: None,
+                version: None,
+            },
+            ..request(&lab)
+        };
+        let plan = MovePlan {
+            roots: vec![from.clone(), to.clone()],
+            steps: vec![MoveStep::Rename {
+                from: from.join("p/s.jsonl"),
+                to: to.join("p/s.jsonl"),
+                history: true,
+            }],
+            ..plan(&lab)
+        };
+        let mut txn = Transaction::begin(
+            &lab.moves,
+            &format!("t{run}"),
+            "fake",
+            request,
+            plan,
+            None,
+            1,
+        )
+        .unwrap();
+        let stopped = Stopped::checked();
+        let t = Instant::now();
+        txn.back_up(&stopped).unwrap();
+        let backed = t.elapsed();
+        let t = Instant::now();
+        txn.apply(&stopped, 0).unwrap();
+        assert!(txn.verify_cold(Vec::new()).unwrap().passed());
+        let applied = t.elapsed();
+        let total = began.elapsed();
+        eprintln!(
+            "run {run}: waits {waited:?} (CPU {wait_cpu:?}), backup {backed:?}, apply+cold {applied:?}, total {total:?}"
+        );
+        runs.push(total);
+        waits_cpu.push(wait_cpu);
+        let _ = txn.retire();
+        let _ = std::fs::remove_dir_all(txn.dir());
+    }
+    runs.sort();
+    waits_cpu.sort();
+    eprintln!(
+        "p50 {:?}, p95 {:?}, waits' CPU max {:?}",
+        runs[runs.len() / 2],
+        runs[runs.len() * 95 / 100],
+        waits_cpu.last().unwrap()
+    );
+    assert!(*waits_cpu.last().unwrap() <= Duration::from_millis(50));
 }

@@ -101,7 +101,13 @@ for (const theme of ["dark", "light"] as const) {
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "keep-alive" } })));
     const lab = page.getByTestId("desktop-place-claude-app-Lab");
     await expect(lab).toContainText("Open it to start it and keep it alive again.");
-    await expect(page.getByTestId("desktop-place-claude-app-Old").getByTestId("desktop-place-forget")).toBeVisible();
+    // Forget is in the row's ⋯ (design review #65: a lone Forget broke the column).
+    await page.getByTestId("desktop-place-claude-app-Old").getByTestId("desktop-place-more").click();
+    await expect(page.getByTestId("desktop-place-forget")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("desktop-place-forget")).toHaveCount(0);
+    // The capture at rest: the ⋯ that had the menu keeps no focus ring.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await lab.scrollIntoViewIfNeeded();
     await shoot(page, "settings-your-apps", theme);
   });

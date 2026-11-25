@@ -77,6 +77,10 @@ const PRIMARY: Record<string, string> = {
   pool: "Open",
   // 0.3.3: an app kept alive was started again, or keep alive paused.
   "keep-alive": "Keep alive settings",
+  // AJ-E2325: the low-disk offer: the backups, where Clear is.
+  "move-backups": "Review backups",
+  // 0.5.1 F92: an App a crashed move had quit that didn't start again.
+  "start-app": "Start",
 };
 
 /** The primary's name where it's shown: a hand-over with nothing open on
@@ -112,15 +116,16 @@ export function noticeTone(notice: Pick<NoticeInfo, "kind" | "facts">): ReturnTy
   return notice.kind === "quota" && notice.facts.credits != null ? "info" : toneOf(notice.kind);
 }
 
-/** "Remind me at 9:40 PM": what the reminder button says. */
+/** "Remind me at 9:40 PM · a watch": what the reminder button says; it
+ * makes a one-time "Room again" watch (AJ-E1548 #14), so it says so. */
 export function remindLabel(resetsAtMs: number, now: number = Date.now()): string {
-  return `Remind me at ${whenWords(resetsAtMs, now)}`;
+  return `Remind me at ${whenWords(resetsAtMs, now)} · a watch`;
 }
 
 /** A row's look: what its mark says. */
 export function toneOf(kind: string): "ask" | "warn" | "ok" | "err" | "info" {
   if (kind === "asks" || kind === "message" || kind === "task" || kind === "signin") return "ask";
-  if (kind === "quota" || kind === "stuck" || kind === "limit" || kind === "room" || kind === "heavy" || kind === "leftovers" || kind === "cap" || kind === "keep-alive-paused") return "warn";
+  if (kind === "quota" || kind === "stuck" || kind === "limit" || kind === "room" || kind === "heavy" || kind === "leftovers" || kind === "cap" || kind === "keep-alive-paused" || kind === "app-not-started") return "warn";
   if (kind === "review" || kind === "finished") return "ok";
   if (kind === "failed" || kind === "restarted") return "err";
   return "info";

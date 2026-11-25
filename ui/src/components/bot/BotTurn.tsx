@@ -3,7 +3,9 @@
  * on: "About api"), then what Bot found. The lead is code's, from each
  * row's own state; every answer says what it looked at; "I don't know"
  * says why and shows the nearest record or screen, labelled, never a
- * nearby answer. A Beta written answer sits above the numbered rows.
+ * nearby answer. D-144: the answer is the AI's, above the numbered
+ * records it cites; one it couldn't check is "I don't know" with the
+ * records it checked, never the records alone as an answer.
  */
 import { useState, type JSX, type SVGProps } from "react";
 import { BotRows } from "./BotRows";
@@ -38,7 +40,7 @@ function Lead({ pieces }: { pieces: readonly Piece[] }): JSX.Element {
   );
 }
 
-export function Shortcut({ shortcut }: { shortcut: BotShortcut }): JSX.Element {
+function Shortcut({ shortcut }: { shortcut: BotShortcut }): JSX.Element {
   const nav = useBotNav();
   const words = SHORTCUTS[shortcut];
   return (
@@ -122,7 +124,9 @@ function Unknown({ turn, now, find, onWatch }: { turn: BotTurnInfo; now: number;
         <b className="font-semibold text-ink">{words.strong}</b>
         {words.rest}
       </p>
-      {nearest && turn.unknown && turn.unknown !== "nothing_found" ? (
+      {turn.unknown === "unverified" && turn.rows.length > 0 ? (
+        <BotRows rows={turn.rows} now={now} find={find} onWatch={onWatch} label={WORDS.checkedRecords} />
+      ) : nearest && turn.unknown && turn.unknown !== "nothing_found" ? (
         <>
           <span className="text-meta text-muted">
             {nearestWords(turn.unknown, nearest).lead}
@@ -160,7 +164,6 @@ function aliasesOf(turn: BotTurnInfo): Map<string, string> {
 
 /** The answer part of an exchange. */
 function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: number; latest: boolean; find?: string; onWatch?: (row: BotRowInfo) => void }): JSX.Element {
-  const [recordsOnly, setRecordsOnly] = useState(false);
   if (turn.outcome === "help" || turn.outcome === "out_of_scope") {
     return <p className="text-body leading-normal text-ink-2" data-testid="bot-lead">{turn.outcome === "help" ? HELP : OUT_OF_SCOPE}</p>;
   }
@@ -172,11 +175,11 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
   if (turn.outcome === "remembered" || turn.outcome === "refused") return <BotMemoryEcho turn={turn} />;
   if (turn.outcome === "dont_know") return <Unknown turn={turn} now={now} find={find} onWatch={onWatch} />;
   const before = dayWords(turn.at_ms, now) !== "Today";
-  const written = turn.written && !recordsOnly ? turn.written : null;
+  const written = turn.written ?? null;
   return (
     <div className="flex flex-col gap-2">
       {written ? (
-        <BotWrittenCard written={written} rows={turn.rows.length} turnId={turn.id} flagged={turn.flagged} onRecordsOnly={() => setRecordsOnly(true)} />
+        <BotWrittenCard written={written} rows={turn.rows.length} turn={turn} />
       ) : before && turn.rows.length > 0 && !latest ? (
         <span className="text-meta text-muted">{WORDS.askedBefore(turn.at_ms, now)}</span>
       ) : (

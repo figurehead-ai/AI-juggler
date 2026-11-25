@@ -5,7 +5,8 @@
 import type { JSX } from "react";
 import { Button } from "../../components/primitives";
 import { OfferRow, usePlaceOffers } from "../../components/PlaceOffers";
-import { PaneSection, RowNote } from "./parts";
+import { findMyApps } from "../../lib/found-tools";
+import { PaneSection, RowNote, SettingRow } from "./parts";
 
 /** A row just forgotten, held where it was (the go sitting's rerun: Forget
  * took the row out and Find profiles put it back under Found a moment
@@ -19,18 +20,44 @@ export interface Forgotten {
 
 export type Offers = ReturnType<typeof usePlaceOffers>;
 
+/** F19 (0.5.1 PL1 D3): Settings' add entry, always there: Find my apps,
+ * the same list every Add uses (the setup's Your apps: running profiles
+ * not added, folders not brought in, a removed App again). */
+function FindAppsRow(): JSX.Element {
+  return (
+    <SettingRow
+      title="Add an app"
+      description="Looks on this computer for the AI apps you use, open profiles included, and adds the ones you tick. Nothing is added until you do."
+      testId="desktop-find-apps"
+      control={
+        <Button size="sm" variant="secondary" onClick={findMyApps} data-testid="desktop-find-apps-open">
+          Find my apps…
+        </Button>
+      }
+    />
+  );
+}
+
 /** D-84: apps seen running, or profiles found beside one that ran,
- * that the user hasn't added (components/PlaceOffers). One just forgotten
- * is offered in its own row instead (`held`). */
-export function FoundOnThisMac({ offers: { offers, answer, note }, held }: { offers: Offers; held: Forgotten[] }): JSX.Element | null {
+ * that the user hasn't added (components/PlaceOffers), each with Add;
+ * then Find my apps for anything else. One just forgotten is offered in
+ * its own row instead (`held`). */
+export function FoundOnThisMac({ offers: { offers, answer, note }, held }: { offers: Offers; held: Forgotten[] }): JSX.Element {
   const shown = (offers ?? []).filter((offer) => !held.some((one) => one.id === offer.id));
-  if (shown.length === 0) return null;
+  if (shown.length === 0) {
+    return (
+      <PaneSection id="found" title="Add apps" footer="AI Juggler adds an app only when you say so, a removed one too.">
+        <FindAppsRow />
+      </PaneSection>
+    );
+  }
   return (
     <PaneSection id="found" title="Found on this computer" footer="Seen running, or found beside a profile that ran, and not added. AI Juggler adds an app only when you say so; until then it isn't in your apps, the rail or Home.">
       {shown.map((offer) => (
-        <OfferRow key={offer.id} offer={offer} onAnswer={(add) => answer(offer, add)} />
+        <OfferRow key={offer.id} offer={offer} onAnswer={(add) => void answer(offer, add)} />
       ))}
       {note && <RowNote>{note}</RowNote>}
+      <FindAppsRow />
     </PaneSection>
   );
 }
@@ -44,7 +71,7 @@ export function ForgottenRow({ one, offers }: { one: Forgotten; offers: Offers }
         <span className="font-medium text-ink-2">{one.name}</span> · forgotten{offer ? "; it's running, so it's offered again" : ""}
       </span>
       {offer && (
-        <Button size="sm" variant="secondary" onClick={() => offers.answer(offer, true)} data-testid="desktop-place-add-again">
+        <Button size="sm" variant="secondary" onClick={() => void offers.answer(offer, true)} data-testid="desktop-place-add-again">
           Add again
         </Button>
       )}

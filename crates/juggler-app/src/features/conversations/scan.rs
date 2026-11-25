@@ -27,7 +27,9 @@ use juggler_adapter::live::{AppSession, LiveSession, LiveStatus, TurnOutcome, sa
 
 use juggler_adapters::folder_wake::{Hand, Woke};
 
-use super::places::{Host, HostRegistry, RunningApp, host_of, running_apps, running_instances};
+use super::places::{
+    Host, HostRegistry, RunningApp, host_of, running_apps, running_instances, session_host,
+};
 use super::procs::{Proc, Table};
 
 /// How often the per-session files are looked at.
@@ -922,7 +924,8 @@ fn build(
     let mut status_of: HashMap<Key, LiveStatus> = HashMap::new();
     for found in found {
         pid_dirs.insert(found.pid, found.profile.dir.clone());
-        let host = host_of(found.pid, table, hosts, home);
+        let at = (found.profile.dir.as_path(), &found.session);
+        let host = session_host(found.pid, at, table, hosts, home);
         // The app's own record of this session: in the instance the
         // process runs in, by the app's id for it.
         let app = found.session.host_session_id.as_ref().and_then(|host_id| {

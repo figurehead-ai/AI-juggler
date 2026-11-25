@@ -41,7 +41,7 @@ export function FilteredNone({ word }: { word: string }): JSX.Element {
  * Account again. */
 export function OutFilterChip({ word, count, onClear }: { word: string; count: number; onClear: () => void }): JSX.Element {
   return (
-    <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-accent/45 bg-accent-soft pl-3 pr-1 text-meta font-medium text-ink" data-testid="accounts-filter" data-filter={word}>
+    <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-transparent bg-accent-soft pl-3 pr-1 text-meta font-medium text-ink" data-testid="accounts-filter" data-filter={word}>
       <span>
         {word} · <span className="tabular-nums">{count}</span>
       </span>
@@ -60,15 +60,20 @@ export function OutFilterChip({ word, count, onClear }: { word: string; count: n
 }
 
 /** An out Account's line, under its card's header: when it's back, and
- * where its work can go now. */
+ * where its work can go now. AJ-E1552 req 6: the chip and the sentence
+ * stack in the left column (the sentence has the column's whole width, one
+ * calm line at 1024 and 1280 wide, never squeezed between the chip and the
+ * button); the button sits at the right, centred on both. */
 export function OutLine({ mark, target, self }: { mark: RoomMark | null; target: OutTarget | null; self: string }): JSX.Element {
   const elsewhere = target && target.name !== self ? target : null;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-hairline bg-danger-soft/40 px-5 py-2.5" data-testid="account-out">
-      {mark ? <RoomChip mark={mark} size="md" testId="account-out-mark" /> : <span className="text-meta font-semibold text-danger">Out</span>}
-      <span className="min-w-0 flex-1 text-meta text-ink-2" data-testid="account-out-best">
-        {elsewhere ? `${elsewhere.name} has ${elsewhere.left}% left.` : "No other account has room now."}
-      </span>
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-hairline bg-danger-soft/40 px-5 py-2.5" data-testid="account-out">
+      <div className="flex min-w-0 flex-col items-start gap-1">
+        {mark ? <RoomChip mark={mark} size="md" testId="account-out-mark" /> : <span className="text-meta font-semibold text-danger">Out</span>}
+        <span className="min-w-0 max-w-full text-meta text-ink-2" data-testid="account-out-best">
+          {elsewhere ? `${elsewhere.name} has ${elsewhere.left}% left.` : "No other account has room now."}
+        </span>
+      </div>
       {elsewhere && (
         <Button
           size="sm"

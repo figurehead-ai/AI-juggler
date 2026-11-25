@@ -1248,6 +1248,29 @@ pub struct ContinueTarget {
     pub cwd: PathBuf,
 }
 
+/// `account`'s first launch settings, the ones a conversation continues
+/// with (here and as a switch's source).
+///
+/// # Errors
+///
+/// [`AppError::Refused`] in words when it has none; storage errors.
+pub(crate) fn first_launch_settings(
+    storage: &juggler_core::storage::Storage,
+    account: &juggler_core::model::Account,
+) -> AppResult<juggler_core::model::Profile> {
+    storage
+        .profiles()
+        .list_by_account(&account.id)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| {
+            AppError::Refused(format!(
+                "{} has no launch settings yet: add them first",
+                account.label
+            ))
+        })
+}
+
 /// [`continue_impl`]'s checks and choices, without the launch: the one
 /// place they're made (the L2 harness records sessions from it too).
 ///
@@ -1276,17 +1299,7 @@ pub fn continue_target(
         .ok_or_else(|| AppError::Refused("its folder isn't there any more".to_owned()))?;
     let account = crate::commands::find_account_arc(state, account_id)?;
     let storage = lock_storage_arc(state)?;
-    let profile = storage
-        .profiles()
-        .list_by_account(&account.id)?
-        .into_iter()
-        .next()
-        .ok_or_else(|| {
-            AppError::Refused(format!(
-                "{} has no launch settings yet: add them first",
-                account.label
-            ))
-        })?;
+    let profile = first_launch_settings(&storage, &account)?;
     let homes = storage.projects().worktree_homes()?;
     let project = storage.projects().touch(
         &juggler_core::storage::project_root_with(&cwd, &homes),

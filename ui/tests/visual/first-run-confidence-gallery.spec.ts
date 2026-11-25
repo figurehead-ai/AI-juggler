@@ -1,7 +1,8 @@
 /**
- * AJ-E2906 gallery: first run's found step saying how sure it is — Found,
- * Likely and Guessed rows with where each came from, a sign-in that may
- * have expired, a row's Details open, and Look again. Both themes,
+ * AJ-E2906 gallery: Add an app's found step in plain words (no Found,
+ * Likely or Guessed badges since F29): each row's sign-in and use, a
+ * sign-in that may have expired, a row's Details open with where it came
+ * from, and Look again. Both themes,
  * 1280×800 and 1024×700; axe 0 critical/serious on each.
  */
 import { gate, test, expect } from "./axe-gallery";
@@ -23,7 +24,7 @@ const SCAN = {
     row("/Users/you/.claude-x7", "env-override", { purpose: "X7", purpose_confidence: "guessed", purpose_rule: "folder-name", login: "not-signed-in", login_rule: "no-sign-in" }, { login: "logged_out", last_used_secs: NOW_S - 50 * 86_400 }),
     row("/Users/you/.claude-old", "other-manager", { purpose: "Old", purpose_confidence: "guessed", purpose_rule: "folder-name", login: "maybe-expired", login_confidence: "likely", login_rule: "sign-in-empty" }, { login: "logged_out", set_by: "cc-switch", last_used_secs: NOW_S - 200 * 86_400 }),
   ],
-  probes: [{ label: "Folders named .claude…", health: "ok", detail: "4 setups", reason: null }],
+  probes: [{ label: "Folders named .claude…", health: "ok", detail: "4 found", reason: null }],
   seeds: [],
   desktop_apps: [],
   cancelled: false,
@@ -38,7 +39,8 @@ for (const theme of THEMES) {
       await page.getByRole("button", { name: "Add an app" }).first().click();
       await page.getByRole("dialog", { name: /Add an app/ }).getByRole("button", { name: "Claude Code →" }).click();
       const found = page.getByTestId("first-run-found");
-      await expect(found.getByTestId("first-run-confidence").first()).toBeVisible();
+      await expect(found.getByTestId("first-run-status").first()).toBeVisible();
+      await expect(found.getByTestId("first-run-confidence")).toHaveCount(0);
       await shot(page, OUT, `found-${where}`);
       await page.getByRole("button", { name: "Details for claude-old" }).click();
       await expect(page.getByTestId("first-run-details")).toBeVisible();

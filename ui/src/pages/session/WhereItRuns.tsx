@@ -12,7 +12,7 @@ import { Card } from "../../components/primitives";
 import { shortPath } from "../../screens/AccountManage";
 import { CardTitle } from "./CardTitle";
 import { INACTIVE_WHERE, sessionHost, type SessionModel } from "./model";
-import { useLastPlace } from "../../lib/places";
+import { continuedFromWords, useLastPlace } from "../../lib/places";
 
 export function WhereItRuns({
   model,
@@ -56,6 +56,7 @@ export function WhereItRuns({
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="where-it-runs">
       <CardTitle>Where it runs</CardTitle>
+      <ContinuedFrom model={model} outside={outside} />
       <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-2 text-meta">
         {rows.map(([label, value, mono]) => (
           <div key={label} className="contents">
@@ -101,5 +102,17 @@ export function WhereItRuns({
         </p>
       )}
     </Card>
+  );
+}
+
+/** AJ-E2326 R6: a session AI Juggler continued says where it came from
+ * (the App it was last seen open in), never reading as a new CLI App. */
+function ContinuedFrom({ model, outside }: { model: SessionModel; outside: boolean }): JSX.Element | null {
+  const came = useLastPlace(model.tool, model.conversationId ?? "", !outside && model.carriedIn === true);
+  if (!came) return null;
+  return (
+    <p className="text-meta text-ink-2" data-testid="where-continued-from">
+      {continuedFromWords(came, model.tool)}
+    </p>
   );
 }

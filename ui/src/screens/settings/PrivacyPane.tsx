@@ -10,24 +10,49 @@ import { useEffect, useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
 import { PrivacyCard } from "../../components/PrivacyCard";
 import { PrivacyClaims } from "../PrivacyScreen";
-import { remoteAbout, remoteConfigSetCheck } from "../../lib/ipc/remote";
 import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
+import { onRemoteChanged, remoteAbout, remoteCheckSet } from "../../lib/ipc/remote";
+import { errorText } from "../../lib/bridge";
 
 const openSection = (section: string) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } }));
 
-export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
-  // AJ-E2023 Req.3: "Check for configuration updates" — on by default
-  // (D-129); `checking` rides the About answer.
-  const [checking, setChecking] = useState<boolean | null>(null);
+/** AJ-E1548 #15 (AJ-E2023 Req 3, D-129): the configuration check, on by
+ * default, with what it fetches and when. */
+function ConfigCheckRow(): JSX.Element {
+  const [on, setOn] = useState<boolean | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
   useEffect(() => {
-    let alive = true;
-    void remoteAbout().then((about: { checking: boolean }) => {
-      if (alive) setChecking(about.checking);
-    });
+    let live = true;
+    const read = () => void remoteAbout().then((about) => live && setOn(about.checking), () => undefined);
+    read();
+    const stop = onRemoteChanged(read);
     return () => {
-      alive = false;
+      live = false;
+      stop();
     };
   }, []);
+  return (
+    <SwitchRow
+      title="Check for configuration updates"
+      description="At most once a day, AI Juggler downloads its signed configuration file: which tool versions and models work here, and short notices. The download carries nothing about you, and a file that doesn't verify is never used."
+      checked={on ?? true}
+      disabled={on === null}
+      onChange={(next) => {
+        setOn(next);
+        setFailed(null);
+        remoteCheckSet(next).catch((cause: unknown) => {
+          setOn(!next);
+          setFailed(errorText(cause));
+        });
+      }}
+      note={failed}
+      noteTone="warning"
+      testId="privacy-config-check"
+    />
+  );
+}
+
+export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
     <Pane id="privacy" title="Privacy" anchor={anchor}>
       <PaneSection
@@ -35,17 +60,6 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
         title="What AI Juggler reads"
         footer="All of it on this computer. Every line below names the tests that check it."
       >
-        <SwitchRow
-          title="Check for configuration updates"
-          description="A small signed file from figurehead.ai, at most once a day, says which features and tool versions are safe to offer everyone. Nothing about you is sent — no account, no list of your tools, nothing identifying."
-          checked={checking ?? true}
-          disabled={checking === null}
-          onChange={(on) => {
-            setChecking(on);
-            void remoteConfigSetCheck(on).catch(() => setChecking(!on));
-          }}
-          testId="privacy-remote-config-check"
-        />
         <SettingRow
           title="To know what's open"
           description="Each tool's own session files, and the names of running programs and the apps that started them. Never a program's environment, where the Claude app keeps a sign-in token."
@@ -71,6 +85,9 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
             </Button>
           }
         />
+      </PaneSection>
+      <PaneSection id="config" title="Configuration updates" footer="When it's off, AI Juggler uses the settings it shipped with.">
+        <ConfigCheckRow />
       </PaneSection>
       <PaneSection
         id="stats"

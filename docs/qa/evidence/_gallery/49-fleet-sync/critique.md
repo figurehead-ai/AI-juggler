@@ -1,4 +1,4 @@
-<!-- captures: 103732410674 -->
+<!-- captures: d98028157bc2 -->
 # 49-fleet-sync: Fleet with a paired Mac mini synced, offline with queued changes, with clock skew, and Home filtered to the offline Mac
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -18,3 +18,11 @@ Fleet reads as two clear columns of raised cards (Link on and Paired machines on
 Retaken on release/0.4.1 for the Fleet gate's screenshot set (AJ-E710), both themes, every size the family has. First pass by a Sonnet agent against a written sheet; the points marked (checked) were confirmed by eye by Opus.
 
 Offline and queued: an Offline chip, "↑ 12 changes queued" in amber, "was working". Still: the offline strip and the card both say Last seen and Unpair…; the clock-skew warning has its ⚠ but no warning colour.
+
+## 0.5.1
+
+Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail's head now starts past the traffic lights, its rows hold a fixed dot column (tools on hover), cards and panels separate by tone instead of a border, a chosen item is a fill, and the top bar's bottom line is calmer. Fleet content is unchanged.
+
+## 0.5.1 final round (2026-11-24)
+
+Re-captured once on the release HEAD after the last fixes. What changed: The View menu is unchanged; Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80) behind it. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.

@@ -27,22 +27,23 @@ import type { NoticeInfo } from "./ipc/notices";
 import type { KnownPlaceInfo } from "./ipc/places";
 import { nestRows } from "./rail-tree";
 import { loudLines } from "./needs-order";
-import { inactiveLines, pinnedLines, pinnedSection, unfoldLines, unfoldsToARow } from "./rail-unfold";
+import { footerOf, inactiveLines, pinnedLines, pinnedSection, recentOf, unfoldLines, unfoldsToARow } from "./rail-unfold";
 import { appFolderOf, IDLE_APPS_SHOWN, idleApps, idleSessionsByApp, knownKey, offeredLines, ownersOf, runningGroups, type CliAppFacts, type IdleApp, type OfferLine } from "./rail-apps";
 import { appName } from "./app-name";
 
 export type SectionId = "needs" | "open" | "offered" | "idle" | "pinned";
 
 export type Line =
-  | { kind: "section"; id: SectionId; count: number; level?: AttentionLevel; broken?: string[] } // D-117: L2+L3; the highest
+  | { kind: "section"; id: SectionId; count: number; level?: AttentionLevel; broken?: string[]; sessions?: number } // D-117: L2+L3; the highest; AJ-E1554 R5: Inactive apps' sessions
   | { kind: "need"; item: RailItem }
   | { kind: "to-review" } // D-117: over Needs you's notes (L1), uncounted
   | { kind: "notice"; notice: NoticeInfo }
   /** 0.4.3: `foldable`: unfolding shows a row; `recent`: an App with
    * something open, its past ones' count, on its header (shown in place). */
-  | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null; foldable: boolean; recent: { count: number; open: boolean } | null; level?: AttentionLevel; probably?: boolean; broken?: string[] }
+  | { kind: "header"; group: RailGroup; folded: string | null; needs: number; digit: number | null; foldable: boolean; recent: { count: number; open: boolean } | null; level?: AttentionLevel; probably?: boolean; broken?: string[]; needItems?: RailItem[] }
   | { kind: "row"; item: RailItem; group: RailGroup; depth?: number; parent?: string | null }
-  | { kind: "more"; group: RailGroup; quiet: number; words: "quiet" | "more" }
+  // AJ-E1554 R4: a group's footer: its open ones not drawn, and its recent ones (an App with something open).
+  | { kind: "more"; group: RailGroup; quiet: number; words: "quiet" | "more"; recent?: { count: number; open: boolean } | null }
   | { kind: "also" }
   | { kind: "label"; id: "ended" | "inactive"; count: number }
   | { kind: "plain"; item: RailItem }
@@ -139,9 +140,9 @@ export interface LineInputs {
   poolOf?: PoolOf;
   /** Open now's order (D-47): Your order when not given. */
   order?: OrderInputs;
-  /** D-49: the rest of the backend's Needs you (not a session's), so the
-   * section holds what the bell counts; left out while searching. */
+  /** D-49: the rest of the backend's Needs you (not a session's), so the section holds what the bell counts; left out while searching. */
   others?: NoticeInfo[];
+  held?: NoticeInfo[]; // 0.5.1 F34: listed as Sign-ins entries, counted in Needs you (AJ-E3104)
   /** D-64: the desktop apps remembered (the App grouping's inactive apps,
    * and where a desktop app's past sessions were last open). */
   known?: readonly KnownPlaceInfo[];
@@ -168,26 +169,26 @@ const YOURS: OrderInputs = { mode: "yours", rows: new Map(), groups: [], folded:
 /** Needs you (D-117): the count and the top hold what waits on you or
  * broke (L2, L3); the notes (done, review it; low room nothing live is
  * on) are listed last under a faint "To review", never counted. */
-function needsSection(needs: RailItem[], rest: NoticeInfo[]): Line[] {
-  if (needs.length + rest.length === 0) return [];
+function needsSection(needs: RailItem[], rest: NoticeInfo[], held: NoticeInfo[] = []): Line[] {
+  if (needs.length + rest.length + held.length === 0) return []; // F34: held are counted ones
   const loudNeeds = needs.filter((item) => counted(itemLevel(item)));
   const loudRest = rest.filter((notice) => counted(noticeLevel(notice)));
   const notes: Line[] = [...needs.filter((item) => !counted(itemLevel(item))).map((item) => ({ kind: "need" as const, item })), ...rest.filter((notice) => !counted(noticeLevel(notice))).map((notice) => ({ kind: "notice" as const, notice }))];
-  const level = highest([...loudNeeds.map(itemLevel), ...loudRest.map(noticeLevel)]);
+  const level = highest([...loudNeeds.map(itemLevel), ...loudRest.map(noticeLevel), ...held.map(noticeLevel)]);
   return [
-    { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length, level, broken: [...brokenOf(loudNeeds, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)] }, // said aloud: its ✕ is decoration
+    { kind: "section", id: "needs", count: loudNeeds.length + loudRest.length + held.length, level, broken: [...brokenOf(loudNeeds, itemLevel, (item) => item.need), ...brokenOf(loudRest, noticeLevel, (notice) => notice.kind)] }, // said aloud: its ✕ is decoration
     ...loudLines(loudNeeds, loudRest), // one order with Home's (needs-order, D-118)
     ...(notes.length > 0 ? [{ kind: "to-review" } as const, ...notes] : []),
   ];
 }
 
 /** A head's needs (D-117; an App's, a project's): L2+L3 counted; the highest level; a ring when all are guesses. */
-export function groupNeeds(here: RailItem[]): { needsHere: number; level: AttentionLevel; probably: boolean; broken: string[] } {
+export function groupNeeds(here: RailItem[]): { needsHere: number; level: AttentionLevel; probably: boolean; broken: string[]; items: RailItem[] } {
   const loud = here.filter((item) => counted(itemLevel(item)));
-  return { needsHere: loud.length, level: highest(loud.map(itemLevel)), probably: loud.length > 0 && loud.every((item) => item.probably), broken: brokenOf(loud, itemLevel, (item) => item.need) };
+  return { items: loud, needsHere: loud.length, level: highest(loud.map(itemLevel)), probably: loud.length > 0 && loud.every((item) => item.probably), broken: brokenOf(loud, itemLevel, (item) => item.need) };
 }
 
-export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
+export function buildLines({ items, view, query, now, toggled, frozen, accountOf, poolOf, order = YOURS, others = [], held = [], known = [], offRail = () => false, offers = [], cliApps = [] }: LineInputs): Lines {
   const searching = isSearching(query);
   const filtering = searching || Object.keys(view.only).length > 0;
   const want = (key: "ended" | "inactive" | "background" | "quiet" | "archived") => view.show[key] || query.is.has(key);
@@ -218,7 +219,13 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     else offOpen.set(item.place.key, { key: item.place.key, short: item.place.profile ?? item.place.app, name: appName(item.place.app, item.place.profile), open: 1 });
   }
   const inactive = apps ? [] : shown.filter((item) => item.inactive && item.need === null && !item.pinned).sort((a, b) => b.lastMs - a.lastMs);
-  const idle = apps ? idleSessionsByApp(shown, byConversation, byFolder) : new Map<string, RailItem[]>();
+  // 0.5.1 F87: one session, one row. While Ended today is drawn, its
+  // sessions are there only, not again under their App's past ones (a
+  // search for "is:ended pagination" listed one under Open now's App and
+  // again under Ended today).
+  const endedKeys = want("ended") ? new Set(ended.map((item) => item.key)) : null;
+  const pastOnes = endedKeys && endedKeys.size > 0 ? shown.filter((item) => !endedKeys.has(item.key)) : shown;
+  const idle = apps ? idleSessionsByApp(pastOnes, byConversation, byFolder) : new Map<string, RailItem[]>();
   // 0.4.4: by Account, an ended pinned session is under its Account (as by App, `idleSessionsByApp`'s rule).
   const pins = groupItems(by === "account" ? shown.filter((item) => item.pinned && !openNow(item) && !item.archived && item.need === null).sort((a, b) => b.lastMs - a.lastMs) : [], by, accountOf);
   const grouped = groupItems(open, by, accountOf, poolOf); // ADR-0032: + every running App:
@@ -240,12 +247,12 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
   const lines: Line[] = [];
   let rows = 0;
   const rest = searching ? [] : others;
-  lines.push(...needsSection(needs, rest));
+  lines.push(...needsSection(needs, rest, searching ? [] : held));
   rows += needs.length + rest.length;
   // By App, Open now counts the Apps open; otherwise the sessions.
   if (groups.length > 0) lines.push({ kind: "section", id: "open", count: apps ? groups.length : open.length });
   groups.forEach((group, index) => {
-    const { needsHere, level, probably, broken } = groupNeeds(needs.filter((item) => groupKey(item) === group.key));
+    const { needsHere, level, probably, broken, items: needItems } = groupNeeds(needs.filter((item) => groupKey(item) === group.key));
     const digit = index < 9 ? index + 1 : null;
     // Your order and Name: a place folds only when the user folds it
     // (remembered). Latest activity: a quiet place folds to its header,
@@ -259,20 +266,19 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     const under = apps ? unfoldLines(group, idle.get(group.key) ?? [], searching, toggled) : pinnedLines(group.key, pins.find((one) => one.key === group.key)?.items ?? []);
     const foldable = unfoldsToARow(group, under);
     if (folded && foldable) {
-      lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable, recent: null, level, probably, broken });
+      lines.push({ kind: "header", group, folded: quietWords(group), needs: needsHere, digit, foldable, recent: null, level, probably, broken, needItems });
       return;
     }
-    // 0.4.3: an App with something open keeps its past ones to a count on
-    // its header (no row of its own); a click shows them here.
-    const before = apps && !searching && group.items.length > 0 ? (idle.get(group.key) ?? []).filter((item) => !item.pinned).length : 0;
-    lines.push({ kind: "header", group, folded: null, needs: needsHere, digit, foldable, recent: before > 0 ? { count: before, open: toggled.has(`${group.key}#recent`) } : null, level, probably, broken });
+    // 0.4.3: an App with something open keeps its past ones to a count (AJ-E1554: in its footer); a click shows them here.
+    const recent = recentOf(apps && !searching, group, idle, toggled);
+    lines.push({ kind: "header", group, folded: null, needs: needsHere, digit, foldable, recent, level, probably, broken, needItems });
     // Latest activity re-sorts, so it holds still under the pointer; the
     // other orders never move a row by themselves.
     const drawn = stable ? fold.shown : keep(`group:${group.key}`, fold.shown);
     // 0.3.9: a session started from another sits under it.
     for (const { item, depth, parent } of nestRows(drawn)) lines.push({ kind: "row", item, group, depth, parent: parent?.title ?? null });
     rows += drawn.length;
-    if (fold.hidden > 0) lines.push({ kind: "more", group, quiet: fold.hidden, words: fold.words });
+    lines.push(...footerOf(group, fold, recent));
     lines.push(...under);
     rows += under.filter((line) => line.kind === "past").length;
   });
@@ -291,7 +297,7 @@ export function buildLines({ items, view, query, now, toggled, frozen, accountOf
     if (resting.length > 0) {
       const all = filtering || toggled.has("idle#all");
       const drawn = all ? resting : resting.slice(0, IDLE_APPS_SHOWN);
-      lines.push({ kind: "section", id: "idle", count: resting.length });
+      lines.push({ kind: "section", id: "idle", count: resting.length, sessions: resting.reduce((sum, app) => sum + app.sessions.length, 0) });
       for (const app of drawn) {
         const last = inactiveLines(app, searching, toggled);
         lines.push({ kind: "idle", app, open: last.open }, ...last.lines);
@@ -363,11 +369,6 @@ export function lineKey(line: Line, index: number): string {
   }
 }
 
-/** Where a line starts, from the top of the list. */
-export function offsetOf(lines: Line[], index: number, heights: LineHeights = LINE_HEIGHT): number {
-  return lines.slice(0, index).reduce((sum, line) => sum + heights[line.kind], 0);
-}
-
 /** What each list shows now, to freeze it. */
 export function shownOrder(lines: Line[]): Map<string, string[]> {
   const out = new Map<string, string[]>();
@@ -378,23 +379,3 @@ export function shownOrder(lines: Line[]): Map<string, string[]> {
   }
   return out;
 }
-
-/** The lines in view: `[start, end)`, and the space above and below. */
-export function windowOf(lines: Line[], top: number, height: number, overscan = 240, heights: LineHeights = LINE_HEIGHT): { start: number; end: number; before: number; after: number } {
-  let y = 0;
-  let start = 0;
-  while (start < lines.length && y + heights[lines[start]!.kind] < top - overscan) {
-    y += heights[lines[start]!.kind];
-    start += 1;
-  }
-  const before = y;
-  let end = start;
-  while (end < lines.length && y < top + height + overscan) {
-    y += heights[lines[end]!.kind];
-    end += 1;
-  }
-  let after = 0;
-  for (let i = end; i < lines.length; i += 1) after += heights[lines[i]!.kind];
-  return { start, end, before, after };
-}
-

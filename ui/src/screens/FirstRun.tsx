@@ -14,7 +14,7 @@
  *    Each setup comes in or doesn't on its own: the result offers Continue
  *    with the ones that came in, Try again, or — for a failed copy — Use
  *    it where it is instead; Stop keeps what finished. "Where we looked"
- *    shows every place the scan checked.
+ *    (closed until opened) lists every place the scan checked.
  * 2. **Sign in where needed.** One card per account that still needs the
  *    vendor's own sign-in (the shared login-queue card).
  * 3. **OS access.** Whatever this platform lists (D-25), each with one line
@@ -30,44 +30,42 @@
  * folder picker, then a check of what's in it (size, sign-in, a too-large
  * history offers settings only) before AI Juggler copies it.
  */
-import { ToolMark } from "../components/ToolMark";
 import { useCallback, useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { Button } from "../components/primitives";
-import { inPlaceProviders, ownSignIn, providerDisplayName, sameAsWords, shortSignIn, supportsInPlace, toolFound, type InPlaceSupport } from "../lib/providers";
+import { inPlaceProviders, providerDisplayName, supportsInPlace, type InPlaceSupport } from "../lib/providers";
 import { firstRunToolIds, primaryToolId, toolSpec } from "../lib/tools";
 import { InstallHow } from "../components/InstallHow";
 import { AccessStep } from "../components/AccessStep";
 import { Check } from "../components/StepCheck";
 import { colourAt, FreshAccountStep, freeLabel } from "./FreshAccountStep";
-import { StepMarks, TermsLine, type Step } from "./FirstRunSteps";
+import { ProvidersTerms, StepMarks, stepWords, YOUR_APPS, type Step } from "./FirstRunSteps";
+import { countLogin, SigninStep } from "./FirstRunSigninStep";
+import { addPaired, bringInProfiles, desktopKey, FoundActions, pairRows, ToolGroup, usePairings } from "./FirstRunToolGroup";
+import { FirstRunFrame } from "./FirstRunFrame";
 import { funnelEvent, funnelStep, reasonCode } from "../lib/funnel";
 import { foundWords, useSetupScan } from "./firstRunScan";
-import { FoundRow } from "./FirstRunFoundRow";
+import { DesktopRow, FoundRow } from "./FirstRunFoundRow";
 import { outcomeWords, plainImportError } from "./firstRunScan";
-import { cliWords, DesktopApps, folderOf, freshKey, FreshGroups, labelOf, setUpFresh, setupNames, useFresh } from "./FirstRunMore";
+import { usePlaceOffers } from "../components/PlaceOffers";
+import { DesktopApps, folderOf, freshKey, FreshGroups, labelOf, PlacementChoice, setUpFresh, setupNames, useFresh, WhereWeLooked } from "./FirstRunMore";
 
 export { desktopNoneWords, folderOf, labelOf, setupNames } from "./FirstRunMore";
 export { outcomeWords, plainImportError } from "./firstRunScan";
 import { accountImport, sourceInspect } from "../lib/ipc/account-import";
-import { accountsList, accountLoginCommand, accountLoginState } from "../lib/ipc/accounts";
+import { accountsList } from "../lib/ipc/accounts";
 import { pickDirectory } from "../lib/ipc/project-folders";
-import { statsEvent } from "../lib/ipc/usage-stats";
 import { errorText, signedIn } from "../lib/bridge";
 import { osAccessList } from "../lib/ipc/settings";
 import { providersCapabilities, providersDiscover, type ProviderInstallData, type ScanReportData } from "../lib/ipc/providers";
-import { terminalSpawnLogin } from "../lib/ipc/terminal-io";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { DiscoveredInfo } from "../types/generated/DiscoveredInfo";
 import type { OsAccessInfo } from "../types/generated/OsAccessInfo";
 import type { SourceInspectInfo } from "../types/generated/SourceInspectInfo";
 import { byteSize } from "../lib/compact";
-import { Disclosure, Radio } from "../components/controls";
-import { lazyNamed } from "../lib/lazy";
-import { SELECTED_CARD } from "../components/controls/selected";
+import { Disclosure } from "../components/controls";
 
-// The sign-in terminal shows in the step itself (0.4.1: it opened behind
-// this full-window flow); xterm loads only when a sign-in starts.
-const TerminalView = lazyNamed(() => import("../components/TerminalView"), "TerminalView");
+// The sign-in card shows in the step itself (0.4.1: the terminal opened
+// behind this full-window flow); xterm loads only when its terminal shows.
 
 /** AJ-E1525: first run's groups come from each tool's spec (its
  * `setup_groups`, in order), never from a table here. */
@@ -131,6 +129,10 @@ export function preselected(found: DiscoveredInfo, nowSecs: number): boolean {
 
 const nowSecs = () => Math.floor(Date.now() / 1000);
 
+/** No app's offers: a tool with no desktop app (offer ids are never
+ * empty-app). */
+const NO_APP = "";
+
 
 type ImportState = {
   state: "pending" | "working" | "done" | "already" | "failed";
@@ -141,25 +143,6 @@ type ImportState = {
 /** ADR-0018: how a setup comes in. */
 export type Placement = "in_place" | "copy";
 
-
-/** The two ways in; `tools` are the ones that can be used where they
- * are (ADR-0018), which name what "the same" is the same as. */
-function placements(tools: string[], one: boolean): { id: Placement; title: string; detail: string }[] {
-  return [
-    {
-      id: "in_place",
-      title: one ? "Use it where it is" : "Use them where they are",
-      detail: `Same sign-in, settings and history ${sameAsWords(tools)}. AI Juggler adds nothing of its own to ${one ? "it" : "them"}.`,
-    },
-    {
-      id: "copy",
-      title: one ? "Make a separate copy" : "Make separate copies",
-      detail: one
-        ? "A fresh copy for AI Juggler only; your original stays as it is. The copy needs one sign-in."
-        : "A fresh copy for AI Juggler only; your originals stay as they are. Each copy needs one sign-in.",
-    },
-  ];
-}
 
 function FoundStep({
   report,
@@ -177,7 +160,16 @@ function FoundStep({
   onBusy,
   inPlace,
   taken,
+  firstRun,
+  footSlot,
+  footEnd,
 }: {
+  /** First run (not Add app): AJ-E1545's Your apps. */
+  firstRun: boolean;
+  /** The setup wizard's foot: the links go there (its sticky foot). */
+  footSlot?: HTMLElement | null;
+  /** The setup wizard's foot's end: Bring in goes there, last (F50). */
+  footEnd?: HTMLElement | null;
   report: ScanReportData | null;
   /** The names of the Apps already in AI Juggler (`null` while read). */
   taken: string[] | null;
@@ -228,14 +220,18 @@ function FoundStep({
     () => Object.fromEntries(installs.map((found) => [found.path, (tools.length > 1 || installs.length === 1) && preselected(found, now)])),
     [installs, now, tools.length],
   );
+  // AJ-E2327's evidence-first pairing: a desktop profile and the folder it
+  // uses are one row (never by name); any other profile its own row in its
+  // tool's group (0.5.1 F35). D-84: a profile is ticked by the user only.
+  const profiles = usePairings(firstRun);
+  const { pairs, alone } = useMemo(() => pairRows(profiles, installs, tools), [profiles, installs, tools]);
   const [overrides, setPicked] = useState<Record<string, boolean>>({});
-  const picked: Record<string, boolean> = { ...defaults, ...overrides };
+  const picked: Record<string, boolean> = { ...defaults, ...Object.fromEntries([...pairs].filter(([, pair]) => !pair.added).map(([path]) => [path, false])), ...overrides };
   const names = useMemo(() => setupNames(installs, taken ?? []), [installs, taken]);
   const nameOf = (row: DiscoveredInfo) => names.get(row.path) ?? labelOf(row);
   const { fresh, freshNames, freshPicked, setFreshPicked } = useFresh(report, tools, taken, names);
   const [progress, setProgress] = useState<Record<string, ImportState>>({});
   const [busy, setBusy] = useState(false);
-  const [showLooked, setShowLooked] = useState(false);
 
   // ADR-0018: only a tool whose adapter can use a folder where it is
   // offers it — and only when one of its setups is on the list.
@@ -261,7 +257,8 @@ function FoundStep({
   };
   const chosen = installs.filter((found) => picked[found.path] && !found.managed && !isDone(found));
   const freshChosen = fresh.filter((tool) => freshPicked[tool] && progress[freshKey(tool)]?.state !== "done");
-  const runImports = async (rows: DiscoveredInfo[], how: (found: DiscoveredInfo) => Placement = placementOf, freshTools: string[] = []) => {
+  const deskChosen = alone.filter((one) => !one.added && picked[desktopKey(one.id)] && progress[desktopKey(one.id)]?.state !== "done").map((one) => one.id);
+  const runImports = async (rows: DiscoveredInfo[], how: (found: DiscoveredInfo) => Placement = placementOf, freshTools: string[] = [], profileIds: string[] = []) => {
     stopRef.current = false;
     setStopped(false);
     setBusy(true);
@@ -279,6 +276,8 @@ function FoundStep({
       setProgress((current) => ({ ...current, [found.path]: { state: "working", placement: mode } }));
       try {
         const result = await accountImport(found.harness, found.path, nameOf(found), null, found.origin, false, mode === "in_place");
+        // Its desktop profile, on the same row: added as its Add does (D-84: the user's tick).
+        await addPaired(pairs.get(found.path));
         if (result.login === "expired") countLogin(found.harness, "expired");
         if (result.login !== "logged_in") {
           signinsRef.current.set(result.account.id, {
@@ -309,6 +308,9 @@ function FoundStep({
         }
       }
     }
+    const desk = await bringInProfiles(profileIds, stopRef, (key, row) => setProgress((current) => ({ ...current, [key]: row })));
+    failed += desk.failed;
+    wasStopped ||= desk.stopped;
     // The tools with nothing set up, after the setups: each a fresh App in
     // AI Juggler's own folder, its sign-in queued.
     for (const tool of freshTools) {
@@ -337,12 +339,17 @@ function FoundStep({
   };
   const failedRows = installs.filter((found) => progress[found.path]?.state === "failed");
   const failedFresh = fresh.filter((tool) => progress[freshKey(tool)]?.state === "failed");
-  const doneCount = [...installs.map((found) => found.path), ...fresh.map(freshKey)].filter((key) => progress[key]?.state === "done").length;
+  const failedDesk = alone.filter((one) => progress[desktopKey(one.id)]?.state === "failed").map((one) => one.id);
+  const doneCount = [...installs.map((found) => found.path), ...fresh.map(freshKey), ...alone.map((one) => desktopKey(one.id))].filter((key) => progress[key]?.state === "done").length;
   const waiting = chosen.filter((found) => progress[found.path] === undefined);
   const waitingFresh = freshChosen.filter((tool) => progress[freshKey(tool)] === undefined);
+  const waitingDesk = deskChosen.filter((id) => progress[desktopKey(id)] === undefined);
+  const failedCount = failedRows.length + failedFresh.length + failedDesk.length;
+  const waitingCount = waiting.length + waitingFresh.length + waitingDesk.length;
+  const ticked = chosen.length + freshChosen.length + deskChosen.length;
   const alreadyRows = installs.filter((found) => progress[found.path]?.state === "already");
-  const showOutcome = !busy && (failedRows.length > 0 || failedFresh.length > 0 || stopped || sawAlready);
-  const listed = installs.length > 0 || fresh.length > 0;
+  const showOutcome = !busy && (failedCount > 0 || stopped || sawAlready);
+  const listed = installs.length > 0 || fresh.length > 0 || alone.length > 0;
   const continueNow = () => onImported([...signinsRef.current.values()]);
   // The result takes focus (the button the user pressed is gone).
   const continueRef = useRef<HTMLButtonElement | null>(null);
@@ -356,19 +363,24 @@ function FoundStep({
     return (
       <div className="flex flex-col gap-3" role="status" data-testid="first-run-scanning">
         <h1 className="text-stat font-semibold tracking-tight">
-          {tools.length > 1 ? "Looking for your setups on this computer…" : `Looking for ${toolName} on this computer…`}
+          {tools.length > 1 ? "Looking for your apps on this computer…" : `Looking for ${toolName} on this computer…`}
         </h1>
         <p className="text-sm text-ink-2">{toolSpec(provider).scan_hint}</p>
       </div>
     );
   }
 
-  const words = foundWords(scanError, installs.length, toolName, kind, placement === "in_place", provider, fresh.map(providerDisplayName));
+  // AJ-E1545 step 1, "Your apps": first run (every tool) asks in the
+  // user's words, one group per tool; Add app keeps its own (AJ-E1548).
+  const yourApps = firstRun;
+  const said = foundWords(scanError, installs.length, toolName, kind, placement === "in_place", provider, fresh.map(providerDisplayName));
+  // "Nothing is copied" only while it's true: every one used where it is.
+  const words = yourApps && scanError === null && installs.length + alone.length > 0 ? { heading: YOUR_APPS.heading, lead: placement === "in_place" && copyOnlyTools.length === 0 ? YOUR_APPS.lead : said.lead } : said;
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-found">
       <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">{words.heading}</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-ink-2">{words.lead}</p>
+        <h1 className={yourApps ? "type-title" : "text-stat font-semibold leading-tight tracking-tight"}>{words.heading}</h1>
+        <p className={"max-w-2xl leading-relaxed text-ink-2 " + (yourApps ? "text-body" : "text-section")}>{words.lead}</p>
         {scanError !== null && (
           <div>
             <Button onClick={onScanAgain} data-testid="first-run-scan-again">
@@ -397,22 +409,17 @@ function FoundStep({
 
       {listed && (
         <div className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-          {groupsFor(tools).map((group) => {
-            const rows = installs.filter((found) => groupOf(found) === group.key);
-            if (rows.length === 0) return null;
-            const install = installRows[group.tool];
+          {(yourApps ? tools : groupsFor(tools).map((group) => group.key)).map((tool) => {
+            const rows = installs.filter((row) => (yourApps ? row.harness === tool : groupOf(row) === tool));
+            // 0.5.1 F35: its desktop profiles with no folder row are rows here too.
+            const own = alone.filter((one) => one.tool === tool);
+            if (rows.length + own.length === 0) return null;
+            const open = [...rows.filter((row) => !row.managed).map((row) => row.path), ...own.filter((one) => !one.added).map((one) => desktopKey(one.id))];
+            const group = yourApps ? null : groupsFor(tools).find((one) => one.key === tool);
+            const toolId = group?.tool ?? tool;
             return (
-              <fieldset key={group.key} className="border-b border-hairline last:border-b-0" data-testid={`first-run-group-${group.id}`}>
-                <legend className="sr-only">{group.title}</legend>
-                <div aria-hidden="true" className="flex items-center justify-between gap-3 bg-surface-2 px-5 py-2.5 text-xs">
-                  <span className="flex items-center gap-1.5 font-semibold text-ink">
-                    <ToolMark tool={group.tool} size={14} className="text-muted" />
-                    <span>{group.title} <span className="font-normal text-muted">· {rows.length}</span></span>
-                  </span>
-                  {group.showsInstall && install && toolFound(install) && (
-                    <span className="text-muted" data-testid={`first-run-cli-${group.id}`}>{cliWords(providerDisplayName(group.tool), install)}</span>
-                  )}
-                </div>
+              <ToolGroup key={tool} tool={toolId} title={group?.title} testId={group ? `first-run-group-${group.id}` : undefined} cliTestId={group ? (group.showsInstall ? `first-run-cli-${group.id}` : undefined) : `first-run-cli-${tool}`} count={rows.length + own.length} install={yourApps || group?.showsInstall ? installRows[toolId] : undefined} all={open.length > 0 && open.every((key) => picked[key])} some={open.some((key) => picked[key])} disabled={busy || open.length === 0}
+                onAll={(on) => setPicked((current) => ({ ...current, ...Object.fromEntries(open.map((key) => [key, on])) }))}>
                 {rows.map((found, index) => (
                   <FoundRow
                     key={found.path}
@@ -423,13 +430,18 @@ function FoundStep({
                     toolName={providerDisplayName(found.harness)}
                     colour={colourAt(installs.indexOf(found))}
                     first={index === 0}
+                    paired={pairs.get(found.path)}
                     checked={!!picked[found.path]}
                     disabled={busy}
                     progress={progress[found.path]}
                     onCheck={(checked) => setPicked((current) => ({ ...current, [found.path]: checked }))}
                   />
                 ))}
-              </fieldset>
+                {own.map((one, index) => (
+                  <DesktopRow key={one.id} profile={one} colour={colourAt(installs.length + fresh.length + alone.indexOf(one))} first={rows.length + index === 0} checked={!!picked[desktopKey(one.id)]} disabled={busy}
+                    progress={progress[desktopKey(one.id)]} onCheck={(checked) => setPicked((current) => ({ ...current, [desktopKey(one.id)]: checked }))} />
+                ))}
+              </ToolGroup>
             );
           })}
           <FreshGroups fresh={fresh} names={freshNames} picked={freshPicked} onPick={(tool, on) => setFreshPicked((current) => ({ ...current, [tool]: on }))}
@@ -437,43 +449,13 @@ function FoundStep({
         </div>
       )}
 
-      {tools.length > 1 && <DesktopApps bundles={report.desktop_apps} tools={tools} />}
+      {/* Your apps: profiles are rows (F35). F19 (0.5.1 PL1 D2): one tool's Add an app lists its own app's. */}
+      {yourApps ? null : tools.length > 1 ? <DesktopApps /> : tools[0] && toolSpec(tools[0]).host_app ? <DesktopApps only={toolSpec(tools[0]).host_app ?? null} /> : null}
 
-      {installs.length > 0 && !showOutcome && canInPlace && (
-        <div role="radiogroup" aria-label="How AI Juggler uses them" className="grid gap-2 sm:grid-cols-2" data-testid="first-run-placement">
-          {placements(inPlaceTools, installs.length === 1).map((option) => (
-            <label
-              key={option.id}
-              className={
-                "flex cursor-pointer gap-3 rounded-xl border px-4 py-3 " +
-                (placement === option.id ? SELECTED_CARD : "border-hairline bg-surface hover:bg-surface-2/60")
-              }
-              data-testid={`first-run-placement-${option.id}`}
-            >
-              <Radio
-                name="first-run-placement"
-                value={option.id}
-                aria-labelledby={`first-run-placement-${option.id}-title`}
-                aria-describedby={`first-run-placement-${option.id}-detail`}
-                checked={placement === option.id}
-                disabled={busy}
-                onChange={() => setPlacement(option.id)}
-                className="mt-0.5 shrink-0"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span id={`first-run-placement-${option.id}-title`} className="text-sm font-medium text-ink">
-                  {option.title}
-                  {option.id === "in_place" && <span className="ml-1.5 text-xs font-normal text-muted">Recommended</span>}
-                </span>
-                <span id={`first-run-placement-${option.id}-detail`} className="text-xs leading-relaxed text-muted">{option.detail}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
+      {installs.length > 0 && !showOutcome && canInPlace && <PlacementChoice tools={inPlaceTools} one={installs.length === 1} value={placement} busy={busy} open={yourApps ? undefined : true} onChange={setPlacement} />}
       {installs.length > 0 && !showOutcome && canInPlace && copyOnlyTools.length > 0 && (
         <p className="-mt-3 text-xs text-ink-2" data-testid="first-run-copy-only">
-          {copyOnlyTools.map(providerDisplayName).join(" and ")} setups always come in as copies.
+          {copyOnlyTools.map(providerDisplayName).join(" and ")} apps always come in as copies.
         </p>
       )}
 
@@ -487,8 +469,8 @@ function FoundStep({
             {outcomeWords({
               stopped,
               done: doneCount,
-              waiting: waiting.length + waitingFresh.length,
-              failed: failedRows.length + failedFresh.length,
+              waiting: waitingCount,
+              failed: failedCount,
               already: alreadyRows.map(nameOf),
             })}
           </p>
@@ -524,80 +506,70 @@ function FoundStep({
             </ul>
           )}
           <div className="flex flex-wrap items-center justify-end gap-3">
-            {failedRows.length + failedFresh.length > 0 && (
-              <Button onClick={() => void runImports(failedRows, placementOf, failedFresh)} data-testid="first-run-retry">
-                {failedRows.length + failedFresh.length === 1 ? "Try again" : `Try again for ${failedRows.length + failedFresh.length}`}
+            {failedCount > 0 && (
+              <Button onClick={() => void runImports(failedRows, placementOf, failedFresh, failedDesk)} data-testid="first-run-retry">
+                {failedCount === 1 ? "Try again" : `Try again for ${failedCount}`}
               </Button>
             )}
-            {stopped && waiting.length + waitingFresh.length > 0 && (
-              <Button onClick={() => void runImports(waiting, placementOf, waitingFresh)} data-testid="first-run-rest">
+            {stopped && waitingCount > 0 && (
+              <Button onClick={() => void runImports(waiting, placementOf, waitingFresh, waitingDesk)} data-testid="first-run-rest">
                 Bring in the rest
               </Button>
             )}
             <Button variant="primary" onClick={continueNow} data-testid="first-run-continue" ref={continueRef}>
-              {doneCount === 0 ? (failedRows.length + failedFresh.length > 0 || waiting.length + waitingFresh.length > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 app" : `Continue with ${doneCount} apps`}
+              {doneCount === 0 ? (failedCount > 0 || waitingCount > 0 ? "Continue without them" : "Continue") : doneCount === 1 ? "Continue with 1 app" : `Continue with ${doneCount} apps`}
             </Button>
           </div>
         </div>
       )}
 
+      {/* F33 (0.5.1 PL1 C3): in the page, under the rows, closed until opened. */}
+      {!showOutcome && <WhereWeLooked probes={report.probes} />}
+
       {/* Always in view, so Bring in is never below the fold (0.4 design review). */}
-      <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center justify-between gap-4 border-t border-hairline bg-canvas/95 px-2 py-3 backdrop-blur" data-testid="first-run-actions">
+      <FoundActions
+        slot={footSlot}
+        end={footEnd}
+        note={
+          listed && !showOutcome ? (
+            // 0.5.1 F45: in the setup wizard's foot (its own width, a
+            // container) the note shows only where the row holds it, so the
+            // foot keeps one row at 1024 px and Bring in its place.
+            <span className={"hidden text-xs text-muted " + (footSlot ? "@min-[44rem]:inline" : "md:inline")} data-testid="first-run-names-note">Names and plans can be changed later.</span>
+          ) : null
+        }
+        primary={
+          listed && !showOutcome ? (
+            <Button
+              variant="primary"
+              disabled={ticked === 0 || busy}
+              onClick={() => void runImports(chosen, placementOf, freshChosen, deskChosen)}
+              data-testid="first-run-bring-in"
+            >
+              {busy
+                ? "Bringing them in…"
+                : ticked === 1
+                  ? "Bring in 1 app"
+                  : `Bring in ${ticked} apps`}
+            </Button>
+          ) : null
+        }
+      >
         <div className="flex flex-wrap items-center gap-5 text-sm">
           <button type="button" className="text-accent-hi hover:underline" onClick={onAddFresh}>
-            {listed ? "Add a fresh app instead" : "Add an app"}
+            {/* 0.5.1 F52: Add an app in the wizard's words (AJ-E1548). */}
+            {listed ? "Set up a new app instead" : "Add an app"}
           </button>
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onImportFolder}>
-            Import from another folder…
+            Add from another folder…
           </button>
           {/* AJ-E2906: scan again at any time; ticks on setups still found stay. */}
           <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onScanAgain} disabled={busy} data-testid="first-run-look-again">
             Look again
           </button>
-          {report.probes.length > 0 && (
-            <button
-              type="button"
-              className="text-muted hover:text-ink hover:underline"
-              aria-expanded={showLooked}
-              onClick={() => setShowLooked((open) => !open)}
-            >
-              Where we looked
-            </button>
-          )}
         </div>
-        {listed && !showOutcome && (
-          <div className="flex items-center gap-3">
-            <span className="hidden text-xs text-muted md:inline">Names and plans can be changed later.</span>
-            <Button
-              variant="primary"
-              disabled={chosen.length + freshChosen.length === 0 || busy}
-              onClick={() => void runImports(chosen, placementOf, freshChosen)}
-              data-testid="first-run-bring-in"
-            >
-              {busy
-                ? "Bringing them in…"
-                : chosen.length + freshChosen.length === 1
-                  ? "Bring in 1 app"
-                  : `Bring in ${chosen.length + freshChosen.length} apps`}
-            </Button>
-          </div>
-        )}
-      </div>
+      </FoundActions>
 
-      {showLooked && (
-        <ul className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface px-4 py-3 text-xs" data-testid="first-run-looked">
-          {report.probes.map((probe) => (
-            <li key={probe.label} className="leading-relaxed">
-              <span className="text-ink">{probe.label}</span>{" "}
-              <span className={probe.health === "ok" ? "text-muted" : probe.health === "partial" ? "text-warning" : "text-danger"}>
-                {probe.health === "ok" ? "checked" : probe.health === "partial" ? "partly checked" : "couldn't check"}
-              </span>
-              <span className="text-muted"> — {probe.detail}</span>
-              {probe.reason && <span className="block text-muted">{probe.reason}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }
@@ -605,235 +577,6 @@ function FoundStep({
 export { colourAt, freeLabel };
 
 export type Signin = { accountId: string; label: string; loginNote: string | null; colour: string; provider: string };
-
-/** AJ-E1103 `onboarding.login`: how a first-run sign-in ended (the
- * backend maps the tool to the schema's provider names, "other" for any
- * it doesn't list). */
-function countLogin(provider: string, outcome: "completed" | "skipped" | "expired"): void {
-  statsEvent("onboarding.login", { provider, outcome });
-}
-
-/** One account's sign-in: status, Sign in, and the rest behind More. */
-function SigninRow({
-  entry,
-  active,
-  terminal,
-  onStart,
-  onReady,
-  onSkip,
-}: {
-  onSkip?: () => void;
-  entry: Signin;
-  active: boolean;
-  /** The sign-in's terminal, once it started: shown under the row. */
-  terminal: string | null;
-  onStart: () => void;
-  onReady: () => void;
-}): JSX.Element {
-  const [state, setState] = useState<string | null>("logged_out");
-  const [more, setMore] = useState(false);
-  const [command, setCommand] = useState<string | null>(null);
-  const [skipped, setSkipped] = useState(false);
-  const ready = signedIn(state);
-  // Every 2 s while waiting (the login-queue card's rule): flips the row
-  // the moment the vendor's sign-in completes; never steals focus.
-  useEffect(() => {
-    if (ready) return;
-    let alive = true;
-    const tick = () =>
-      void accountLoginState(entry.accountId).then(
-        (next) => alive && setState(next),
-        () => null,
-      );
-    tick();
-    const timer = window.setInterval(tick, 2000);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, [entry.accountId, ready]);
-  useEffect(() => {
-    if (ready) onReady();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready]);
-  return (
-    <li className="flex flex-col border-t border-hairline/60 first:border-t-0" data-testid="first-run-signin-row">
-      <div className="flex flex-wrap items-center gap-4 px-5 py-3">
-        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: entry.colour }} />
-        <span className="min-w-0 flex-1 truncate text-section font-medium text-ink">{entry.label}</span>
-        <span className="text-xs" role="status">
-          {ready ? (
-            <span className="flex items-center gap-1.5 text-success">
-              <Check />
-              {state === "api_key" ? "Signed in with an API key" : "Signed in"}
-            </span>
-          ) : skipped ? (
-            <span className="text-muted">Later</span>
-          ) : active ? (
-            <span className="text-live">Finish signing in below</span>
-          ) : (
-            <span className="text-muted">Not signed in yet</span>
-          )}
-        </span>
-        {!ready && (
-          <>
-            <Button size="sm" variant={active ? "secondary" : "primary"} onClick={onStart}>
-              {active ? "Open again" : "Sign in"}{" "}
-              <span className="sr-only">{entry.label}</span>
-            </Button>
-            <button
-              type="button"
-              className="rounded-md px-2 py-1 text-muted hover:bg-surface-2 hover:text-ink"
-              aria-expanded={more}
-              aria-label={`More for ${entry.label}`}
-              onClick={() => {
-                setMore((open) => !open);
-                if (command === null) void accountLoginCommand(entry.accountId).then(setCommand, () => setCommand(""));
-              }}
-            >
-              ⋯
-            </button>
-          </>
-        )}
-      </div>
-      {active && terminal && !ready && (
-        <div className="mx-5 mb-3 h-72 overflow-hidden rounded-lg border border-hairline" data-testid="first-run-signin-terminal">
-          <TerminalView id={terminal} title={`Sign in · ${entry.label}`} />
-        </div>
-      )}
-      {more && !ready && (
-        <div className="flex flex-col gap-2 px-5 pb-3 pl-11 text-xs text-muted">
-          {entry.loginNote && <span>{entry.loginNote}</span>}
-          {command && (
-            <span>
-              Or run it yourself: <span className="font-mono text-ink">{command}</span>
-            </span>
-          )}
-          <button type="button" className="self-start text-accent-hi hover:underline" onClick={() => {
-            if (!skipped) onSkip?.();
-            setSkipped(true);
-          }}>
-            Sign in later
-          </button>
-        </div>
-      )}
-    </li>
-  );
-}
-
-function SigninStep({
-  queue,
-  provider,
-  openLoginTerminal,
-  onDone,
-}: {
-  provider: string;
-  queue: Signin[];
-  openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
-  onDone: () => void;
-}): JSX.Element {
-  const [terminals, setTerminals] = useState<Record<string, string>>({});
-  const [ready, setReady] = useState<Record<string, boolean>>({});
-  const [skippedIds, setSkippedIds] = useState<Record<string, boolean>>({});
-  const [active, setActive] = useState<string | null>(null);
-  const [runAll, setRunAll] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const left = queue.filter((entry) => !ready[entry.accountId]);
-  const start = useCallback(
-    (entry: Signin) => {
-      setError(null);
-      setActive(entry.accountId);
-      void terminalSpawnLogin(entry.accountId).then(
-        (terminal) => {
-          setTerminals((current) => ({ ...current, [entry.accountId]: terminal.id }));
-          // Known to the window too (it stays reachable after this flow
-          // closes), but not shown there: two views would fight its size.
-          openLoginTerminal(terminal.id, `Sign in · ${entry.label}`, { select: false, account: entry.accountId });
-        },
-        (cause) => setError(errorText(cause)),
-      );
-    },
-    [openLoginTerminal],
-  );
-  const markReady = (entry: Signin) => {
-    if (!ready[entry.accountId]) countLogin(entry.provider || provider, "completed");
-    setReady((current) => ({ ...current, [entry.accountId]: true }));
-    if (runAll) {
-      const next = queue.find((other) => other.accountId !== entry.accountId && !ready[other.accountId]);
-      if (next) start(next);
-      else setRunAll(false);
-    }
-  };
-  return (
-    <div className="flex flex-col gap-6" data-testid="first-run-signin">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">
-          {left.length === 0
-            ? "Everyone's signed in."
-            : left.length === 1
-              ? "One app needs a quick sign-in."
-              : `${left.length} apps need a quick sign-in.`}
-        </h1>
-        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
-          {(() => {
-            // One tool: its own sign-in by name. First run with every tool
-            // (AJ-E1301): each account opens its own tool's sign-in.
-            const tools = [...new Set(queue.map((entry) => entry.provider || provider))];
-            return tools.length > 1
-              ? `Each opens its own tool's sign-in — ${tools.map(shortSignIn).join(" or ")} — for that app's folder; AI Juggler never sees your password and notices when you're done.`
-              : `Each opens ${ownSignIn(tools[0] ?? provider)}, for that app's folder; AI Juggler never sees your password and notices when you're done.`;
-          })()}
-        </p>
-      </div>
-      <ul className="overflow-hidden rounded-2xl border border-hairline bg-surface">
-        {queue.map((entry) => (
-          <SigninRow
-            onSkip={() => {
-              setSkippedIds((current) => ({ ...current, [entry.accountId]: true }));
-              countLogin(entry.provider || provider, "skipped");
-            }}
-            key={entry.accountId}
-            entry={entry}
-            active={active === entry.accountId}
-            terminal={terminals[entry.accountId] ?? null}
-            onStart={() => start(entry)}
-            onReady={() => markReady(entry)}
-          />
-        ))}
-      </ul>
-      {error && (
-        <p className="text-xs text-danger" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        {left.length > 0 ? (
-          <button type="button" className="text-sm text-muted hover:text-ink hover:underline" onClick={() => {
-              for (const entry of left) if (!skippedIds[entry.accountId]) countLogin(entry.provider || provider, "skipped");
-              onDone();
-            }} data-testid="first-run-signin-next">
-            Sign in later
-          </button>
-        ) : (
-          <span />
-        )}
-        {left.length === 0 ? (
-          <Button variant="primary" onClick={onDone}>Continue</Button>
-        ) : left.length > 1 && !runAll ? (
-          <Button
-            variant="primary"
-            onClick={() => {
-              setRunAll(true);
-              start(left[0]!);
-            }}
-          >
-            Sign in to all {left.length}, one after another
-          </Button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
 
 /** The plain error for a failed import (duplicate, moved, or the rest). */
 function importProblem(cause: unknown): { kind: "duplicate" | "moved" | "other"; text: string } {
@@ -857,7 +600,10 @@ function FolderStep({
   onAddFresh,
   onImported,
   onDone,
+  wizard = false,
 }: {
+  /** In the setup wizard: its step look (0.5.1 critique). */
+  wizard?: boolean;
   path: string;
   provider: string;
   toolName: string;
@@ -910,8 +656,8 @@ function FolderStep({
   return (
     <div className="flex flex-col gap-6" data-testid="first-run-folder">
       <div className="flex flex-col gap-2">
-        <h1 className="text-stat font-semibold leading-tight tracking-tight">Bring in this folder?</h1>
-        <p className="max-w-2xl text-section leading-relaxed text-ink-2">
+        <h1 className={stepWords(wizard).heading}>Bring in this folder?</h1>
+        <p className={stepWords(wizard).lead}>
           AI Juggler makes its own copy; the folder itself isn't changed, and you can keep using it as before.
         </p>
       </div>
@@ -969,7 +715,7 @@ function FolderStep({
       </div>
       {inspect !== null && !inspect.is_config && (
         <p className="rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-ink" role="alert" data-testid="source-not-config">
-          This folder doesn't look like a {toolName} setup: no settings, sign-in or session history in it.
+          This folder doesn't look like a {toolName} app's folder: no settings, sign-in or session history in it.
         </p>
       )}
       {inspect !== null && inspect.is_config && inspect.already_managed && (
@@ -979,8 +725,8 @@ function FolderStep({
       )}
       {usable && large && (
         <p className="rounded-xl border border-warning/40 bg-warning-soft px-4 py-3 text-sm text-ink" role="status" data-testid="first-run-folder-large">
-          Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or add a fresh
-          app instead.
+          Its session history is large ({byteSize(inspect.total_bytes)}). Bring in the settings only, or set up a
+          new app instead.
         </p>
       )}
       {usable && (
@@ -994,8 +740,18 @@ function FolderStep({
           />
         </label>
       )}
+      {/* 0.5.1 critique (39-import f-moved, f-duplicate): a folder that
+          moved, or is in already, is said in the problem box the other
+          states use, and Bring it in leaves (it can only fail again). */}
       {problem && (
-        <div className="flex flex-wrap items-center gap-3 text-sm" role="alert" data-testid={`first-run-folder-${problem.kind}`}>
+        <div
+          className={
+            "flex flex-wrap items-center gap-3 text-sm " +
+            (problem.kind === "moved" ? "rounded-xl border border-danger/30 bg-danger-soft px-4 py-3" : problem.kind === "duplicate" ? "rounded-xl border border-hairline px-4 py-3" : "")
+          }
+          role="alert"
+          data-testid={`first-run-folder-${problem.kind}`}
+        >
           <span className={problem.kind === "other" ? "text-danger" : "text-ink"}>{problem.text}</span>
           {problem.kind === "duplicate" && (
             <Button size="sm" variant="secondary" onClick={onDone}>
@@ -1014,11 +770,11 @@ function FolderStep({
           </button>
           {large && (
             <button type="button" className="text-muted hover:text-ink hover:underline" onClick={onAddFresh}>
-              Add a fresh app instead
+              Set up a new app instead
             </button>
           )}
         </div>
-        {usable && (
+        {usable && problem?.kind !== "moved" && problem?.kind !== "duplicate" && (
           <Button
             variant="primary"
             disabled={busy || label.trim().length === 0}
@@ -1041,6 +797,12 @@ export function FirstRun({
   provider,
   startAt = "found",
   resumeAtAccess = false,
+  embedded = false,
+  onBusy,
+  onStep,
+  footSlot,
+  footEnd,
+  skipSignin,
 }: {
   /** First run is over: Home. */
   onDone: () => void;
@@ -1058,8 +820,27 @@ export function FirstRun({
   openLoginTerminal: (id: string, title: string, options?: { select?: boolean; account?: string }) => void;
   /** Back after Reopen AI Juggler: start at the access step. */
   resumeAtAccess?: boolean;
+  /** AJ-E1545: the setup wizard's first step (its frame, Esc and access step are the wizard's). */
+  embedded?: boolean;
+  onBusy?: (busy: boolean) => void;
+  /** Its own step now (the wizard's Your apps or Sign in). */
+  onStep?: (step: Step) => void;
+  /** The setup wizard's foot: the links in its middle, the primary at
+   * its end (0.5.1 F50). */
+  footSlot?: HTMLElement | null;
+  footEnd?: HTMLElement | null;
+  /** The setup wizard's Skip this step on Sign in (each one left counted
+   * as skipped). */
+  skipSignin?: { current: (() => void) | null };
 }): JSX.Element {
   const [step, setStep] = useState<Step>(resumeAtAccess ? "access" : startAt);
+  // F29: the first step's name follows the door taken (a new app's sign-in
+  // isn't under "Bring in your apps").
+  const [door, setDoor] = useState<Step>(startAt);
+  useEffect(() => {
+    if (step === "found" || step === "fresh" || step === "folder") setDoor(step);
+  }, [step]);
+  useEffect(() => onStep?.(step), [step, onStep]);
   const [folder, setFolder] = useState<string | null>(null);
   const [taken, setTaken] = useState<string[] | null>(null);
   const [accounts, setAccounts] = useState<AccountInfo[]>([]);
@@ -1125,17 +906,23 @@ export function FirstRun({
     frameRef.current?.focus();
   }, []);
   useEffect(() => {
+    if (embedded) return undefined;
     const onKey = (event: KeyboardEvent) => {
       // A popover inside that already took the Escape keeps the screen open.
       if (event.key === "Escape" && !event.defaultPrevented) leave();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [leave]);
+  }, [leave, embedded]);
 
   // D-25: adding, with nothing new on this Mac to bring in — go straight
-  // to a fresh account rather than show an empty list.
-  const nothingNew = report !== null && !report.installs.some((found) => tools.includes(found.harness) && !found.managed);
+  // to a fresh account rather than show an empty list. F19 (0.5.1 PL1
+  // D2): a profile of the tool's app open and not added (one removed, say)
+  // is something new: the found step offers it, and so does Look again.
+  const hostApp = tools.length === 1 && tools[0] ? (toolSpec(tools[0]).host_app ?? null) : null;
+  const desktop = usePlaceOffers(hostApp ?? NO_APP);
+  const nothingNew =
+    report !== null && desktop.offers !== null && desktop.offers.length === 0 && !report.installs.some((found) => tools.includes(found.harness) && !found.managed);
   const autoFresh = useRef(false);
   useEffect(() => {
     if (mode === "add" && nothingNew && !autoFresh.current) {
@@ -1146,17 +933,19 @@ export function FirstRun({
   // AJ-E2906: Look again from there scans again; what it finds new is
   // listed on the found step, as in first run.
   const lookedAgain = useRef(false);
+  const reloadOffers = desktop.reload;
   const lookAgain = useCallback(() => {
     lookedAgain.current = true;
+    void reloadOffers();
     scan();
-  }, [scan]);
+  }, [scan, reloadOffers]);
   useEffect(() => {
     if (!lookedAgain.current || report === null) return;
     lookedAgain.current = false;
     if (!nothingNew) setStep("found");
   }, [report, nothingNew]);
 
-  // "Import from another folder…": the system's picker first; nothing
+  // "Add from another folder…": the system's picker first; nothing
   // changes when it is cancelled.
   const pickFolder = useCallback(async () => {
     const picked = await pickDirectory();
@@ -1168,7 +957,7 @@ export function FirstRun({
   // Nothing to ask for: this OS needs nothing, or it is all allowed.
   // Adding an account later never asks again: first run asked once, and
   // the step itself promises to ask again only on first use.
-  const skipAccess = mode === "add" || (access !== null && access.every((entry) => entry.status === "allowed"));
+  const skipAccess = embedded || mode === "add" || (access !== null && access.every((entry) => entry.status === "allowed"));
   // D-97 (2): first run is three steps; the optional Figurehead account
   // is offered in Settings › Advanced › Figurehead & Cloud, not here.
   const finish = useCallback(() => {
@@ -1197,96 +986,74 @@ export function FirstRun({
   }, [finish, skipAccess, mode]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-canvas text-ink outline-none"
-      role="dialog"
-      aria-modal="true"
-      aria-label={mode === "add" ? "Add apps" : "Set up AI Juggler"}
-      data-testid="first-run"
-      data-mode={mode}
-      ref={frameRef}
-      tabIndex={-1}
-    >
-      {/* 0.5.0 (DLG-1): the way out stays at the top while the page scrolls. */}
-      <div data-tauri-drag-region className="sticky top-0 z-20 flex h-11 shrink-0 items-center justify-end bg-canvas px-4" data-dialog-part="header">
-        {/* Always a visible way out (0.0.7 dogfood: "no way to close"):
-            first run → Home, which offers "Find my apps" to come back. */}
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={leave}
-          disabled={stopping}
-          aria-keyshortcuts="Escape"
-          data-testid="first-run-close"
-        >
-          {stopping ? "Stopping after this one…" : importing ? "Stop" : mode === "add" ? "Close" : "Not now"}
-        </Button>
-      </div>
-      <div className="flex flex-1 justify-center px-6 pb-16 pt-6">
-        <div className="flex w-full max-w-3xl flex-col gap-7">
-          <StepMarks step={step} skipAccess={skipAccess} />
-          {step === "found" && (
-            <FoundStep
-              report={report}
-              scanError={scanError}
-              onScanAgain={scan}
-              inPlace={inPlace}
-              cli={cli}
-              toolName={toolName}
-              provider={primary}
-              tools={tools}
-              installRows={installRows}
-              taken={taken}
-              onAddFresh={() => setStep("fresh")}
-              onImportFolder={() => void pickFolder()}
-              stopRef={stopRef}
-              onBusy={(busy) => {
-                setImporting(busy);
-                if (!busy) setStopping(false);
-              }}
-              onImported={(signins) => {
-                onAccountsChanged?.();
-                setQueue(signins);
-                if (signins.length > 0) {
-                  funnelEvent("login_queued");
-                  if (mode === "first-run") funnelStep("a-first-install", "signin");
-                  setStep("signin");
-                } else {
-                  toAccess();
-                }
-              }}
-            />
-          )}
-          {step === "fresh" && (
-            <FreshAccountStep
-              toolName={toolName}
-              provider={primary}
-              taken={taken}
-              accounts={accounts}
-              canGoBack={!nothingNew || mode === "first-run"}
-              onBack={() => setStep("found")}
-              onImportFolder={() => void pickFolder()}
-              onLookAgain={mode === "add" && (nothingNew || lookedAgain.current) ? lookAgain : null}
-              onCreated={added}
-            />
-          )}
-          {step === "folder" && folder !== null && (
-            <FolderStep
-              path={folder}
-              provider={primary}
-              toolName={toolName}
-              onBack={() => setStep(mode === "add" && nothingNew ? "fresh" : "found")}
-              onPickAgain={() => void pickFolder()}
-              onAddFresh={() => setStep("fresh")}
-              onImported={added}
-              onDone={onDone}
-            />
-          )}
-          {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} />}
-          {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
-          {(step === "found" || step === "fresh" || step === "folder") && <TermsLine tools={step === "found" ? tools : [primary]} />}
-        </div>
-      </div>
-    </div>
+    <FirstRunFrame embedded={embedded} mode={mode} importing={importing} stopping={stopping} leave={leave} frameRef={frameRef}>
+      {!embedded && <StepMarks step={step} door={door} skipAccess={skipAccess} />}
+      {step === "found" && (
+        <FoundStep
+          report={report}
+          scanError={scanError}
+          onScanAgain={scan}
+          inPlace={inPlace}
+          cli={cli}
+          toolName={toolName}
+          provider={primary}
+          tools={tools}
+          installRows={installRows}
+          taken={taken}
+          onAddFresh={() => setStep("fresh")}
+          onImportFolder={() => void pickFolder()}
+          stopRef={stopRef}
+          firstRun={mode === "first-run"}
+          footSlot={footSlot}
+          footEnd={footEnd}
+          onBusy={(busy) => {
+            setImporting(busy);
+            onBusy?.(busy);
+            if (!busy) setStopping(false);
+          }}
+          onImported={(signins) => {
+            onAccountsChanged?.();
+            setQueue(signins);
+            if (signins.length > 0) {
+              funnelEvent("login_queued");
+              if (mode === "first-run") funnelStep("a-first-install", "signin");
+              setStep("signin");
+            } else {
+              toAccess();
+            }
+          }}
+        />
+      )}
+      {step === "fresh" && (
+        <FreshAccountStep
+          toolName={toolName}
+          provider={primary}
+          taken={taken}
+          accounts={accounts}
+          canGoBack={!nothingNew || mode === "first-run"}
+          onBack={() => setStep("found")}
+          onImportFolder={() => void pickFolder()}
+          onLookAgain={mode === "add" && (nothingNew || lookedAgain.current) ? lookAgain : null}
+          onCreated={added}
+        />
+      )}
+      {step === "folder" && folder !== null && (
+        <FolderStep
+          path={folder}
+          provider={primary}
+          toolName={toolName}
+          onBack={() => setStep(mode === "add" && nothingNew ? "fresh" : "found")}
+          onPickAgain={() => void pickFolder()}
+          onAddFresh={() => setStep("fresh")}
+          onImported={added}
+          onDone={onDone}
+          wizard={mode === "first-run"}
+        />
+      )}
+      {step === "signin" && <SigninStep queue={queue} provider={primary} openLoginTerminal={openLoginTerminal} onDone={toAccess} wizard={mode === "first-run"} footEnd={embedded ? footEnd : undefined} skipRef={embedded ? skipSignin : undefined} />}
+      {step === "access" && access !== null && <AccessStep entries={access} setEntries={setAccess} onDone={finish} />}
+      {/* AJ-E1548 R11: closed in setup and in Add account alike. */}
+      {(step === "found" || step === "fresh" || step === "folder") && <ProvidersTerms tools={step === "found" ? tools : [primary]} />}
+    </FirstRunFrame>
   );
 }

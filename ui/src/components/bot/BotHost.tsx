@@ -44,7 +44,7 @@ export function BotNavProvider({
           }
         : null,
       openShortcut: (shortcut) => (shortcut === "usage" ? openUsage() : openHome()),
-      openSettings: (pane) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: pane === "ai-models" ? "ai-models" : "ai-jobs" } })),
+      openSettings: () => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "ai-models" } })),
     }),
     [host, sessions, openSession, openPool, openAccount, openHome, openUsage],
   );

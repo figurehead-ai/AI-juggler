@@ -16,8 +16,8 @@ import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { QuotaDisplayData } from "../../lib/ipc/quota";
 import { CardTitle } from "./CardTitle";
 import { MeasureLimits } from "../../components/MeasureLimits";
+import { RUNWAY_FILL, runwayState, runwayTrack, runwayWidth } from "../../lib/runway-look";
 
-const BAR = { ok: "bg-accent", low: "bg-warning", out: "bg-danger", none: "" } as const;
 const WORDS = { ok: "text-muted", low: "text-warning", out: "text-danger", none: "text-muted" } as const;
 
 export function Runway({
@@ -60,18 +60,22 @@ export function Runway({
         </div>
       ) : (
         <div className="flex flex-col gap-3" data-testid="account-runway">
-          {lines.map((line) => (
-            <div key={line.label} className="flex flex-col gap-1.5">
-              <div className="flex items-baseline justify-between gap-3 text-meta">
-                <span className="text-muted">{line.label}</span>
-                {line.left !== null && <span className="font-semibold tabular-nums text-ink">{line.left}% left</span>}
+          {lines.map((line) => {
+            // PAT-COLOR: the bar's colour follows its state (lib/runway-look).
+            const state = runwayState(line.left, line.tone !== "out");
+            return (
+              <div key={line.label} className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-3 text-meta">
+                  <span className="text-muted">{line.label}</span>
+                  {line.left !== null && <span className="font-semibold tabular-nums text-ink">{line.left}% left</span>}
+                </div>
+                <span aria-hidden="true" className={"h-1.5 overflow-hidden rounded-full " + runwayTrack(state)} data-state={state}>
+                  <span className={"block h-full rounded-full " + RUNWAY_FILL[state]} style={{ width: `${runwayWidth(line.left, state)}%` }} />
+                </span>
+                <span className={"text-label " + WORDS[line.tone]}>{line.words.replace(/^\d+% left(?: · )?/, "")}</span>
               </div>
-              <span aria-hidden="true" className={"h-1.5 overflow-hidden rounded-full " + (line.left === null ? "border border-dashed border-hairline" : "bg-surface-3")}>
-                <span className={"block h-full rounded-full " + BAR[line.tone]} style={{ width: `${line.left ?? 0}%` }} />
-              </span>
-              <span className={"text-label " + WORDS[line.tone]}>{line.words.replace(/^\d+% left(?: · )?/, "")}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       {children}

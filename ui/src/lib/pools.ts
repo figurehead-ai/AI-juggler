@@ -20,6 +20,7 @@ import type { MessageNeedInfo } from "./ipc/messages";
 import type { TaskNeedInfo } from "./ipc/tasks";
 import { sessionState } from "./rail-items";
 import { OWN_LEVELS } from "./pool-words";
+import { setPoolsFailure } from "./pools-failure";
 
 export { NO_PROJECT_POOL_ID, defaultPoolIdOf };
 export type { PoolRole };
@@ -261,10 +262,13 @@ export function setPools(info: PoolsInfo): void {
 
 /** Reads the pools again (a failed read keeps the last answer). */
 export async function refreshPools(): Promise<void> {
+  setPoolsFailure(undefined);
   try {
     answer(await poolsList());
-  } catch {
-    // Keep what was there: a pool list a moment old is still true enough.
+  } catch (cause) {
+    // Keep what was there: a pool list a moment old is still true enough
+    // (never read, the Pools screen says so with Retry: AJ-E1552).
+    setPoolsFailure(cause);
   }
 }
 
@@ -319,6 +323,7 @@ export function resetPools(): void {
   watching = null;
   answered = null;
   current = null;
+  setPoolsFailure(undefined);
   alone.clear();
   sheet = null;
 }

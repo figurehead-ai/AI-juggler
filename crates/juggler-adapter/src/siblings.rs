@@ -162,6 +162,7 @@ mod tests {
             kind: HostKind::Desktop,
             instance_arg: Some("--user-data-dir".into()),
             default_instance: Some(DEFAULT.into()),
+            instance_lock: None,
             thread_link: None,
             folder_link: None,
             folder_command: None,

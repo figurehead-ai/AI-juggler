@@ -173,7 +173,7 @@ fn the_reads_offer_what_the_lab_can_report_and_say_a_draft() {
         preview.words
     );
     assert!(
-        preview.words.ends_with(" finishes. Once."),
+        preview.words.ends_with(" finishes its turn. Once."),
         "{}",
         preview.words
     );
@@ -422,7 +422,7 @@ fn the_view_reads_parts_counts_and_brings_back_a_removed_watch() {
         first
             .echo
             .head_text()
-            .ends_with(" finishes, or looks stuck for 15 minutes.")
+            .ends_with(" finishes its turn, or looks stuck for 15 minutes.")
     );
     assert_eq!((first.last_told_ms, first.ended_ms), (None, None));
 

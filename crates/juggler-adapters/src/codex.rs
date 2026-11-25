@@ -36,6 +36,13 @@ use crate::claude_code::{existing, find_on_path, home_relative};
 /// Provider id: `codex`.
 pub const CODEX_ID: &str = "codex";
 
+/// AJ-E1545 R8: how Codex's sign-in output is read: `OpenAI`'s page (auth.openai.com), with a one-time code for a device sign-in.
+const SIGN_IN_PAGE: juggler_adapter::PageRule = juggler_adapter::PageRule {
+    hosts: &["auth.openai.com"],
+    device_codes: true,
+    paste_words: &[],
+};
+
 /// Versions this adapter's launch/login behaviour was verified against
 /// (codex-cli 0.163.0, 2026-10-20 — AJ-E1301 evidence). Other versions
 /// run with a drift note, never a hard failure (spec §4 rules).
@@ -392,15 +399,7 @@ pub fn probe_codex_identity(state_dir: &Path) -> juggler_adapter::IdentityProbe 
 /// The scan-side sign-in axis stays binary (the inference vocabulary);
 /// the account wire carries the full taxonomy (AJ-E308), as for Claude.
 fn scan_probe(path: &Path) -> LoginProbe {
-    match codex_login_state(path) {
-        LoginState::SignedIn => LoginProbe::LoggedIn,
-        LoginState::Partial
-        | LoginState::Expired
-        | LoginState::SsoPending
-        | LoginState::ApiKey
-        | LoginState::LoggedOut
-        | LoginState::Unknown => LoginProbe::LoggedOut,
-    }
+    codex_login_state(path).sign_in_probe()
 }
 
 /// The isolation overlay: the home, and the SQLite home pinned inside it
@@ -560,6 +559,13 @@ impl ToolDiscovery for CodexAdapter {
 }
 
 impl ToolSignIn for CodexAdapter {
+    fn sign_in_page_rule(&self) -> Option<&'static juggler_adapter::PageRule> {
+        Some(&SIGN_IN_PAGE)
+    }
+    /// AJ-E1553: its sign-in file's size and time (never its contents).
+    fn sign_in_stamp(&self, state_dir: &Path) -> Option<juggler_adapter::SignInStamp> {
+        crate::sign_in::stamp(CODEX_ID, state_dir)
+    }
     fn prepare_account(&self, state_dir: &Path) -> Result<EnvMap, AdapterError> {
         // Codex refuses a CODEX_HOME that does not exist (verified on
         // 0.163.0) — the directory itself is the whole preparation.
@@ -964,7 +970,7 @@ pub fn codex_spec() -> juggler_adapter::ToolSpec {
         kinds: vec![ToolKind::Cli],
         rules_files: vec!["AGENTS.md".to_owned()],
         rules_import: None,
-        scan_hint: "Your default setup and anything else that looks like one. Nothing is changed."
+        scan_hint: "Your default app and any other that looks like one. Nothing is changed."
             .to_owned(),
         // Codex homes are their own group in every list (AJ-E1301).
         setup_groups: vec![SetupGroup {

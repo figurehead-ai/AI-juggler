@@ -68,13 +68,51 @@ fn a_16_gb_mac_with_apple_intelligence_sees_every_model_and_apple_is_recommended
 fn apple_s_model_shows_only_with_apple_intelligence_on() {
     let listing = Listing::Read(list());
     let offer = offered(&listing);
-    for apple_ai in [AppleAi::Off, AppleAi::Unavailable] {
+    // AJ-E3823: only "this Mac can't run it" recommends a download; off,
+    // getting ready, couldn't check and blocked never do.
+    let cases = [
+        (AppleAi::Unavailable, AppleAiState::Unavailable, None),
+        (
+            AppleAi::Off,
+            AppleAiState::Off,
+            Some(NothingWhy::TurnOnAppleAi),
+        ),
+        (
+            AppleAi::Preparing,
+            AppleAiState::Preparing,
+            Some(NothingWhy::AppleAiGettingReady),
+        ),
+        (
+            AppleAi::Unchecked,
+            AppleAiState::Unchecked,
+            Some(NothingWhy::AppleAiUnknown),
+        ),
+        (
+            AppleAi::NoAnswer,
+            AppleAiState::NoAnswer,
+            Some(NothingWhy::AppleAiUnknown),
+        ),
+        (
+            AppleAi::Blocked,
+            AppleAiState::Blocked,
+            Some(NothingWhy::AppleAiUnknown),
+        ),
+    ];
+    for (apple_ai, state, nothing) in cases {
         let mac = mac(16, 48, apple_ai);
         let pick = recommendation(&mac, &usable(&offer, &[]), &[]);
         let shown = catalog(Some(&mac), None, &listing, &offer, &[], Some(&pick));
         assert!(shown.models.iter().all(|m| !m.built_in), "{apple_ai:?}");
+        assert_eq!(shown.mac.unwrap().apple_ai, state, "{apple_ai:?}");
         let rec = shown.recommendation.unwrap();
-        assert_eq!(rec.why, Some(RecommendedWhy::Fits), "{apple_ai:?}");
+        assert_eq!(rec.nothing, nothing, "{apple_ai:?}");
+        let fits = nothing.is_none().then_some(RecommendedWhy::Fits);
+        assert_eq!(rec.why, fits, "{apple_ai:?}");
+        // Downloads stay listed as the alternative.
+        assert!(
+            shown.models.iter().any(|m| m.size_bytes.is_some()),
+            "{apple_ai:?}"
+        );
     }
 }
 
@@ -82,14 +120,22 @@ fn apple_s_model_shows_only_with_apple_intelligence_on() {
 fn a_model_this_mac_cant_run_is_never_shown_but_short_disk_is() {
     let listing = Listing::Read(list());
     let offer = offered(&listing);
-    // 8 GB, Apple Intelligence off: no download fits the memory (D-127).
-    let small = mac(8, 212, AppleAi::Off);
+    // 8 GB without Apple Intelligence: no download fits the memory (D-127).
+    let small = mac(8, 212, AppleAi::Unavailable);
     let pick = recommendation(&small, &usable(&offer, &[]), &[]);
     let shown = catalog(Some(&small), None, &listing, &offer, &[], Some(&pick));
     assert!(shown.models.is_empty());
     let rec = shown.recommendation.unwrap();
     assert_eq!(rec.nothing, Some(NothingWhy::NotEnoughMemory));
-    assert!(rec.apple_ai_off);
+    assert!(!rec.apple_ai_off);
+    // The same Mac with it off: turn it on, nothing to download (AJ-E3823).
+    let off = mac(8, 212, AppleAi::Off);
+    let pick = recommendation(&off, &usable(&offer, &[]), &[]);
+    let shown = catalog(Some(&off), None, &listing, &offer, &[], Some(&pick));
+    assert_eq!(
+        shown.recommendation.unwrap().nothing,
+        Some(NothingWhy::TurnOnAppleAi)
+    );
     // 16 GB with 11 GB free: every card shows, none recommended for disk.
     let full = mac(16, 11, AppleAi::Unavailable);
     let pick = recommendation(&full, &usable(&offer, &[]), &[]);

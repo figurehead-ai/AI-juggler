@@ -10,7 +10,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeFeed } from "./HomeFeed";
 import { endingItem, feedItem } from "../preview/feed";
-import { MOCK_SESSIONS } from "../preview/fixtures";
+import { MOCK_PROJECTS, MOCK_SESSIONS } from "../preview/fixtures";
 import { keepFirst, keptFilters, markRead, readHorizon, readIds, unread } from "../lib/feed-state";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 
@@ -50,10 +50,10 @@ class SeeAll implements IntersectionObserver {
   }
 }
 
-function feed({ stacked = false, scroller = () => null as HTMLElement | null, open = vi.fn(() => true) } = {}) {
+function feed({ stacked = false, scroller = () => null as HTMLElement | null, open = vi.fn(() => true), projects = [] as typeof MOCK_PROJECTS } = {}) {
   return render(
     <HomeFeed stacked={stacked} now={NOW} nameOf={() => null} quiet onNewSession={vi.fn()} onOpenApp={vi.fn()} toReview={0} onReviewAll={vi.fn()} scroller={scroller}
-      facets={{ projects: [], accounts: [], subscriptions: [], pools: null }} actions={{ open, review: vi.fn(), railOf: () => null }} />,
+      facets={{ projects, accounts: [], subscriptions: [], pools: null }} actions={{ open, review: vi.fn(), railOf: () => null }} />,
   );
 }
 
@@ -112,6 +112,20 @@ describe("D-118 — the feed", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show everything" }));
     await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(3));
     expect(screen.queryByTestId("feed-filtered")).toBeNull();
+  });
+
+  it("names the Showing picker as it reads, so its name holds its words (axe: label-content-name-mismatch)", async () => {
+    seed(many(1));
+    const project = MOCK_PROJECTS[0];
+    if (!project) throw new Error("the fixtures carry a project");
+    feed({ projects: [project] });
+    const words = (text: string | null) => (text ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const facet = await screen.findByTestId("feed-facet");
+    expect(words(facet.getAttribute("aria-label"))).toContain(words(facet.textContent?.replace(/:/g, ": ") ?? ""));
+    fireEvent.click(facet);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: new RegExp(project.name) }));
+    await waitFor(() => expect(facet.textContent).toContain("Project"));
+    expect(facet.getAttribute("aria-label")).toBe(`Showing: ${project.name} · Project`);
   });
 
   it("paints the last visit's first page at once, then the live one", async () => {
@@ -213,6 +227,38 @@ describe("D-118 — the feed", () => {
     fireEvent.click(pill);
     expect(await screen.findByText("Brand new")).toBeTruthy();
     box.remove();
+  });
+});
+
+describe("0.5.1 F56 — an empty feed shows no filters (D-127)", () => {
+  it("nothing to show and nothing filtered: no chips, Showing: or ⋯; the empty card offers Include my actions", async () => {
+    seed([]);
+    feed();
+    expect(await screen.findByTestId("feed-empty")).toBeTruthy();
+    expect(screen.queryByTestId("feed-filters")).toBeNull();
+    expect(screen.queryByTestId("feed-more")).toBeNull();
+    expect(screen.getByTestId("feed-empty-mine").textContent).toContain("Your own actions aren't shown.");
+  });
+
+  it("Include my actions from the empty card shows the user's own actions, and the filters come back with them", async () => {
+    seed(many(1).map((one) => ({ ...one, mine: true, subject: "Mine" })));
+    feed();
+    fireEvent.click(await screen.findByTestId("feed-empty-include-mine"));
+    expect((await screen.findByTestId("feed-subject")).textContent).toBe("Mine");
+    expect(keptFilters().include_mine).toBe(true);
+    expect(screen.getByTestId("feed-filters")).toBeTruthy();
+    expect(screen.queryByTestId("feed-empty-mine")).toBeNull();
+  });
+
+  it("a filtered feed with nothing in it keeps its filters: the way back is there", async () => {
+    seed(many(2));
+    feed();
+    await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(2));
+    fireEvent.click(screen.getByRole("radio", { name: "Switches & limits" }));
+    expect(await screen.findByTestId("feed-empty")).toBeTruthy();
+    expect(screen.getByTestId("feed-filters")).toBeTruthy();
+    expect(screen.getByTestId("feed-filtered")).toBeTruthy();
+    expect(screen.queryByTestId("feed-empty-mine")).toBeNull();
   });
 });
 

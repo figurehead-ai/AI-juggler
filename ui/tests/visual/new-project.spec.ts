@@ -3,7 +3,7 @@ import { allStatuses, type FixtureSet, expectRail } from "./fixtures";
 
 /**
  * AJ-E305 quality gate — flow (b) as a TESTED CONTRACT: New project
- * in ≤ 3 clicks (tile → Start session →), opened with ⌘⇧N (D-50) from
+ * in ≤ 3 clicks (tile → New session's Start, 0.5.1 F68), opened with ⌘⇧N (D-50) from
  * anywhere, the recommended account preselected (last-used on the
  * dir), and the funnel seam complete (open → pick-dir → launch).
  * The no-Account state detours inline into the add-account flow and
@@ -63,16 +63,17 @@ for (const theme of ["dark", "light"] as const) {
     let clicks = 0;
     // Click 1: the recent-dir tile (ai-juggler, last used with Work Max).
     await page
-      .getByRole("button", { name: /Work in ai-juggler.*last used with Work Max/ })
+      .getByRole("button", { name: /Work in ai-juggler.*Last used with Work Max/ })
       .click();
     clicks += 1;
-    await expect(page.getByTestId("project-account")).toBeVisible();
-    // The preselect rule picked the account last used on this dir.
-    await expect(page.getByTestId("project-account")).toContainText("Work Max");
-    await expect(page.getByTestId("project-account")).toContainText("last used here");
+    // 0.5.1 F68: New session opens on that folder and picks the App by
+    // its one rule (the one last used there), said with its why.
+    await expect(page.getByTestId("new-session-sheet")).toBeVisible();
+    await expect(page.getByTestId("new-session-sentence")).toContainText("ai-juggler");
+    await expect(page.getByTestId("launch-app")).toContainText("Work Max");
 
-    // Click 2: Start session → (the recommended recipe + the dir).
-    await page.getByTestId("start-session").click();
+    // Click 2: Start (the chosen App + the dir).
+    await page.getByTestId("launch-now").click();
     clicks += 1;
     // Preview mode has no backend — the honest error, after the
     // launch was attempted (the click contract is what's pinned).

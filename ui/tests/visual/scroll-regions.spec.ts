@@ -102,7 +102,14 @@ test.describe("R2 a session page at 1024×680 with its account's notice", () => 
       const size = { width: 1024, height: 680 };
       await open(page, "dark", size, { __AIJ_FIXTURE__: allStatuses, __AIJ_NOTICES__: roomNotice(account) });
       await openRailSession(page, session);
-      if (notice) await expect(page.getByTestId("session-notice-quota")).toBeVisible();
+      if (notice) {
+        // AJ-E2314 L2: in a window this short the notice is one paragraph
+        // without its meter (240 → 262 px of column on the host).
+        const own = page.getByTestId("session-notice-quota");
+        await expect(own).toBeVisible();
+        await expect(own.getByRole("meter")).toBeHidden();
+        expect((await boxOf(own)).height, "the notice folds to one paragraph").toBeLessThanOrEqual(64);
+      }
       const button = page.getByTestId("switch-account");
       await expect(button).toBeVisible();
       await settle(page);

@@ -23,7 +23,7 @@ export function WatchesHead({ count, limit, empty, onNew, onAskBot }: { count: n
       <div className="flex min-w-0 flex-1 basis-96 flex-col gap-1">
         <div className="flex items-baseline gap-2.5">
           <h2 className="text-title text-ink">{PAGE.title}</h2>
-          {!empty && (
+          {!empty && count >= PAGE.nearLimit(limit) && (
             <span className="text-meta font-medium tabular-nums text-muted" data-testid="watches-count">
               {PAGE.of(count, limit)}
             </span>

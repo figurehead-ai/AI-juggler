@@ -12,7 +12,7 @@ import type { JSX } from "react";
 import { Button, Card } from "../components/primitives";
 import { NotificationRegion } from "../components/NotificationRegion";
 import { RightInspector, type InspectorSelection } from "../components/RightInspector";
-import { ScreenBoundary } from "../components/ScreenBoundary";
+import { ScreenBoundary, SkeletonArea } from "../components/ScreenBoundary";
 import { launchSession } from "../lib/ipc/launch";
 import { launchPortWarning } from "../lib/ipc/kill";
 import { sessionHandover } from "../lib/ipc/switch-preflight";
@@ -60,7 +60,7 @@ const PAGES: Partial<Record<Selection["kind"], PageEntry>> = {
     if (selection.kind !== "conversation") return null;
     return (
       <div className="min-h-0 flex-1" data-testid="conversation-scroll">
-        <ConversationPage accountId={selection.accountId} id={selection.id} now={shell.now} projects={shell.projects} onSwitch={(sessionId, targetProfileId, targetLabel) => shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel })} />
+        <ConversationPage accountId={selection.accountId} id={selection.id} now={shell.now} projects={shell.projects} onSwitch={(sessionId, targetProfileId, targetLabel, targetPlaceId) => shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel, targetPlaceId })} />
       </div>
     );
   },
@@ -108,6 +108,11 @@ export function InspectorStop({ session, onStop }: { session: InstanceInfo; onSt
 }
 
 export function workArea(shell: Shell, extra: Extra): JSX.Element {
+  // AJ-E1549: a page's part still loading is the page's skeleton.
+  return <SkeletonArea label="the page">{workAreaPage(shell, extra)}</SkeletonArea>;
+}
+
+function workAreaPage(shell: Shell, extra: Extra): JSX.Element {
   const { selection } = shell;
   if (shell.selectedLogin) {
     return (
@@ -120,6 +125,8 @@ export function workArea(shell: Shell, extra: Extra): JSX.Element {
         onOpenProject={shell.selectProject}
         onStopped={() => void shell.refresh()}
         onHandover={async () => {}}
+        openLoginTerminal={shell.openLoginTerminal}
+        onSignInClosed={shell.openHome}
       />
     );
   }
@@ -252,9 +259,9 @@ function inspectorPage(shell: Shell): JSX.Element {
         onStopped={() => void shell.refresh()}
         switchBackSuggestions={shell.switchBackCards}
         onSwitchBack={(sessionId) => shell.setSwitchBack(sessionId)}
-        onHandover={(sessionId, targetProfileId, targetLabel) => {
+        onHandover={(sessionId, targetProfileId, targetLabel, targetPlaceId) => {
           void sessionHandover; // superseded by the E205 flow
-          shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel });
+          shell.setSwitchFlow({ sessionId, targetProfileId, targetLabel, targetPlaceId });
         }}
         onNew={() => shell.newSheet.show()}
       />

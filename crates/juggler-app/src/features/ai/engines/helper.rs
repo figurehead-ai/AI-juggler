@@ -25,6 +25,40 @@ pub const MAX_LINE_BYTES: u64 = juggler_local_ai_protocol::MAX_ANSWER_BYTES as u
 /// How often a wait looks at the job's stop.
 const STOP_POLL: Duration = Duration::from_millis(50);
 
+/// How long a helper whose output ended may take to be seen exited.
+const EXIT_WAIT: Duration = Duration::from_millis(500);
+
+/// Why a helper didn't start (AJ-E3823): the engines say which in plain
+/// words, and never read one as "this computer can't run it".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartFailure {
+    /// The system refused to start it, or stopped it before it said
+    /// hello (macOS: not allowed to run, or killed).
+    Blocked,
+    /// It started and said nothing in time (a system prompt about it
+    /// may be waiting for the user).
+    NoAnswer,
+    /// It couldn't be started, ended early, or its hello wasn't JSON.
+    Broken,
+    /// AJ-E1547: one of AI Juggler's own helpers whose first start the
+    /// user hasn't been told about yet (the `helper` entry isn't primed:
+    /// Bot's setup, "Use Apple's AI" or Check again primes it). Nothing
+    /// was started, so the system asked nothing.
+    NotSetUp,
+}
+
+impl StartFailure {
+    /// The engine error a caller that needs no reason sees.
+    #[must_use]
+    pub const fn error(self) -> EngineError {
+        match self {
+            Self::NoAnswer => EngineError::TimedOut,
+            Self::Blocked | Self::Broken => EngineError::Crashed,
+            Self::NotSetUp => EngineError::NotHere(crate::features::ai::engine::Reason::Unknown),
+        }
+    }
+}
+
 /// ADR-0033 §3's health rule: this many failures within [`HEALTH_WINDOW`]
 /// mark an engine unhealthy until the next probe that finds it fine.
 const HEALTH_FAILURES: usize = 3;
@@ -107,6 +141,16 @@ impl Helper {
         Self::launch(juggler_platform::process::helper(program), wait)
     }
 
+    /// As [`Helper::start`], saying why it didn't start (AJ-E3823): the
+    /// system refused or stopped it, it never answered, or it broke.
+    ///
+    /// # Errors
+    ///
+    /// The [`StartFailure`].
+    pub fn start_checked(program: &Path, wait: Duration) -> Result<Self, StartFailure> {
+        Self::launch_checked(juggler_platform::process::helper(program), wait)
+    }
+
     /// Starts `command` (one of AI Juggler's own helpers, made with
     /// [`juggler_platform::process::helper`]: no shell, only the allowed
     /// environment) and reads its `hello` within `wait`.
@@ -114,18 +158,38 @@ impl Helper {
     /// # Errors
     ///
     /// As [`Helper::start`].
-    pub fn launch(mut command: Command, wait: Duration) -> Result<Self, EngineError> {
+    pub fn launch(command: Command, wait: Duration) -> Result<Self, EngineError> {
+        Self::launch_checked(command, wait).map_err(StartFailure::error)
+    }
+
+    /// As [`Helper::launch`], saying why it didn't start.
+    ///
+    /// # Errors
+    ///
+    /// The [`StartFailure`].
+    pub fn launch_checked(mut command: Command, wait: Duration) -> Result<Self, StartFailure> {
+        // AJ-E1547: a first start of one of our own helpers may make the
+        // system ask about it, so it waits until the user was told.
+        if !crate::os_prompts::helper_may_start(&command) {
+            return Err(StartFailure::NotSetUp);
+        }
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|_| EngineError::Crashed)?;
+            .map_err(|error| {
+                if juggler_platform::process::refused_to_start(&error) {
+                    StartFailure::Blocked
+                } else {
+                    StartFailure::Broken
+                }
+            })?;
         let stdin = child.stdin.take();
         let Some(stdout) = child.stdout.take() else {
             let _ = child.kill();
             let _ = child.wait();
-            return Err(EngineError::Crashed);
+            return Err(StartFailure::Broken);
         };
         let (send, lines) = channel();
         let reader = std::thread::Builder::new()
@@ -147,11 +211,34 @@ impl Helper {
             hello: serde_json::Value::Null,
         };
         if reader.is_err() {
-            return Err(EngineError::Crashed);
+            return Err(StartFailure::Broken);
         }
-        let first = helper.next_line(&Stop::at(Instant::now() + wait))?;
-        helper.hello = serde_json::from_str(&first).map_err(|_| EngineError::Crashed)?;
+        let first = match helper.next_line(&Stop::at(Instant::now() + wait)) {
+            Ok(first) => first,
+            Err(EngineError::TimedOut | EngineError::Stopped) => {
+                return Err(StartFailure::NoAnswer);
+            }
+            Err(_) => return Err(helper.why_it_ended()),
+        };
+        helper.hello = serde_json::from_str(&first).map_err(|_| StartFailure::Broken)?;
         Ok(helper)
+    }
+
+    /// Why a helper whose output ended before its hello is gone: the
+    /// system stopped it, or it broke. Its exit is waited for a moment
+    /// (the output closes just before the exit is known).
+    fn why_it_ended(&mut self) -> StartFailure {
+        let until = Instant::now() + EXIT_WAIT;
+        loop {
+            match self.child.try_wait() {
+                Ok(Some(status)) if juggler_platform::process::stopped_by_system(&status) => {
+                    return StartFailure::Blocked;
+                }
+                Ok(Some(_)) | Err(_) => return StartFailure::Broken,
+                Ok(None) if Instant::now() >= until => return StartFailure::Broken,
+                Ok(None) => std::thread::sleep(STOP_POLL),
+            }
+        }
     }
 
     /// Whether it is still running.
@@ -296,5 +383,44 @@ mod tests {
             Some("{}".to_owned())
         );
         assert_eq!(bounded_line(&mut b"".as_slice()), None);
+    }
+
+    /// AJ-E3823: why a helper didn't start, from fake helpers: one the
+    /// system kills before its hello reads as blocked, one that never
+    /// answers as no answer, one that just fails as broken.
+    #[cfg(unix)]
+    #[test]
+    fn a_helper_that_doesnt_start_says_why() {
+        let dir = tempfile::tempdir().unwrap();
+        let fake = |name: &str, body: &str| {
+            let path = dir.path().join(name);
+            crate::test_support::script(&path, &format!("#!/bin/sh\n{body}\n"));
+            path
+        };
+        let wait = Duration::from_millis(400);
+        let killed = fake("killed", "kill -9 $$");
+        assert_eq!(
+            Helper::start_checked(&killed, wait).err(),
+            Some(StartFailure::Blocked)
+        );
+        let silent = fake("silent", "sleep 5");
+        assert_eq!(
+            Helper::start_checked(&silent, wait).err(),
+            Some(StartFailure::NoAnswer)
+        );
+        let broken = fake("broken", "exit 3");
+        assert_eq!(
+            Helper::start_checked(&broken, wait).err(),
+            Some(StartFailure::Broken)
+        );
+        let garbled = fake("garbled", "echo 'not json'; cat > /dev/null");
+        assert_eq!(
+            Helper::start_checked(&garbled, wait).err(),
+            Some(StartFailure::Broken)
+        );
+        let fine = fake("fine", "echo '{\"protocol\":2}'; cat > /dev/null");
+        assert!(Helper::start_checked(&fine, wait).is_ok());
+        assert_eq!(StartFailure::NoAnswer.error(), EngineError::TimedOut);
+        assert_eq!(StartFailure::Blocked.error(), EngineError::Crashed);
     }
 }

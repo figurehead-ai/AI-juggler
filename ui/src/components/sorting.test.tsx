@@ -267,6 +267,8 @@ describe("AJ-E404 snooze/mute", () => {
     const snooze: SnoozeState = { s6: { until: NOW + 12 * 60_000, muted: false } };
     const { container } = renderBoard(FIXTURE, snooze);
     expect(container.textContent).toContain("snoozed 12m");
+    // 0.5.1 critique: said in the row's own line, never a badge over the row above.
+    expect(container.querySelector('button[data-instance-id="s6"] [data-testid="rail-snoozed"]')?.textContent).toContain("snoozed 12m");
     // AJ-E2802 R7: Needs you has the App grouping's one order in every
     // grouping: someone asking first (the one waiting longest first), then
     // out of room, failed, stuck; the rest below as before.

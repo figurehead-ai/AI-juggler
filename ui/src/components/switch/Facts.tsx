@@ -11,7 +11,7 @@ type Icon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 /** The panel: accent-tinted, the rows apart by a hairline. */
 export function FactPanel({ children, testId, label }: { children: ReactNode; testId?: string; label?: string }): JSX.Element {
   return (
-    <dl aria-label={label} className="flex min-w-0 flex-col divide-y divide-hairline/70 rounded-card bg-accent-soft px-4 py-1 inset-ring-1 inset-ring-accent/15" data-testid={testId}>
+    <dl aria-label={label} className="flex min-w-0 flex-col divide-y divide-hairline/70 rounded-card bg-accent-soft px-4 py-1" data-testid={testId}>
       {children}
     </dl>
   );

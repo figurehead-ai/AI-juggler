@@ -22,13 +22,20 @@ pub(crate) fn make_launch_hook<'a>(
     profile_b: &'a juggler_core::model::LaunchRecipe,
     source: &'a juggler_core::model::InstanceRecord,
     new_session: &'a SessionId,
-    desktop: Option<&'a str>,
+    (desktop, linked): (Option<&'a str>, &'a std::cell::Cell<Option<u64>>),
 ) -> impl FnMut(&juggler_adapter::handover::InstallOutcome) -> Result<u32, String> + 'a {
     move |install: &juggler_adapter::handover::InstallOutcome| -> Result<u32, String> {
         let native_id = install.reference.native_id.clone().unwrap_or_default();
         // 0.3.5 Desktop: the profile takes it from its folder, where the
         // install put it; "switched" once it recorded it.
         if let Some(place) = desktop {
+            // 0.5.1 F69: its history's length as the link goes (the app
+            // adding to it is evidence it opened, AJ-E2322).
+            linked.set(
+                std::fs::metadata(&install.reference.path)
+                    .ok()
+                    .map(|m| m.len()),
+            );
             return crate::features::places::handoff::hand_off(
                 state,
                 place,
@@ -249,22 +256,6 @@ pub(crate) fn record_edge_succeeded(
     let graph = storage.switch_graph();
     // D-76: a compacted source or a left-out start lowers what it reached.
     graph.set_fidelity_reached(&ctx.edge, &record.fidelity_label)?;
-    // D-76 (AJ-E211 Req.6): the handover's note records the cut —
-    // what was left out, when, how much — as a manifest row of kind
-    // "note" so the edge's artefacts tell the whole story.
-    if let Some(cut) = &record.cut {
-        graph.append_manifest(
-            &ctx.edge,
-            &[juggler_handover::manifest::ManifestRow {
-                rel_path: "conversation.md".to_owned(),
-                sha256: "-".to_owned(),
-                bytes: 0,
-                kind: "note".to_owned(),
-                disposition: cut.note(),
-            }
-            .entry()],
-        )?;
-    }
     graph.append_manifest(
         &ctx.edge,
         &record

@@ -13,7 +13,7 @@
  * Labels lead with the state (screen readers hear "Asks you, …" first).
  * Message text never shows here (D-37).
  */
-import type { CSSProperties, JSX, ReactNode } from "react";
+import { createContext, useContext, type CSSProperties, type JSX, type ReactNode } from "react";
 import { useActionHost, useItemMenu } from "../ItemMenu";
 import { ActionIcon } from "../ActionIcon";
 import { DROP, Grip, type Arrangeable } from "../RowTools";
@@ -22,10 +22,10 @@ import { markSeen } from "../../lib/seen";
 import { togglePin } from "../../lib/rail-order-store";
 import { SELECTED_FILL } from "../controls/selected";
 
-/** Its primary (a click, ↩): its page here, whichever app runs it. */
-export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
+/** Opens a row's page here (a session's, or a conversation's another app runs). */
+export function useOpenItem(onSelect: (id: string) => void): (item: RailItem) => void {
   const host = useActionHost();
-  return () => {
+  return (item) => {
     const c = item.conversation;
     if (item.session) onSelect(item.session.id);
     else if (c) {
@@ -33,6 +33,12 @@ export function usePrimary(item: RailItem, onSelect: (id: string) => void): () =
       host.openConversation?.(c);
     }
   };
+}
+
+/** Its primary (a click, ↩): its page here, whichever app runs it. */
+export function usePrimary(item: RailItem, onSelect: (id: string) => void): () => void {
+  const open = useOpenItem(onSelect);
+  return () => open(item);
 }
 
 /** Where its tools sit: over the row's end in the rail, in a gutter of
@@ -59,6 +65,15 @@ export interface ShellProps {
   layout?: ShellLayout;
   /** What sits under the lines (History's matching words). */
   below?: ReactNode;
+  /** The rail: its gutter's mark (the state's dot), and what its end says
+   * at rest (its state's word), swapped for its tools on hover and focus. */
+  lead?: ReactNode;
+  rest?: ReactNode;
+  /** 0.5.1 F42: a row of lines (Needs you's) puts its tools in its own
+   * line's end (`ShellTools`, the line saying why), not in a box beside
+   * every line: the title and the project · App · Account line keep the
+   * row's whole width at rest and under the pointer. */
+  toolsInline?: boolean;
   /** A list of ended rows (Home's): its gutter holds the ⋯ alone. */
   slim?: boolean;
   /** Which menu it has: an ended session's in a list is its history
@@ -73,12 +88,36 @@ export interface ShellProps {
 /** Shown under the pointer, or when the keyboard is in the row: never
  * left up by the focus a click leaves on the row (the maintainer's
  * report, 2026-11-03: the selected row kept its tools). */
-/** The tools' backing, the row's own colour: a hovered row is the
- * surface at 60 % over the rail's 30 %, about 72 % over the canvas; the
- * selected row is the surface. */
-const HOVER_BACKING = "bg-[linear-gradient(to_right,transparent,color-mix(in_srgb,var(--color-surface)_72%,var(--color-canvas))_12px)]";
-const SELECTED_BACKING = "bg-[linear-gradient(to_right,transparent,var(--color-surface)_12px)]";
 const ON_HOVER = "opacity-0 transition-opacity group-has-[:focus-visible]:opacity-100 group-hover:opacity-100 motion-reduce:transition-none";
+
+/**
+ * AJ-E1554 R1: a rail row's fixed slots. Its gutter holds the state's dot,
+ * or (Your order) the grip in the same place on hover and focus; its end
+ * holds the state's word, which hover and focus swap for its tools (pin,
+ * ↗, ⋯) in the same box. Both of a slot's layers are always drawn, in one
+ * grid cell, so the slot is as wide at rest as under the pointer: the
+ * title never moves, nothing covers it, the dot never moves (the 0.5.0
+ * Nightly's "actions over the title, a handle under the dot").
+ */
+const SLOT = "grid shrink-0 items-center [&>*]:col-start-1 [&>*]:row-start-1";
+/** The layer at rest: gone under the pointer or the keyboard. */
+const AT_REST = "transition-opacity group-has-[:focus-visible]:opacity-0 group-hover:opacity-0 motion-reduce:transition-none";
+
+/** The row's tools, for `ShellTools` inside a row of lines (F42). */
+const ToolsContext = createContext<ReactNode>(null);
+
+/** 0.5.1 F42: where a row of lines draws its tools: a fixed box at the end
+ * of the line it sits in (as wide at rest as under the pointer, so nothing
+ * moves), the tools shown on hover and focus. The line is short (why it
+ * needs you), so the box costs the title and the place line nothing. */
+export function ShellTools(): JSX.Element {
+  const tools = useContext(ToolsContext);
+  return (
+    <span className={SLOT + " -my-1 ml-auto justify-items-end"} data-testid="row-end">
+      {tools}
+    </span>
+  );
+}
 
 export function RowShell({
   item,
@@ -94,6 +133,9 @@ export function RowShell({
   tools = false,
   layout = "rail",
   below,
+  lead,
+  rest,
+  toolsInline = false,
   slim = false,
   menuKind,
   data,
@@ -110,11 +152,38 @@ export function RowShell({
   // Needs you: its ↗ on hover, focus or the selected row (D-117, R10);
   // elsewhere on hover and focus. The G key and the menu still go there.
   const shown = item.need !== null && !tools && !list && selected;
-  const goTo = where === null ? null : menu.goTo({ where, shown, className: tools || list ? "" : "absolute right-1 top-1/2 -translate-y-1/2" });
+  // The rail's sits in its row's end (shown with its tools); a page's list keeps its own look.
+  const goTo = where === null ? null : menu.goTo({ where, shown: !list });
   // AJ-E1502: the pin, on hover and focus, runs the menu's own Pin.
+  // D-47: Your order's grip, in the gutter in the dot's place.
+  const grip = tools && arrange?.enabled ? arrange : null;
   const pin = tools ? menu.actions.find((action) => action.id === "pin" && !action.reason) : undefined;
   // A page's row is named as its lists always named it.
   const menuLabel = list ? `Actions for ${item.title}` : `${item.session ? "Session" : "Conversation"} actions for ${item.title}`;
+  // Its tools (the rail's): pin, ↗ and ⋯, shown on hover and focus.
+  const toolsLayer = list ? null : (
+    <span className={"flex items-center [&>*]:pointer-events-auto " + (shown ? "" : ON_HOVER)} data-testid="row-tools">
+      {pin && (
+        <button
+          type="button"
+          aria-label={`Pin ${item.title}`}
+          aria-pressed={item.pinned}
+          title={pin.label}
+          data-testid="row-pin"
+          onClick={(event) => {
+            event.stopPropagation();
+            void pin.run();
+          }}
+          // PAT-SURF: a tool's hover is a tone, never a line.
+          className={"flex size-6 shrink-0 items-center justify-center rounded-md outline-none transition-colors hover:bg-hover hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " + (item.pinned ? "text-accent-hi" : "text-muted")}
+        >
+          <ActionIcon name="pin" size={13} />
+        </button>
+      )}
+      {goTo}
+      {menu.button({ label: menuLabel, shown: true })}
+    </span>
+  );
   return (
     <div
       // `tone-host`: hovered or focused, its App's mark is in full colour (D-117).
@@ -148,49 +217,39 @@ export function RowShell({
       >
         <span className="sr-only">{label}</span>
       </button>
-      <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (list ? (slim || !goTo ? "pr-10 " : "pr-[4.25rem] ") : goTo && shown ? "pr-9 " : "pr-2 ") + shape + " " + className}>
-        {children}
-      </div>
-      {below}
       {list ? (
-        // A page's row: ↗ and ⋯ in their own gutter, never over the state;
-        // one with no ↗ (an ended session) keeps only the ⋯'s room.
-        <span className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1" data-testid="row-tools">
-          {goTo && !slim && <span className={ON_HOVER}>{goTo}</span>}
-          {menu.button({ label: menuLabel })}
-        </span>
-      ) : tools ? (
-        // The tools sit over the row's end on a backing in the row's own
-        // surface, fading in from the left, so the words under them are
-        // hidden, never cut through (0.4 re-render). Nothing reflows on
-        // hover: a row that moved under the pointer missed its click.
-        <span className={"absolute right-0 top-0 bottom-0 z-10 flex items-center gap-0.5 rounded-r-md pointer-events-none pl-3 pr-1 [&>*]:pointer-events-auto " + (selected ? SELECTED_BACKING : HOVER_BACKING) + " " + (arrange?.dragging ? "" : ON_HOVER)} data-testid="row-tools">
-          {arrange?.enabled && <Grip arrange={arrange} label={item.title} />}
-          {pin && (
-            <button
-              type="button"
-              aria-label={`Pin ${item.title}`}
-              aria-pressed={item.pinned}
-              title={pin.label}
-              data-testid="row-pin"
-              onClick={(event) => {
-                event.stopPropagation();
-                void pin.run();
-              }}
-              className={
-                "flex size-6 shrink-0 items-center justify-center rounded-md border border-hairline bg-surface outline-none transition-colors hover:bg-surface-3 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60 " +
-                (item.pinned ? "text-accent-hi" : "text-muted")
-              }
-            >
-              <ActionIcon name="pin" size={13} />
-            </button>
-          )}
-          {goTo}
-        </span>
+        <>
+          <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center " + (slim || !goTo ? "pr-10 " : "pr-[4.25rem] ") + shape + " " + className}>
+            {children}
+          </div>
+          {below}
+          {/* A page's row: ↗ and ⋯ in their own gutter, never over the state;
+              one with no ↗ (an ended session) keeps only the ⋯'s room. */}
+          <span className="absolute right-2 top-1/2 z-10 flex -translate-y-1/2 items-center gap-1" data-testid="row-tools">
+            {goTo && !slim && <span className={ON_HOVER}>{goTo}</span>}
+            {menu.button({ label: menuLabel })}
+          </span>
+        </>
       ) : (
-        goTo
+        <>
+          <div style={style} className={"pointer-events-none relative flex w-full min-w-0 items-center pr-1 " + shape + " " + className} data-testid="row-slots">
+            {/* AJ-E1554 R1: the gutter: the dot, or the grip in its place. */}
+            <span className={SLOT + " w-4 justify-items-center"} data-testid="row-gutter">
+              <span className={"flex " + (grip ? (grip.dragging ? "opacity-0" : AT_REST) : "")}>{lead}</span>
+              {grip && <span className={"pointer-events-auto flex " + (grip.dragging ? "" : ON_HOVER)}><Grip arrange={grip} label={item.title} /></span>}
+            </span>
+            <ToolsContext.Provider value={toolsInline ? toolsLayer : null}>{children}</ToolsContext.Provider>
+            {/* Its end: the state at rest, its tools under the pointer. */}
+            {!toolsInline && (
+              <span className={SLOT + " justify-items-end"} data-testid="row-end">
+                <span className={"flex items-center gap-2 " + (shown ? "opacity-0" : AT_REST)}>{rest}</span>
+                {toolsLayer}
+              </span>
+            )}
+          </div>
+          {below}
+        </>
       )}
-      {!list && menu.button({ label: menuLabel, className: "absolute bottom-0 left-0" })}
       {menu.element}
     </div>
   );

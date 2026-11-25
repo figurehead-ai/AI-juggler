@@ -1031,10 +1031,15 @@ fn session_window_identity_roundtrip_and_degrade() {
 }
 
 /// AJ-E414 (schema v10): the app-settings kv — get/set/upsert, empty
-/// value deletes (reset is a real state), list is ordered.
+/// value deletes (reset is a real state), list is ordered. A fresh store
+/// holds one setting of its own: AJ-E1552's `apps.linked_added`, the
+/// mark that its once-per-database step ran (d68855029), so a link made
+/// later never adds an App.
 #[test]
 fn app_settings_kv_roundtrip() {
     let storage = Storage::open_in_memory().unwrap();
+    let fresh = vec![("apps.linked_added".to_string(), "1".to_string())];
+    assert_eq!(storage.app_settings().list().unwrap(), fresh);
     assert_eq!(
         storage.app_settings().get("go_to_hotkey").unwrap(),
         None,
@@ -1060,7 +1065,7 @@ fn app_settings_kv_roundtrip() {
     // Empty value = reset (row deleted).
     storage.app_settings().set("go_to_hotkey", "").unwrap();
     assert_eq!(storage.app_settings().get("go_to_hotkey").unwrap(), None);
-    assert!(storage.app_settings().list().unwrap().is_empty());
+    assert_eq!(storage.app_settings().list().unwrap(), fresh);
 }
 
 /// AJ-E415 (schema v11): the per-Account preview opt-in round-trips and
