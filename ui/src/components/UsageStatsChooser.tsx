@@ -1,7 +1,9 @@
 import { useId, type JSX } from "react";
 import { usageStatsOpenDocs, type UsageStatsMode } from "../lib/ipc/usage-stats";
-import { Radio } from "./controls";
-import { SELECTED_CARD } from "./controls/selected";
+import { ChoiceOption, type ControlIcon } from "./controls";
+import { IconInactive } from "./icons-controls";
+import { IconComputer } from "./icons-actions";
+import { IconCloud } from "./icons-menu";
 
 /**
  * AJ-E1105 (D-19): the usage-statistics consent. Three options with
@@ -30,6 +32,9 @@ export const USAGE_STATS_OPTIONS: { value: UsageStatsMode; title: string; conseq
   },
 ];
 
+/** AJ-E1558 (D-126): each choice's icon: sent, kept here, off. */
+const USAGE_ICONS: Record<UsageStatsMode, ControlIcon> = { share: IconCloud, local: IconComputer, off: IconInactive };
+
 export function UsageStatsChooser({
   value,
   onChange,
@@ -48,45 +53,31 @@ export function UsageStatsChooser({
   const base = useId();
   return (
     <fieldset
-      className="flex flex-col gap-2 rounded-xl border border-hairline px-4 py-3"
+      className="flex flex-col gap-2 rounded-xl bg-surface-2 px-3 py-3"
       data-testid={testId}
       data-chosen={value ?? "none"}
       disabled={disabled}
     >
-      <legend className="px-1 text-xs font-medium text-ink">{legend}</legend>
+      <legend className="float-left mb-1 w-full px-1 text-meta font-semibold text-ink">{legend}</legend>
       {hint && <p className="text-label leading-relaxed text-muted">{hint}</p>}
-      {USAGE_STATS_OPTIONS.map((option) => {
-        const consequenceId = `${base}-${option.value}`;
-        const checked = value === option.value;
-        return (
-          <label
-            key={option.value}
-            className={
-              "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
-              (checked ? SELECTED_CARD : "border-hairline hover:border-accent/30") +
-              (disabled ? " cursor-default opacity-70" : " cursor-pointer")
-            }
-            data-testid="usage-stats-option"
-            data-value={option.value}
-            data-selected={checked ? "true" : "false"}
-          >
-            <Radio
-              name={`${base}-usage-stats`}
-              value={option.value}
-              checked={checked}
-              onChange={() => onChange(option.value)}
-              aria-describedby={consequenceId}
-              className="mt-0.5 shrink-0"
-            />
-            <span className="flex flex-col gap-0.5">
-              <span className="font-medium text-ink">{option.title}</span>
-              <span id={consequenceId} className="text-label leading-relaxed text-muted">
-                {option.consequence}
-              </span>
-            </span>
-          </label>
-        );
-      })}
+      {/* AJ-E1558 (D-126, PAT-SURF): each choice a card with its icon chip,
+          the chosen one a fill; no outlined box around them. */}
+      {USAGE_STATS_OPTIONS.map((option) => (
+        <div key={option.value} data-testid="usage-stats-option" data-value={option.value} data-selected={value === option.value ? "true" : "false"}>
+          <ChoiceOption
+            type="radio"
+            look="card"
+            name={`${base}-usage-stats`}
+            value={option.value}
+            icon={USAGE_ICONS[option.value]}
+            label={option.title}
+            hint={option.consequence}
+            checked={value === option.value}
+            onChange={() => onChange(option.value)}
+            className={disabled ? "cursor-default opacity-70" : "cursor-pointer"}
+          />
+        </div>
+      ))}
       <button
         type="button"
         onClick={() => void usageStatsOpenDocs()}

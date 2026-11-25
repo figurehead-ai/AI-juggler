@@ -8,9 +8,9 @@
  */
 import { useEffect, useState, type JSX } from "react";
 import { Card } from "./primitives";
-import { Disclosure, type RowIcon } from "./controls";
-import { IconJuggler } from "./icons";
-import { IconAwake, IconBattery, IconPower, IconRestart } from "./icons-settings";
+import { Disclosure, RowLead, type RowIcon } from "./controls";
+import { IconJuggler, IconStateStuck } from "./icons";
+import { IconAwake, IconBattery, IconPower, IconRestart, IconScrollback, IconTextSize } from "./icons-settings";
 import { SettingSwitch as Switch } from "./SettingSwitch";
 import { Status } from "./SettingsSections";
 import { errorText } from "../lib/bridge";
@@ -89,9 +89,9 @@ function LoginItemSwitch(): JSX.Element | null {
 /** AJ-E1509: what keeps work going while you're away. */
 function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: SessionPrefsInfo, done: string) => void }): JSX.Element {
   return (
-    <fieldset className="flex flex-col gap-3 border-t border-hairline pt-3" data-testid="settings-keep-going">
+    <fieldset className="flex flex-col gap-0.5 pt-2" data-testid="settings-keep-going">
       <legend className="sr-only">Keep work going</legend>
-      <p className="text-xs font-semibold text-ink" aria-hidden="true">
+      <p className="section-label px-3 pb-1" aria-hidden="true">
         Keep work going
       </p>
       <PrefSwitch
@@ -138,6 +138,7 @@ function KeepGoing({ prefs, save }: { prefs: SessionPrefsInfo; save: (next: Sess
  * once it differs from the default. */
 function PrefNumber({
   id,
+  icon,
   label,
   unit,
   hint,
@@ -148,6 +149,7 @@ function PrefNumber({
   onSave,
 }: {
   id: keyof SessionPrefsInfo;
+  icon: RowIcon;
   label: string;
   unit: string;
   hint: string;
@@ -168,8 +170,11 @@ function PrefNumber({
     onSave(parsed);
   };
   return (
-    <div className="flex flex-col gap-1 text-xs" data-testid={`pref-${id}`}>
-      <div className="flex flex-wrap items-center gap-2">
+    // AJ-E1558 (D-126): the kit's row: its chip, the field a fill (FRM-10).
+    <div className="flex items-start gap-3 rounded-[10px] px-3 py-[9px]" data-testid={`pref-${id}`}>
+      <RowLead icon={icon} on={value !== fallback} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-2 text-body">
         <label htmlFor={`pref-${id}-input`} className="font-medium text-ink">
           {label}
         </label>
@@ -187,9 +192,9 @@ function PrefNumber({
           onKeyDown={(event) => {
             if (event.key === "Enter") commit();
           }}
-          className="w-20 rounded-lg border border-hairline bg-surface-2 px-2 py-1 text-xs tabular-nums text-ink"
+          className="w-20 rounded-lg bg-control px-2 py-1 text-meta tabular-nums text-ink outline-none inset-ring-1 inset-ring-frame hover:bg-control-hi focus-visible:ring-2 focus-visible:ring-accent/60"
         />
-        <span className="text-muted">{unit}</span>
+        <span className="text-meta text-muted">{unit}</span>
         {value !== fallback && (
           <button
             type="button"
@@ -201,9 +206,10 @@ function PrefNumber({
           </button>
         )}
       </div>
-      <span id={`pref-${id}-hint`} className="text-label text-muted">
+      <span id={`pref-${id}-hint`} className="text-meta text-muted">
         {hint}
       </span>
+      </div>
     </div>
   );
 }
@@ -233,7 +239,7 @@ export function SessionsSettingsCard(): JSX.Element {
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-sessions">
       <div>
         <CardTitle>Sessions</CardTitle>
-        <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
+        <p className="mt-0.5 text-meta text-ink-2">
           When a quiet session is marked Looks stuck, how its terminal reads, and what keeps work going.
         </p>
       </div>
@@ -241,6 +247,7 @@ export function SessionsSettingsCard(): JSX.Element {
         <>
           <PrefNumber
             id="stuck_after_minutes"
+            icon={IconStateStuck}
             label="Stuck after"
             unit="minutes"
             hint="No output for this long, with the CPU near idle, marks a session Looks stuck. Raise it if your builds run quietly."
@@ -251,10 +258,11 @@ export function SessionsSettingsCard(): JSX.Element {
               save({ ...prefs, stuck_after_minutes: minutes }, `Sessions are marked Looks stuck after ${minutes} minutes without output.`)
             }
           />
-          <Disclosure className="text-xs text-muted" tone="heading" testId="settings-terminal" summary="Terminal">
-            <div className="mt-3 flex flex-col gap-3">
+          <Disclosure className="px-3 text-meta text-muted" tone="heading" testId="settings-terminal" summary="Terminal">
+            <div className="mt-2 flex flex-col gap-0.5">
               <PrefNumber
                 id="terminal_font_size"
+                icon={IconTextSize}
                 label="Font size"
                 unit="points"
                 hint="The text size in every session's terminal."
@@ -266,6 +274,7 @@ export function SessionsSettingsCard(): JSX.Element {
               />
               <PrefNumber
                 id="terminal_scrollback_lines"
+                icon={IconScrollback}
                 label="Scrollback"
                 unit="lines"
                 hint="Lines each terminal keeps above the screen. More lines use more memory."

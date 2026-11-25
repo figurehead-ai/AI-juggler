@@ -88,7 +88,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
   const toggle = (scope: AgentToolsScope, id: string, on: boolean) => run(() => agentBridgeSet(scope, id, on));
   return (
     <Disclosure
-      className="ml-5 rounded-lg border border-hairline/60 px-3 py-2"
+      className="ml-[54px] rounded-lg bg-surface-2 px-3 py-2"
       onToggle={load}
       summary={
         <span>

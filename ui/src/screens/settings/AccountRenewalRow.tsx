@@ -6,12 +6,13 @@
  */
 import { useState, type JSX } from "react";
 import { Button } from "../../components/primitives";
-import { DateField } from "../../components/controls";
+import { DateField, RowChip } from "../../components/controls";
 import { revertedWords } from "../../lib/optimistic";
 import { openAccount } from "../../lib/accounts-page";
 import { subscriptionsSetTerm } from "../../lib/ipc/subscriptions";
 import { accountName, staleSubscriptions, type SubscriptionInfo } from "../../lib/subscriptions";
 import { accountAppsNow } from "../../lib/account-items";
+import { IconCalendar } from "../../components/icons-controls";
 
 export function AccountRenewalRow({ sub, onChanged, name: listed }: { sub: SubscriptionInfo; onChanged: () => void; /** Its name as its list tells twins apart (F3). */ name?: string }): JSX.Element {
   // Its Apps by the one rule (rc22, A3); unknown while they're read.
@@ -36,11 +37,13 @@ export function AccountRenewalRow({ sub, onChanged, name: listed }: { sub: Subsc
   };
   const choose = sub.differs.includes("renewal");
   return (
-    <div className="flex flex-wrap items-center gap-2 py-2.5 text-xs" data-testid="settings-renewal" data-account-id={sub.account_id}>
+    // AJ-E1558 (D-126): the row's chip, the accent's soft step once a date is set.
+    <div className="flex flex-wrap items-center gap-3 px-3 py-2" data-testid="settings-renewal" data-account-id={sub.account_id}>
+      <RowChip icon={IconCalendar} on={date !== ""} />
       {choose ? (
-        <span className="min-w-44 font-medium text-ink">{name}</span>
+        <span className="min-w-44 text-body font-medium text-ink">{name}</span>
       ) : (
-        <label htmlFor={id} className="min-w-44 font-medium text-ink">
+        <label htmlFor={id} className="min-w-44 text-body font-medium text-ink">
           {name}
         </label>
       )}

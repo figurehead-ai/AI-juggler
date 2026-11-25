@@ -262,7 +262,6 @@
   "jsx-a11y(label-has-associated-control)": 1
  },
  "src/components/PackSecretsCard.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1,
   "typescript(no-unsafe-type-assertion)": 2
  },
@@ -495,9 +494,6 @@
   "eslint(complexity)": 1,
   "jsx-a11y(no-noninteractive-tabindex)": 1,
   "jsx-a11y(prefer-tag-over-role)": 1
- },
- "src/components/UsageStatsChooser.tsx": {
-  "jsx-a11y(label-has-associated-control)": 1
  },
  "src/components/UsageStatsReconsent.tsx": {
   "jsx-a11y(prefer-tag-over-role)": 1

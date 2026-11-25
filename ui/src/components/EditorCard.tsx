@@ -8,7 +8,7 @@ import { errorText } from "../lib/bridge";
 import { editorChoices, editorSet } from "../lib/ipc/manage";
 import type { EditorChoicesInfo } from "../types/generated/EditorChoicesInfo";
 import { CardTitle } from "./CardTitle";
-import { Picker, RowChip } from "./controls";
+import { Picker } from "./controls";
 import { IconEditor, IconFolderOpen } from "./icons-actions";
 
 /** AJ-E1502: the editor projects open in ("Open in …" in a project's
@@ -31,10 +31,8 @@ export function EditorCard(): JSX.Element {
       <CardTitle id="editor-title">
         Open projects in
       </CardTitle>
-      {/* AJ-E1558 (D-126): the row's chip, then the choice, each option
-          with its icon (Finder's folder, an editor's). */}
-      <div className="flex items-center gap-3">
-      <RowChip icon={choices?.chosen ? IconEditor : IconFolderOpen} on={Boolean(choices?.chosen)} />
+      {/* AJ-E1558 (D-126): each option with its icon (Finder's folder, an
+          editor's), the chosen one's in the field. */}
       <Picker choice
         ariaLabel="Open projects in"
         className="max-w-xs self-start"
@@ -54,7 +52,6 @@ export function EditorCard(): JSX.Element {
         }}
         options={[{ value: "", label: "Finder", icon: IconFolderOpen }, ...(choices?.installed ?? []).map((name) => ({ value: name, label: name, icon: IconEditor }))]}
       />
-      </div>
       <p className="text-label text-muted">
         {choices !== null && choices.installed.length === 0
           ? "No editor AI Juggler knows is installed, so projects open in Finder."

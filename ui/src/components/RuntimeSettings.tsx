@@ -15,8 +15,8 @@ import { SettingSwitch as Switch } from "./SettingSwitch";
 import { errorText } from "../lib/bridge";
 import { runtimeBeta, runtimeChoices, runtimeChoose, type RuntimeChoicesInfo } from "../lib/ipc/runtime";
 import { launchTitle } from "../lib/account-words";
-import { Picker } from "./controls";
-import { IconBackground } from "./icons-controls";
+import { PickRow, Picker } from "./controls";
+import { IconBackground, IconPlay } from "./icons-controls";
 
 export const BETA_HINT =
   "Lets you start a Claude Code session with no terminal, its questions and approvals answered here. It runs your own Claude Code with your own sign-in; the terminal stays the default, and Open in terminal hands the conversation back when a turn ends.";
@@ -34,14 +34,14 @@ export function RuntimeSettings(): JSX.Element | null {
   if (!choices) return null;
   const standing = choices.profiles.filter((p) => !p.beta);
   return (
-    <fieldset className="flex flex-col gap-3 border-t border-hairline pt-3" data-testid="settings-runtime">
+    <fieldset className="flex flex-col gap-0.5 pt-2" data-testid="settings-runtime">
       <legend className="sr-only">How sessions run</legend>
-      <p className="text-xs font-semibold text-ink" aria-hidden="true">
+      <p className="section-label px-3 pb-1" aria-hidden="true">
         How sessions run
       </p>
       {standing.map((profile) => (
-        <div key={profile.profile_id} className="flex flex-wrap items-center gap-2 text-xs" data-testid={`runtime-${profile.profile_id}`}>
-          <span className="min-w-0 flex-1 text-ink">{launchTitle({ account_label: profile.account_label, name: profile.name })}</span>
+        <PickRow key={profile.profile_id} icon={IconPlay} on={profile.chosen !== null} testId={`runtime-${profile.profile_id}`}>
+          <span className="min-w-0 flex-1 font-medium text-ink" data-testid="runtime-name">{launchTitle({ account_label: profile.account_label, name: profile.name })}</span>
           <Picker choice
             size="sm"
             ariaLabel={`How ${launchTitle({ account_label: profile.account_label, name: profile.name })} runs`}
@@ -61,7 +61,7 @@ export function RuntimeSettings(): JSX.Element | null {
               profile.default === "driven" ? { value: "terminal", label: RUN_WORDS.terminal } : { value: "driven", label: RUN_WORDS.driven },
             ]}
           />
-        </div>
+        </PickRow>
       ))}
       <Switch icon={IconBackground}
         id="runtime_beta"

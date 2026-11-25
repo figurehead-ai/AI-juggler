@@ -25,7 +25,7 @@ describe("How sessions run", () => {
     });
     const view = render(<RuntimeSettings />);
     const rows = await view.findAllByTestId(/^runtime-prof-/);
-    expect(rows.map((node) => node.querySelector("span")?.textContent)).toEqual(["Work · Default", "Personal · Opus pairing"]);
+    expect(rows.map((node) => node.querySelector("[data-testid='runtime-name']")?.textContent)).toEqual(["Work · Default", "Personal · Opus pairing"]);
     const text = view.getByTestId("settings-runtime").textContent!;
     expect(text).not.toMatch(/prof-|app-server/);
     expect(text).toContain(`${RUN_WORDS.driven} (default)`);

@@ -263,7 +263,7 @@ describe("agent access", () => {
     const { findAllByTestId } = render(<AgentAccessCard />);
     await loaded();
     const rows = await findAllByTestId("agent-access-pool");
-    const said = (row: HTMLElement) => [row.firstElementChild!.firstElementChild!.textContent, within(row).getByTestId("agent-access-level").getAttribute("aria-expanded")];
+    const said = (row: HTMLElement) => [row.querySelector("[data-testid='agent-access-open'], [data-testid='agent-access-pool-name']")!.textContent, within(row).getByTestId("agent-access-level").getAttribute("aria-expanded")];
     expect(rows.map(said)).toEqual([
       ["Checkout redesign", "false"],
       ["Docs", "false"],
