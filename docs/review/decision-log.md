@@ -3843,3 +3843,7 @@ Every session and agent brief carries this rule.
 - **Follow-up:** the maintainer's first real Move or Repair ownership after 0.5.1 ships is the final check; the coordinating session reads its Claude-app log lines (recycled, write-guard, reaped) with the maintainer. R6(b), the source's cleanup sweep (I9), is covered by `claude_move_matrix`'s sweep case, with the same follow-up.
 - **Never:** a keychain is never created in a lab (`security create-keychain` can change the user's keychain search list); the lab sign-in request is withdrawn.
 - Sources: the coordinating session's message, 2026-11-24, quoting the maintainer's pick.
+
+## D-148 — Bot answers general questions briefly, marked as general, and says what it is for (2026-11-25)
+
+With an AI ready, a question with no AI Juggler records in it ("what is 3+5") gets a short model answer marked "General answer, not from your records" and one line that Bot is here for your AI apps and sessions. Refusing read as broken on the 0.5.1 Nightly ("nothing matches" for 3+5); a general answer can't pass the records check, so it is its own labelled kind, outside that check. Record answers keep the citation check. "Which model are you" is answered from the engine's own name. Decided by the 0.5.2 builder (Opus) on usability, AJ-E3825.

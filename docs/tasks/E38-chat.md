@@ -511,3 +511,52 @@
 4. One search, no duplicate: Bot's own look-up input and results are gone (AJ-E3823), and no other surface keeps a second search.
 **Quality gates**: `just keep-going verify-static`; tests for each record kind, the suggested entries, the command; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3824/manifest.md`.
+
+### AJ-E3825 Bot is a conversation through the real model: every question reaches it, the engine is started and checked, its name is shown, a failure is said with its fix | Status: TODO (0.5.2) | Priority P0 | Effort L | Depends: AJ-E3806, AJ-E3823
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): with Apple's on-device model "In use" (Apple Intelligence on), Bot answered "what is 3+5" with "I found nothing that matches right now", "what LLM model are you" with "I don't know", "Tell me about my session" with "nothing matches". Root cause (Opus, read-only on the Nightly): `bot_ask_impl` calls the model only when the record look-up found rows and the job reads Ready, so a question with no rows never reaches it; Models' "In use" reads availability only and never starts or tests the engine (no `juggler-apple-ai` process, no engine event in `ai_log`); and a written answer is shown only when every fact in it is in the records it cites, so a general answer could never pass.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone who turned on Apple's AI expects a chat that answers like an assistant, about their sessions first. "Nothing matches" for 3+5 reads as broken, not as scoped.
+(2) Each answer says what it rests on: a records answer cites them (chips); a general answer says "General answer, not from your records". The panel header names the model ("Apple on-device · Beta"), so "which model are you" is also visible without asking.
+(3) It replaces the records-only reply when an AI is ready (D-144); with no AI, Bot stays its setup guide. No second chat surface.
+(4) No AI ready, or the engine fails to start, time out or refuses: Bot says so in one plain line with the fix ("Apple Intelligence is off: turn it on in System Settings › Apple Intelligence & Siri", "Bot's helper didn't start: Try again / Details"), never a silent records-only answer.
+(5) Starting the helper may show macOS's prompt only when its signature changed (AJ-E1555 primes it then, and only then).
+(6) Watch for: an answer that invents a record; a general answer presented as from the records; a long wait with no progress; the model naming itself wrongly; a failure that looks like "nothing matches".
+**Requirements**:
+1. With an AI ready, every question goes to the model: the rows found (if any) as grounded context with the citation check kept for record claims; otherwise a short conversational answer, marked as general (D-148). "What needs me", "my sessions" and the like still look records up first.
+2. Questions outside AI Juggler get a brief answer and one line that Bot is here for your AI apps and sessions (D-148); never "nothing matches" for a question with no records in it.
+3. "Which model are you" is answered from the engine's own name and version, never guessed by the model.
+4. The engine is really started and its hello checked when Bot opens with an AI chosen; Settings › AI › Models' "In use" means started and answering, not merely available.
+5. The panel header shows the model in use ("Apple on-device · Beta").
+6. Every engine failure (off, not downloaded, helper didn't start, timed out, refused) is a plain line with its fix; logged to the app log by kind; no silent fallback.
+**Quality gates**: `just keep-going verify-static`; unit and integration tests for the routing (rows / none / general / scope / which model / each failure); AJ-E3829's real-model check; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3825/manifest.md`.
+
+### AJ-E3826 Settings › AI › Models says what Bot uses and whether it runs, in plain words | Status: TODO (0.5.2) | Priority P1 | Effort M | Depends: AJ-E3825
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): the Models page was unclear about what is in use; "Recommended for this Mac" showed with a model already set up.
+**UI**: yes
+**Usability reasoning** (Opus, before building):
+(1) Someone checking why Bot answers as it does wants one line: which AI, and is it working. (2) The top line: "Bot's AI: Apple's on-device model · In use" and a status line ("Running · answered 2 min ago" / "Not running: <why> · <fix>"). (3) It replaces the scattered state words; Recommended moves out of the way once something is set up. (4) Nothing set up: Recommended for this Mac leads, one primary. (5) Checking the engine may start the helper: through AJ-E1547's gate. (6) Watch for: "In use" while nothing runs (0.5.1's bug); two places saying different things.
+**Requirements**:
+1. The page opens with what Bot uses and its live status, read from the started engine (AJ-E3825 R4).
+2. "Recommended for this Mac" only when no model is set up.
+3. The four AI jobs still off (turn reviews, feed lines, digest, watches) keep D-131's gating until the maintainer rules on AJ-E3827's note; their rows say why in one plain line.
+**Quality gates**: `just keep-going verify-static`; vitest; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3826/manifest.md`.
+
+### AJ-E3827 Research note: getting turn reviews, feed lines, the digest and watches to pass on Apple's model | Status: TODO (0.5.2) | Priority P1 | Effort M | Depends: AJ-E3826
+**Found**: the maintainer (2026-11-25) wants the AI jobs that are a main point of 0.5 on; D-131 kept them off because the on-device models missed the bars (watches 70% vs 95%).
+**UI**: no (a note for the maintainer's decision)
+**Requirements**:
+1. A short note per job: today's score and bar, why it misses, what would close the gap (a real harness, structured output and constrained decoding, few-shot prompts, per-job prompts, smaller tasks, a downloadable model), the expected effort, and a recommendation; recommended downloads with sizes.
+2. No gating change until the maintainer rules (a D-number).
+**Evidence/validation proof**: `docs/qa/0.5.2-ai-jobs-note.md`.
+
+### AJ-E3829 Bot's real-model check on the reference Mac, in the release gate for any AI change | Status: TODO (0.5.2) | Priority P0 | Effort M | Depends: AJ-E3825
+**Found**: 0.5.1's Bot checks never asked a real model a real question on a real Mac, so a Bot that never called its model shipped.
+**UI**: no (a check and a walk step)
+**Requirements**:
+1. A script asks the started engine on the reference Mac (Apple Intelligence on) five fixed questions: "what is 3+5", "which model are you", "what are my sessions" (fixture data), "what needs me", and a nonsense one; it asserts a real model answer each time (not a records-only or "nothing matches" reply), the right model name, citations where records are asked about, and a plain reply to the nonsense.
+2. A walk step reads the five answers by eye and records them.
+3. `scripts/release_scope.py` requires its passing report for any release that changes `features/ai` or `features/bot`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3829/manifest.md`.

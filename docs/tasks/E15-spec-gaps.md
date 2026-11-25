@@ -908,3 +908,33 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 6. Every count opens exactly those items, by id; every count comes from the cached relation counts (instant, no new scan). AJ-E1550's tokens throughout (calm, no bright borders).
 **Quality gates**: `just keep-going verify-static`; tests for counts against fixtures, zero values hidden, a click target per count, the layout unchanged under hover; the persona walk asks "can a newcomer tell there is more, and get to it in one click?".
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1554/manifest.md`.
+
+### AJ-E1555 Prime only a system prompt that can appear, and every priming sheet says something real | Status: TODO (0.5.2) | Priority P0 | Effort M | Depends: AJ-E1547
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): "Use Apple's AI" in Bot showed a sheet titled "Start Bot's AI helper after this update", the same words again as its subtitle and "Asked." as its body; Done promised a macOS prompt that never came. Cause (Opus): `needs::helper_changed` fires because a Dev build ran on this Mac, so a normal Nightly start primes the helper's "differs" prompt, which appears only when the helper's signature changed; the sheet shows the title twice and a state word as its body.
+**UI**: yes
+**Usability reasoning** (Opus, before building):
+(1) Someone clicking "Use Apple's AI" expects Bot to start; a sheet is welcome only if macOS will really ask something. (2) A sheet names the prompt, says why and what to click, from the registry's own words. (3) It replaces nothing; the gate stays the one way prompts are asked. (4) No prompt can appear: no sheet, the action just runs. (5) This is the priming itself. (6) Watch for: a sheet that promises a prompt that never comes; placeholder words; a sheet shown twice.
+**Requirements**:
+1. Each registry entry's `needed` says whether the prompt can appear now; the helper's "differs" prompt only when the helper's signature on disk differs from the one last opened, never merely because a Dev build ran.
+2. Every priming sheet's title, subtitle and body come from the registry (title, why, what to click); a test fails on a repeated title or any placeholder or state word as a body ("Asked.", "Allowed", empty).
+3. After Done, the action runs; a prompt that didn't appear is not reported as asked.
+**Quality gates**: `just keep-going verify-static`; tests for each prompt's `needed` and the sheet words; the os-prompts log; an Opus critique.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1555/manifest.md`.
+
+### AJ-E1556 No tooltip or tip is clipped, and nothing overlaps one | Status: TODO (0.5.2) | Priority P1 | Effort S | Depends: —
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): Bot's "New topic" tooltip read "Nothing is do…" with a "23" over it.
+**UI**: yes
+**Usability reasoning** (Opus): (1) a tooltip is read whole or not at all; (2) it wraps to its words, never ellipsised, and sits above what it names; (3) one Tooltip pattern; (4) long words wrap; (5) none; (6) watch for clipping at the window's edges and under counts.
+**Requirements**:
+1. The New topic tooltip is whole, with nothing over it.
+2. A Playwright overflow check opens every tooltip and tip in the gallery states and fails on clipped text or an overlapping element; every finding fixed.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1556/manifest.md`.
+
+### AJ-E1557 The rail is calm: no bullet before a session, a state mark only when there is one, and a subagents icon that reads as helpers | Status: TODO (0.5.2) | Priority P1 | Effort S | Depends: AJ-E1554
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): a dot before every session row reads as bullets; the subagents icon reads as a git branch.
+**UI**: yes
+**Usability reasoning** (Opus): (1) a glance at the rail should show only what needs attention; (2) a row shows its state (working, needs you, done to review, error) as a small icon or its trailing word, idle and ended rows no leading mark; the subagents mark a small cluster of agents; (3) the dot gutter goes; (4) a row with no state is just its title; (5) none; (6) watch for rows jumping when a state appears (keep the alignment), and the icon at 12 px in both themes.
+**Requirements**:
+1. No leading dot on idle and ended rows; a state mark only for working, needs you, done to review, error; alignment held.
+2. The subagents icon is a helpers/agents glyph, legible at 12 px in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E1557/manifest.md`.
