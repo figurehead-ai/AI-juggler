@@ -37,7 +37,7 @@ export async function refreshEngine(): Promise<void> {
 }
 
 /** Starts Bot's engine when it isn't running (lazily: Bot's first use). */
-export async function startEngine(): Promise<void> {
+async function startEngine(): Promise<void> {
   if (view.starting) return;
   set({ starting: true });
   try {

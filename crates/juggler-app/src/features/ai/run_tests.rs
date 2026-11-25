@@ -17,31 +17,20 @@ use super::{
     AiCount, AiEngineState, AiFailure, generate_on, note_usage, start_on, status_on, today,
 };
 use crate::features::ai::dto::AiJob;
-use crate::features::ai::engine::{EngineError, Reason, Request, Stop};
+use crate::features::ai::engine::{EngineError, Reason, Stop};
 use crate::features::ai::engines::Registry;
 use crate::features::ai::engines::apple::Apple;
+use crate::features::ai::engines::apple::tests::{fake, hello, request, soon};
 use crate::features::ai::engines::local::Local;
 use crate::features::ai::models::{Engine as ModelEngine, Job};
 use crate::features::ai::service::Service;
 use crate::state::AppState;
 
-/// A fake Apple helper: says hello with `available`, then answers each
-/// request with `reply` (`ID`: the request's id) after `pause` seconds.
+/// A fake Apple helper (the Apple engine's own test helper): says hello
+/// with `available`, then answers each request with `reply`.
 #[cfg(unix)]
-pub(crate) fn fake_helper(
-    dir: &Path,
-    name: &str,
-    available: &str,
-    reply: &str,
-    pause: u32,
-) -> PathBuf {
-    let hello =
-        format!(r#"{{"hello":true,"protocol":2,"available":"{available}","context_size":4096}}"#);
-    let script = format!(
-        "#!/bin/sh\necho '{hello}'\nwhile read line; do\n  sleep {pause}\n  \
-         id=$(echo \"$line\" | sed 's/.*\"id\":\\([0-9]*\\).*/\\1/')\n  echo '{reply}' | sed \"s/ID/$id/\"\ndone\n"
-    );
-    crate::test_support::script(&dir.join(name), &script)
+fn fake_helper(dir: &Path, name: &str, available: &str, reply: &str, pause: u32) -> PathBuf {
+    fake(dir, name, &hello(available), reply, pause)
 }
 
 const OK: &str =
@@ -66,17 +55,21 @@ fn engine_service(program: PathBuf, idle: Duration) -> Service {
     ))
 }
 
-fn request() -> Request {
-    Request {
-        instructions: "i".to_owned(),
-        prompt: "p".to_owned(),
-        shape: None,
-        max_tokens: 20,
-    }
-}
-
-fn soon() -> Stop {
-    Stop::at(Instant::now() + Duration::from_secs(10))
+/// A service over a fake helper saying `available`, asked to start Bot's
+/// engine; the status after.
+#[cfg(unix)]
+fn started(
+    dir: &Path,
+    state: &AppState,
+    name: &str,
+    available: &str,
+) -> (Service, super::AiEngineStatusInfo) {
+    let service = engine_service(
+        fake_helper(dir, name, available, OK, 0),
+        Duration::from_secs(60),
+    );
+    let status = start_on(&service, state, AiJob::Bot);
+    (service, status)
 }
 
 #[cfg(unix)]
@@ -125,7 +118,7 @@ fn the_engine_starts_lazily_stops_when_idle_and_starts_again() {
     assert_eq!(started.state, AiEngineState::Running, "{started:?}");
     assert_eq!(
         started.context_tokens,
-        Some(4096),
+        Some(8192),
         "the helper's own figure"
     );
     assert!(started.started_ms.is_some());
@@ -178,11 +171,7 @@ fn every_failure_is_its_kind_and_logged() {
         ("getting", "model_not_ready", AiFailure::NotDownloaded),
     ];
     for (name, available, kind) in cases {
-        let service = engine_service(
-            fake_helper(dir.path(), name, available, OK, 0),
-            Duration::from_secs(60),
-        );
-        let status = start_on(&service, &state, AiJob::Bot);
+        let (service, status) = started(dir.path(), &state, name, available);
         assert_eq!(
             (status.state, status.failure),
             (AiEngineState::Failed, Some(kind)),
@@ -245,11 +234,7 @@ fn every_failure_is_its_kind_and_logged() {
 fn with_no_ai_chosen_nothing_starts() {
     let dir = tempfile::tempdir().unwrap();
     let state = crate::test_support::bare_state(dir.path().join("data"));
-    let service = engine_service(
-        fake_helper(dir.path(), "helper", "available", OK, 0),
-        Duration::from_secs(60),
-    );
-    let status = start_on(&service, &state, AiJob::Bot);
+    let (service, status) = started(dir.path(), &state, "helper", "available");
     assert_eq!((status.state, status.failure), (AiEngineState::Off, None));
     assert_eq!(apple_of(&service).helper_pid(), None);
 }

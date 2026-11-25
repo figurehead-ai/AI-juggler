@@ -87,6 +87,7 @@ impl BotModel for Fake {
         AiEngineStatusInfo {
             state: AiEngineState::Running,
             model_name: Some("Apple's on-device model".to_owned()),
+            short_name: Some("Apple on-device".to_owned()),
             engine: Some("apple_builtin".to_owned()),
             version: Some("26.1".to_owned()),
             context_tokens: Some(4096),

@@ -100,6 +100,34 @@ impl Engine {
             .find(|(_, known)| *known == name)
             .map(|(engine, _)| *engine)
     }
+
+    /// Its name in the file (AJ-E3825: the engine status names it so).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::GgufLocal => "gguf_local",
+            Self::AppleBuiltin => "apple_builtin",
+        }
+    }
+
+    /// It runs a file AI Juggler downloaded (a missing one is "not
+    /// downloaded").
+    #[must_use]
+    pub const fn downloads(self) -> bool {
+        matches!(self, Self::GgufLocal)
+    }
+}
+
+impl ModelEntry {
+    /// AJ-E3825: the model's short name for Bot's header ("Apple
+    /// on-device"); a downloaded model's own name is short already.
+    #[must_use]
+    pub fn short_name(&self) -> String {
+        match self.engine {
+            Engine::AppleBuiltin => "Apple on-device".to_owned(),
+            Engine::GgufLocal => self.name.clone(),
+        }
+    }
 }
 
 /// The AI jobs a verdict is given for.

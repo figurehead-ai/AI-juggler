@@ -90,11 +90,15 @@ impl AiFailure {
             EngineError::TimedOut | EngineError::Stopped => Self::TimedOut,
             EngineError::Refused => Self::Refused,
             EngineError::TooLong => Self::TooLong,
-            // The local engine says this of a model that isn't installed.
-            EngineError::Unsupported => match engine {
-                Some(ModelEngine::GgufLocal) => Self::NotDownloaded,
-                _ => Self::Unknown,
-            },
+            // An engine of downloaded files says this of a model that
+            // isn't installed.
+            EngineError::Unsupported => {
+                if matches!(engine, Some(engine) if engine.downloads()) {
+                    Self::NotDownloaded
+                } else {
+                    Self::Unknown
+                }
+            }
         }
     }
 
@@ -183,6 +187,8 @@ pub struct AiEngineStatusInfo {
     pub model_id: Option<String>,
     /// Its display name, from the section ("Apple's on-device model").
     pub model_name: Option<String>,
+    /// Its short name, for Bot's header ("Apple on-device").
+    pub short_name: Option<String>,
     /// Its engine: `apple_builtin` or `gguf_local`.
     pub engine: Option<String>,
     /// The model's version as the engine says (the system's version for
@@ -230,13 +236,6 @@ impl RunState {
             started_ms: None,
             answered_ms: None,
         }
-    }
-}
-
-const fn engine_code(engine: ModelEngine) -> &'static str {
-    match engine {
-        ModelEngine::AppleBuiltin => "apple_builtin",
-        ModelEngine::GgufLocal => "gguf_local",
     }
 }
 
@@ -320,7 +319,8 @@ fn status_of(
         },
         model_id: Some(routed.card.model.clone()),
         model_name: Some(routed.name.clone()),
-        engine: Some(engine_code(routed.engine).to_owned()),
+        engine: routed.engine.map(|engine| engine.name().to_owned()),
+        short_name: Some(routed.short_name.clone()),
         version: started.as_ref().and_then(|s| s.version.clone()),
         context_tokens: Some(
             started
@@ -364,7 +364,7 @@ fn ensure_started(service: &Service, state: &AppState, routed: &Routed) -> Resul
                 state,
                 "engine_started",
                 serde_json::json!({
-                    "engine": engine_code(routed.engine),
+                    "engine": routed.engine.map_or("", ModelEngine::name),
                     "context_tokens": started.context_tokens,
                 }),
             );
@@ -377,7 +377,7 @@ fn ensure_started(service: &Service, state: &AppState, routed: &Routed) -> Resul
             Ok(())
         }
         Err(error) => {
-            let failure = AiFailure::of(error, Some(routed.engine));
+            let failure = AiFailure::of(error, routed.engine);
             log_failure(state, failure, "start", error);
             set(service, |run| {
                 run.phase = Phase::Failed;
@@ -472,7 +472,7 @@ pub fn generate_on(
             })
         }
         Err(error) => {
-            let failure = AiFailure::of(error, Some(routed.engine));
+            let failure = AiFailure::of(error, routed.engine);
             log_failure(state, failure, "answer", error);
             set(service, |run| {
                 run.phase = Phase::Failed;

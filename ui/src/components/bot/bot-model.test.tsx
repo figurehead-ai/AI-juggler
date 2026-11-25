@@ -79,6 +79,7 @@ const status = (over: Partial<AiEngineStatusInfo>): AiEngineStatusInfo => ({
   failure: null,
   model_id: "apple-on-device",
   model_name: "Apple's on-device model",
+  short_name: "Apple on-device",
   engine: "apple_builtin",
   version: "26.1",
   context_tokens: 4096,
@@ -180,7 +181,7 @@ describe("the topic's totals", () => {
     expect(context.textContent).toBe("context 812 / 4.1k");
     fireEvent.click(context);
     const breakdown = screen.getByTestId("bot-context-breakdown").textContent ?? "";
-    for (const label of ["Instructions", "Bot’s memory", "Records and look-ups", "Conversation history", "Your question", "Room for the answer"]) {
+    for (const label of ["Instructions", "Bot’s memory", "Records", "Conversation history", "Your question", "Room for the answer"]) {
       expect(breakdown).toContain(label);
     }
     expect(breakdown).toContain("≈ 500 est.");

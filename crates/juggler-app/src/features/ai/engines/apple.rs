@@ -20,7 +20,7 @@
 //! on any macOS, from a helper of its own that goes when it answered.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{self, AtomicBool};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -317,6 +317,18 @@ impl Apple {
             .and_then(|slot| slot.as_ref().map(Helper::pid))
     }
 
+    /// It runs one model, the one its card named (the router sends no
+    /// other), and not while unhealthy.
+    fn may_serve(&self, model: &str) -> Result<(), EngineError> {
+        if model.is_empty() {
+            return Err(EngineError::Unsupported);
+        }
+        if self.health.unhealthy() {
+            return Err(EngineError::NotHere(Reason::Unhealthy));
+        }
+        Ok(())
+    }
+
     fn touch(&self) {
         if let Ok(mut used) = self.used.lock() {
             *used = Instant::now();
@@ -329,7 +341,7 @@ impl Apple {
     /// input, kills and reaps it), and the watch ends. A job holding the
     /// helper is never idle. One watch at a time.
     fn watch_idle(&self) {
-        if self.watching.swap(true, Ordering::AcqRel) {
+        if self.watching.swap(true, atomic::Ordering::AcqRel) {
             return;
         }
         let (slot, used, watching, idle) = (
@@ -351,13 +363,13 @@ impl Apple {
                     let gone = held.as_mut().is_none_or(|h| !h.alive());
                     if gone || idle_now {
                         *held = None;
-                        watching.store(false, Ordering::Release);
+                        watching.store(false, atomic::Ordering::Release);
                         return;
                     }
                 }
             });
         if spawned.is_err() {
-            self.watching.store(false, Ordering::Release);
+            self.watching.store(false, atomic::Ordering::Release);
         }
     }
 
@@ -488,13 +500,7 @@ impl AiEngine for Apple {
     }
 
     fn respond(&self, model: &str, request: &Request, stop: &Stop) -> Result<Draft, EngineError> {
-        // It runs one model, the one its card named; the router sends no other.
-        if model.is_empty() {
-            return Err(EngineError::Unsupported);
-        }
-        if self.health.unhealthy() {
-            return Err(EngineError::NotHere(Reason::Unhealthy));
-        }
+        self.may_serve(model)?;
         if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
             return Err(EngineError::NotHere(why));
         }
@@ -543,12 +549,7 @@ impl AiEngine for Apple {
     }
 
     fn start(&self, model: &str, _stop: &Stop) -> Result<Started, EngineError> {
-        if model.is_empty() {
-            return Err(EngineError::Unsupported);
-        }
-        if self.health.unhealthy() {
-            return Err(EngineError::NotHere(Reason::Unhealthy));
-        }
+        self.may_serve(model)?;
         if self.program.is_none() {
             let os = juggler_platform::ai::system_model();
             if os != SystemModel::MayHave {
@@ -615,4 +616,4 @@ fn draft(answer: &serde_json::Value) -> Result<Draft, EngineError> {
 
 #[cfg(test)]
 #[path = "apple_tests.rs"]
-mod tests;
+pub(crate) mod tests;

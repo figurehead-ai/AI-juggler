@@ -27,6 +27,7 @@ const OFF: AiEngineStatusInfo = {
   failure: null,
   model_id: null,
   model_name: null,
+  short_name: null,
   engine: null,
   version: null,
   context_tokens: null,

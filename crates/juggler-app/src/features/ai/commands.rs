@@ -76,6 +76,24 @@ pub async fn ai_job_pick_set(
     Ok(jobs)
 }
 
+/// `job`'s engine status off the window's thread, started first when
+/// `start` says so (AJ-E3825).
+async fn engine(
+    state: &Arc<AppState>,
+    job: AiJob,
+    start: bool,
+) -> AppResult<super::run::AiEngineStatusInfo> {
+    crate::ipc::blocking(state, "the AI engine", move |state| {
+        let service = super::service::shared();
+        Ok(if start {
+            super::run::start_on(service, state, job)
+        } else {
+            super::run::status_on(service, state, job)
+        })
+    })
+    .await
+}
+
 /// A job's engine now (AJ-E3825): started, running, idle, answering or
 /// failed with why, its model and today's use. Starts nothing.
 ///
@@ -87,10 +105,7 @@ pub async fn ai_engine_status(
     state: tauri::State<'_, Arc<AppState>>,
     job: AiJob,
 ) -> AppResult<super::run::AiEngineStatusInfo> {
-    crate::ipc::blocking(state.inner(), "the AI engine", move |state| {
-        Ok(super::run::status_on(super::service::shared(), state, job))
-    })
-    .await
+    engine(state.inner(), job, false).await
 }
 
 /// Starts a job's engine when it isn't running (Bot opening with an AI
@@ -104,8 +119,5 @@ pub async fn ai_engine_start(
     state: tauri::State<'_, Arc<AppState>>,
     job: AiJob,
 ) -> AppResult<super::run::AiEngineStatusInfo> {
-    crate::ipc::blocking(state.inner(), "the AI engine", move |state| {
-        Ok(super::run::start_on(super::service::shared(), state, job))
-    })
-    .await
+    engine(state.inner(), job, true).await
 }

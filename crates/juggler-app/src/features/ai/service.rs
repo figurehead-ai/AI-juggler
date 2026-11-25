@@ -399,8 +399,10 @@ pub struct Routed {
     pub card: super::engine::Card,
     /// Its model's display name.
     pub name: String,
-    /// The engine that runs it.
-    pub engine: models::Engine,
+    /// Its model's short name (Bot's header).
+    pub short_name: String,
+    /// The engine that runs it, when its model is listed.
+    pub engine: Option<models::Engine>,
 }
 
 /// See [`Routed`].
@@ -462,7 +464,8 @@ pub fn route_on(
     let entry = usable.iter().find(|m| m.id == card.model);
     Ok(Routed {
         name: entry.map_or_else(|| card.model.clone(), |m| m.name.clone()),
-        engine: entry.map_or(models::Engine::AppleBuiltin, |m| m.engine),
+        short_name: entry.map_or_else(|| card.model.clone(), ModelEntry::short_name),
+        engine: entry.map(|m| m.engine),
         card,
     })
 }

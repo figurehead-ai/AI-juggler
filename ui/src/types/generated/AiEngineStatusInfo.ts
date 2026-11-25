@@ -25,6 +25,10 @@ model_id: string | null,
  */
 model_name: string | null, 
 /**
+ * Its short name, for Bot's header ("Apple on-device").
+ */
+short_name: string | null, 
+/**
  * Its engine: `apple_builtin` or `gguf_local`.
  */
 engine: string | null, 

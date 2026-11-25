@@ -442,3 +442,6 @@ BotTurnInfo.at_ms                                  # ms epoch, < 2^53 until year
 command bot_page(before_ms)                        # ms epoch, < 2^53 until year 287396
 MoveProgressInfo.done                              # a move's bytes (or steps) so far, < 2^53 (9 PB); 0.4.9's move progress
 MoveProgressInfo.total                             # a move's total bytes (or steps), < 2^53 (9 PB); 0.4.9's move progress
+AiEngineStatusInfo.started_ms                     # ms epoch, < 2^53 until year 287396 (AJ-E3825)
+AiEngineStatusInfo.answered_ms                    # ms epoch, < 2^53 until year 287396 (AJ-E3825)
+BotDetails.ms                                     # one answer's duration in ms, bounded by its deadline (12 s; AJ-E3825)

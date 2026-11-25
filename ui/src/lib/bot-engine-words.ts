@@ -7,11 +7,12 @@
 import type { AiCount } from "../types/generated/AiCount";
 import type { AiEngineStatusInfo, AiFailure } from "./ipc/ai-engine";
 import type { BotContextPart } from "../types/generated/BotContextPart";
+import { SYSTEM_NAME } from "./machine-words";
 
-/** The model's short name for the header ("Apple on-device"). */
+/** The model's short name for the header ("Apple on-device"), as the
+ * models section gives it. */
 export function engineLabel(status: AiEngineStatusInfo | null): string {
-  if (status?.engine === "apple_builtin") return "Apple on-device";
-  return status?.model_name ?? "Bot’s AI";
+  return status?.short_name ?? status?.model_name ?? "Bot’s AI";
 }
 
 /** The model's full name, for sentences ("Apple's on-device model"). */
@@ -47,9 +48,9 @@ export function failureWords(failure: AiFailure, model: string): { short: string
     case "off":
       return { short: "Apple Intelligence is off", line: "Apple Intelligence is off, so Bot can’t answer.", fix: "Turn it on in System Settings › Apple Intelligence & Siri, then try again." };
     case "not_downloaded":
-      return { short: "model not on this Mac yet", line: `${model} isn’t on this Mac yet.`, fix: "If macOS is still getting Apple’s model, try again in a few minutes; a downloaded model is in Settings › AI › Models." };
+      return { short: "model not on this computer yet", line: `${model} isn’t on this computer yet.`, fix: `If ${SYSTEM_NAME} is still getting the model ready, try again in a few minutes; a downloaded model is in Settings › AI › Models.` };
     case "helper_didnt_start":
-      return { short: "helper didn’t start", line: "Bot’s helper didn’t start.", fix: "Try again; if it keeps failing, check this Mac in Settings › AI › Models." };
+      return { short: "helper didn’t start", line: "Bot’s helper didn’t start.", fix: "Try again; if it keeps failing, check this computer in Settings › AI › Models." };
     case "timed_out":
       return { short: "took too long", line: `${model} took too long to answer.`, fix: "Try again, or ask a shorter question." };
     case "refused":
@@ -57,7 +58,7 @@ export function failureWords(failure: AiFailure, model: string): { short: string
     case "too_long":
       return { short: "too long", line: `That was too long for ${model}.`, fix: "Start a New topic, or ask in fewer words." };
     case "not_this_mac":
-      return { short: "can’t run here", line: `This Mac can’t run ${model}.`, fix: "Choose another model in Settings › AI › Models." };
+      return { short: "can’t run here", line: `This computer can’t run ${model}.`, fix: "Choose another model in Settings › AI › Models." };
     default:
       return { short: "error", line: "Bot’s AI stopped with an error.", fix: "Try again; the app log has the details." };
   }
@@ -82,7 +83,7 @@ export function secondsWords(ms: number): string {
 export const CONTEXT_PART_WORDS: Record<BotContextPart, string> = {
   instructions: "Instructions",
   memory: "Bot’s memory",
-  records: "Records and look-ups",
+  records: "Records",
   history: "Conversation history",
   question: "Your question",
 };
