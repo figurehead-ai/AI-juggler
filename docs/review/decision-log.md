@@ -3847,3 +3847,12 @@ Every session and agent brief carries this rule.
 ## D-148 — Bot answers general questions briefly, marked as general, and says what it is for (2026-11-25)
 
 With an AI ready, a question with no AI Juggler records in it ("what is 3+5") gets a short model answer marked "General answer, not from your records" and one line that Bot is here for your AI apps and sessions. Refusing read as broken on the 0.5.1 Nightly ("nothing matches" for 3+5); a general answer can't pass the records check, so it is its own labelled kind, outside that check. Record answers keep the citation check. "Which model are you" is answered from the engine's own name. Decided by the 0.5.2 builder (Opus) on usability, AJ-E3825.
+
+## D-149 — The four AI jobs still off: "All four, as recommended" (amends D-131) (2026-11-25)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-25, on `docs/qa/0.5.2-ai-jobs-note.md`): "All four, as recommended."
+1. **Turn reviews** ship in 0.5.2 as an opt-in Beta on Apple's model: AJ-E3820 (the review written at a turn's end and where it shows) is built, with the real-model check (AJ-E3829).
+2. **Watches from Bot:** the draft's schema gets an enum for what can't be watched and exactly one target; two small calls (the session, then the condition); sampled retries, not greedy. Re-measured on the real harness with the fixed code. Shipped as "Bot fills the Watches form" at ≥ 90 % exact, each watch confirmed by the user's click. Below 90 %, reported to the coordinator before anything ships. This replaces D-131's 95 % bar for drafts the user confirms.
+3. **Feed line:** "pick, don't write" (the model chooses the turn's most telling fact and the verb; code renders the line). **Digest:** map and reduce (a line per session from the model; code assembles). One harness round each on fresh blind sets; each is switched on only if preferred over the plain text in the blind checks, otherwise it stays plain and the UI says why in one line.
+4. **Settings › AI › Models** shows each job's real state in plain words (on, Beta, or off and why), never a bare "not yet".
+- **Amends** D-131's "not yet" rows and its 95 % watch bar for confirmed drafts. Built in 0.5.2 under AJ-E3820, AJ-E3830, AJ-E3831 and AJ-E3826.

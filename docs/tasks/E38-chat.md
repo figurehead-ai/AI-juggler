@@ -433,7 +433,7 @@
 - **Step 4 (UI) — N7, bulk forget:** "Forget this conversation", "Forget everything about …" and "Forget all memory" must not loop over `MemoryStore::forget`: each call rebuilds the whole index (about 350 ms at 100k records) under the app-wide storage lock, so 50 subjects would block every storage command for about 17 s. Add a batch forget: one transaction, one `reindex`, one WAL fold; "Forget all" empties the tables and `delete-all`s the index. Test it at 100k records against a time budget.
 - **At V54's registration (the 0.4.6 → 0.5 merge):** un-ignore `tests/backup_restore.rs`'s `a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it` (the schema check refuses V54's tables until then); `v54_waits_for_v53` names both.
 
-### AJ-E3820 The turn review: the code-only review, the model's Beta lines on it, and where it shows | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3705, AJ-E3806
+### AJ-E3820 The turn review: the code-only review, the model's Beta lines on it, and where it shows | Status: TODO (0.5.2, D-149: opt-in Beta on Apple's model) | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3705, AJ-E3806
 **Why this task (2026-11-20, the 0.5 pre-push walk's F-02):** D-131's table ships the turn review as opt-in Beta, and the router, the job (`Job::Review`), its flag and the Models screen's row were built, but nothing produces or shows a review: no task owned the review itself. Until this task lands, `ai_review_on` is off by default (D-127: a switch with nothing behind it isn't shown), so Models says "Not yet" for it and no card offers it. This task turns it back on.
 **Goal**: When an agent's turn ends, the user can read a short, checked review of what it did, without opening the transcript.
 **User story**: As someone with several agents working, I open a session whose turn just ended and see what changed, what failed, what was reverted and what the agent is asking, in a few lines I can trust.
@@ -540,7 +540,7 @@
 **Requirements**:
 1. The page opens with what Bot uses and its live status, read from the started engine (AJ-E3825 R4).
 2. "Recommended for this Mac" only when no model is set up.
-3. The four AI jobs still off (turn reviews, feed lines, digest, watches) keep D-131's gating until the maintainer rules on AJ-E3827's note; their rows say why in one plain line.
+3. Each AI job's row shows its real state in plain words: on, Beta (with its switch), or off and why in one line (D-149); never a bare "not yet".
 **Quality gates**: `just keep-going verify-static`; vitest; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3826/manifest.md`.
 
@@ -560,3 +560,22 @@
 2. A walk step reads the five answers by eye and records them.
 3. `scripts/release_scope.py` requires its passing report for any release that changes `features/ai` or `features/bot`.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3829/manifest.md`.
+
+### AJ-E3830 Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | Status: TODO (0.5.2, D-149) | Priority P1 | Effort M | Depends: AJ-E3709, AJ-E3825
+**Found**: v5 round 3 measured Apple's watch drafts at 70 % exact against a 95 % bar; 42 of 80 English/German misses were our own code (since fixed), and Apple's own misses came from the draft's shape (`docs/qa/0.5.2-ai-jobs-note.md`).
+**UI**: yes
+**Usability reasoning** (Opus, before building): (1) someone asking Bot "tell me when the build finishes" expects a watch set up, not a form to learn; (2) Bot opens the Watches form filled in, the user sees every field and clicks Add; (3) it reuses the Watches form, no second editor; (4) a request Bot can't turn into a watch says why in one line and opens the empty form; (5) none; (6) watch for a draft naming the wrong session, a watch added without the click, a restated request in the "can't watch" field.
+**Requirements**:
+1. The draft schema: exactly one target (a choice among the user's sessions and projects), an enum for what can't be watched, the condition from the enum the form supports.
+2. Two calls: the target first, then the condition; retries sample (not greedy).
+3. Re-measured with the fixed code on fresh blind sets (60 requests, English and German, harness v6, a Sonnet eval round, Opus verifying every verdict that matters); ships at ≥ 90 % exact, each watch added only by the user's click; below 90 % reported to the coordinator before shipping.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3830/manifest.md`.
+
+### AJ-E3831 Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | Status: TODO (0.5.2, D-149) | Priority P1 | Effort M | Depends: AJ-E3709
+**Found**: v5 round 3: feed lines preferred 43 %, digests 33 % over the plain text (safe, not better).
+**UI**: yes (the line saying why a job stays plain)
+**Requirements**:
+1. Feed line: the model picks the turn's most telling fact and the verb from a constrained choice; code renders the line.
+2. Digest: the model writes one short line per session (the feed-line task); code orders, groups, counts and assembles.
+3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
