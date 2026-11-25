@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::features::ai::run::{AiCount, AiFailure};
+
 /// What kind of record a row is: its link opens that page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
@@ -218,6 +220,11 @@ pub enum BotOutcome {
     Refused,
     /// A watch set from a confirm card.
     WatchSet,
+    /// D-148: the model's own short answer to a question with no records
+    /// in it, labelled general (never from the records).
+    General,
+    /// AJ-E3825: the engine failed: one plain line with its fix.
+    Failed,
 }
 
 impl BotOutcome {
@@ -233,6 +240,8 @@ impl BotOutcome {
             Self::Remembered => "remembered",
             Self::Refused => "refused",
             Self::WatchSet => "watch_set",
+            Self::General => "general",
+            Self::Failed => "failed",
         }
     }
 
@@ -247,6 +256,8 @@ impl BotOutcome {
             "remembered" => Self::Remembered,
             "refused" => Self::Refused,
             "watch_set" => Self::WatchSet,
+            "general" => Self::General,
+            "failed" => Self::Failed,
             _ => Self::Rows,
         }
     }
@@ -327,6 +338,111 @@ pub struct BotWrittenPart {
     pub cites: Vec<u32>,
 }
 
+/// D-148: the model's own answer to a question with no records in it.
+/// Shown as Bot's own answer, never with record chips.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotGeneral {
+    /// The model's words.
+    pub text: String,
+    /// The model's display name.
+    pub model_name: String,
+    /// The question was outside AI Juggler: the window adds that Bot is
+    /// here for your AI apps and sessions.
+    pub off_topic: bool,
+}
+
+/// One part of what was sent to the model (the context breakdown).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum BotContextPart {
+    /// Bot's instructions (the system part).
+    Instructions,
+    /// What the user told Bot to remember, used in this turn.
+    Memory,
+    /// The records looked up, and what isn't recorded.
+    Records,
+    /// Earlier exchanges in this topic.
+    History,
+    /// The question itself.
+    Question,
+}
+
+/// One part's size.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotContextShare {
+    /// The part.
+    pub part: BotContextPart,
+    /// Its tokens.
+    pub tokens: AiCount,
+}
+
+/// A turn's context use: what went to the model, against its window.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotContext {
+    /// The model's context window, in tokens (the engine's own figure).
+    pub window: u32,
+    /// What the request filled: the engine's count when it gave one.
+    pub used: AiCount,
+    /// The most the answer could take.
+    pub answer_room: u32,
+    /// Each part, estimated (labelled) unless the engine counted it.
+    pub parts: Vec<BotContextShare>,
+}
+
+/// One kind of memory in a turn.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotMemoryShare {
+    /// `preferences`, `notes`, `asked` (earlier questions and answers)
+    /// or `watches`.
+    pub kind: String,
+    /// How many records.
+    pub n: u32,
+    /// Their tokens.
+    pub tokens: AiCount,
+}
+
+/// AJ-E3825 R8/R9: an answer's calm details line and its breakdowns.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotDetails {
+    /// The model's display name.
+    pub model_name: String,
+    /// Tokens read.
+    pub tokens_in: AiCount,
+    /// Tokens written.
+    pub tokens_out: AiCount,
+    /// How long the answer took, in milliseconds (the helpers don't
+    /// stream, so there is no first-token time).
+    #[ts(type = "number")]
+    pub ms: u64,
+    /// Records sent as grounding.
+    pub records: u32,
+    /// The context breakdown.
+    pub context: BotContext,
+    /// The memory in this turn, by kind.
+    pub memory: Vec<BotMemoryShare>,
+}
+
+/// The topic's running totals (AJ-E3825 R8): tokens this topic and the
+/// latest turn's context and memory.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotTopicUsageInfo {
+    /// Answers in this topic.
+    pub answers: u32,
+    /// Tokens read this topic.
+    pub tokens_in: AiCount,
+    /// Tokens written this topic.
+    pub tokens_out: AiCount,
+    /// The latest answer's details (its context and memory).
+    pub latest: Option<BotDetails>,
+}
+
 /// A memory used or kept (the echo, the "Looked at" receipt).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -395,6 +511,18 @@ pub struct BotTurnInfo {
     /// The user said "This is wrong" about its written answer.
     #[serde(default)]
     pub flagged: bool,
+    /// D-148: the model's general answer.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub general: Option<BotGeneral>,
+    /// AJ-E3825: why the engine failed.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub failure: Option<AiFailure>,
+    /// AJ-E3825: the answer's details line.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub details: Option<BotDetails>,
 }
 
 /// The languages the words cover.

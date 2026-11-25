@@ -254,7 +254,7 @@ export function unknownWords(unknown: BotUnknown): { strong: string; rest: strin
     case "authors":
       return { strong: "I don’t know.", rest: " AI Juggler doesn’t record who wrote what." };
     case "unverified":
-      return { strong: "I don’t know.", rest: " I couldn’t write an answer I could check against these records." };
+      return { strong: "Bot’s answer didn’t check out against your records,", rest: " so it isn’t shown. Try asking another way." };
     default:
       return { strong: "I don’t know.", rest: "" };
   }

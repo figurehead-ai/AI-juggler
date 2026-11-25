@@ -3,4 +3,4 @@
 /**
  * How a turn ended.
  */
-export type BotOutcome = "rows" | "answered" | "dont_know" | "out_of_scope" | "help" | "remembered" | "refused" | "watch_set";
+export type BotOutcome = "rows" | "answered" | "dont_know" | "out_of_scope" | "help" | "remembered" | "refused" | "watch_set" | "general" | "failed";

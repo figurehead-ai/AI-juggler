@@ -75,3 +75,37 @@ pub async fn ai_job_pick_set(
     }
     Ok(jobs)
 }
+
+/// A job's engine now (AJ-E3825): started, running, idle, answering or
+/// failed with why, its model and today's use. Starts nothing.
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+#[tauri::command]
+pub async fn ai_engine_status(
+    state: tauri::State<'_, Arc<AppState>>,
+    job: AiJob,
+) -> AppResult<super::run::AiEngineStatusInfo> {
+    crate::ipc::blocking(state.inner(), "the AI engine", move |state| {
+        Ok(super::run::status_on(super::service::shared(), state, job))
+    })
+    .await
+}
+
+/// Starts a job's engine when it isn't running (Bot opening with an AI
+/// chosen), checks its hello, and says how it stands after (AJ-E3825).
+///
+/// # Errors
+///
+/// The work could not finish off the main thread.
+#[tauri::command]
+pub async fn ai_engine_start(
+    state: tauri::State<'_, Arc<AppState>>,
+    job: AiJob,
+) -> AppResult<super::run::AiEngineStatusInfo> {
+    crate::ipc::blocking(state.inner(), "the AI engine", move |state| {
+        Ok(super::run::start_on(super::service::shared(), state, job))
+    })
+    .await
+}

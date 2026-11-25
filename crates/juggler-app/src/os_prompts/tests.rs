@@ -194,20 +194,19 @@ fn not_now_says_where_it_is_offered_again() {
     );
 }
 
-/// 0.5.1 (AJ-E3822, PAT-OSP): after an update from a build whose helpers
-/// had the old identifiers, Bot's helper set up before doesn't start
-/// unannounced: its next start waits for the `helper-changed` sheet, once,
-/// and priming that one is enough from then on.
+/// AJ-E1555 (was AJ-E3822's rename): a helper set up before whose
+/// signature changed doesn't start unannounced: its next start waits for
+/// the `helper-changed` sheet, once, and priming that is enough.
 #[test]
-fn a_helper_set_up_before_the_rename_waits_for_its_one_sheet() {
+fn a_changed_helper_waits_for_its_one_sheet() {
     use juggler_platform::os_prompt::{Gate, Ledger, MemoryLedger};
     let ledger = MemoryLedger::default();
     ledger.set_primed(registry::HELPER.id);
     let gate = Gate::new(&ledger);
-    assert!(helper_start_through(gate, false), "no rename: as before");
+    assert!(helper_start_through(gate, false), "unchanged: as before");
     assert!(
         !helper_start_through(gate, true),
-        "renamed: the helper waits for the user to be told"
+        "changed: the helper waits for the user to be told"
     );
     assert_eq!(helper_prompt(gate, true).id, registry::HELPER_CHANGED.id);
     ledger.set_primed(registry::HELPER_CHANGED.id);
@@ -215,20 +214,109 @@ fn a_helper_set_up_before_the_rename_waits_for_its_one_sheet() {
     assert_eq!(helper_prompt(gate, true).id, registry::HELPER.id);
 }
 
-/// Only AI Juggler and Nightly, and only where a Dev build ran (Dev's
-/// data folder beside theirs), can meet the renamed helper's prompt.
+/// AJ-E1555 R1: the "differs" prompt is needed only when the helper's
+/// signature on disk differs from the one last opened: never for a
+/// helper never opened here, never because a Dev build's data folder sits
+/// beside ours, and no longer once the changed one opened.
 #[test]
-fn the_rename_is_seen_only_beside_a_dev_build() {
-    use crate::edition::Edition;
+fn helper_changed_only_when_its_signature_on_disk_differs() {
+    assert!(
+        !signature_changed(None, Some("team:A")),
+        "never opened here"
+    );
+    assert!(!signature_changed(Some("team:A"), Some("team:A")));
+    assert!(
+        !signature_changed(Some("team:A"), None),
+        "unreadable: not claimed"
+    );
+    assert!(signature_changed(Some("team:A"), Some("file:00ff")));
+
     let dir = tempfile::tempdir().unwrap();
-    let ours = dir.path().join(Edition::Nightly.data_dir_name());
-    std::fs::create_dir(&ours).unwrap();
-    assert!(!helper_renamed_here(Edition::Nightly, &ours));
-    std::fs::create_dir(dir.path().join(Edition::Dev.data_dir_name())).unwrap();
-    assert!(helper_renamed_here(Edition::Nightly, &ours));
-    assert!(helper_renamed_here(Edition::Main, &ours));
-    assert!(!helper_renamed_here(
-        Edition::Dev,
-        &dir.path().join("AI Juggler Dev")
-    ));
+    // A Dev build's data folder beside ours changes nothing.
+    std::fs::create_dir_all(
+        dir.path()
+            .join(crate::edition::Edition::Dev.data_dir_name()),
+    )
+    .unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("AI Juggler Nightly"));
+    let helper = dir.path().join("juggler-helper-fixture");
+    std::fs::write(&helper, b"build one").unwrap();
+    assert!(
+        !helper_changed_at(&state, &helper),
+        "never opened: the first-start entry covers it"
+    );
+    note_opened(&state, &helper);
+    assert!(!helper_changed_at(&state, &helper), "the one last opened");
+    std::fs::write(&helper, b"build two").unwrap();
+    assert!(helper_changed_at(&state, &helper), "an update replaced it");
+    state
+        .storage
+        .lock()
+        .unwrap()
+        .app_settings()
+        .set("os_prompt_primed:helper-changed", "1")
+        .unwrap();
+    note_opened(&state, &helper);
+    assert!(
+        !helper_changed_at(&state, &helper),
+        "opened: the same again"
+    );
+    assert_eq!(
+        state
+            .app_setting("os_prompt_primed:helper-changed")
+            .as_deref(),
+        Some("0"),
+        "the next change is told again"
+    );
+}
+
+/// AJ-E1555 R2: every entry's sheet words are real: its title isn't
+/// repeated as its why, and no outcome body is a placeholder or a state
+/// word, whatever the system says.
+#[test]
+fn every_sheet_says_something_real() {
+    use juggler_platform::os_prompt::Status;
+    const PLACEHOLDERS: &[&str] = &[
+        "",
+        "Asked.",
+        "Asked",
+        "Allowed",
+        "Allowed.",
+        "Not allowed.",
+        "Done.",
+    ];
+    for entry in registry::ENTRIES {
+        let id = entry.prompt.id;
+        assert_ne!(entry.title.trim(), entry.why.trim(), "{id}: title repeated");
+        for words in [
+            entry.title,
+            entry.why,
+            entry.if_declined,
+            entry.offered_again,
+            entry.after,
+        ] {
+            assert!(!PLACEHOLDERS.contains(&words.trim()), "{id}: {words:?}");
+        }
+        for status in [
+            Status::Allowed,
+            Status::NotAllowed,
+            Status::NotAsked,
+            Status::Asked,
+        ] {
+            let body = outcome_words(entry, status);
+            assert!(
+                !PLACEHOLDERS.contains(&body.trim()),
+                "{id} {status:?}: {body:?}"
+            );
+            assert!(
+                body.split_whitespace().count() >= 4,
+                "{id} {status:?}: {body:?}"
+            );
+            assert_ne!(
+                body.trim(),
+                entry.title.trim(),
+                "{id}: the title as its body"
+            );
+        }
+    }
 }

@@ -14,7 +14,9 @@ import { Segmented } from "../controls";
 import { BotConversation } from "./BotConversation";
 import { BotComposer } from "./BotComposer";
 import { BotEmpty, BotSetup } from "./BotEmpty";
-import { BotFindBar, BotMenu } from "./BotHead";
+import { BotEngineBadge, BotFindBar, BotMenu } from "./BotHead";
+import { BotUsageBar } from "./BotUsageBar";
+import { useBotEngine } from "../../lib/bot-engine";
 import { BotMemories } from "./BotMemories";
 import { BotClearSheet, BotForgetHost } from "./BotSheets";
 import { IconBookmark, IconBot, IconCollapse, IconEye, IconFolder, IconSearch } from "./bot-icons";
@@ -97,6 +99,8 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
   const [clearing, setClearing] = useState(false);
   const { info } = useMemories();
   const ready = isShown(job);
+  // AJ-E3825: the engine starts lazily when Bot opens with an AI chosen.
+  useBotEngine(ready);
   useEffect(() => {
     pageOpened();
     const toMemory = () => setTab("memory");
@@ -120,6 +124,7 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
           <h2 className="text-title text-ink">{WORDS.title}</h2>
           <span className="text-meta whitespace-nowrap text-muted max-[1100px]:hidden">{WORDS.pageLead}</span>
         </div>
+        {ready && job && <BotEngineBadge beta={job.beta} />}
         <Segmented
           className="ml-[18px]"
           label="Bot"
@@ -156,6 +161,7 @@ export function BotPage({ onBack }: { onBack: () => void }): JSX.Element {
             {ready ? (
               <>
                 <BotConversation now={now} wide empty={<BotEmpty />} />
+                <BotUsageBar onMemories={() => setTab("memory")} />
                 <div className="px-3 pb-1">
                   <BotComposer />
                 </div>

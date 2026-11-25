@@ -135,7 +135,7 @@ describe("every state of the mock-up", () => {
     await waitFor(() => expect(window.__AIJ_BOT__?.calls?.some(([c]) => c === "bot_wrong")).toBe(true));
   });
 
-  it("D-144, an answer the AI couldn't check: I don't know, with the records it checked", async () => {
+  it("D-144 in full (AJ-E3825), an answer the AI couldn't check: said so, and no record stands in as the answer", async () => {
     seed("beta");
     window.__AIJ_BOT__ = {
       ...window.__AIJ_BOT__,
@@ -143,9 +143,9 @@ describe("every state of the mock-up", () => {
     };
     panel();
     const said = await screen.findByTestId("bot-lead");
-    expect(said.textContent).toBe("I don’t know. I couldn’t write an answer I could check against these records.");
-    expect(screen.getByRole("list", { name: "What I checked" })).toBeTruthy();
-    expect(screen.getAllByTestId("bot-row")).toHaveLength(2);
+    expect(said.textContent).toBe("Bot’s answer didn’t check out against your records, so it isn’t shown. Try asking another way.");
+    expect(screen.queryByRole("list", { name: "What I checked" })).toBeNull();
+    expect(screen.queryAllByTestId("bot-row")).toHaveLength(0);
   });
 
   for (const name of ["nomodel", "setupoff", "setupblocked", "setupready"] as const) {

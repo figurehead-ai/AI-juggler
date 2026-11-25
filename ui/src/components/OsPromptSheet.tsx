@@ -37,12 +37,18 @@ export function notNowOutcome(prompt: OsPromptInfo): OsPromptOutcomeInfo {
   };
 }
 
-/** The sheet's heading for each phase. */
-export function sheetTitle(prompt: OsPromptInfo, phase: SheetPhase): string {
-  if (phase.kind === "done" && phase.outcome.result === "not_now") return `${prompt.title}: not now`;
-  if (phase.kind === "done") return phase.outcome.status === "allowed" ? `${prompt.title}: allowed` : prompt.title;
-  if (phase.kind === "waiting") return `Answer ${SYSTEM_NAME}'s dialog`;
-  return `${SYSTEM_NAME} will now ask`;
+/** AJ-E1555: the sheet's heading is the registry's title in every phase
+ * (what it makes possible), never repeated below it. */
+export function sheetTitle(prompt: OsPromptInfo): string {
+  return prompt.title;
+}
+
+/** The line under the heading: where the sheet is, in words that never
+ * repeat the title; none once it's done (the body says what happened). */
+export function sheetSubtitle(phase: SheetPhase): string | null {
+  if (phase.kind === "ask") return `${SYSTEM_NAME} will ask next. Here’s why, and what to click.`;
+  if (phase.kind === "waiting") return `Answer ${SYSTEM_NAME}’s dialog.`;
+  return null;
 }
 
 export function OsPromptSheet({
@@ -108,9 +114,13 @@ export function OsPromptSheet({
         header={
           <>
             <h2 id="os-prompt-title" className="type-section">
-              {sheetTitle(prompt, phase)}
+              {sheetTitle(prompt)}
             </h2>
-            <p className="mt-1 text-xs text-muted">{prompt.title}</p>
+            {sheetSubtitle(phase) && (
+              <p className="mt-1 text-xs text-muted" data-testid="os-prompt-subtitle">
+                {sheetSubtitle(phase)}
+              </p>
+            )}
           </>
         }
         bodyClassName="flex flex-col gap-3 px-5 pb-4"

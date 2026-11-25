@@ -7,7 +7,7 @@
  */
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { notNowOutcome, OsPromptHost, OsPromptSheet, sheetTitle } from "./OsPromptSheet";
+import { notNowOutcome, OsPromptHost, OsPromptSheet, sheetSubtitle, sheetTitle, type SheetPhase } from "./OsPromptSheet";
 import type { OsPromptInfo, OsPromptOutcomeInfo } from "../lib/ipc/os-prompts";
 
 const handlers: { ask?: (prompt: OsPromptInfo) => void; told?: (outcome: OsPromptOutcomeInfo) => void } = {};
@@ -72,7 +72,8 @@ async function asked(prompt: OsPromptInfo = accessibility) {
 describe("the sheet before a system prompt", () => {
   it("says the system will ask, shows its dialog and marks the button to click", async () => {
     await asked();
-    expect(screen.getByRole("heading").textContent).toBe("macOS will now ask");
+    expect(screen.getByRole("heading").textContent).toBe("Jump to a session's own window");
+    expect(screen.getByTestId("os-prompt-subtitle").textContent).toContain("macOS will ask next");
     const picture = screen.getByRole("img");
     expect(picture.getAttribute("aria-label")).toContain("Click Open System Settings.");
     expect(picture.querySelector('[data-marked="1"]')?.textContent).toBe("Open System Settings");
@@ -90,7 +91,7 @@ describe("the sheet before a system prompt", () => {
         id: "accessibility",
         result: "called",
         status: "not_allowed",
-        words: "Not allowed. Nothing else changes. You can change it later in System Settings › Privacy & Security › Accessibility.",
+        words: "Opening a session still brings its app forward; you pick the window yourself. You can change it later in System Settings › Privacy & Security › Accessibility.",
       }),
     );
     const outcome = screen.getByTestId("os-prompt-outcome");
@@ -120,7 +121,7 @@ describe("the sheet before a system prompt", () => {
   it("after Not now says the outcome and where it's offered again (0.5.1 F28)", async () => {
     await asked();
     fireEvent.click(screen.getByTestId("os-prompt-not-now"));
-    expect(screen.getByRole("heading").textContent).toBe("Jump to a session's own window: not now");
+    expect(screen.getByRole("heading").textContent).toBe("Jump to a session's own window");
     const outcome = screen.getByTestId("os-prompt-outcome");
     expect(outcome.dataset.result).toBe("not_now");
     expect(outcome.textContent).toBe(
@@ -155,10 +156,32 @@ describe("the sheet before a system prompt", () => {
     expect(screen.getByRole("img").getAttribute("aria-label")).not.toContain("Click");
   });
 
-  it("titles each phase", () => {
-    expect(sheetTitle(accessibility, { kind: "waiting" })).toBe("Answer macOS's dialog");
-    expect(sheetTitle(accessibility, { kind: "done", outcome: { id: "accessibility", result: "called", status: "allowed", words: "Allowed." } })).toBe(
-      "Jump to a session's own window: allowed",
-    );
+  /** AJ-E1555 R2: the heading is the registry's title; the line under
+   * it never repeats it; the body is never a placeholder or a state word
+   * (0.5.1's sheet: its title twice and "Asked." as its body). */
+  it("never repeats its title or shows a state word as its body", async () => {
+    const helperChanged: OsPromptInfo = {
+      ...accessibility,
+      id: "helper-changed",
+      title: "Start Bot's AI helper after this update",
+      why: "Bot's AI helper changed on disk since it last ran here, so the system may ask once whether to open it.",
+      dialog: null,
+    };
+    const BANNED = ["", "Asked.", "Asked", "Allowed", "Allowed.", "Not allowed."];
+    const outcome: OsPromptOutcomeInfo = { id: "helper-changed", result: "called", status: "allowed", words: "Bot's AI helper started again after the update: Bot answers as before." };
+    const phases: SheetPhase[] = [{ kind: "ask" }, { kind: "waiting" }, { kind: "done", outcome }, { kind: "done", outcome: notNowOutcome(helperChanged) }];
+    for (const phase of phases) {
+      cleanup();
+      render(<OsPromptSheet prompt={helperChanged} phase={phase} onContinue={() => undefined} onNotNow={() => undefined} onDone={() => undefined} />);
+      const heading = screen.getByRole("heading").textContent ?? "";
+      expect(heading).toBe(sheetTitle(helperChanged));
+      const subtitle = screen.queryByTestId("os-prompt-subtitle")?.textContent ?? null;
+      expect(subtitle).toBe(sheetSubtitle(phase));
+      expect(subtitle).not.toBe(heading);
+      const body = phase.kind === "done" ? screen.getByTestId("os-prompt-outcome").textContent ?? "" : document.getElementById("os-prompt-why")?.textContent ?? "";
+      expect(BANNED).not.toContain(body.trim());
+      expect(body.trim()).not.toBe(heading);
+      expect(body.split(" ").length).toBeGreaterThan(3);
+    }
   });
 });

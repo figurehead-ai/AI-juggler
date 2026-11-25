@@ -7,10 +7,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::dto::{
-    BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotScope, BotShortcut, BotTally,
-    BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
+    BotDetails, BotGeneral, BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotScope,
+    BotShortcut, BotTally, BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
 };
 use super::world::World;
+use crate::features::ai::run::AiFailure;
 use juggler_core::storage::memory::Turn;
 
 /// What a turn keeps beside its question (the `entities` column).
@@ -47,6 +48,18 @@ pub struct Meta {
     /// "This is wrong" was said about it.
     #[serde(default)]
     pub flagged: bool,
+    /// D-148: a general answer's model (its words are the `shown` column).
+    #[serde(default)]
+    pub general_model: Option<String>,
+    /// The general answer's question was outside AI Juggler.
+    #[serde(default)]
+    pub off_topic: bool,
+    /// AJ-E3825: why the engine failed.
+    #[serde(default)]
+    pub failure: Option<AiFailure>,
+    /// AJ-E3825: the answer's details (counts and sizes, no text).
+    #[serde(default)]
+    pub details: Option<BotDetails>,
 }
 
 /// A row as kept: no agent words, no then/now marks.
@@ -119,6 +132,14 @@ pub fn turn_info(
         }),
         _ => None,
     };
+    let general = match (&turn.shown, &meta.general_model) {
+        (Some(shown), Some(model)) if !turn.redacted => Some(BotGeneral {
+            text: shown.clone(),
+            model_name: model.clone(),
+            off_topic: meta.off_topic,
+        }),
+        _ => None,
+    };
     BotTurnInfo {
         id: turn.id.clone(),
         at_ms: turn.at_ms,
@@ -150,5 +171,8 @@ pub fn turn_info(
         live: world.is_some(),
         redacted: turn.redacted,
         flagged: meta.flagged,
+        general,
+        failure: meta.failure,
+        details: meta.details,
     }
 }

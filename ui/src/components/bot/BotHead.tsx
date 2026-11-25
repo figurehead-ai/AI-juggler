@@ -12,6 +12,8 @@ import { IconMore } from "../icons-canvas";
 import { IconPlus, IconTrash } from "../icons-actions";
 import { IconBookmark, IconBot, IconExpand, IconEye, IconGrid, IconSearch, IconSparkle } from "./bot-icons";
 import { BetaPill } from "./BotWritten";
+import { useBotEngine } from "../../lib/bot-engine";
+import { engineLabel, engineStateWords, failureWords, modelName } from "../../lib/bot-engine-words";
 import { useBotNav } from "./bot-nav";
 import { WORDS } from "../../lib/bot-words";
 import { closeBot, closeFind, expandBot, findWords, newTopic, openFind, stepMatch, useBot } from "../../lib/bot-store";
@@ -178,6 +180,25 @@ function WatchCount(): JSX.Element | null {
   );
 }
 
+/** AJ-E3825 R5: the model in use and how it stands, calm and muted:
+ * "Apple on-device · Running", "· Starting…", "· Idle", "· Failed: …",
+ * then the Beta pill. */
+export function BotEngineBadge({ beta }: { beta: boolean }): JSX.Element {
+  const engine = useBotEngine(false);
+  const state = engineStateWords(engine.status, engine.starting);
+  const failed = engine.status?.state === "failed";
+  const why = failed ? failureWords(engine.status?.failure ?? "unknown", modelName(engine.status)) : null;
+  return (
+    <span className="ml-2 flex min-w-0 items-center gap-1.5 text-label text-muted" title={why ? `${why.line} ${why.fix}` : undefined} data-testid="bot-engine">
+      <span className="truncate">
+        {engineLabel(engine.status)}
+        {state && <span className={failed ? "text-danger" : undefined}> · {state}</span>}
+      </span>
+      {beta && <BetaPill>Beta</BetaPill>}
+    </span>
+  );
+}
+
 export function BotHead({ job, onClear, onMemories, setup = false }: { job: AiJobInfo | null; onClear: () => void; onMemories: () => void; setup?: boolean }): JSX.Element {
   const bot = useBot();
   const [menu, setMenu] = useState(false);
@@ -187,11 +208,7 @@ export function BotHead({ job, onClear, onMemories, setup = false }: { job: AiJo
         <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
         {WORDS.title}
       </h2>
-      {job?.state === "ready" && job.beta && (
-        <span className="ml-2" title="Written answers are on (Beta)">
-          <BetaPill>Beta</BetaPill>
-        </span>
-      )}
+      {job?.state === "ready" && !setup && <BotEngineBadge beta={job.beta} />}
       <span className="grow" />
       {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
       {!setup && (

@@ -9,6 +9,7 @@ import type { AccountQualityInfo } from "./AccountQualityInfo";
 import type { AccountRemovedInfo } from "./AccountRemovedInfo";
 import type { AccountStorageInfo } from "./AccountStorageInfo";
 import type { AgentBridgeInfo } from "./AgentBridgeInfo";
+import type { AiEngineStatusInfo } from "./AiEngineStatusInfo";
 import type { AiJob } from "./AiJob";
 import type { AiJobInfo } from "./AiJobInfo";
 import type { AlertEventInfo } from "./AlertEventInfo";
@@ -25,6 +26,7 @@ import type { BotFoundInfo } from "./BotFoundInfo";
 import type { BotMemoriesInfo } from "./BotMemoriesInfo";
 import type { BotPageInfo } from "./BotPageInfo";
 import type { BotTopicInfo } from "./BotTopicInfo";
+import type { BotTopicUsageInfo } from "./BotTopicUsageInfo";
 import type { BotTurnInfo } from "./BotTurnInfo";
 import type { BudgetInfo } from "./BudgetInfo";
 import type { BudgetInput } from "./BudgetInput";
@@ -327,6 +329,10 @@ export interface Commands {
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
   /** Write features::ai::commands::ai_beta_set */
   ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Write features::ai::commands::ai_engine_start */
+  ai_engine_start: { args: { job: AiJob }; result: AiEngineStatusInfo };
+  /** Read features::ai::commands::ai_engine_status */
+  ai_engine_status: { args: { job: AiJob }; result: AiEngineStatusInfo };
   /** Read features::ai::models::commands::ai_engines_check */
   ai_engines_check: { args: Record<string, never>; result: ModelsCatalog };
   /** Write features::ai::commands::ai_job_pick_set */
@@ -433,6 +439,8 @@ export interface Commands {
   bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
   /** Read features::bot::search::bot_search */
   bot_search: { args: { text: string }; result: SearchRecordsInfo };
+  /** Read features::bot::commands::bot_topic_usage */
+  bot_topic_usage: { args: Record<string, never>; result: BotTopicUsageInfo };
   /** Write features::bot::commands::bot_wrong */
   bot_wrong: { args: { turn: string; wrong?: boolean | null }; result: void };
   /** Read features::budgets::commands::budgets_list */

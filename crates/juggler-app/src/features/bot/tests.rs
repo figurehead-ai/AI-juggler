@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use super::commands::{
-    bot_ask_impl, bot_clear_impl, bot_count_impl, bot_find_impl, bot_new_topic_impl, bot_page_impl,
+    bot_clear_impl, bot_count_impl, bot_find_impl, bot_new_topic_impl, bot_page_impl,
     bot_wrong_impl,
 };
 use super::dto::{
@@ -224,36 +224,52 @@ fn a_named_record_answers_with_its_own_state() {
     );
 }
 
-fn state() -> (tempfile::TempDir, Arc<AppState>) {
+pub(super) fn state() -> (tempfile::TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap();
     let state = crate::test_support::bare_state(dir.path().to_path_buf());
     (dir, state)
 }
 
+/// AJ-E3825: every question goes to the model; the tests' model is the
+/// fake ([`super::fake`]).
 fn ask(state: &Arc<AppState>, question: &str) -> super::dto::BotTurnInfo {
-    bot_ask_impl(
+    super::commands::bot_ask_with(
         state,
         &BotAskInput {
             question: question.into(),
             scope: None,
             again: None,
         },
+        &super::fake::Fake::new(),
     )
     .unwrap()
 }
 
-/// AJ-E3807: with no model, look-ups still answer; AJ-E3808: the turns
-/// stay on this Mac, are paged, found and cleared whole.
+/// AJ-E3808: the turns stay on this Mac, are paged, found and cleared
+/// whole. AJ-E3825: each is the model's (a greeting, code work and a
+/// question no record matched get its general answer).
 #[test]
 fn asking_keeps_turns_that_page_find_and_clear() {
     let (_dir, state) = state();
     let hi = ask(&state, "hello");
-    assert_eq!(hi.outcome, BotOutcome::Help);
+    assert_eq!(hi.outcome, BotOutcome::General);
+    assert!(
+        !hi.general.as_ref().unwrap().off_topic,
+        "a greeting is Bot's own"
+    );
     let none = ask(&state, "Did the deploy to staging work?");
-    assert_eq!(none.outcome, BotOutcome::DontKnow);
-    assert!(none.written.is_none(), "no model: never a written answer");
+    assert_eq!(
+        none.outcome,
+        BotOutcome::General,
+        "no record matched: the model's own answer"
+    );
+    assert!(none.rows.is_empty(), "nothing found: no record stands in");
     let code = ask(&state, "Write me a function that sorts dates");
-    assert_eq!(code.outcome, BotOutcome::OutOfScope);
+    assert_eq!(code.outcome, BotOutcome::General);
+    assert!(
+        code.general.as_ref().unwrap().off_topic,
+        "D-148's scope line"
+    );
     bot_new_topic_impl(&state).unwrap();
     ask(&state, "What needs me?");
     let page = bot_page_impl(&state, None, 2).unwrap();
@@ -399,7 +415,13 @@ fn a_stated_name_is_kept_used_and_forgotten() {
 
 /// One running session named by its folder `name`, on `branch` (a fixture
 /// `.git` only: never a real repository).
-fn seed_session(state: &Arc<AppState>, dir: &std::path::Path, id: &str, name: &str, branch: &str) {
+pub(super) fn seed_session(
+    state: &Arc<AppState>,
+    dir: &std::path::Path,
+    id: &str,
+    name: &str,
+    branch: &str,
+) {
     let cwd = dir.join(name);
     std::fs::create_dir_all(cwd.join(".git")).unwrap();
     std::fs::write(
@@ -562,13 +584,14 @@ fn this_is_wrong_marks_the_answer_undo_clears_it_and_ask_again_asks_once_more() 
     bot_wrong_impl(&state, &asked.id, false).unwrap();
     assert!(!flagged(&state), "Undo");
     bot_wrong_impl(&state, &asked.id, true).unwrap();
-    let again = bot_ask_impl(
+    let again = super::commands::bot_ask_with(
         &state,
         &BotAskInput {
             question: asked.question.clone(),
             scope: None,
             again: Some(asked.id.clone()),
         },
+        &super::fake::Fake::new(),
     )
     .unwrap();
     assert_eq!(again.question, asked.question);

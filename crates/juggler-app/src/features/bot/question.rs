@@ -7,6 +7,10 @@
 use super::dto::{BotLang, BotState, BotUnknown};
 
 /// What a question asks.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each is its own reading of the question's words, never a state machine"
+)]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Reading {
     /// Its language.
@@ -29,6 +33,13 @@ pub struct Reading {
     pub out_of_scope: bool,
     /// "Remember …": the words to keep.
     pub remember: Option<String>,
+    /// AJ-E3825: it asks about the user's own work (a state, a kind of
+    /// record, a time, something AI Juggler doesn't record, "my …"): it
+    /// always goes the grounded route, never a general answer.
+    pub work: bool,
+    /// AJ-E3825: "which model are you": answered from the engine's own
+    /// name and version.
+    pub which_model: bool,
 }
 
 /// The kinds of record named.
@@ -526,6 +537,20 @@ const CODE_WORK: &[&str] = &[
     "explain",
 ];
 
+/// "My …": the user's own things (AJ-E3825: the grounded route).
+const MINE: &[&str] = &["my", "mine", "mein", "meine", "meinen", "meiner", "meinem"];
+
+/// A model, as "which model are you" names it.
+const MODEL_WORDS: &[&str] = &[
+    "model",
+    "llm",
+    "ai",
+    "engine",
+    "modell",
+    "ki",
+    "sprachmodell",
+];
+
 const REMEMBER: &[&str] = &[
     "remember",
     "don't forget",
@@ -698,6 +723,15 @@ pub fn read(text: &str) -> Reading {
         || reading.kinds.any()
         || reading.when != When::Any
         || reading.unknown.is_some();
+    reading.work = asks_anything || reading.most_room || has(&words, MINE);
+    reading.which_model = !reading.kinds.any()
+        && has(&words, MODEL_WORDS)
+        && has(
+            &words,
+            &[
+                "you", "your", "yourself", "du", "dich", "dein", "deine", "bist",
+            ],
+        );
     if !asks_anything
         && words.iter().all(|w| {
             HELP.contains(&w.as_str())
@@ -756,6 +790,34 @@ mod tests {
             read("Did the deploy to staging work?").subject,
             ["deploy", "staging", "work"]
         );
+    }
+
+    /// AJ-E3825: a question about the user's own work always goes the
+    /// grounded route; "which model are you" is told apart; a general
+    /// question is neither.
+    #[test]
+    fn work_and_which_model_are_told_apart() {
+        for work in [
+            "Tell me about my session",
+            "What needs me?",
+            "Which sessions finished today?",
+            "Welche Sitzungen sind fertig?",
+            "Which account has the most room?",
+        ] {
+            assert!(read(work).work, "{work}");
+        }
+        for general in ["what is 3+5", "What is the capital of France?", "Hi!"] {
+            let r = read(general);
+            assert!(!r.work && !r.which_model, "{general}");
+        }
+        for which in [
+            "what LLM model are you",
+            "Which model are you?",
+            "Welches Modell bist du?",
+        ] {
+            assert!(read(which).which_model, "{which}");
+        }
+        assert!(!read("Which model does my api session use?").which_model);
     }
 
     #[test]

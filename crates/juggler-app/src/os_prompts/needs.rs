@@ -121,10 +121,11 @@ pub fn helper(_state: &Arc<AppState>) -> bool {
         || !crate::features::ai::models::store::shared_installed_ids().is_empty()
 }
 
-/// Bot's helper can run here and a build with the helpers' old
-/// identifiers ran on this computer (`super::helper_renamed`): macOS may
-/// ask about the helper once after this update.
+/// AJ-E1555: Bot's helper can run here and its signature on disk differs
+/// from the one last opened (`super::helper_changed_here`): macOS may ask
+/// "differs from previously opened versions" once. Never merely because
+/// another build (a Dev build) ran on this computer.
 #[must_use]
 pub fn helper_changed(state: &Arc<AppState>) -> bool {
-    super::helper_renamed() && helper(state)
+    helper(state) && super::helper_changed_here(state)
 }

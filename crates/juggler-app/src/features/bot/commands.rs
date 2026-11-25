@@ -10,10 +10,10 @@ use std::sync::Arc;
 use juggler_core::storage::memory::{Actor, NewEvent, NewTurn, SecretScan, Stream};
 
 use super::dto::{
-    BotAskInput, BotCountInfo, BotFoundInfo, BotOutcome, BotPageInfo, BotTopicInfo, BotTurnInfo,
+    BotAskInput, BotCountInfo, BotFoundInfo, BotOutcome, BotPageInfo, BotTopicInfo,
+    BotTopicUsageInfo, BotTurnInfo,
 };
 use super::history::{Meta, cites_json, shown_text, turn_info};
-use super::lookup::look_up;
 use super::question::read;
 use super::world::{World, gather};
 use crate::error::{AppError, AppResult};
@@ -43,18 +43,74 @@ fn written_on(state: &AppState) -> bool {
         .is_some_and(|info| info.state == AiJobState::Ready)
 }
 
-/// Asks Bot a question: read by code, the records it needs looked up as
-/// the AI's own grounding, kept in this Mac's conversation. D-144: the
-/// answer is the AI's, shown only when it passes the check against the
-/// records it cites; one that can't be checked (or no answer at all) is
-/// the AI's "I don't know" with the records it checked. The command takes
-/// a question only while the AI is ready ([`ai_ready_or_refuse`]); with
-/// none (the tests' records-only path) the rows stand alone.
+/// The current topic's turns, newest first (at most `limit`): none when
+/// a New topic was started after the newest turn.
+fn topic_turns(
+    state: &AppState,
+    limit: u32,
+) -> AppResult<Vec<juggler_core::storage::memory::Turn>> {
+    let page = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        storage.chat().page(None, limit).map_err(memory_error)?
+    };
+    let Some(newest) = page.turns.first() else {
+        return Ok(Vec::new());
+    };
+    let latest_topic = page.topics.iter().max_by_key(|t| t.started_ms);
+    if latest_topic.is_some_and(|t| t.id != newest.topic && t.started_ms >= newest.at_ms) {
+        return Ok(Vec::new());
+    }
+    let topic = newest.topic.clone();
+    Ok(page
+        .turns
+        .into_iter()
+        .take_while(|turn| turn.topic == topic)
+        .collect())
+}
+
+/// The topic's last two exchanges Bot answered, oldest first (ADR-0034
+/// §6.7): never a redacted turn, never an answer marked wrong
+/// (AJ-E1548 #2).
+fn history(state: &AppState) -> AppResult<Vec<(String, String)>> {
+    let mut out: Vec<(String, String)> = topic_turns(state, 12)?
+        .into_iter()
+        .filter(|turn| !turn.redacted)
+        .filter_map(|turn| {
+            let meta: Meta = serde_json::from_str(&turn.entities).unwrap_or_default();
+            let shown = turn.shown.filter(|s| !s.is_empty())?;
+            (!meta.flagged).then_some((turn.question, shown))
+        })
+        .take(2)
+        .collect();
+    out.reverse();
+    Ok(out)
+}
+
+/// Asks Bot a question (D-144 in full, AJ-E3825): the model answers every
+/// question ([`super::answer`]), through the app's started engine.
 ///
 /// # Errors
 ///
 /// An empty question; storage failures.
 pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<BotTurnInfo> {
+    let live = super::model::Live {
+        service: crate::features::ai::service::shared(),
+        state,
+    };
+    bot_ask_with(state, input, &live)
+}
+
+/// [`bot_ask_impl`] through `model` (a test's fake, or AJ-E3829's real
+/// check on a service of its own).
+///
+/// # Errors
+///
+/// An empty question; storage failures.
+pub fn bot_ask_with(
+    state: &Arc<AppState>,
+    input: &BotAskInput,
+    model: &dyn super::model::BotModel,
+) -> AppResult<BotTurnInfo> {
     let question: String = input.question.trim().chars().take(QUESTION_MAX).collect();
     if question.is_empty() {
         return Err(AppError::Validation {
@@ -81,50 +137,41 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
     if let Some(words) = reading.remember.as_deref() {
         return remember_turn(state, &world, &question, words, secret, meta);
     }
-    let (outcome, rows, written) = if reading.help {
-        (BotOutcome::Help, Vec::new(), None)
-    } else if reading.out_of_scope {
-        (BotOutcome::OutOfScope, Vec::new(), None)
-    } else {
-        let found = look_up(&reading, &world, scope.as_ref());
-        meta.unknown = found.unknown;
-        meta.shortcut = found.shortcut;
-        meta.looked = Some(super::dto::BotLooked {
-            memories: u32::try_from(meta.used.len()).unwrap_or(0),
-            ..found.looked
-        });
-        meta.total = found.total;
-        meta.tallies.clone_from(&found.tallies);
-        if found.unknown.is_some() {
-            (BotOutcome::DontKnow, found.rows, None)
-        } else if !found.rows.is_empty() && written_on(state) {
-            let (written, _why) = super::written::answer(
-                state,
-                &question,
-                reading.lang,
-                &found.rows,
-                &world.removed,
-                marked_wrong(state, input.again.as_deref()),
-            );
-            let outcome = if written.is_some() {
-                BotOutcome::Answered
-            } else {
-                // D-144: never the records alone as an answer.
-                meta.unknown = Some(super::dto::BotUnknown::Unverified);
-                BotOutcome::DontKnow
-            };
-            (outcome, found.rows, written)
-        } else {
-            (BotOutcome::Rows, found.rows, None)
-        }
-    };
-    if let Some(written) = &written {
-        meta.written_model = Some(written.model_name.clone());
-        meta.written_cites = written.parts.iter().map(|p| p.cites.clone()).collect();
+    let memory: Vec<_> = used.iter().map(|(info, _)| info.clone()).collect();
+    let history = history(state)?;
+    let answered = super::answer::answer(
+        model,
+        &super::answer::Asked {
+            question: &question,
+            reading: &reading,
+            world: &world,
+            scope: scope.as_ref(),
+            again: marked_wrong(state, input.again.as_deref()),
+            memory: &memory,
+            history: &history,
+        },
+    );
+    let outcome = answered.outcome.unwrap_or(BotOutcome::Failed);
+    let rows = answered
+        .found
+        .as_ref()
+        .map(|found| found.rows.clone())
+        .unwrap_or_default();
+    keep_in_meta(&mut meta, &answered);
+    let written = answered.written.clone();
+    let general = answered.general.clone();
+    if let Some(details) = &answered.details {
+        crate::features::ai::run::note_usage(state, details.tokens_in, details.tokens_out);
     }
     let entities = serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned());
+    // A general answer's rows aren't its grounding: none are kept with it.
+    let rows = if outcome == BotOutcome::Answered || outcome == BotOutcome::DontKnow {
+        rows
+    } else {
+        Vec::new()
+    };
     let cites = cites_json(&rows);
-    let shown = shown_text(written.as_ref());
+    let shown = shown_text(written.as_ref()).or_else(|| general.as_ref().map(|g| g.text.clone()));
     let kept = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         let kept = storage
@@ -141,7 +188,13 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
             .map_err(memory_error)?;
         let mut event = NewEvent::new(world.now_ms, Stream::Chat, "turn", Actor::User);
         event.subject = Some(("chat_turn", kept.id.clone()));
-        event.payload = serde_json::json!({ "outcome": outcome.code(), "rows": rows.len() });
+        event.payload = serde_json::json!({
+            "outcome": outcome.code(),
+            "rows": rows.len(),
+            "calls": answered.calls,
+            "failure": answered.failure.map(crate::features::ai::run::AiFailure::code),
+            "rerouted": answered.rerouted,
+        });
         let _ = storage.ai_log().append(&event, None);
         // Each memory the question used is linked to the turn, so its
         // forget reaches this turn too (ADR-0037 §1.5 step 3).
@@ -158,8 +211,56 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
     // The turn just asked shows its rows as found, agent words included.
     info.rows = rows;
     info.written = written;
+    info.general = general;
     info.live = true;
     Ok(info)
+}
+
+/// What a turn keeps of its answer beside its question (no words: the
+/// shown answer is the `shown` column).
+fn keep_in_meta(meta: &mut Meta, answered: &super::answer::Answer) {
+    if let Some(found) = &answered.found {
+        meta.shortcut = found.shortcut;
+        meta.looked = Some(super::dto::BotLooked {
+            memories: u32::try_from(meta.used.len()).unwrap_or(0),
+            ..found.looked.clone()
+        });
+        meta.total = found.total;
+        meta.tallies.clone_from(&found.tallies);
+    }
+    meta.unknown = answered.unknown;
+    meta.failure = answered.failure;
+    meta.details.clone_from(&answered.details);
+    if let Some(written) = &answered.written {
+        meta.written_model = Some(written.model_name.clone());
+        meta.written_cites = written.parts.iter().map(|p| p.cites.clone()).collect();
+    }
+    if let Some(general) = &answered.general {
+        meta.general_model = Some(general.model_name.clone());
+        meta.off_topic = general.off_topic;
+    }
+}
+
+/// The topic's running totals (AJ-E3825 R8): tokens this topic, and the
+/// latest answer's context and memory.
+///
+/// # Errors
+///
+/// Storage failures.
+pub fn bot_topic_usage_impl(state: &Arc<AppState>) -> AppResult<BotTopicUsageInfo> {
+    let mut usage = BotTopicUsageInfo::default();
+    for turn in topic_turns(state, 500)? {
+        let meta: Meta = serde_json::from_str(&turn.entities).unwrap_or_default();
+        if let Some(details) = meta.details {
+            usage.answers += 1;
+            usage.tokens_in = usage.tokens_in.plus(details.tokens_in);
+            usage.tokens_out = usage.tokens_out.plus(details.tokens_out);
+            if usage.latest.is_none() {
+                usage.latest = Some(details);
+            }
+        }
+    }
+    Ok(usage)
 }
 
 /// "Remember …": the turn kept, then the memory written from it (so a
@@ -413,6 +514,18 @@ pub async fn bot_ask(
         bot_ask_impl(state, &input)
     })
     .await
+}
+
+/// The topic's running totals (see [`bot_topic_usage_impl`]).
+///
+/// # Errors
+///
+/// As [`bot_topic_usage_impl`].
+#[tauri::command]
+pub async fn bot_topic_usage(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> AppResult<BotTopicUsageInfo> {
+    crate::ipc::blocking(state.inner(), "Bot", bot_topic_usage_impl).await
 }
 
 /// A page of the conversation (see [`bot_page_impl`]).

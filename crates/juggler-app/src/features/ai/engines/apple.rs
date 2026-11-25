@@ -20,14 +20,18 @@
 //! on any macOS, from a helper of its own that goes when it answered.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use juggler_platform::ai::SystemModel;
 
 use super::helper::{Health, Helper, StartFailure};
 use crate::features::ai::{
-    engine::{AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier},
+    engine::{
+        AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Started, Stop,
+        Tier, Usage,
+    },
     models::{Engine as ModelEngine, ModelEntry, recommend::AppleAi},
 };
 
@@ -92,6 +96,14 @@ pub fn network_path(program: Option<PathBuf>) -> Option<NetworkPath> {
 
 /// How long a starting helper may take to say hello.
 const HELLO_WAIT: Duration = Duration::from_secs(5);
+
+/// AJ-E3825: how long a started helper stays with nothing to do before
+/// it is stopped (the helper's own `idleSeconds`, so the two agree; the
+/// app stops and reaps it at the same time, leaving nothing behind).
+pub const IDLE_STOP: Duration = Duration::from_secs(60);
+
+/// How often the idle watch looks.
+const IDLE_LOOK: Duration = Duration::from_millis(500);
 
 /// The context the model is assumed to have when the helper doesn't say
 /// (macOS 26's figure).
@@ -234,6 +246,14 @@ impl Seen {
         }
     }
 
+    /// Why it can't serve, for a state that isn't ready.
+    const fn readiness_reason(self) -> Reason {
+        match self.readiness() {
+            Readiness::NotHere(why) | Readiness::Preparing(why) => why,
+            Readiness::Ready => Reason::Unknown,
+        }
+    }
+
     const fn context_tokens(self) -> u32 {
         match self {
             Self::Model { context_tokens, .. } if context_tokens > 0 => context_tokens,
@@ -247,7 +267,14 @@ impl Seen {
 pub struct Apple {
     /// The helper, when a test names it; otherwise beside the app.
     program: Option<PathBuf>,
-    helper: Mutex<Option<Helper>>,
+    /// The started helper, shared with its idle watch.
+    helper: Arc<Mutex<Option<Helper>>>,
+    /// When it last answered (or started).
+    used: Arc<Mutex<Instant>>,
+    /// How long it may idle before it is stopped ([`IDLE_STOP`]).
+    idle: Duration,
+    /// An idle watch is running.
+    watching: Arc<AtomicBool>,
     health: Health<Seen>,
     next_id: Mutex<u64>,
 }
@@ -262,12 +289,97 @@ impl Apple {
     /// The engine with its helper at `program` (tests).
     #[must_use]
     pub fn with_program(program: Option<PathBuf>) -> Self {
+        Self::with_idle(program, IDLE_STOP)
+    }
+
+    /// The engine with its helper at `program`, stopped after `idle`
+    /// with nothing to do (tests of the idle stop).
+    #[must_use]
+    pub fn with_idle(program: Option<PathBuf>, idle: Duration) -> Self {
         Self {
             program,
-            helper: Mutex::new(None),
+            helper: Arc::new(Mutex::new(None)),
+            used: Arc::new(Mutex::new(Instant::now())),
+            idle,
+            watching: Arc::new(AtomicBool::new(false)),
             health: Health::new(Seen::NotAsked),
             next_id: Mutex::new(0),
         }
+    }
+
+    /// The started helper's process id (tests: that the idle stop left
+    /// nothing behind).
+    #[must_use]
+    pub fn helper_pid(&self) -> Option<u32> {
+        self.helper
+            .lock()
+            .ok()
+            .and_then(|slot| slot.as_ref().map(Helper::pid))
+    }
+
+    fn touch(&self) {
+        if let Ok(mut used) = self.used.lock() {
+            *used = Instant::now();
+        }
+    }
+
+    /// The idle watch (AJ-E3825): once a helper is kept, a small thread
+    /// looks every [`IDLE_LOOK`]; when the helper has had nothing to do
+    /// for `idle`, or exited by itself, it is let go (its drop closes its
+    /// input, kills and reaps it), and the watch ends. A job holding the
+    /// helper is never idle. One watch at a time.
+    fn watch_idle(&self) {
+        if self.watching.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let (slot, used, watching, idle) = (
+            Arc::clone(&self.helper),
+            Arc::clone(&self.used),
+            Arc::clone(&self.watching),
+            self.idle,
+        );
+        let look = IDLE_LOOK.min(idle / 2).max(Duration::from_millis(20));
+        let spawned = std::thread::Builder::new()
+            .name("ai-helper-idle".to_owned())
+            .spawn(move || {
+                loop {
+                    std::thread::sleep(look);
+                    let Ok(mut held) = slot.try_lock() else {
+                        continue;
+                    };
+                    let idle_now = used.lock().map_or(true, |at| at.elapsed() >= idle);
+                    let gone = held.as_mut().is_none_or(|h| !h.alive());
+                    if gone || idle_now {
+                        *held = None;
+                        watching.store(false, Ordering::Release);
+                        return;
+                    }
+                }
+            });
+        if spawned.is_err() {
+            self.watching.store(false, Ordering::Release);
+        }
+    }
+
+    /// The kept helper, started when there is none alive (its hello read
+    /// and seen), then its readiness checked: a model that isn't ready
+    /// lets the helper go.
+    fn keep_started(
+        &self,
+        slot: &mut Option<Helper>,
+        program: &std::path::Path,
+    ) -> Result<(), EngineError> {
+        if !slot.as_mut().is_some_and(Helper::alive) {
+            *slot = None;
+            *slot = Some(self.start(program).inspect_err(|_| self.health.failed())?);
+            self.touch();
+            self.watch_idle();
+        }
+        if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
+            *slot = None;
+            return Err(EngineError::NotHere(why));
+        }
+        Ok(())
     }
 
     /// What it last saw.
@@ -318,7 +430,7 @@ impl Apple {
         Ok(helper)
     }
 
-    fn running(&self) -> bool {
+    fn helper_alive(&self) -> bool {
         self.helper
             .lock()
             .is_ok_and(|mut helper| helper.as_mut().is_some_and(Helper::alive))
@@ -351,7 +463,7 @@ impl AiEngine for Apple {
             tools: true,
             tier: Tier::Basic,
             uses_download: false,
-            running: self.running(),
+            running: self.helper_alive(),
             ready,
         }]
     }
@@ -390,13 +502,7 @@ impl AiEngine for Apple {
             .program()
             .ok_or(EngineError::NotHere(Reason::HelperMissing))?;
         let mut slot = self.helper.lock().map_err(|_| EngineError::Crashed)?;
-        if !slot.as_mut().is_some_and(Helper::alive) {
-            *slot = Some(self.start(&program).inspect_err(|_| self.health.failed())?);
-        }
-        if let Readiness::NotHere(why) | Readiness::Preparing(why) = self.seen().readiness() {
-            *slot = None;
-            return Err(EngineError::NotHere(why));
-        }
+        self.keep_started(&mut slot, &program)?;
         let id = self.next_id.lock().map_or(0, |mut next| {
             *next += 1;
             *next
@@ -427,6 +533,7 @@ impl AiEngine for Apple {
                 return Err(error);
             }
         };
+        self.touch();
         draft(&answer).inspect_err(|error| {
             if *error == EngineError::NotHere(Reason::Unknown) {
                 *slot = None;
@@ -435,11 +542,47 @@ impl AiEngine for Apple {
         })
     }
 
+    fn start(&self, model: &str, _stop: &Stop) -> Result<Started, EngineError> {
+        if model.is_empty() {
+            return Err(EngineError::Unsupported);
+        }
+        if self.health.unhealthy() {
+            return Err(EngineError::NotHere(Reason::Unhealthy));
+        }
+        if self.program.is_none() {
+            let os = juggler_platform::ai::system_model();
+            if os != SystemModel::MayHave {
+                self.health.see(Seen::Os(os));
+                return Err(EngineError::NotHere(Seen::Os(os).readiness_reason()));
+            }
+        }
+        let Some(program) = self.program() else {
+            self.health.see(Seen::Missing);
+            return Err(EngineError::NotHere(Reason::HelperMissing));
+        };
+        let mut slot = self.helper.lock().map_err(|_| EngineError::Crashed)?;
+        self.keep_started(&mut slot, &program)?;
+        self.health.healed();
+        Ok(Started {
+            context_tokens: self.seen().context_tokens(),
+            version: juggler_platform::ai::system_version(),
+        })
+    }
+
+    fn running(&self) -> bool {
+        self.helper_alive()
+    }
+
     fn release(&self) {
         if let Ok(mut slot) = self.helper.lock() {
             *slot = None;
         }
     }
+}
+
+/// A count the helper gave, when it gave one.
+fn count(answer: &serde_json::Value, key: &str) -> Option<u32> {
+    answer[key].as_u64().and_then(|n| u32::try_from(n).ok())
 }
 
 /// The helper's answer as a draft, or its error.
@@ -455,6 +598,12 @@ fn draft(answer: &serde_json::Value) -> Result<Draft, EngineError> {
                 Finish::Stop
             } else {
                 Finish::Length
+            },
+            // The helper counts only where the system's framework does
+            // (macOS 27's); otherwise none, never a guess.
+            usage: Usage {
+                input: count(answer, "tokens_in"),
+                output: count(answer, "tokens_out"),
             },
         }),
         Some("refused") => Err(EngineError::Refused),

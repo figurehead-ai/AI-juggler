@@ -118,6 +118,33 @@ pub fn signed_as(path: &Path, identifier: &str, signer: &Signer) -> bool {
     requirement(identifier, signer).is_some_and(|text| mac::meets(path, &text))
 }
 
+/// AJ-E1555: what macOS compares when it asks whether a program "differs
+/// from previously opened versions", as a fingerprint of the file on
+/// disk: `team:<TEAM>` for code a developer team signed (the system's
+/// designated requirement names the team), else `file:<hash>` of its
+/// bytes (an ad-hoc signature's requirement is its code hash, which
+/// changes with every build). `None` when it can't be read. Nothing is
+/// run.
+#[must_use]
+pub fn signature_of(path: &Path) -> Option<String> {
+    // The team is read from the signature alone; only code without one
+    // is read whole.
+    #[cfg(any(target_os = "macos", test))]
+    if let Some(team) = macho::team(&mut std::fs::File::open(path).ok()?) {
+        return Some(format!("team:{team}"));
+    }
+    let bytes = std::fs::read(path).ok()?;
+    Some(format!("file:{:016x}", fnv1a(&bytes)))
+}
+
+/// FNV-1a over `bytes`: stable across builds and Rust versions (std's
+/// hasher isn't promised to be), enough to tell two files apart.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
+        (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3)
+    })
+}
+
 #[cfg(target_os = "macos")]
 mod mac {
     use std::path::Path;

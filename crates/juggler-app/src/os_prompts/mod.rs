@@ -234,10 +234,7 @@ impl Primer for Shared {
 /// Installs the ledger and the window's sheet into the seam, once, at
 /// start (before anything can ask).
 pub fn install(app: &tauri::AppHandle, state: &Arc<AppState>) {
-    HELPER_RENAMED.store(
-        helper_renamed_here(crate::edition::current(), &state.data_dir),
-        std::sync::atomic::Ordering::Relaxed,
-    );
+    let _ = STATE.set(Arc::clone(state));
     let primer = Arc::new(WindowPrimer::new(app.clone(), Arc::clone(state)));
     let _ = PRIMER.set(Arc::clone(&primer));
     os_prompt::install(
@@ -267,19 +264,40 @@ pub fn may_read(path: &std::path::Path) -> bool {
 /// may. Called by the helpers' one client right before it spawns.
 #[must_use]
 pub fn helper_may_start(command: &std::process::Command) -> bool {
-    let ours = std::iter::once(command.get_program())
+    let Some(path) = ours_in(command) else {
+        return true;
+    };
+    let changed = STATE
+        .get()
+        .is_some_and(|state| helper_changed_at(state, &path));
+    helper_start_through(os_prompt::gate(), changed)
+}
+
+/// The app's own helper `command` runs (as its program or a program it
+/// runs), when it runs one.
+fn ours_in(command: &std::process::Command) -> Option<std::path::PathBuf> {
+    std::iter::once(command.get_program())
         .chain(command.get_args())
-        .any(|part| juggler_platform::code_trust::beside_app(std::path::Path::new(part)));
-    !ours || helper_start_through(os_prompt::gate(), helper_renamed())
+        .map(std::path::Path::new)
+        .find(|part| juggler_platform::code_trust::beside_app(part))
+        .map(std::path::Path::to_path_buf)
+}
+
+/// After one of the app's own helpers said hello (`command`'s): its
+/// signature on disk is the one last opened (AJ-E1555).
+pub fn helper_opened(command: &std::process::Command) {
+    if let (Some(path), Some(state)) = (ours_in(command), STATE.get()) {
+        note_opened(state, &path);
+    }
 }
 
 /// The gate's half of [`helper_may_start`]: a start nobody clicked passes
 /// only once the helper's entry now ([`helper_prompt`]) is primed.
 #[must_use]
-pub fn helper_start_through(gate: os_prompt::Gate<'_>, renamed: bool) -> bool {
+pub fn helper_start_through(gate: os_prompt::Gate<'_>, changed: bool) -> bool {
     matches!(
         gate.through(
-            helper_prompt(gate, renamed),
+            helper_prompt(gate, changed),
             Presence::Background,
             &|| None,
             || ()
@@ -288,41 +306,81 @@ pub fn helper_start_through(gate: os_prompt::Gate<'_>, renamed: bool) -> bool {
     )
 }
 
-/// Whether a build with the helpers' old identifiers ran on this computer
-/// (decided at [`install`] by [`helper_renamed_here`]).
-static HELPER_RENAMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// The app, for the helper checks the seam makes without one.
+static STATE: std::sync::OnceLock<Arc<AppState>> = std::sync::OnceLock::new();
 
-/// Whether macOS may ask about Bot's helper once after this update
-/// (AJ-E3822): before 0.5.1 a Dev build signed the helpers' identifiers
-/// ad hoc under the very names AI Juggler and Nightly sign with the
-/// team's ID, so the next start under the other signer "differs from
-/// previously opened versions". Only those two editions can see it, and
-/// only where Dev's data folder sits beside theirs (a Dev build ran
-/// here; its folder's presence is read, nothing in it). Dev's helpers now
-/// carry Dev's own names, never seen before, so Dev itself never asks.
-#[must_use]
-pub fn helper_renamed_here(edition: crate::edition::Edition, data_dir: &std::path::Path) -> bool {
-    let dev = crate::edition::Edition::Dev;
-    edition != dev
-        && data_dir
-            .parent()
-            .is_some_and(|parent| parent.join(dev.data_dir_name()).is_dir())
+/// Where the signature of the helper last opened is kept, per helper.
+const OPENED_PREFIX: &str = "os_prompt_helper_opened:";
+
+fn opened_key(path: &std::path::Path) -> Option<String> {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| format!("{OPENED_PREFIX}{name}"))
 }
 
-/// What [`helper_renamed_here`] said at start.
+/// AJ-E1555: macOS asks whether to open a program that "differs from
+/// previously opened versions" only when its signature changed since it
+/// last opened: `stored` (the one last opened) and `now` (on disk) both
+/// known and different. Never because some other build ran here.
 #[must_use]
-pub fn helper_renamed() -> bool {
-    HELPER_RENAMED.load(std::sync::atomic::Ordering::Relaxed)
+pub fn signature_changed(stored: Option<&str>, now: Option<&str>) -> bool {
+    matches!((stored, now), (Some(stored), Some(now)) if stored != now)
+}
+
+/// Whether the helper at `path` changed on disk since it last opened.
+#[must_use]
+pub fn helper_changed_at(state: &AppState, path: &std::path::Path) -> bool {
+    let Some(key) = opened_key(path) else {
+        return false;
+    };
+    signature_changed(
+        state.app_setting(&key).as_deref(),
+        juggler_platform::code_trust::signature_of(path).as_deref(),
+    )
+}
+
+/// Whether any of the app's own helpers changed on disk since it last
+/// opened (the `helper-changed` entry's `needed`).
+#[must_use]
+pub fn helper_changed_here(state: &AppState) -> bool {
+    crate::features::ai::engines::own_helpers()
+        .iter()
+        .any(|path| helper_changed_at(state, path))
+}
+
+/// Keeps `path`'s signature as the one last opened; a change seen means
+/// the next change is told again (its `helper-changed` priming is spent).
+pub fn note_opened(state: &AppState, path: &std::path::Path) {
+    let (Some(key), Some(now)) = (
+        opened_key(path),
+        juggler_platform::code_trust::signature_of(path),
+    ) else {
+        return;
+    };
+    let changed = helper_changed_at(state, path);
+    if let Ok(storage) = state.storage.lock() {
+        let settings = storage.app_settings();
+        let _ = settings.set(&key, &now);
+        if changed {
+            let _ = settings.set(
+                &format!("{PRIMED_PREFIX}{}", registry::HELPER_CHANGED.id),
+                "0",
+            );
+        }
+    }
+}
+
+fn changed_now() -> bool {
+    STATE.get().is_some_and(|state| helper_changed_here(state))
 }
 
 /// The entry the helper's next start goes through: `helper-changed`
-/// after an update where macOS may ask about the renamed helper
-/// (`renamed`) until that entry is primed once, else `helper`. Priming
-/// `helper-changed` primes `helper` too ([`prime_call`]): one sheet, never
-/// two.
+/// while the helper on disk differs from the one last opened (`changed`)
+/// until that entry is primed, else `helper`. Priming `helper-changed`
+/// primes `helper` too ([`prime_call`]): one sheet, never two.
 #[must_use]
-pub fn helper_prompt(gate: os_prompt::Gate<'_>, renamed: bool) -> Prompt {
-    if renamed && !gate.primed(registry::HELPER_CHANGED.id) {
+pub fn helper_prompt(gate: os_prompt::Gate<'_>, changed: bool) -> Prompt {
+    if changed && !gate.primed(registry::HELPER_CHANGED.id) {
         registry::HELPER_CHANGED
     } else {
         registry::HELPER
@@ -336,7 +394,7 @@ fn helper_entry_now(entry: &Entry) -> &Entry {
     if id != registry::HELPER.id && id != registry::HELPER_CHANGED.id {
         return entry;
     }
-    registry::entry(helper_prompt(os_prompt::gate(), helper_renamed()).id).unwrap_or(entry)
+    registry::entry(helper_prompt(os_prompt::gate(), changed_now()).id).unwrap_or(entry)
 }
 
 /// What the system says of `prompt` now, never asking.
@@ -457,7 +515,35 @@ fn outcome_info(id: &str, result: &str, outcome: &Outcome) -> OsPromptOutcomeInf
         id: id.to_owned(),
         result: result.to_owned(),
         status: outcome.status.as_str().to_owned(),
-        words: outcome.words.clone(),
+        words: registry::entry(id).map_or_else(
+            || outcome.words.clone(),
+            |entry| outcome_words(entry, outcome.status),
+        ),
+    }
+}
+
+/// AJ-E1555: what the sheet says after the call, from the registry's own
+/// words: what works now, or what declining means and where to change
+/// it; never a state word ("Asked.", "Allowed") as the body.
+#[must_use]
+pub fn outcome_words(entry: &Entry, status: Status) -> String {
+    let place = os_prompt::settings_place(entry.prompt.kind);
+    let later = |lead: &str| match place {
+        Some(place) => format!("{lead} You can change it any time in {place}."),
+        None => lead.to_owned(),
+    };
+    match status {
+        Status::Allowed => entry.after.to_owned(),
+        Status::NotAllowed => later(entry.if_declined),
+        Status::NotAsked => format!(
+            "The system didn't ask, so nothing changed. {}",
+            entry.offered_again
+        ),
+        // The system won't say what was answered: what follows either way.
+        Status::Asked => later(&format!(
+            "If you allowed it: {} If not: {}",
+            entry.after, entry.if_declined
+        )),
     }
 }
 
@@ -477,6 +563,38 @@ fn gated_info<T>(state: &Arc<AppState>, prompt: Prompt, gated: &Gated<T>) -> OsP
             status: status_of(state, prompt).as_str().to_owned(),
             words: "Nothing was asked: it waits for you.".to_owned(),
         },
+    }
+}
+
+/// What came of starting the helper (its probe's reading of this Mac):
+/// it started and said hello, the system stopped it, or it hasn't
+/// answered yet.
+fn helper_outcome(
+    prompt: Prompt,
+    mac: Option<&crate::features::ai::models::recommend::MacFacts>,
+) -> OsPromptOutcomeInfo {
+    use crate::features::ai::models::recommend::AppleAi;
+    let Some(entry) = registry::entry(prompt.id) else {
+        return outcome_info(prompt.id, "called", &Outcome::of(prompt.kind, None));
+    };
+    let (status, words) = match mac.map(|mac| mac.apple_ai) {
+        Some(AppleAi::On | AppleAi::Off | AppleAi::Preparing | AppleAi::Unavailable) => {
+            (Status::Allowed, entry.after.to_owned())
+        }
+        Some(AppleAi::Blocked) => (Status::NotAllowed, entry.if_declined.to_owned()),
+        _ => (
+            Status::Asked,
+            format!(
+                "Bot's helper hasn't answered yet; nothing else changed. {}",
+                entry.offered_again
+            ),
+        ),
+    };
+    OsPromptOutcomeInfo {
+        id: prompt.id.to_owned(),
+        result: "called".to_owned(),
+        status: status.as_str().to_owned(),
+        words,
     }
 }
 
@@ -573,9 +691,14 @@ pub fn prime_call(
                 if prompt.id == registry::HELPER_CHANGED.id {
                     AppLedger(Arc::clone(state)).set_primed(registry::HELPER.id);
                 }
-                let _ = crate::features::ai::service::mac_checked(state);
+                crate::features::ai::service::mac_checked(state)
             });
-            gated_info(state, prompt, &gated)
+            // AJ-E1555 R3: the helper's start is the action; the sheet says
+            // what came of it, never "asked" for a prompt that didn't come.
+            match &gated {
+                Gated::Called { value, .. } => helper_outcome(prompt, value.as_ref()),
+                _ => gated_info(state, prompt, &gated),
+            }
         }
         "keychain" | "first-open" => {
             return Err(AppError::Refused(

@@ -17,9 +17,10 @@ import { FORGET_AND_BACKUPS as FORGET_AND_BACKUPS_PREVIEW } from "../bot-words";
 import type { BotPageInfo } from "../../types/generated/BotPageInfo";
 import type { BotScope } from "../../types/generated/BotScope";
 import type { BotTopicInfo } from "../../types/generated/BotTopicInfo";
+import type { BotTopicUsageInfo } from "../../types/generated/BotTopicUsageInfo";
 import type { BotTurnInfo } from "../../types/generated/BotTurnInfo";
 
-export type { BotAskInput, BotCountInfo, BotFoundInfo, BotMemoriesInfo, BotPageInfo, BotTopicInfo, BotTurnInfo };
+export type { BotAskInput, BotCountInfo, BotFoundInfo, BotMemoriesInfo, BotPageInfo, BotTopicInfo, BotTopicUsageInfo, BotTurnInfo };
 
 /** The preview's seam. */
 export interface BotSeam {
@@ -29,6 +30,8 @@ export interface BotSeam {
   /** Answers by question (the preview's look-ups). */
   answers?: Record<string, Omit<BotTurnInfo, "id" | "at_ms" | "question">>;
   count?: BotCountInfo;
+  /** The topic's totals (AJ-E3825). */
+  usage?: BotTopicUsageInfo;
   memories?: BotMemoriesInfo;
   /** The chip the panel opens with (the preview's door). */
   scope?: BotScope;
@@ -126,6 +129,16 @@ export async function botNewTopic(): Promise<BotTopicInfo> {
 }
 
 /** What the clear sheet says goes and stays. */
+/** AJ-E3825: the topic's running totals and the latest answer's context
+ * and memory. */
+export async function botTopicUsage(): Promise<BotTopicUsageInfo> {
+  if (!hasLiveBackend()) {
+    const none = { n: 0, estimated: false };
+    return seam().usage ?? { answers: 0, tokens_in: none, tokens_out: none, latest: null };
+  }
+  return call("bot_topic_usage");
+}
+
 export async function botCount(): Promise<BotCountInfo> {
   if (!hasLiveBackend()) {
     const turns = seam().turns ?? [];

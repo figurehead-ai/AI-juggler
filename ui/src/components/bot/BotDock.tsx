@@ -14,6 +14,25 @@ import { BotClearSheet, BotForgetHost } from "./BotSheets";
 import { WORDS } from "../../lib/bot-words";
 import { SHEET_UNDER, WIDTH_DEFAULT, closeBot, expandBot, openFind, setWidth, useBot } from "../../lib/bot-store";
 import { isShown, useAiJob } from "../../lib/ai-availability";
+import { BotUsageBar } from "./BotUsageBar";
+import { refreshEngine, useBotEngine } from "../../lib/bot-engine";
+import { startingLine } from "../../lib/bot-engine-words";
+import type { AiEngineStatusInfo } from "../../lib/ipc/ai-engine";
+
+/** A status with only the model's name (the start's line before the
+ * backend answered). */
+const EMPTY_STATUS: AiEngineStatusInfo = {
+  state: "starting",
+  failure: null,
+  model_id: null,
+  model_name: null,
+  engine: null,
+  version: null,
+  context_tokens: null,
+  started_ms: null,
+  answered_ms: null,
+  today: { answers: 0, tokens_in: { n: 0, estimated: false }, tokens_out: { n: 0, estimated: false } },
+};
 
 /** Under 1100 px of window the panel slides over the page. */
 export function useNarrow(): boolean {
@@ -73,13 +92,27 @@ export function BotPanelBody({ onClear, onMemories }: { onClear: () => void; onM
   const job = useAiJob("chat");
   const ready = isShown(job);
   const [now] = useState(() => Date.now());
+  // AJ-E3825: the engine starts lazily when Bot opens with an AI chosen,
+  // and is looked at again after each answer.
+  const engine = useBotEngine(ready);
+  const turns = bot.turns.length;
+  useEffect(() => {
+    if (ready && turns > 0) void refreshEngine();
+  }, [ready, turns]);
+  const starting = engine.starting || engine.status?.state === "starting";
   return (
     <>
       <BotHead job={job} onClear={onClear} onMemories={onMemories} setup={!ready} />
       {ready && bot.find && <BotFindBar />}
       {ready ? (
         <>
+          {starting && (
+            <output className="block shrink-0 px-4 pt-2 text-meta text-muted" data-testid="bot-starting">
+              {startingLine(engine.status ?? (job?.model_name ? { ...EMPTY_STATUS, model_name: job.model_name } : null))}
+            </output>
+          )}
           <BotConversation now={now} empty={<BotEmpty />} />
+          <BotUsageBar onMemories={onMemories} />
           <BotComposer footnote={bot.turns.length === 0 ? WORDS.footnote : undefined} />
         </>
       ) : (

@@ -133,6 +133,31 @@ pub struct Draft {
     pub text: String,
     /// How it ended.
     pub finish: Finish,
+    /// The tokens the engine itself counted (AJ-E3825): `None` where it
+    /// didn't say; a caller that shows a figure for one labels it an
+    /// estimate, never passing a guess off as a count.
+    pub usage: Usage,
+}
+
+/// The engine's own token counts for one generation.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Usage {
+    /// Tokens read (instructions and prompt), when the engine said.
+    pub input: Option<u32>,
+    /// Tokens written, when the engine said.
+    pub output: Option<u32>,
+}
+
+/// What a started engine says of itself (AJ-E3825: Bot's header, "which
+/// model are you", the Models page).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Started {
+    /// The context it runs the model with, in tokens (the engine's own
+    /// figure: the helper's `context_size`, or the context loaded).
+    pub context_tokens: u32,
+    /// The model's version as the engine knows it (the system's version
+    /// for the system's own model), when it says.
+    pub version: Option<String>,
 }
 
 /// Why a generation gave nothing. Closed, and never carries text: the job
@@ -221,6 +246,25 @@ pub trait AiEngine: Send + Sync {
     ///
     /// [`EngineError`]: the job then shows its plain path.
     fn respond(&self, model: &str, request: &Request, stop: &Stop) -> Result<Draft, EngineError>;
+
+    /// AJ-E3825: starts what `model` needs and checks it answers (the
+    /// helper's hello, the model loaded), keeping it for the next
+    /// request until it has been idle a while. An engine with nothing to
+    /// start can't serve.
+    ///
+    /// # Errors
+    ///
+    /// [`EngineError`]: why it didn't start.
+    fn start(&self, model: &str, stop: &Stop) -> Result<Started, EngineError> {
+        let _ = (model, stop);
+        Err(EngineError::Unsupported)
+    }
+
+    /// Whether what it started is still running (not stopped after its
+    /// idle time).
+    fn running(&self) -> bool {
+        false
+    }
 
     /// Lets go of what it holds (a helper, a loaded model).
     fn release(&self);

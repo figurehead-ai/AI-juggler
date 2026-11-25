@@ -36,7 +36,8 @@ declare global {
 const seams = () => window;
 
 function previewOutcome(id: string, result: string): OsPromptOutcomeInfo {
-  return { id, result, status: "asked", words: "Asked." };
+  // AJ-E1555: never a state word as the sheet's body, the preview's too.
+  return { id, result, status: "asked", words: "The preview has no system to ask: nothing changed here." };
 }
 
 /** Every system prompt AI Juggler can cause (never asks).

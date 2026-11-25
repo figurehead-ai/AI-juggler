@@ -14,6 +14,7 @@ pub mod jobs;
 pub mod memory;
 pub mod models;
 pub mod router;
+pub mod run;
 pub mod service;
 
 #[cfg(test)]

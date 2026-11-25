@@ -221,6 +221,8 @@ impl Helper {
             Err(_) => return Err(helper.why_it_ended()),
         };
         helper.hello = serde_json::from_str(&first).map_err(|_| StartFailure::Broken)?;
+        // AJ-E1555: this signature is the one last opened now.
+        crate::os_prompts::helper_opened(&command);
         Ok(helper)
     }
 
@@ -239,6 +241,12 @@ impl Helper {
                 Ok(None) => std::thread::sleep(STOP_POLL),
             }
         }
+    }
+
+    /// Its process id.
+    #[must_use]
+    pub fn pid(&self) -> u32 {
+        self.child.id()
     }
 
     /// Whether it is still running.

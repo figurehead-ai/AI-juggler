@@ -61,7 +61,8 @@ use juggler_local_ai_protocol::{
 
 use super::helper::{Health, Helper};
 use crate::features::ai::engine::{
-    AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier,
+    AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Started, Stop, Tier,
+    Usage,
 };
 use crate::features::ai::models::store::Installed;
 use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
@@ -632,12 +633,17 @@ impl Local {
                 id: got,
                 text,
                 finish,
-                ..
+                tokens,
             }) if got == id => Ok(Ok(Draft {
                 text,
                 finish: match finish {
                     WireFinish::Stop => Finish::Stop,
                     WireFinish::Length => Finish::Length,
+                },
+                // The helper counts what it wrote, not what it read.
+                usage: Usage {
+                    input: None,
+                    output: Some(tokens),
                 },
             })),
             Ok(Answer::Error {
@@ -742,6 +748,58 @@ impl AiEngine for Local {
     }
 
     fn respond(&self, model: &str, request: &Request, stop: &Stop) -> Result<Draft, EngineError> {
+        let (mut slot, mine) = self.prepare(model, stop)?;
+        let Some(running) = slot.as_mut() else {
+            return Err(EngineError::Crashed);
+        };
+        let result = self.generate(running, &mine.entry, request, stop);
+        running.used = Instant::now();
+        if self.critical() {
+            // Stopped by critical pressure: free the model's memory now.
+            *slot = None;
+        }
+        match result {
+            Ok(answer) => answer,
+            Err(error) => {
+                *slot = None;
+                if error == EngineError::Crashed {
+                    self.health.failed();
+                }
+                Err(error)
+            }
+        }
+    }
+
+    fn start(&self, model: &str, stop: &Stop) -> Result<Started, EngineError> {
+        let (_slot, mine) = self.prepare(model, stop)?;
+        Ok(Started {
+            context_tokens: context_of(&mine.entry),
+            version: None,
+        })
+    }
+
+    fn running(&self) -> bool {
+        self.running
+            .try_lock()
+            .is_ok_and(|mut running| running.as_mut().is_some_and(|r| r.helper.alive()))
+    }
+
+    fn release(&self) {
+        if let Ok(mut running) = self.running.lock() {
+            *running = None;
+        }
+    }
+}
+
+impl Local {
+    /// The helper started (or kept) with `model` loaded, ready for a
+    /// generation: the slot held, and the model's install (AJ-E3825's
+    /// start and every respond share it).
+    fn prepare(
+        &self,
+        model: &str,
+        stop: &Stop,
+    ) -> Result<(std::sync::MutexGuard<'_, Option<Running>>, Installed), EngineError> {
         let (dir, installed) = self.models().ok_or(EngineError::Unsupported)?;
         let mine = installed
             .into_iter()
@@ -815,28 +873,7 @@ impl AiEngine for Local {
                 }
             }
         }
-        let result = self.generate(running, &mine.entry, request, stop);
-        running.used = Instant::now();
-        if self.critical() {
-            // Stopped by critical pressure: free the model's memory now.
-            *slot = None;
-        }
-        match result {
-            Ok(answer) => answer,
-            Err(error) => {
-                *slot = None;
-                if error == EngineError::Crashed {
-                    self.health.failed();
-                }
-                Err(error)
-            }
-        }
-    }
-
-    fn release(&self) {
-        if let Ok(mut running) = self.running.lock() {
-            *running = None;
-        }
+        Ok((slot, mine))
     }
 }
 
