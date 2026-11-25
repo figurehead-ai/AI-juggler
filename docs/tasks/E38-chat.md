@@ -582,3 +582,10 @@
 2. Digest: the model writes one short line per session (the feed-line task); code orders, groups, counts and assembles.
 3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
+
+### AJ-E3832 The world-model memory: the foundation every later version extends (placeholder; the ADR direction is coming) | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: AJ-E3825, ADR-0037
+**Found**: the maintainer (2026-11-25, through the coordinating session) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; this overrides keeping ADR-0037's store unchanged in 0.5.2.
+**UI**: yes (the memory indicator and its breakdown, AJ-E3825 R9, read from it)
+**Requirements** (to be written from the coordinator's ADR direction: the engine or schema, bi-temporal entities, relations, episodes and facts, the write gate, the small-model query surface, ADR-0037's records folded in):
+1. Placeholder until the ADR lands. Meanwhile Bot's memory hooks (AJ-E3825) stay on ADR-0037's write gate, so they port cleanly.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3832/manifest.md`.
