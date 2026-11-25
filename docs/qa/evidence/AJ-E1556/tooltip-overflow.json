@@ -1,0 +1,84 @@
+{
+  "home-app-lens-1280-dark": {
+    "hovered": 102,
+    "tips": {
+      "button-tip": 1,
+      "rail-history-tip": 1,
+      "rail-new-project-tip": 1
+    },
+    "findings": []
+  },
+  "home-app-lens-1024-light": {
+    "hovered": 49,
+    "tips": {
+      "button-tip": 1,
+      "rail-folded-show-list-tip": 1,
+      "rail-folded-needs-you-tip": 1,
+      "rail-folded-tip": 5,
+      "rail-new-session-tip": 1,
+      "rail-history-tip": 1,
+      "rail-new-project-tip": 1,
+      "machine-status-dot-open-tip": 1
+    },
+    "findings": []
+  },
+  "project-lens-1280-dark": {
+    "hovered": 43,
+    "tips": {
+      "button-tip": 1,
+      "rail-new-project-tip": 2,
+      "rail-history-tip": 1
+    },
+    "findings": []
+  },
+  "folded-rail-1280-dark": {
+    "hovered": 12,
+    "tips": {
+      "button-tip": 1,
+      "rail-folded-show-list-tip": 1,
+      "rail-folded-needs-you-tip": 1,
+      "rail-folded-tip": 5,
+      "rail-new-session-tip": 1,
+      "rail-history-tip": 1,
+      "rail-new-project-tip": 1,
+      "machine-status-dot-open-tip": 1
+    },
+    "findings": []
+  },
+  "bot-panel-1280": {
+    "hovered": 17,
+    "tips": {
+      "bot-topic-tip": 1
+    },
+    "findings": []
+  },
+  "bot-panel-1024": {
+    "hovered": 17,
+    "tips": {
+      "bot-topic-tip": 1
+    },
+    "findings": []
+  },
+  "session-page-1280-dark": {
+    "hovered": 21,
+    "tips": {},
+    "findings": []
+  },
+  "ended-session-page-1280-dark": {
+    "hovered": 21,
+    "tips": {},
+    "findings": []
+  },
+  "accounts-1280-dark": {
+    "hovered": 19,
+    "tips": {},
+    "findings": []
+  },
+  "usage-1280-dark": {
+    "hovered": 15,
+    "tips": {
+      "chart-tooltip": 28
+    },
+    "findings": []
+  }
+}

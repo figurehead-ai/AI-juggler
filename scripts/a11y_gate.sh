@@ -15,6 +15,8 @@
 #     at 1024×680 and 1280×800 (dialog-fit, VALIDATION N1; writes
 #     docs/qa/evidence/design-system/dialog-fit.json);
 #   - what scrolls and what stays put (scroll-regions, VALIDATION N22);
+#   - every tip in the gallery states whole and uncovered (tooltip-overflow,
+#     AJ-E1556; writes docs/qa/evidence/AJ-E1556/tooltip-overflow.json);
 #   - axe on every state of Settings › AI › Models (models-gallery; its
 #     captures only when AIJ_MODELS_OUT names a folder), and of the
 #     Watches view (watches-gallery; AIJ_WATCHES_OUT);
@@ -61,6 +63,7 @@ AJ_AXE_GALLERY=1 AJ_A11Y_EVIDENCE=1 pnpm exec playwright test \
   tests/visual/session-app-chip-narrow.spec.ts \
   tests/visual/settings-nav-selection.spec.ts \
   tests/visual/toast-narrow.spec.ts \
+  tests/visual/tooltip-overflow.spec.ts \
   tests/visual/watches-gallery.spec.ts \
   "$@"
 tests=$?
