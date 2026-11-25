@@ -583,9 +583,18 @@
 3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
 
-### AJ-E3832 The world-model memory: the foundation every later version extends (placeholder; the ADR direction is coming) | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: AJ-E3825, ADR-0037
-**Found**: the maintainer (2026-11-25, through the coordinating session) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; this overrides keeping ADR-0037's store unchanged in 0.5.2.
-**UI**: yes (the memory indicator and its breakdown, AJ-E3825 R9, read from it)
-**Requirements** (to be written from the coordinator's ADR direction: the engine or schema, bi-temporal entities, relations, episodes and facts, the write gate, the small-model query surface, ADR-0037's records folded in):
-1. Placeholder until the ADR lands. Meanwhile Bot's memory hooks (AJ-E3825) stay on ADR-0037's write gate, so they port cleanly.
+### AJ-E3832 The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: AJ-E3825, ADR-0037
+**Found**: the maintainer (2026-11-25, through the coordinating session) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later (D-150). Research: `docs/research/2026-11-25-graph-memory-research.md`.
+**UI**: yes (Bot's memory indicator and its breakdown, AJ-E3825 R9; Settings › AI › Memory: what's remembered, why, forget)
+**Usability reasoning** (to be written first for Settings › AI › Memory and the indicator, PAT-USE): what someone wants to know about what Bot remembers, why it remembers it, and how to make it forget, in plain words.
+**Requirements**:
+1. ADR-0038 written from D-150 (supersedes ADR-0037's "no graph store" line; ADR-0037's kinds, write gate, tiers and forget stay).
+2. One additive migration (the next V number after checking every branch): `wm_entity`, `wm_alias`, `wm_edge` (closed relation types with cardinality, bi-temporal columns, `superseded_by`, authority, episode ref, quote hash, confidence), `memory_entities` as the record↔entity link, `memory_records.valid_to_ms`; episodes as refs into the existing logs.
+3. The `WorldModel` port (trait) and its SQLite adapter; callers never touch the tables.
+4. Writes only through ADR-0037's write gate: deterministic observers of app events (switches, moves, pool joins, task links, the agent asked/answered) and a backfill from history; a contradiction invalidates, never deletes.
+5. Forget, backup and restore extended to the new tables in the same transaction (ADR-0037 §1.5's guarantees, tested).
+6. Reads through the Retriever menu: neighbors, path (≤ 3 hops), timeline, recall with one-hop graph expansion; results as numbered refs under the citation check; graph cases added to the recall harness.
+7. Bot's memory indicator (AJ-E3825 R9) reads from it.
+8. A 200k-edge, 3-hop benchmark with a recorded budget, gated in CI.
+9. Settings › AI › Memory: what's remembered, why, and forget, in rich mode (D-126, PAT-COLOR).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3832/manifest.md`.
