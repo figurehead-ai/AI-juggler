@@ -1,4 +1,4 @@
-<!-- captures: 44b025aa4752 -->
+<!-- captures: cd785aee71de -->
 # 13-desktop: a desktop app's session page (running with its window preview, exited, crashed), the single-account warning, and the "app" tag in the rail
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -45,3 +45,7 @@ Re-captured after batch B2's F70 (059097f12), which rewrote this panel's words; 
 Lowest: 3, each line under 4 logged (F81); the rest 4 or 5. After F81: lowest 4.
 
 **Fixed after the critique (F81), re-captured (all six; opened panel-crashed, panel-exited and panel-running):** panel-crashed's header is Watch… and Relaunch (the one filled button), no "Resume / Can't resume here"; the Window preview card holds the app line (app · fake-desktop · fake-desktop · Fake Desk · sacrificial), the one-account note and "The app crashed; its exit details are on the Processes tab. fake-desktop can't resume a conversation from AI Juggler, so Relaunch, above, starts a fresh one.", and ends there (it repeated "Stopped with an error" as a chip, offered Open / Focus window, listed "cpu — · ram — · children 0 · No usage recorded yet" and left half the card empty). panel-exited the same with "The app exited." panel-running unchanged but for the rail. Line 9 3 → 4; lowest now 4.
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured `rail-app-chip-1280x800`. What changed: no dot before the idle and ended rows, titles unmoved (AJ-E1557). Home behind it also shows what HEAD already drew and this capture had not caught up with: Needs you now's two stopped sessions in one tinted block, the limit card apart below it (0.5.1's a11y batch). Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.

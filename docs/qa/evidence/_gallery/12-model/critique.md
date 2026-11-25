@@ -1,4 +1,4 @@
-<!-- captures: ccbd329f72cd -->
+<!-- captures: 4c17334040a3 -->
 # 12-model: what a session's model is: a model change seen in the transcript, a model the tool doesn't report, and the rail with and without the change mark
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -47,3 +47,7 @@ Re-captured (four states at 1440×900); opened at full size: not-reported and ra
 Lowest: 3, each line under 4 logged (F76, F77, F80); the rest 4 or 5. After F76, F77 and F80: lowest 4.
 
 **Fixed after the critique (F77, F80, F76), re-captured (the four states at 1440; opened rail-drift and overview-drift):** rail-drift shows the new mark (a small chip icon beside "Port the settings parser", no pill or outline) with its drawn tip "Model changed: launched with opus, now running sonnet-5" on hover (it was ⇄ in an outlined pill with only a browser title); the Home behind it pins both "Stopped with an error" sessions first, "See what happened ↵" on the first, then "Tidy the blog's images limit reached" and "+2 more need you" (F80: it pinned the three L2 needs). Line 14 3 → 4; lowest now 4.
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured `rail-drift-1440x900`. What changed: no dot before the idle and ended rows (AJ-E1557); the model-changed tip is drawn by the one tip (AJ-E1556), its words whole. Home behind it also shows what HEAD already drew and this capture had not caught up with: Needs you now's two stopped sessions in one tinted block, the limit card apart below it (0.5.1's a11y batch). Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.

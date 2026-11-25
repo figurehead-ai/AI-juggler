@@ -1,4 +1,4 @@
-<!-- captures: db4ccee89cde -->
+<!-- captures: 6872b2d8e2a0 -->
 # 78-outside: sessions started outside AI Juggler, on home, Accounts and their own pages
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -50,3 +50,7 @@ Lowest: 4.
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: The system-prompt card is restyled slightly (tone, no bright border). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured Home's rail, the conversation page, the project page and Accounts, both themes. What changed: an outside conversation that is idle leads with no dot; its gutter stays, so its title is where it was, and its word ("Idle") still ends the row (AJ-E1557). Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.
