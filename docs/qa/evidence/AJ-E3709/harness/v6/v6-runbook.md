@@ -53,6 +53,8 @@ python3 report_v6.py --value "$O/review-feed_pick.json" "$O/blind-review-key/app
 python3 report_v6.py --value "$O/review-digest_mr.json" "$O/blind-review-key/apple-digest_mr.json"
 ```
 
+The runs above use the harness's own probe (`../apple_probe.swift`, compiled fresh each time), not the app's helper. Any in-app check of these jobs (AJ-E3829's real-model check, a walk) uses the app's helper rebuilt with `scripts/build_apple_ai_helper.sh` at or after dbfcfb1d7 (it reads bare-word field shapes and returns every field typed to its shape); v6's schemas keep every enum as `{"type": "enum", …}` either way.
+
 Every report lists `replay_mismatches` (must be empty). The candidates files are script flags, never verdicts: Opus reads each critical one by eye before a verdict is recorded.
 
 ## Recording a verdict (no code change)
