@@ -921,7 +921,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; tests for each prompt's `needed` and the sheet words; the os-prompts log; an Opus critique.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1555/manifest.md`.
 
-### AJ-E1556 No tooltip or tip is clipped, and nothing overlaps one | Status: TODO (0.5.2) | Priority P1 | Effort S | Depends: —
+### AJ-E1556 No tooltip or tip is clipped, and nothing overlaps one | Status: DONE (0.5.2) | Priority P1 | Effort S | Depends: —
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): Bot's "New topic" tooltip read "Nothing is do…" with a "23" over it.
 **UI**: yes
 **Usability reasoning** (Opus): (1) a tooltip is read whole or not at all; (2) it wraps to its words, never ellipsised, and sits above what it names; (3) one Tooltip pattern; (4) long words wrap; (5) none; (6) watch for clipping at the window's edges and under counts.
@@ -930,7 +930,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 2. A Playwright overflow check opens every tooltip and tip in the gallery states and fails on clipped text or an overlapping element; every finding fixed.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1556/manifest.md`.
 
-### AJ-E1557 The rail is calm: no bullet before a session, a state mark only when there is one, and a subagents icon that reads as helpers | Status: TODO (0.5.2) | Priority P1 | Effort S | Depends: AJ-E1554
+### AJ-E1557 The rail is calm: no bullet before a session, a state mark only when there is one, and a subagents icon that reads as helpers | Status: DONE (0.5.2) | Priority P1 | Effort S | Depends: AJ-E1554
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): a dot before every session row reads as bullets; the subagents icon reads as a git branch.
 **UI**: yes
 **Usability reasoning** (Opus): (1) a glance at the rail should show only what needs attention; (2) a row shows its state (working, needs you, done to review, error) as a small icon or its trailing word, idle and ended rows no leading mark; the subagents mark a small cluster of agents; (3) the dot gutter goes; (4) a row with no state is just its title; (5) none; (6) watch for rows jumping when a state appears (keep the alignment), and the icon at 12 px in both themes.
