@@ -345,3 +345,41 @@ fn history_and_memory_go_with_a_follow_up_and_are_counted() {
     let sent = fake.requests.borrow().last().unwrap().clone();
     assert!(!sent.prompt.contains("what is 3+5"), "{}", sent.prompt);
 }
+
+/// AJ-E3829 (Apple's model, a store with no sessions): asked "what are my
+/// sessions" with nothing recorded, the model said nothing matched but
+/// cited a record 1 that doesn't exist, and the turn read "I don't know".
+/// With no rows, impossible cites are dropped and the honest words stand;
+/// a work claim is still refused.
+#[test]
+fn with_no_records_an_honest_none_stands_and_a_claim_does_not() {
+    let (_dir, state) = state();
+    let honest = Fake::with(Box::new(|request| {
+        if grounded(request) {
+            Ok(r#"{"sentences":[{"records":[1],"text":"There are no sessions yet."}]}"#.to_owned())
+        } else {
+            default_rule(request)
+        }
+    }));
+    let turn = ask_with(&state, &honest, "what are my sessions");
+    assert_eq!(turn.outcome, BotOutcome::Answered);
+    let written = turn.written.as_ref().unwrap();
+    assert!(
+        written.parts.iter().all(|p| p.cites.is_empty()),
+        "no cite to a record that doesn't exist"
+    );
+
+    let claiming = Fake::with(Box::new(|request| {
+        if grounded(request) {
+            Ok(
+                r#"{"sentences":[{"records":[1],"text":"Your two sessions are stuck."}]}"#
+                    .to_owned(),
+            )
+        } else {
+            default_rule(request)
+        }
+    }));
+    let turn = ask_with(&state, &claiming, "what are my sessions");
+    assert_eq!(turn.outcome, BotOutcome::DontKnow);
+    assert!(turn.written.is_none());
+}

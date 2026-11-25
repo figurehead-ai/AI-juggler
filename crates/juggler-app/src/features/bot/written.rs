@@ -241,7 +241,7 @@ pub fn request_with(
     };
     let mut records = frame(rows);
     if let Some(line) = &extras.note {
-        let _ = write!(records, "\nNot recorded: {line}");
+        let _ = write!(records, "\nA note for you, not words to quote: {line}");
     }
     let mut asked = format!("Question: {}", neutral(question));
     if again {

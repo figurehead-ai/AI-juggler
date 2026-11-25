@@ -80,7 +80,9 @@ pub struct Answer {
 /// D-144's line for what AI Juggler doesn't record: the model says it.
 fn not_recorded(unknown: BotUnknown) -> &'static str {
     match unknown {
-        BotUnknown::NothingFound => "No record matched the question.",
+        BotUnknown::NothingFound => {
+            "AI Juggler has nothing that matches. Say so plainly in the user's own terms (\"You have no sessions right now.\", \"Nothing needs you right now.\") and name nothing."
+        }
         BotUnknown::TestDurations => "AI Juggler doesn't record how long tests take.",
         BotUnknown::TestResults => "AI Juggler doesn't record test results for a session.",
         BotUnknown::Costs => "Bot doesn't look up costs; the Usage page has them.",
@@ -205,11 +207,22 @@ fn unchecked(answer: &mut Answer) {
 
 /// A grounded reply that cites no record and claims nothing about the
 /// user's work (D-148's guard), when that is all it is.
+///
+/// With no rows at all, no cite can be real: a small model given only
+/// "nothing matched" still cites a record 1 (AJ-E3829 on Apple's model,
+/// "what are my sessions" with none). Those cites are dropped, then the
+/// same guard runs on the words alone.
 fn uncited(
     draft: &crate::features::ai::engine::Draft,
     asked: &Asked<'_>,
+    no_rows: bool,
 ) -> Option<Vec<super::dto::BotWrittenPart>> {
-    let parts = written::parse(draft)?;
+    let mut parts = written::parse(draft)?;
+    if no_rows {
+        for part in &mut parts {
+            part.cites.clear();
+        }
+    }
     let text = parts
         .iter()
         .map(|p| p.text.as_str())
@@ -273,7 +286,7 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
                 // Juggler doesn't record how long tests take", "nothing
                 // matches that") stands: it rests on no row.
                 Decided::Records(why) => {
-                    if let Some(parts) = uncited(&generated.draft, asked) {
+                    if let Some(parts) = uncited(&generated.draft, asked, found.rows.is_empty()) {
                         answer.outcome = Some(BotOutcome::Answered);
                         answer.written = Some(BotWritten {
                             parts,
