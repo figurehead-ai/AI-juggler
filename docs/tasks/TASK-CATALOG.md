@@ -496,6 +496,7 @@
 | AJ-E3710 | On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | E37-home-activity-feed.md | P0 | M | AJ-E3709 |
 | AJ-E3711 | On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | E37-home-activity-feed.md | P0 | XL | AJ-E3710 |
 | AJ-E3712 | The digest: a cross-agent scheduler, the feed's digest item, consolidated notifications and the non-AI rollup | E37-home-activity-feed.md | P0 | XL | AJ-E3702, AJ-E3708, AJ-E3802, AJ-E3819 |
+| AJ-E3713 | Home's feed tells the story: posts with a gesture bar, threads instead of rows, a feed that learns from more and less | E37-home-activity-feed.md | P0 | L | AJ-E3701, AJ-E3831, ADR-0037 |
 | AJ-E3801 | The AI-jobs router: the ADR (jobs, engines, capabilities) | E38-chat.md | P0 | M | AJ-E3710 |
 | AJ-E3802 | The router and the seam: jobs, engines, capabilities, hidden when no engine | E38-chat.md | P0 | L | AJ-E3801, AJ-E3708 |
 | AJ-E3803 | Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | E38-chat.md | P0 | M | AJ-E3802 |
@@ -527,5 +528,5 @@
 | AJ-E3830 | Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | E38-chat.md | P1 | M | AJ-E3709, AJ-E3825 |
 | AJ-E3831 | Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | E38-chat.md | P1 | M | AJ-E3709 |
 | AJ-E3832 | The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | E38-chat.md | P0 | XL | AJ-E3825, ADR-0037 |
-Total: 525 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 526 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.
