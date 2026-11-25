@@ -909,7 +909,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 **Quality gates**: `just keep-going verify-static`; tests for counts against fixtures, zero values hidden, a click target per count, the layout unchanged under hover; the persona walk asks "can a newcomer tell there is more, and get to it in one click?".
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1554/manifest.md`.
 
-### AJ-E1555 Prime only a system prompt that can appear, and every priming sheet says something real | Status: TODO (0.5.2) | Priority P0 | Effort M | Depends: AJ-E1547
+### AJ-E1555 Prime only a system prompt that can appear, and every priming sheet says something real | Status: DONE (0.5.2) | Priority P0 | Effort M | Depends: AJ-E1547
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): "Use Apple's AI" in Bot showed a sheet titled "Start Bot's AI helper after this update", the same words again as its subtitle and "Asked." as its body; Done promised a macOS prompt that never came. Cause (Opus): `needs::helper_changed` fires because a Dev build ran on this Mac, so a normal Nightly start primes the helper's "differs" prompt, which appears only when the helper's signature changed; the sheet shows the title twice and a state word as its body.
 **UI**: yes
 **Usability reasoning** (Opus, before building):
