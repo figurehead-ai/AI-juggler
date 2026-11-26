@@ -45,6 +45,7 @@ pub mod conditions;
 pub mod draft;
 pub mod echo;
 pub mod engine;
+pub mod fail_closed;
 pub mod model;
 pub mod resolve;
 pub mod runtime;

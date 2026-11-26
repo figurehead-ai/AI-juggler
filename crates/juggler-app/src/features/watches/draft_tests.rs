@@ -63,10 +63,13 @@ fn candidates() -> Vec<Candidate> {
 }
 
 fn run_with(request: &str, fake: &Fake) -> Outcome {
-    let c = candidates();
+    run_on(&candidates(), request, fake)
+}
+
+fn run_on(c: &[Candidate], request: &str, fake: &Fake) -> Outcome {
     let ask = Ask {
         request,
-        candidates: &c,
+        candidates: c,
         midnight_ms: 0,
         now_ms: 1_000,
     };
@@ -119,7 +122,7 @@ type Case = (
 
 #[test]
 fn code_decides_the_target_conditions_numbers_and_lifetime() {
-    let cases: [Case; 8] = [
+    let cases: [Case; 7] = [
         (
             "Tell me when cedar-api asks something, and ignore aspen-board entirely.",
             WatchTarget::Session("S-cedar".into()),
@@ -152,13 +155,6 @@ fn code_decides_the_target_conditions_numbers_and_lifetime() {
             "Let me know when the work plan hits its limit.",
             WatchTarget::Account("acc-w".into()),
             &["hits_limit"],
-            None,
-            LifetimeChoice::Unsaid,
-        ),
-        (
-            "Let me know when api finishes, not the aspen one.",
-            WatchTarget::Session("S-api-c".into()),
-            &["finishes"],
             None,
             LifetimeChoice::Unsaid,
         ),
@@ -399,19 +395,8 @@ fn v7s_unsupported_claimed_rows_are_told_back_with_the_nearest() {
     ];
     for (request, near) in rows {
         let fake = Fake::new(&["FAIL"]);
-        match run_with(request, &fake) {
-            Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) => {
-                assert!(!asked.is_empty(), "{request}");
-                let d = draft.unwrap_or_else(|| unreachable!("{request}: no nearest"));
-                assert_eq!(codes(&d), [near], "{request}");
-                assert!(
-                    d.targets.iter().all(|t| t.kind() == TargetKind::Session),
-                    "{request}: never widened"
-                );
-            }
-            other => unreachable!("{request}: {other:?}"),
-        }
-        assert_eq!(fake.calls(), 0, "{request}: decided by code");
+        let d = assert_told_back(request, run_with(request, &fake), &fake);
+        assert_eq!(codes(&d), [near], "{request}");
     }
 }
 
@@ -458,4 +443,144 @@ fn a_request_that_excludes_something_is_never_widened() {
         filled(&out).map(|d| d.lifetime),
         Some(LifetimeChoice::Always)
     );
+}
+
+fn misses_candidates() -> Vec<Candidate> {
+    vec![
+        session("S-ret", "retry logic", "hooks", "Codex"),
+        session("S-web", "webhook retries", "hooks", "Claude Code"),
+        session("S-gl", "glossary hub", "docs", "Codex"),
+        session("S-fk", "form-kit", "ui", "Claude Code"),
+        session("S-ca", "checkout-api", "shop", "Codex"),
+        session("S-bt", "beta tracker", "beta-tracker", "Codex"),
+        session("S-kf", "kiosk firmware", "pier", "Claude Code"),
+        session("S-pb", "pier board", "pier", "Codex"),
+        session("S-ce", "coupon engine", "coupon-engine", "Codex"),
+        owner(
+            WatchTarget::Project("otter-billing".into()),
+            "otter-billing",
+            &SESSION,
+            &[],
+        ),
+        owner(WatchTarget::Project("ui".into()), "ui", &SESSION, &[]),
+        owner(
+            WatchTarget::Project("beta-tracker".into()),
+            "beta-tracker",
+            &SESSION,
+            &[],
+        ),
+        owner(WatchTarget::Project("pier".into()), "pier", &SESSION, &[]),
+        owner(
+            WatchTarget::Project("coupon-engine".into()),
+            "coupon-engine",
+            &SESSION,
+            &[],
+        ),
+    ]
+}
+
+fn misses_run(request: &str, fake: &Fake) -> Outcome {
+    run_on(&misses_candidates(), request, fake)
+}
+
+/// Told back with a nearest that never widens, decided with no call.
+fn assert_told_back(request: &str, out: Outcome, fake: &Fake) -> WatchDraftInfo {
+    let Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) = out else {
+        unreachable!("{request}: {out:?}");
+    };
+    assert!(!asked.is_empty(), "{request}");
+    let d = draft.unwrap_or_else(|| unreachable!("{request}: no nearest"));
+    assert!(
+        !d.conditions.is_empty(),
+        "{request}: the nearest is offered"
+    );
+    assert!(
+        d.targets.iter().all(|t| t.kind() == TargetKind::Session),
+        "{request}: never widened"
+    );
+    assert_eq!(
+        fake.calls(),
+        0,
+        "{request}: decided by code, before any call"
+    );
+    d
+}
+
+/// D-149 amendment 2: every unsupported-claimed miss so far (v7 W05, W19,
+/// W32, W43, W51; v8 W27, W54, W60), each told back with the nearest and
+/// never a watch, with no model call. W05, W19, W43, W27, W54 and W60 are
+/// their own requests (v7 and v8 `summary.md`); W32 and W51 are in fresh
+/// words of their recorded drafts' shape.
+#[test]
+fn every_unsupported_claimed_miss_so_far_fails_closed() {
+    let rows = [
+        "tell me when all sessions finish, except the retry logic one", // v7 W05
+        "for every project except otter-billing, tell me if it fails",  // v7 W19
+        "Tell me once if anything fails, but not the retry logic one.", // v7 W32's shape
+        "tell me when the webhook retries session uses more than 50k tokens", // v7 W43
+        "Gib mir Bescheid, wenn alle Sitzungen fertig sind, außer retry logic.", // v7 W51's shape
+        "Watch all my sessions for getting stuck 30 minutes, skipping the glossary hub.", // v8 W27
+        "Let me know if everything but form-kit asks me a question.",   // v8 W54, the inverse
+        "Ping me when the token count of any session passes one million.", // v8 W60
+    ];
+    for request in rows {
+        let fake = Fake::new(&["FAIL"]);
+        let d = assert_told_back(request, misses_run(request, &fake), &fake);
+        assert!(
+            !d.targets.contains(&WatchTarget::Session("S-fk".into())),
+            "{request}: never the excluded one"
+        );
+    }
+}
+
+/// What fail closed keeps: a selection that names its target, a quantifier
+/// inside its owner, a clause that asks, a session over its namesake
+/// project, and a bare "once" as "when".
+#[test]
+fn what_code_fully_understands_still_drafts() {
+    let cases: [(&str, WatchTarget, &str, LifetimeChoice); 6] = [
+        (
+            "Of all my sessions, tell me when checkout-api fails.",
+            WatchTarget::Session("S-ca".into()),
+            "fails",
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Ping me if anything in pier fails.",
+            WatchTarget::Project("pier".into()),
+            "fails",
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Tell me when the kiosk firmware session fails; it was split off from the pier board one.",
+            WatchTarget::Session("S-kf".into()),
+            "fails",
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "I'm comparing the beta tracker with the glossary hub, but only alert me if the beta tracker asks me something.",
+            WatchTarget::Session("S-bt".into()),
+            "asks_you",
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Once the coupon engine is done, the reminder mails can start, so ping me just once when the coupon engine finishes.",
+            WatchTarget::Session("S-ce".into()),
+            "finishes",
+            LifetimeChoice::Once,
+        ),
+        (
+            "Tell me once checkout-api finishes.",
+            WatchTarget::Session("S-ca".into()),
+            "finishes",
+            LifetimeChoice::Unsaid,
+        ),
+    ];
+    for (request, target, code, lifetime) in cases {
+        let out = misses_run(request, &Fake::new(&["FAIL"]));
+        let d = filled(&out).unwrap_or_else(|| unreachable!("{request}: {out:?}"));
+        assert_eq!(d.targets, vec![target], "{request}");
+        assert_eq!(codes(d), [code], "{request}");
+        assert_eq!(d.lifetime, lifetime, "{request}");
+    }
 }

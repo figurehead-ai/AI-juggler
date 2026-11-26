@@ -206,6 +206,7 @@ pub fn resolve(request: &str, all: &[Candidate]) -> Resolved {
         cands = owners_named(all, &live, &said, &excluded);
     }
     let picker = settle_twins(all, &live, &said, &mut cands);
+    session_over_namesake(all, &said, &mut cands);
     cands.truncate(6);
     Resolved {
         candidates: cands,
@@ -332,5 +333,27 @@ fn settle_twins(
                 twins
             }
         }
+    }
+}
+
+/// A session and its own project or App named alike ("the beta tracker"),
+/// with no kind word: the session (v8's W23, W32).
+fn session_over_namesake(all: &[Candidate], said: &[String], cands: &mut Vec<usize>) {
+    if cands.len() != 2 || !kinds_said(said).is_empty() {
+        return;
+    }
+    let (a, b) = (&all[cands[0]], &all[cands[1]]);
+    let (session, holder) = match (a.target.kind(), b.target.kind()) {
+        (TargetKind::Session, TargetKind::Project | TargetKind::App) => (cands[0], b),
+        (TargetKind::Project | TargetKind::App, TargetKind::Session) => (cands[1], a),
+        _ => return,
+    };
+    let s = &all[session];
+    let belongs = [s.project.as_deref(), s.app.as_deref()]
+        .into_iter()
+        .flatten()
+        .any(|o| o == holder.name);
+    if belongs && spaced(&s.name) == spaced(&holder.name) {
+        *cands = vec![session];
     }
 }

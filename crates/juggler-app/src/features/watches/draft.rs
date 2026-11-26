@@ -500,7 +500,7 @@ fn param_of(code: &str, raw: &str) -> Result<Option<Param>, String> {
 }
 
 /// The request, lowercased, with every candidate's name blanked.
-fn masked(ask: &Ask<'_>) -> String {
+pub(super) fn masked(ask: &Ask<'_>) -> String {
     let mut out = ask.request.to_lowercase();
     let mut names: Vec<String> = ask
         .candidates
@@ -517,7 +517,7 @@ fn masked(ask: &Ask<'_>) -> String {
     out
 }
 
-fn draft_info(
+pub(super) fn draft_info(
     targets: Vec<WatchTarget>,
     conditions: Vec<Condition>,
     lifetime: LifetimeChoice,
@@ -725,12 +725,18 @@ pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
     {
         return LifetimeChoice::Today;
     }
-    let once_used_as_when = w.windows(2).any(|p| {
-        p[0] == "once"
-            && ["it", "they", "the", "a", "an", "my", "its", "this", "that"]
-                .contains(&p[1].as_str())
-    });
-    if (has("once") && !once_used_as_when) || has("just the first time") || has("nur einmal") {
+    // A bare "once" is "when" (v8's W13, W24); a lifetime only as "just
+    // once", "only once", "one time", "the first time".
+    let once = [
+        "just once",
+        "only once",
+        "once only",
+        "one time",
+        "just the first time",
+        "only the first time",
+        "nur einmal",
+    ];
+    if once.iter().any(|p| has(p)) {
         return LifetimeChoice::Once;
     }
     LifetimeChoice::Unsaid
@@ -1030,10 +1036,37 @@ pub fn draft(
     stop: &Stop,
     check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
 ) -> (Outcome, u32) {
-    let mut calls = 0;
     if !is_watch_request(ask.request) {
-        return (Outcome::NotAWatch, calls);
+        return (Outcome::NotAWatch, 0);
     }
+    if let Some(out) = super::fail_closed::refused(ask) {
+        return (Outcome::Drafted(out), 0);
+    }
+    // A request of several clauses: the one that asks to be told is read
+    // for the target and the conditions; the lifetime from the whole.
+    match super::fail_closed::watch_clause(ask) {
+        Some(clause) => {
+            let part = Ask {
+                request: &clause,
+                candidates: ask.candidates,
+                midnight_ms: ask.midnight_ms,
+                now_ms: ask.now_ms,
+            };
+            draft_in(model, &part, ask, stop, check)
+        }
+        None => draft_in(model, ask, ask, stop, check),
+    }
+}
+
+/// [`draft`] over `ask` (the clause that asks), its lifetime from `whole`.
+fn draft_in(
+    model: &dyn JobModel,
+    ask: &Ask<'_>,
+    whole: &Ask<'_>,
+    stop: &Stop,
+    check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
+) -> (Outcome, u32) {
+    let mut calls = 0;
     let found = resolve::resolve(ask.request, ask.candidates);
     let all_refs = refs(ask.candidates);
     // Names and exclusions blanked: a cue inside a name, or in what the request said to ignore, is no cue.
@@ -1046,7 +1079,7 @@ pub fn draft(
         let conds = conditions_of(&read, &conds_said);
         return (
             Outcome::Drafted(WatchDrafted::Pick {
-                draft: draft_info(Vec::new(), conds, lifetime_for(ask)),
+                draft: draft_info(Vec::new(), conds, lifetime_for(whole)),
             }),
             calls,
         );
@@ -1110,7 +1143,7 @@ pub fn draft(
         return (Outcome::Drafted(WatchDrafted::Form), calls);
     }
     let conditions = conditions_of(&read, &conds);
-    let lifetime = match lifetime_for(ask) {
+    let lifetime = match lifetime_for(whole) {
         LifetimeChoice::UntilEnds if !targets.iter().all(|t| t.kind() == TargetKind::Session) => {
             LifetimeChoice::Unsaid
         }
@@ -1238,7 +1271,7 @@ fn excluded_answer(ask: &Ask<'_>, spans: &[Vec<String>], conds: &[String]) -> Wa
 /// A number with a unit no condition takes: the request's words, and the
 /// nearest conditions (tokens or calls: a usage limit; money: room left,
 /// then a limit; files, lines or commits: it finishes).
-fn threshold(text: &str) -> Option<(String, &'static [&'static str])> {
+pub(super) fn threshold(text: &str) -> Option<(String, &'static [&'static str])> {
     const LIMITS: &[&str] = &["hits_limit", "runway_below"];
     const MONEY: &[&str] = &["runway_below", "hits_limit"];
     const WORK: &[&str] = &["finishes", "ends"];
