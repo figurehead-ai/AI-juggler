@@ -1,0 +1,7375 @@
+[
+ {
+  "id": "V7-W01",
+  "request": "can you tell me when the search index session wraps up? just this once",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-wren"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W02",
+  "request": "let me know if the offline queue one fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-heron"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W03",
+  "request": "tell me whenever the sidebar layout session needs input from me, and keep doing that",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-fern"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W04",
+  "request": "ping me if invoice export stalls for 30 min",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-otter"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 30
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W05",
+  "request": "tell me when all sessions finish, except the retry logic one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when any session finishes"
+  },
+  "tags": [
+   "negation"
+  ]
+ },
+ {
+  "id": "V7-W06",
+  "request": "warn me today when Shed drops under 20 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-shed"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 20
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W07",
+  "request": "tell me when drill-session finishes or fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-drill"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name",
+   "combined"
+  ]
+ },
+ {
+  "id": "V7-W08",
+  "request": "tell me when the offline queue one finishes, not the search index one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-heron"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W09",
+  "request": "tell me when kite-runner asks me something, ignore anything from fern-docs",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-kite"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W10",
+  "request": "tell me when Loft Pro runs out completely",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account's allowance drops below a percentage"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W11",
+  "request": "wake me up if the invoice export fails, even at night",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-otter"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W12",
+  "request": "tell me when the offline queue asks me something, but stay quiet during quiet hours, once is enough",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-heron"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W13",
+  "request": "always tell me if anything fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W14",
+  "request": "alert me if anything sits idle for 40 minutes, from now on",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 40
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W15",
+  "request": "tell me when the search index session starts running",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-wren"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W16",
+  "request": "notify me when the Cursor ones finish",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-3"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W17",
+  "request": "let me know if the retry logic session keeps running for more than two hours",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W18",
+  "request": "tell me when someone reviews my pull request",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W19",
+  "request": "for every project except otter-billing, tell me if it fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when any session fails"
+  },
+  "tags": [
+   "negation"
+  ]
+ },
+ {
+  "id": "V7-W20",
+  "request": "don't bother me about the Shed apps, but tell me when Loft Pro goes below 35%",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-wren",
+     "app": "Claude Code CLI · Loft",
+     "project": "wren-notes",
+     "title": "Search index"
+    },
+    {
+     "id": "s-heron",
+     "app": "Codex CLI · Loft",
+     "project": "heron-sync",
+     "title": "Offline queue"
+    },
+    {
+     "id": "s-fern",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Sidebar layout"
+    },
+    {
+     "id": "s-otter",
+     "app": "Claude app · Shed",
+     "project": "otter-billing",
+     "title": "Invoice export"
+    },
+    {
+     "id": "s-drill",
+     "app": "OpenCode",
+     "project": "drill-session",
+     "title": "Auth callback"
+    },
+    {
+     "id": "s-kite",
+     "app": "Claude Code CLI · Shed",
+     "project": "kite-runner",
+     "title": "Retry logic"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Shed"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Shed"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-wren",
+     "name": "wren-notes"
+    },
+    {
+     "id": "p-heron",
+     "name": "heron-sync"
+    },
+    {
+     "id": "p-fern",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-otter",
+     "name": "otter-billing"
+    },
+    {
+     "id": "p-drill",
+     "name": "drill-session"
+    },
+    {
+     "id": "p-kite",
+     "name": "kite-runner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-shed",
+     "name": "Shed"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-loft"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 35
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W21",
+  "request": "tell me when the session timeout one fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lathe"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W22",
+  "request": "tell me when the rate limiter is done and the unit tests are green",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W23",
+  "request": "tell me when reed-sessions finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-reed-sessions"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W24",
+  "request": "notify me when the cleanup job finishes or fails, only for today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-reed"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "V7-W25",
+  "request": "tell me if the rate limiter fails or gets stuck for 15 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-willow"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    },
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "V7-W26",
+  "request": "ping me when the ignore list session asks a question",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-pliers"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W27",
+  "request": "always tell me when Dock goes below 10 percent, and yes wake me at night too",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-dock"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 10
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W28",
+  "request": "I don't want the rate limiter one, I want the tax rounding one: tell me when it finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ibis"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W29",
+  "request": "tell me when Claude in the Dock asks me anything",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-4"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W30",
+  "request": "tell me when I hit the usage limit on Quay Max",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account's allowance drops below a percentage"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W31",
+  "request": "remind me to review the PR tomorrow at 9",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W32",
+  "request": "ignore the tern-mobile ones and tell me when any other session fails, once",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when any session fails"
+  },
+  "tags": [
+   "negation"
+  ]
+ },
+ {
+  "id": "V7-W33",
+  "request": "tell me when the push tokens one finishes, I don't care if it fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-tern"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation"
+  ]
+ },
+ {
+  "id": "V7-W34",
+  "request": "tell me when willow-api is done, and stay silent during quiet hours",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-willow",
+     "app": "Claude Code CLI · Quay",
+     "project": "willow-api",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "s-tern",
+     "app": "Codex CLI · Quay",
+     "project": "tern-mobile",
+     "title": "Push tokens"
+    },
+    {
+     "id": "s-lathe",
+     "app": "Cursor",
+     "project": "lathe",
+     "title": "Session timeout"
+    },
+    {
+     "id": "s-reed",
+     "app": "OpenCode",
+     "project": "reed-sessions",
+     "title": "Cleanup job"
+    },
+    {
+     "id": "s-ibis",
+     "app": "Claude app · Dock",
+     "project": "ibis-ledger",
+     "title": "Tax rounding"
+    },
+    {
+     "id": "s-pliers",
+     "app": "Claude Code CLI · Dock",
+     "project": "pliers-cli",
+     "title": "Ignore list"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Quay"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Quay"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude app · Dock"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Dock"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-willow",
+     "name": "willow-api"
+    },
+    {
+     "id": "p-tern",
+     "name": "tern-mobile"
+    },
+    {
+     "id": "p-lathe",
+     "name": "lathe"
+    },
+    {
+     "id": "p-reed",
+     "name": "reed-sessions"
+    },
+    {
+     "id": "p-ibis",
+     "name": "ibis-ledger"
+    },
+    {
+     "id": "p-pliers",
+     "name": "pliers-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-quay",
+     "name": "Quay Max"
+    },
+    {
+     "id": "acct-dock",
+     "name": "Dock"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-willow"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W35",
+  "request": "tell me when spoon bender finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-spoon"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W36",
+  "request": "tell me when tell-me-when fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-tell"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W37",
+  "request": "let me know when the all sessions one needs me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-moss"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W38",
+  "request": "tell me when the stuck jobs session finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-anvil"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W39",
+  "request": "notify me when ash tree fails or asks me something, until I say stop",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ash"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    },
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "V7-W40",
+  "request": "the cache warmup one: tell me if it's idle for 25 minutes, but not between 10pm and 7am",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-delta"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 25
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W41",
+  "request": "I'm done with delta-river, ignore it. tell me when ash tree finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ash"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W42",
+  "request": "tell me when the migration plan session finishes, not the anvil one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ash"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W43",
+  "request": "tell me when the webhook retries session uses more than 50k tokens",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W44",
+  "request": "tell me when anything starts running, through Friday",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W45",
+  "request": "delete the stale sessions in the cellar",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-spoon",
+     "app": "Claude Code CLI · Pantry",
+     "project": "spoon bender",
+     "title": "Plugin loader"
+    },
+    {
+     "id": "s-tell",
+     "app": "Codex CLI · Pantry",
+     "project": "tell-me-when",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-moss",
+     "app": "Cursor",
+     "project": "moss",
+     "title": "All sessions"
+    },
+    {
+     "id": "s-delta",
+     "app": "Claude app · Cellar",
+     "project": "delta-river",
+     "title": "Cache warmup"
+    },
+    {
+     "id": "s-ash",
+     "app": "Claude Code CLI · Cellar",
+     "project": "ash tree",
+     "title": "Migration plan"
+    },
+    {
+     "id": "s-anvil",
+     "app": "OpenCode",
+     "project": "anvil",
+     "title": "Stuck jobs"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Pantry"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Pantry"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Cellar"
+    },
+    {
+     "id": "app-5",
+     "name": "Claude Code CLI · Cellar"
+    },
+    {
+     "id": "app-6",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-spoon",
+     "name": "spoon bender"
+    },
+    {
+     "id": "p-tell",
+     "name": "tell-me-when"
+    },
+    {
+     "id": "p-moss",
+     "name": "moss"
+    },
+    {
+     "id": "p-delta",
+     "name": "delta-river"
+    },
+    {
+     "id": "p-ash",
+     "name": "ash tree"
+    },
+    {
+     "id": "p-anvil",
+     "name": "anvil"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-pantry",
+     "name": "Pantry Plus"
+    },
+    {
+     "id": "acct-cellar",
+     "name": "Cellar"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W46",
+  "request": "Sag mir Bescheid, wenn der Sprachexport fertig ist, nur einmal",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ahorn"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W47",
+  "request": "Melde dich, wenn der Offline-Abgleich fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-kie"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W48",
+  "request": "Ich möchte immer wissen, wenn die Seitenleiste eine Rückfrage hat",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-schilf"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W49",
+  "request": "Warne mich heute, wenn Stall unter 15 Prozent fällt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-stall"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W50",
+  "request": "Sag Bescheid, wenn hammer-sitzung fertig ist oder fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-hammer"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name",
+   "combined"
+  ]
+ },
+ {
+  "id": "V7-W51",
+  "request": "Alle Sitzungen außer dem Tagesabschluss: melde, wenn sie fertig sind",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn die Sitzung fertig ist"
+  },
+  "tags": [
+   "negation"
+  ]
+ },
+ {
+  "id": "V7-W52",
+  "request": "Nicht die Wiederholungen, sondern die Seitenleiste: sag mir, wenn sie 20 Minuten hängt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-schilf"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 20
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W53",
+  "request": "Weck mich nachts, wenn der Tagesabschluss fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-brom"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W54",
+  "request": "Sag mir, wenn die Wiederholungen fertig sind, aber nicht in der Ruhezeit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-elster"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V7-W55",
+  "request": "Informiere mich, wenn irgendetwas 50 Minuten hängt, bis ich es widerrufe",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 50
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V7-W56",
+  "request": "Sag mir, wenn jemand meinen Pull Request prüft",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn die Sitzung fertig ist"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W57",
+  "request": "Sag mir, wenn die Sitzung Anmelde-Rückruf anfängt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-hammer"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V7-W58",
+  "request": "Ignoriere ahornblatt und sag mir, wenn elster-planer eine Frage stellt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-elster"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "negation",
+   "two_names"
+  ]
+ },
+ {
+  "id": "V7-W59",
+  "request": "Sag mir, wenn Hof Pro sein Limit erreicht",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn der Account unter einen Prozentwert fällt"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V7-W60",
+  "request": "Informiere mich bis Freitag, wenn irgendeine Sitzung fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ahorn",
+     "app": "Claude Code CLI · Hof",
+     "project": "ahornblatt",
+     "title": "Sprachexport"
+    },
+    {
+     "id": "s-kie",
+     "app": "Codex CLI · Hof",
+     "project": "kiebitz-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "s-schilf",
+     "app": "Cursor",
+     "project": "schilf-docs",
+     "title": "Seitenleiste"
+    },
+    {
+     "id": "s-brom",
+     "app": "Claude app · Stall",
+     "project": "brombeere-kasse",
+     "title": "Tagesabschluss"
+    },
+    {
+     "id": "s-hammer",
+     "app": "OpenCode",
+     "project": "hammer-sitzung",
+     "title": "Anmelde-Rückruf"
+    },
+    {
+     "id": "s-elster",
+     "app": "Claude Code CLI · Stall",
+     "project": "elster-planer",
+     "title": "Wiederholungen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-1",
+     "name": "Claude Code CLI · Hof"
+    },
+    {
+     "id": "app-2",
+     "name": "Codex CLI · Hof"
+    },
+    {
+     "id": "app-3",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-4",
+     "name": "Claude app · Stall"
+    },
+    {
+     "id": "app-5",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-6",
+     "name": "Claude Code CLI · Stall"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ahorn",
+     "name": "ahornblatt"
+    },
+    {
+     "id": "p-kie",
+     "name": "kiebitz-sync"
+    },
+    {
+     "id": "p-schilf",
+     "name": "schilf-docs"
+    },
+    {
+     "id": "p-brom",
+     "name": "brombeere-kasse"
+    },
+    {
+     "id": "p-hammer",
+     "name": "hammer-sitzung"
+    },
+    {
+     "id": "p-elster",
+     "name": "elster-planer"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-hof",
+     "name": "Hof Pro"
+    },
+    {
+     "id": "acct-stall",
+     "name": "Stall"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ }
+]
