@@ -294,6 +294,7 @@
 4. The story text from D-149's feed job ("pick, don't write") when it passes; until then story templates; no AI: still a story.
 5. Filters: All · Needs you · Sessions · Tasks · Pools · Switches & limits · This Mac; Running / Finished / Failed as state chips; "Showing" by App / Account / Project (pickers-suggested-then-all).
 6. The ChatGPT · Codex row bug fixed.
+6a. The diff-stat attachment from the turn's own edit and write tool calls (files touched, lines added and removed) through the session's adapter, never git in the user's projects; a tool whose calls carry no line counts shows the files touched only (G8).
 7. Calm surfaces, PAT-COLOR; paged or infinite (instant-and-paged); keyboard j/k between posts, l/m for more/less.
 8. Tests: preference writes through the gate; ranking changes after a "less"; thread grouping; filters; the template fallback; the real-model check for AI stories.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3713/manifest.md`.
