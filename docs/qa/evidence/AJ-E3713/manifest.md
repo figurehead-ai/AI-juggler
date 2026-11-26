@@ -11,7 +11,7 @@ watches (below); every other requirement passes.
 Commits: 6d5f5c3b1 (the leans kept through the write gate; the tabs and
 state chips in the read model), 2fd36363a (the posts, threads, gesture bar,
 story templates, filters, keys and the old bug), d1464c11e, 6b56f2c59,
-fbed81794, 4b1fc279b, a004f664e (fixes found on the captures and by the
+fbed81794, 4b1fc279b, a004f664e and the verify-static fix (fixes found on the captures and by the
 debt baseline), e0cc71c23 and 8e1d7b5a7 (the gallery specs; ADR-0037's
 `feed` slot), 23a8024b4 (59 gate baselines, notes), fcd5fd268 (the
 gallery, eight families' critiques).
@@ -43,4 +43,5 @@ gallery, eight families' critiques).
 - vitest: 637 files, 4332 tests pass; `tsc -b --noEmit` clean; `ui_lint.py` OK; `rich_mode_lint.py`, `plain_words_lint.py`, `design_tokens_lint.py`, `size_budget.py`, `private_data_lint.py`, `critique_check.py`: OK; `debt_baseline.py`: none of this work's (it lists `features/bot/commands.rs` and `juggler-core/src/storage/memory/world.rs`, the AI agent's work in progress).
 - cargo (through `scripts/heavy.sh`): `feed::tests` and `feed::commands::prefs::tests` pass (26); `cargo clippy -p juggler-app -p juggler-core --all-targets -D warnings` was clean on 6d5f5c3b1's tree; a later run stops in the untracked `crates/gyrus` (another agent's, two float-comparison lints), before reaching this work; rustfmt clean on every file changed.
 - `visual_gate.sh` (pinned container): the compare run failed 41 states, all Home's feed or the Keyboard pane; re-rendered with `--update` by file and line (59 baselines), each opened; the compare run afterwards passed all 348.
+- `just keep-going verify-static`: this work's findings fixed (`platform_lint`: "This Mac" in words for any computer; `js_number_lint`: `FeedLeanInfo.at_ms` listed; `ipc_audit`: `feed_leans` listed as bounded; `evidence_check`: the index row); the rest are others' (below in the hand-back): `cargo fmt` and clippy in the untracked `crates/gyrus` and `juggler-core/src/storage/memory/{store.rs,tests/world.rs}`, `architecture_fresh` and `check_layering` (gyrus), `check_task_counts` (README's D-147 vs the log's D-149), `debt_baseline` (`bot/commands.rs`, `memory/world.rs`).
 - Gallery: eight families re-captured on the host, every changed capture opened (contact sheets; story-1280 both themes at full size beside the mock); a 0.5.2 critique each, stamped.
