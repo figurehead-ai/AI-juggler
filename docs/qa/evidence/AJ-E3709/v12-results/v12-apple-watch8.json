@@ -1,0 +1,2956 @@
+{
+ "meta": {
+  "harness": "v12",
+  "prompt_version": 12,
+  "harness_today": "2026-11-26",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"available\":\"available\",\"protocol\":3,\"extensions\":[\"fields\",\"sampling\"],\"guided\":true,\"hello\":true,\"os\":\"Version 27.0.1 (Build 26A434)\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch8"
+  ],
+  "prompt_sha256": {
+   "watch8": "d801a6ccfdf278aa3ff93d19a6bda1eba83a1eae5e6b8aba523ac635ebb00e43"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch12",
+    "file": "watch-v12.json",
+    "sha256": "db947628a92f369ed3df3699e2cbca7fc5723960ced2a59073bfd384a6a173f1",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 84,
+  "wall_s": 225.2,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   18.3,
+   9.2,
+   5.8
+  ],
+  "load_avg_end": [
+   5.1,
+   6.4,
+   5.3
+  ],
+  "helper_cpu_s": 5.52,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 13.21
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 12.15
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 5.51
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 3.62
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 129.3,
+   "peak": 142.7,
+   "after": 151.3
+  },
+  "started": "2026-11-26 17:02:36"
+ },
+ "results": [
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W01",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Bei allen Apps egal\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"wenn OpenCode abstürzt\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1961,
+     "gen_ms": 1960.7110023498535,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Bei allen Apps egal\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"wenn OpenCode abstürzt\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1512,
+     "gen_ms": 1512.0420455932617,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Bei allen Apps egal\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"wenn OpenCode abstürzt\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1461,
+     "gen_ms": 1460.858941078186,
+     "out_tokens": 61,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “egal, aber”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "egal, aber",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W02",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W03",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Ping me when\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"something finishes\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"text\": \"save for\", \"slot\": \"exclusion\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"target\", \"text\": \"anything in\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2005,
+     "gen_ms": 2004.5210123062134,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Ping me when\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"something finishes\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"text\": \"save for\", \"slot\": \"exclusion\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"target\", \"text\": \"anything in\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2187,
+     "gen_ms": 2186.726927757263,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Ping me when\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"something finishes\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"text\": \"save for\", \"slot\": \"exclusion\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"target\", \"text\": \"anything in\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2188,
+     "gen_ms": 2187.4510049819946,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “save”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "save",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W04",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "project checkout-api · fails · today · even during quiet hours",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-chk",
+       "ref": "p1",
+       "name": "checkout-api"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W05",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Sag mir\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"text\": \"irgendeine\", \"slot\": \"target\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"condition\", \"unit\": \"none\", \"text\": \"Sitzung\"}, {\"number\": 15, \"slot\": \"condition_param\", \"text\": \"15\", \"unit\": \"minutes\"}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"inaktiv\"}, {\"unit\": \"none\", \"text\": \"mit Ausnahme\", \"slot\": \"exclusion\", \"number\": 0}, {\"number\": 0, \"text\": \"der\", \"unit\": \"none\", \"slot\": \"exclusion\"}, {\"slot\": \"exclusion\", \"unit\": \"none\", \"text\": \"Berichtsvorlage\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 4002,
+     "gen_ms": 4001.739025115967,
+     "out_tokens": 243,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Sag mir\", \"slot\": \"filler\", \"number\": 0}, {\"number\": 0, \"text\": \"wenn\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"irgendeine\"}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 15, \"text\": \"15\", \"slot\": \"condition_param\", \"unit\": \"minutes\"}, {\"text\": \"inaktiv\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"exclusion\", \"unit\": \"none\", \"text\": \"mit Ausnahme\"}]}",
+     "finish": "stop",
+     "latency_ms": 3363,
+     "gen_ms": 3363.2819652557373,
+     "out_tokens": 189,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Sag mir\"}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"irgendeine\", \"unit\": \"none\"}, {\"number\": 0, \"text\": \"Sitzung\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"text\": \"15\", \"unit\": \"minutes\", \"slot\": \"condition_param\", \"number\": 15}, {\"text\": \"inaktiv\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"mit\", \"slot\": \"exclusion\", \"unit\": \"none\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3324,
+     "gen_ms": 3324.097990989685,
+     "out_tokens": 187,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Ausnahme”. Nearest: session Berichtsvorlage · idle_for · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "idle_for",
+    "via": "model labels",
+    "asked": "Ausnahme",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W06",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Melde mich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"wenn\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 5, \"text\": \"mehr als\", \"unit\": \"none\", \"slot\": \"condition_param\"}, {\"text\": \"5\", \"slot\": \"condition_param\", \"number\": 5, \"unit\": \"none\"}, {\"text\": \"Sitzungen\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"gleichzeitig\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2751,
+     "gen_ms": 2750.6719827651978,
+     "out_tokens": 169,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Melde mich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition_param\", \"number\": 5, \"text\": \"mehr als\"}, {\"number\": 5, \"slot\": \"condition_param\", \"text\": \"5\", \"unit\": \"none\"}, {\"text\": \"Sitzungen\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"gleichzeitig\", \"unit\": \"none\", \"slot\": \"condition\"}]}",
+     "finish": "stop",
+     "latency_ms": 3012,
+     "gen_ms": 3011.446952819824,
+     "out_tokens": 169,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Melde mich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition_param\", \"number\": 5, \"text\": \"mehr als\"}, {\"number\": 5, \"slot\": \"condition_param\", \"text\": \"5\", \"unit\": \"none\"}, {\"text\": \"Sitzungen\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"gleichzeitig\", \"unit\": \"none\", \"slot\": \"condition\"}]}",
+     "finish": "stop",
+     "latency_ms": 2910,
+     "gen_ms": 2909.853935241699,
+     "out_tokens": 169,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “mehr als 5 Sitzungen gleichzeitig”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "mehr als 5 Sitzungen gleichzeitig",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W07",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Alert me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"sessions\", \"unit\": \"none\"}, {\"text\": \"ask me questions\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"with the exception\", \"slot\": \"exclusion\", \"unit\": \"none\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"of Cursor\", \"slot\": \"exclusion\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2368,
+     "gen_ms": 2367.8970336914062,
+     "out_tokens": 135,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “with the exception”. Nearest: (the form asks) · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "model labels",
+    "asked": "with the exception",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W08",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"number\": 0, \"slot\": \"filler\", \"text\": \"Sag Bescheid\", \"unit\": \"none\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"number\": 0, \"text\": \"wenn\"}, {\"number\": 0, \"unit\": \"none\", \"text\": \"eine\", \"slot\": \"target\"}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Sitzung\"}, {\"text\": \"fehlschlägt\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"bis\", \"slot\": \"lifetime\", \"number\": 0}, {\"slot\": \"exclusion\", \"unit\": \"none\", \"text\": \"auf\", \"number\": 0}, {\"number\": 0, \"text\": \"die\", \"slot\": \"exclusion\", \"unit\": \"none\"}, {\"unit\": \"none\", \"text\": \"Schema\", \"slot\": \"exclusion\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3687,
+     "gen_ms": 3687.303066253662,
+     "out_tokens": 237,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Sag Bescheid\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\"}, {\"number\": 0, \"text\": \"eine\", \"unit\": \"none\", \"slot\": \"target\"}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"fehlschlägt\", \"slot\": \"condition\", \"number\": 0}, {\"slot\": \"lifetime\", \"unit\": \"none\", \"text\": \"bis\", \"number\": 0}, {\"text\": \"auf\", \"slot\": \"exclusion\", \"number\": 0, \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 5098,
+     "gen_ms": 5098.137974739075,
+     "out_tokens": 181,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Sag Bescheid\", \"slot\": \"filler\", \"number\": 0, \"unit\": \"none\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"number\": 0, \"text\": \"eine\", \"unit\": \"none\", \"slot\": \"target\"}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"fehlschlägt\", \"slot\": \"condition\", \"number\": 0}, {\"slot\": \"lifetime\", \"unit\": \"none\", \"text\": \"bis\", \"number\": 0}, {\"number\": 0, \"slot\": \"exclusion\", \"text\": \"auf\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 4685,
+     "gen_ms": 4684.713006019592,
+     "out_tokens": 181,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “bis”. Nearest: session Schema migration · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "bis",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W09",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “don't care about the rest of my apps”. Nearest: (the form asks) · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "don't care about the rest of my apps",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W10",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Schema migration · fails · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-mig",
+       "ref": "s3",
+       "name": "Schema migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W11",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Onboarding flow · stuck · always",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-onb",
+       "ref": "s4",
+       "name": "Onboarding flow"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": null
+      }
+     ],
+     "lifetime": "always",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W12",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Bis ich es wieder lösche\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"warne mich, wenn\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"das Depot-Pro-Konto sein Limit erreicht\"}]}",
+     "finish": "stop",
+     "latency_ms": 2993,
+     "gen_ms": 2992.542028427124,
+     "out_tokens": 99,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Bis ich es wieder lösche\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"warne mich, wenn\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"das Depot-Pro-Konto sein Limit erreicht\"}]}",
+     "finish": "stop",
+     "latency_ms": 3466,
+     "gen_ms": 3465.7520055770874,
+     "out_tokens": 99,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Bis ich es wieder lösche\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"warne mich, wenn\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"das Depot-Pro-Konto sein Limit erreicht\"}]}",
+     "finish": "stop",
+     "latency_ms": 3634,
+     "gen_ms": 3633.587956428528,
+     "out_tokens": 99,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Bis ich es wieder lösche: warne mich, wenn das Depot-Pro-Konto”. Nearest: (the form asks) · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "model labels",
+    "asked": "Bis ich es wieder lösche: warne mich, wenn das Depot-Pro-Konto",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W13",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Tell me when\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"any session\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"fails\"}, {\"text\": \"aside from the Lint cleanup one\", \"unit\": \"none\", \"slot\": \"exclusion\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3478,
+     "gen_ms": 3478.334069252014,
+     "out_tokens": 119,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “aside from the Lint cleanup one”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "aside from the Lint cleanup one",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W14",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Berichtsvorlage · finishes · once",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-ber",
+       "ref": "s7",
+       "name": "Berichtsvorlage"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W15",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nicht Cursor ist”. Nearest: (the form asks) · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "nicht Cursor ist",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W16",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Tell me when\"}, {\"unit\": \"none\", \"text\": \"the Render queue session\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"finishes\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"but hold it until quiet hours end\", \"unit\": \"hours\", \"slot\": \"quiet_hours\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3260,
+     "gen_ms": 3260.069966316223,
+     "out_tokens": 121,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Tell me when\"}, {\"unit\": \"none\", \"text\": \"the Render queue session\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"finishes\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"but hold it until quiet hours end\", \"unit\": \"hours\", \"slot\": \"quiet_hours\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2335,
+     "gen_ms": 2334.502935409546,
+     "out_tokens": 121,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Tell me when\"}, {\"unit\": \"none\", \"text\": \"the Render queue session\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"finishes\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"but hold it until quiet hours end\", \"unit\": \"hours\", \"slot\": \"quiet_hours\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2334,
+     "gen_ms": 2333.407998085022,
+     "out_tokens": 121,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “but keep it silent at night”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "but keep it silent at night",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W17",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W18",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Ping me when\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"the Render queue session\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition_param\", \"number\": 2, \"text\": \"uses over\"}, {\"unit\": \"none\", \"text\": \"2 GB of memory\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2064,
+     "gen_ms": 2063.989996910095,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Ping me when\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"the Render queue session\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition_param\", \"number\": 2, \"text\": \"uses over\"}, {\"unit\": \"none\", \"text\": \"2 GB of memory\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2323,
+     "gen_ms": 2322.3910331726074,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Ping me when\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"the Render queue session\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition_param\", \"number\": 2, \"text\": \"uses over\"}, {\"unit\": \"none\", \"text\": \"2 GB of memory\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2310,
+     "gen_ms": 2310.21511554718,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “uses over 2 GB of memory”. Nearest: session Render queue · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "uses over 2 GB of memory",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W19",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Benachrichtige mich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Depot Pro\"}]}",
+     "finish": "stop",
+     "latency_ms": 1617,
+     "gen_ms": 1617.2521114349365,
+     "out_tokens": 85,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Benachrichtige mich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Depot Pro\"}, {\"text\": \"wieder Luft hat\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2271,
+     "gen_ms": 2271.1100578308105,
+     "out_tokens": 119,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Benachrichtige mich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Depot Pro\"}, {\"text\": \"wieder Luft hat\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2289,
+     "gen_ms": 2288.907051086426,
+     "out_tokens": 119,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “wieder Luft”. Nearest: account Depot Pro · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "wieder Luft",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W20",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"slot\": \"lifetime\", \"unit\": \"none\", \"text\": \"heute noch\", \"number\": 0}, {\"slot\": \"filler\", \"text\": \"benachrichtigen\", \"unit\": \"none\", \"number\": 0}, {\"number\": 0, \"text\": \"solange der\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"Suchindex\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"text\": \"eine\", \"unit\": \"none\"}, {\"text\": \"Rückfrage\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"an\", \"slot\": \"condition\", \"unit\": \"none\", \"number\": 0}, {\"number\": 0, \"slot\": \"filler\", \"unit\": \"none\", \"text\": \"mich\"}]}",
+     "finish": "stop",
+     "latency_ms": 3379,
+     "gen_ms": 3379.2399168014526,
+     "out_tokens": 213,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"lifetime\", \"number\": 0, \"text\": \"heute noch\"}, {\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"benachrichtigen\", \"number\": 0}, {\"text\": \"solange der\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"text\": \"Suchindex\", \"slot\": \"target\", \"unit\": \"none\"}, {\"slot\": \"condition\", \"text\": \"eine\", \"unit\": \"none\", \"number\": 0}, {\"text\": \"Rückfrage\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"an\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3299,
+     "gen_ms": 3299.328923225403,
+     "out_tokens": 185,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"heute noch\", \"unit\": \"hours\", \"slot\": \"lifetime\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"benachrichtigen\"}, {\"text\": \"solange der\", \"slot\": \"condition\", \"number\": 0, \"unit\": \"none\"}, {\"unit\": \"none\", \"text\": \"Suchindex\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"eine\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"Rückfrage\", \"number\": 0}, {\"text\": \"an\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3278,
+     "gen_ms": 3277.609944343567,
+     "out_tokens": 185,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “noch”. Nearest: session Suchindex · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "model labels",
+    "asked": "noch",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W21",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "project checkout-api · starts · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-chk",
+       "ref": "p1",
+       "name": "checkout-api"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "starts",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W22",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "account Garage · runway_below 25 · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-garage",
+       "ref": "acct2",
+       "name": "Garage"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 25
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W23",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W24",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Sag Bescheid\"}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"die\", \"number\": 0}, {\"number\": 0, \"text\": \"Rechnungsexport\", \"unit\": \"none\", \"slot\": \"target\"}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2357,
+     "gen_ms": 2356.6880226135254,
+     "out_tokens": 135,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Sag Bescheid\"}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"die\", \"number\": 0}, {\"number\": 0, \"text\": \"Rechnungsexport\", \"unit\": \"none\", \"slot\": \"target\"}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2527,
+     "gen_ms": 2526.9590616226196,
+     "out_tokens": 135,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Sag Bescheid\"}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"text\": \"die\", \"number\": 0}, {\"text\": \"Rechnungsexport\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"condition\"}]}",
+     "finish": "stop",
+     "latency_ms": 2568,
+     "gen_ms": 2568.1480169296265,
+     "out_tokens": 135,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “durch”. Nearest: session Rechnungsexport · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "durch",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W25",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Schema migration · finishes · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-mig",
+       "ref": "s3",
+       "name": "Schema migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W26",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Tell me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the checkout-api session\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 2, \"text\": \"fails twice in a row\"}]}",
+     "finish": "stop",
+     "latency_ms": 1754,
+     "gen_ms": 1754.3150186538696,
+     "out_tokens": 95,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Tell me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the checkout-api session\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 2, \"text\": \"fails twice in a row\"}]}",
+     "finish": "stop",
+     "latency_ms": 1929,
+     "gen_ms": 1928.3850193023682,
+     "out_tokens": 95,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Tell me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the checkout-api session\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 2, \"text\": \"fails twice in a row\"}]}",
+     "finish": "stop",
+     "latency_ms": 1965,
+     "gen_ms": 1965.0479555130005,
+     "out_tokens": 95,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “twice in a row”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "twice in a row",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W27",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Lint cleanup · finishes · once",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-lin",
+       "ref": "s5",
+       "name": "Lint cleanup"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W28",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Sag Bescheid\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"wenn der Suchindex\", \"slot\": \"target\", \"number\": 0}, {\"number\": 3, \"text\": \"dreimal hintereinander\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"condition\", \"text\": \"fehlschlägt\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2081,
+     "gen_ms": 2081.210970878601,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Sag Bescheid\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"wenn der Suchindex\", \"number\": 0}, {\"number\": 3, \"text\": \"dreimal hintereinander\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"condition\", \"text\": \"fehlschlägt\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2273,
+     "gen_ms": 2272.6649045944214,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Sag Bescheid\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"wenn der Suchindex\", \"slot\": \"target\", \"number\": 0}, {\"number\": 3, \"text\": \"dreimal hintereinander\", \"slot\": \"condition_param\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"condition\", \"text\": \"fehlschlägt\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2345,
+     "gen_ms": 2344.4409370422363,
+     "out_tokens": 119,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “dreimal hintereinander”. Nearest: session Suchindex · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "dreimal hintereinander",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W29",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W30",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “don't matter”. Nearest: (the form asks) · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "don't matter",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W31",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W32",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Lint cleanup · ends · once",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-lin",
+       "ref": "s5",
+       "name": "Lint cleanup"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "ends",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W33",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Across all projects\", \"slot\": \"other\", \"unit\": \"none\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the one I care about\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"unit\": \"none\", \"text\": \"pixel-forge\"}, {\"text\": \"tell me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"a new session starts\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2567,
+     "gen_ms": 2567.262053489685,
+     "out_tokens": 147,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Across all projects\", \"slot\": \"other\", \"unit\": \"none\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the one I care about\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"unit\": \"none\", \"text\": \"pixel-forge\"}, {\"unit\": \"none\", \"text\": \"tell me when\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"a new session starts\"}]}",
+     "finish": "stop",
+     "latency_ms": 2702,
+     "gen_ms": 2701.446056365967,
+     "out_tokens": 147,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"slot\": \"other\", \"text\": \"Across all projects\", \"unit\": \"none\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the one I care about\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"pixel-forge\", \"unit\": \"none\"}, {\"text\": \"tell me when\", \"slot\": \"filler\", \"unit\": \"none\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"unit\": \"none\", \"text\": \"a new session starts\"}]}",
+     "finish": "stop",
+     "latency_ms": 2676,
+     "gen_ms": 2675.4369735717773,
+     "out_tokens": 147,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Across all projects, the one”. Nearest: (the form asks) · starts · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "starts",
+    "via": "model labels",
+    "asked": "Across all projects, the one",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W34",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"slot\": \"target\", \"unit\": \"none\", \"text\": \"Permanent watch on\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"the Garage account\"}, {\"unit\": \"none\", \"text\": \"say when it has room again\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1726,
+     "gen_ms": 1726.2989282608032,
+     "out_tokens": 93,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Permanent watch on\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"the Garage account\"}, {\"unit\": \"none\", \"text\": \"say when it has room again\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1929,
+     "gen_ms": 1928.9029836654663,
+     "out_tokens": 93,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Permanent watch on\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"the Garage account\"}, {\"unit\": \"none\", \"text\": \"say when it has room again\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1939,
+     "gen_ms": 1938.512921333313,
+     "out_tokens": 93,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “say”. Nearest: account Garage · runway_resets · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "runway_resets",
+    "via": "model labels",
+    "asked": "say",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W35",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Every account is fine\"}, {\"text\": \"ping me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"Depot Pro\", \"number\": 0}, {\"text\": \"runs below\", \"unit\": \"percent\", \"slot\": \"condition\", \"number\": 15}]}",
+     "finish": "stop",
+     "latency_ms": 1918,
+     "gen_ms": 1917.536973953247,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Every account is fine\"}, {\"text\": \"ping me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"Depot Pro\", \"number\": 0}, {\"text\": \"runs below\", \"unit\": \"percent\", \"slot\": \"condition\", \"number\": 15}]}",
+     "finish": "stop",
+     "latency_ms": 2252,
+     "gen_ms": 2251.4580488204956,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Every account is fine\"}, {\"text\": \"ping me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"Depot Pro\", \"number\": 0}, {\"text\": \"runs below\", \"unit\": \"percent\", \"slot\": \"condition\", \"number\": 15}]}",
+     "finish": "stop",
+     "latency_ms": 2303,
+     "gen_ms": 2302.9710054397583,
+     "out_tokens": 111,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “fine, but”. Nearest: (the form asks) · runway_below · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "runway_below",
+    "via": "model labels",
+    "asked": "fine, but",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W36",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “unless it's the Render queue”. Nearest: (the form asks) · idle_for · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "idle_for",
+    "via": "code",
+    "asked": "unless it's the Render queue",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W37",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Onboarding flow · fails · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-onb",
+       "ref": "s4",
+       "name": "Onboarding flow"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W38",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Gib mir Bescheid\", \"slot\": \"filler\", \"unit\": \"none\", \"number\": 0}, {\"number\": 0, \"text\": \"wenn\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"text\": \"die\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"Onboarding-flow\", \"slot\": \"target\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"Sitzung\", \"number\": 0}, {\"slot\": \"condition_param\", \"text\": \"nach\", \"unit\": \"minutes\", \"number\": 10}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"immer noch\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"unit\": \"none\", \"text\": \"hängt\"}]}",
+     "finish": "stop",
+     "latency_ms": 3460,
+     "gen_ms": 3459.7580432891846,
+     "out_tokens": 211,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Gib mir Bescheid\", \"unit\": \"none\", \"number\": 0, \"slot\": \"filler\"}, {\"number\": 0, \"text\": \"wenn\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"text\": \"die\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"Onboarding-flow\", \"slot\": \"target\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"Sitzung\", \"number\": 0}, {\"unit\": \"minutes\", \"text\": \"nach\", \"slot\": \"condition_param\", \"number\": 10}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"immer noch\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3444,
+     "gen_ms": 3443.7419176101685,
+     "out_tokens": 191,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"number\": 0, \"text\": \"Gib mir Bescheid\", \"slot\": \"filler\"}, {\"number\": 0, \"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\"}, {\"unit\": \"none\", \"text\": \"die\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"Onboarding-flow\", \"unit\": \"none\"}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"minutes\", \"number\": 10, \"slot\": \"condition_param\", \"text\": \"nach\"}, {\"unit\": \"none\", \"text\": \"immer noch\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3469,
+     "gen_ms": 3468.770980834961,
+     "out_tokens": 191,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Onboarding-flow Sitzung nach 10 Minuten immer noch”. Nearest: (the form asks) · stuck · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "stuck",
+    "via": "model labels",
+    "asked": "Onboarding-flow Sitzung nach 10 Minuten immer noch",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W39",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “es sei denn”. Nearest: session Rechnungsexport · stuck · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "stuck",
+    "via": "code",
+    "asked": "es sei denn",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W40",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W41",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"number\": 0, \"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Sag mir\"}, {\"number\": 0, \"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\"}, {\"slot\": \"target\", \"text\": \"die\", \"unit\": \"none\", \"number\": 0}, {\"text\": \"Garage-Quote\", \"slot\": \"target\", \"number\": 0, \"unit\": \"none\"}, {\"number\": 2, \"text\": \"zum\", \"slot\": \"condition\", \"unit\": \"percent\"}, {\"text\": \"zweiten\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"slot\": \"condition_param\", \"unit\": \"percent\", \"text\": \"unter\", \"number\": 20}, {\"slot\": \"condition_param\", \"unit\": \"percent\", \"text\": \"20\", \"number\": 20}, {\"text\": \"fällt\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3822,
+     "gen_ms": 3822.2910165786743,
+     "out_tokens": 237,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"number\": 0, \"unit\": \"none\", \"text\": \"Sag mir\", \"slot\": \"filler\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"text\": \"die\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"Garage-Quote\"}, {\"text\": \"zum\", \"unit\": \"percent\", \"slot\": \"condition\", \"number\": 2}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"zweiten\", \"number\": 0}, {\"text\": \"unter\", \"unit\": \"percent\", \"slot\": \"condition_param\", \"number\": 2}]}",
+     "finish": "stop",
+     "latency_ms": 3273,
+     "gen_ms": 3273.1939554214478,
+     "out_tokens": 189,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Sag mir\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"number\": 0, \"slot\": \"condition\"}, {\"text\": \"die\", \"unit\": \"none\", \"number\": 0, \"slot\": \"target\"}, {\"number\": 0, \"slot\": \"target\", \"text\": \"Garage-Quote\", \"unit\": \"percent\"}, {\"number\": 2, \"slot\": \"condition\", \"unit\": \"percent\", \"text\": \"zum\"}, {\"unit\": \"none\", \"text\": \"zweiten\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"percent\", \"slot\": \"condition_param\", \"number\": 2, \"text\": \"unter\"}]}",
+     "finish": "stop",
+     "latency_ms": 3221,
+     "gen_ms": 3221.338987350464,
+     "out_tokens": 189,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Garage-Quote zum zweiten”. Nearest: (the form asks) · runway_below · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "runway_below",
+    "via": "model labels",
+    "asked": "Garage-Quote zum zweiten",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W42",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Sag mir\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"text\": \"irgendeine\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"Sitzung\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"zu Ende\"}]}",
+     "finish": "stop",
+     "latency_ms": 2415,
+     "gen_ms": 2414.9580001831055,
+     "out_tokens": 133,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Sag mir\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"text\": \"irgendeine\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"Sitzung\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"zu Ende\"}]}",
+     "finish": "stop",
+     "latency_ms": 2558,
+     "gen_ms": 2557.865023612976,
+     "out_tokens": 133,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Sag mir\"}, {\"slot\": \"condition\", \"text\": \"wenn\", \"unit\": \"none\", \"number\": 0}, {\"text\": \"irgendeine\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"Sitzung\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"text\": \"zu Ende\", \"slot\": \"condition\", \"unit\": \"none\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2661,
+     "gen_ms": 2661.2889766693115,
+     "out_tokens": 133,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Ende”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "Ende",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W43",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Notify me after\", \"number\": 0}, {\"text\": \"the Depot Pro account\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 3, \"text\": \"hits its limit\"}]}",
+     "finish": "stop",
+     "latency_ms": 1712,
+     "gen_ms": 1712.0029926300049,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Notify me after\", \"number\": 0}, {\"text\": \"the Depot Pro account\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 3, \"text\": \"hits its limit\"}]}",
+     "finish": "stop",
+     "latency_ms": 1911,
+     "gen_ms": 1911.1659526824951,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Notify me after\", \"number\": 0}, {\"text\": \"the Depot Pro account\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 3, \"text\": \"hits its limit\"}]}",
+     "finish": "stop",
+     "latency_ms": 1927,
+     "gen_ms": 1926.882028579712,
+     "out_tokens": 89,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “third time”. Nearest: account Depot Pro · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "model labels",
+    "asked": "third time",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W44",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Von allen meinen Sitzungen\", \"slot\": \"target\", \"number\": 0, \"unit\": \"none\"}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"interessiert mich nur der\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"Suchindex:\", \"unit\": \"none\"}, {\"unit\": \"none\", \"text\": \"sag Bescheid\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"wenn er fertig ist\"}]}",
+     "finish": "stop",
+     "latency_ms": 2560,
+     "gen_ms": 2560.2760314941406,
+     "out_tokens": 141,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"slot\": \"target\", \"unit\": \"none\", \"text\": \"Von allen meinen Sitzungen\", \"number\": 0}, {\"number\": 0, \"text\": \"interessiert mich nur der\", \"slot\": \"target\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"target\", \"text\": \"Suchindex:\", \"unit\": \"none\"}, {\"number\": 0, \"text\": \"sag Bescheid\", \"unit\": \"none\", \"slot\": \"filler\"}, {\"text\": \"wenn er fertig ist\", \"slot\": \"condition\", \"number\": 0, \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 2676,
+     "gen_ms": 2675.7439374923706,
+     "out_tokens": 141,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Von allen meinen Sitzungen\", \"slot\": \"target\", \"number\": 0, \"unit\": \"none\"}, {\"number\": 0, \"text\": \"interessiert mich nur der\", \"slot\": \"target\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"target\", \"text\": \"Suchindex:\", \"unit\": \"none\"}, {\"number\": 0, \"text\": \"sag Bescheid\", \"unit\": \"none\", \"slot\": \"filler\"}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"wenn er fertig ist\"}]}",
+     "finish": "stop",
+     "latency_ms": 2765,
+     "gen_ms": 2764.572024345398,
+     "out_tokens": 141,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “interessiert”. Nearest: session Suchindex · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "interessiert",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W45",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"number\": 0, \"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Warne mich\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"wenn\", \"number\": 0}, {\"slot\": \"target\", \"text\": \"eine\", \"unit\": \"none\", \"number\": 0}, {\"text\": \"Sitzung\", \"slot\": \"target\", \"unit\": \"none\", \"number\": 0}, {\"unit\": \"percent\", \"text\": \"mehr\", \"slot\": \"condition\", \"number\": 2}, {\"number\": 0, \"text\": \"als\", \"slot\": \"condition\", \"unit\": \"none\"}, {\"text\": \"2\", \"unit\": \"percent\", \"slot\": \"condition_param\", \"number\": 2}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"GB\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3391,
+     "gen_ms": 3390.581965446472,
+     "out_tokens": 207,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"number\": 0, \"text\": \"Warne mich\", \"slot\": \"filler\", \"unit\": \"none\"}, {\"number\": 0, \"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\"}, {\"text\": \"eine\", \"number\": 0, \"unit\": \"none\", \"slot\": \"target\"}, {\"slot\": \"target\", \"text\": \"Sitzung\", \"unit\": \"none\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"percent\", \"text\": \"mehr\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"unit\": \"none\", \"text\": \"als\"}, {\"text\": \"2\", \"unit\": \"percent\", \"slot\": \"condition_param\", \"number\": 2}, {\"unit\": \"none\", \"slot\": \"exclusion\", \"text\": \"Speicher\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"belegt\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 4267,
+     "gen_ms": 4266.402959823608,
+     "out_tokens": 239,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"number\": 0, \"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Warne\"}, {\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"mir\", \"number\": 0}, {\"slot\": \"condition\", \"text\": \"wenn\", \"unit\": \"none\", \"number\": 0}, {\"text\": \"eine\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"text\": \"Sitzung\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"text\": \"mehr\", \"unit\": \"percent\"}, {\"text\": \"als\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"percent\", \"slot\": \"condition_param\", \"number\": 2, \"text\": \"2\"}, {\"number\": 0, \"unit\": \"none\", \"text\": \"GB\", \"slot\": \"condition\"}, {\"unit\": \"none\", \"text\": \"Speicher\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 4561,
+     "gen_ms": 4560.40096282959,
+     "out_tokens": 253,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “mehr als 2 GB Speicher belegt”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "mehr als 2 GB Speicher belegt",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W46",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "app Cursor · restarted · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "app",
+       "id": "app-cur",
+       "ref": "app3",
+       "name": "Cursor"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "restarted",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W47",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “keine von den OpenCode-Sitzungen”. Nearest: (the form asks) · starts · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "starts",
+    "via": "code",
+    "asked": "keine von den OpenCode-Sitzungen",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W48",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W49",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Melde dich\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"unit\": \"none\", \"text\": \"Cursor\"}, {\"text\": \"neu gestartet wurde\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"text\": \"auch nachts\", \"unit\": \"none\", \"slot\": \"quiet_hours\"}, {\"unit\": \"none\", \"slot\": \"quiet_hours\", \"text\": \"in der Ruhezeit\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2869,
+     "gen_ms": 2869.257092475891,
+     "out_tokens": 167,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Melde dich\", \"slot\": \"filler\", \"unit\": \"none\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"unit\": \"none\", \"text\": \"Cursor\"}, {\"number\": 0, \"text\": \"neu gestartet wurde\", \"unit\": \"none\", \"slot\": \"condition\"}, {\"number\": 0, \"text\": \"auch nachts\", \"slot\": \"quiet_hours\", \"unit\": \"none\"}, {\"text\": \"in der Ruhezeit\", \"unit\": \"none\", \"slot\": \"quiet_hours\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3097,
+     "gen_ms": 3097.3299741744995,
+     "out_tokens": 167,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Melde dich\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"unit\": \"none\", \"text\": \"Cursor\"}, {\"number\": 0, \"text\": \"neu gestartet wurde\", \"unit\": \"none\", \"slot\": \"condition\"}, {\"number\": 0, \"text\": \"auch nachts\", \"unit\": \"none\", \"slot\": \"quiet_hours\"}, {\"number\": 0, \"slot\": \"quiet_hours\", \"text\": \"in der Ruhezeit\", \"unit\": \"none\"}]}",
+     "finish": "stop",
+     "latency_ms": 3199,
+     "gen_ms": 3198.526978492737,
+     "out_tokens": 167,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “wurde”. Nearest: (the form asks) · restarted · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "restarted",
+    "via": "model labels",
+    "asked": "wurde",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W50",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nicht”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "nicht",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W51",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"Tell me when\"}, {\"unit\": \"none\", \"text\": \"sessions end\", \"slot\": \"condition\", \"number\": 0}, {\"text\": \"but none of the ones on\", \"unit\": \"none\", \"slot\": \"exclusion\", \"number\": 0}, {\"text\": \"the Garage account\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2170,
+     "gen_ms": 2170.1070070266724,
+     "out_tokens": 113,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “but none of the ones on”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "but none of the ones on",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W52",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Keep telling me whenever\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the checkout-api session\", \"number\": 0}, {\"text\": \"fails\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"until I delete the watch\", \"slot\": \"lifetime\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2184,
+     "gen_ms": 2183.9749813079834,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Keep telling me whenever\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the checkout-api session\", \"number\": 0}, {\"text\": \"fails\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"until I delete the watch\", \"slot\": \"lifetime\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2465,
+     "gen_ms": 2464.4500017166138,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Keep telling me whenever\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"the checkout-api session\", \"number\": 0}, {\"text\": \"fails\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"until I delete the watch\", \"slot\": \"lifetime\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2413,
+     "gen_ms": 2412.53399848938,
+     "out_tokens": 115,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “until I delete”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "until I delete",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W53",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “unless it's on Depot Pro”. Nearest: (the form asks) · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "unless it's on Depot Pro",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W54",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Bitte\", \"slot\": \"filler\", \"number\": 0}, {\"text\": \"Bescheid\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"filler\", \"number\": 0, \"text\": \"wenn\"}, {\"text\": \"die\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"text\": \"Rechnungsexport\", \"slot\": \"target\", \"unit\": \"none\"}, {\"number\": 0, \"slot\": \"condition\", \"text\": \"Sitzung\", \"unit\": \"none\"}, {\"text\": \"abstürzt\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3055,
+     "gen_ms": 3054.426074028015,
+     "out_tokens": 181,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Bitte\", \"slot\": \"filler\", \"unit\": \"none\", \"number\": 0}, {\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Bescheid\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"die\", \"unit\": \"none\"}, {\"text\": \"Rechnungsexport\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"number\": 0, \"slot\": \"condition\", \"unit\": \"none\", \"text\": \"Sitzung\"}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"abstürzt\"}]}",
+     "finish": "stop",
+     "latency_ms": 3336,
+     "gen_ms": 3335.779070854187,
+     "out_tokens": 181,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Bitte\", \"slot\": \"filler\", \"unit\": \"none\", \"number\": 0}, {\"slot\": \"filler\", \"unit\": \"none\", \"text\": \"Bescheid\", \"number\": 0}, {\"text\": \"wenn\", \"unit\": \"none\", \"slot\": \"condition\", \"number\": 0}, {\"number\": 0, \"slot\": \"target\", \"text\": \"die\", \"unit\": \"none\"}, {\"text\": \"Rechnungsexport\", \"unit\": \"none\", \"slot\": \"target\", \"number\": 0}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"Sitzung\", \"number\": 0}, {\"slot\": \"condition\", \"text\": \"abstürzt\", \"unit\": \"none\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 3374,
+     "gen_ms": 3374.1379976272583,
+     "out_tokens": 181,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Einmalig”. Nearest: session Rechnungsexport · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "Einmalig",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W55",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “isn't the Onboarding flow”. Nearest: (the form asks) · stuck · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "stuck",
+    "via": "code",
+    "asked": "isn't the Onboarding flow",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W56",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Rechnungsexport · fails · today · even during quiet hours",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-rex",
+       "ref": "s2",
+       "name": "Rechnungsexport"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W57",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"text\": \"Alert me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"more than\", \"slot\": \"other\", \"number\": 3}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"sessions\"}]}",
+     "finish": "stop",
+     "latency_ms": 1676,
+     "gen_ms": 1675.8689880371094,
+     "out_tokens": 81,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"Alert me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"more than\", \"slot\": \"other\", \"number\": 3}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"sessions\"}]}",
+     "finish": "stop",
+     "latency_ms": 1809,
+     "gen_ms": 1809.1870546340942,
+     "out_tokens": 81,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"Alert me when\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"text\": \"more than\", \"slot\": \"other\", \"number\": 3}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"sessions\"}]}",
+     "finish": "stop",
+     "latency_ms": 1818,
+     "gen_ms": 1817.9479837417603,
+     "out_tokens": 81,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “more than 3 sessions are running”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "more than 3 sessions are running",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W58",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Onboarding flow · asks_you · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-onb",
+       "ref": "s4",
+       "name": "Onboarding flow"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W59",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"spans\": [{\"unit\": \"none\", \"text\": \"Alle Konten sind mir egal\", \"slot\": \"filler\", \"number\": 0}, {\"slot\": \"target\", \"unit\": \"none\", \"text\": \"nur beim Garage-Konto\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"condition\", \"number\": 0, \"text\": \"sag mir, wenn wieder Platz ist\"}]}",
+     "finish": "stop",
+     "latency_ms": 1882,
+     "gen_ms": 1882.322072982788,
+     "out_tokens": 96,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 1,
+     "text": "{\"spans\": [{\"text\": \"egal\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"nur beim Garage-Konto\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"sag mir, wenn wieder Platz ist\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 1981,
+     "gen_ms": 1981.0880422592163,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "label",
+     "attempt": 2,
+     "text": "{\"spans\": [{\"text\": \"egal\", \"unit\": \"none\", \"slot\": \"filler\", \"number\": 0}, {\"unit\": \"none\", \"slot\": \"target\", \"number\": 0, \"text\": \"nur beim Garage-Konto\"}, {\"slot\": \"condition\", \"unit\": \"none\", \"text\": \"sag mir, wenn wieder Platz ist\", \"number\": 0}]}",
+     "finish": "stop",
+     "latency_ms": 2124,
+     "gen_ms": 2123.821973800659,
+     "out_tokens": 97,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “egal, nur beim Garage-Konto: sag mir, wenn wieder Platz”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "egal, nur beim Garage-Konto: sag mir, wenn wieder Platz",
+    "decided": [
+     "cover: leftover",
+     "labels: model (3 calls)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch12",
+   "job": "watch8",
+   "setting": "main",
+   "id": "R12-W60",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “ausgenommen Garage”. Nearest: (the form asks) · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "ausgenommen Garage",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  }
+ ]
+}
