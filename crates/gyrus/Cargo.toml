@@ -1,0 +1,27 @@
+[package]
+name = "gyrus"
+description = "A typed graph kept in memory over SQLite: nodes, links and per-kind rules, bounded best-first walks, tiers, an idle pass that merges and archives, and a forget that really deletes."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license = "MIT OR Apache-2.0"
+repository.workspace = true
+readme = "README.md"
+keywords = ["graph", "sqlite", "memory", "knowledge-graph", "retrieval"]
+categories = ["database", "data-structures"]
+# `benches/workload.rs` is shared code, not a benchmark of its own.
+autobenches = false
+
+[lints]
+workspace = true
+
+# Its one storage dependency is rusqlite (SQLite with FTS5, bundled), and
+# JSON for node and link properties. `tests/deps.rs` fails on any other,
+# and on any dependency on the application that hosts it.
+[dependencies]
+rusqlite = { workspace = true, features = ["bundled"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

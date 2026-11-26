@@ -149,6 +149,9 @@ pub struct Forgotten {
     /// The WAL was folded in and truncated (else another reader held it;
     /// the next full checkpoint does it).
     pub wal_folded: bool,
+    /// Bot's world-model nodes removed with it (its `memory` node, the
+    /// nodes of the turns it redacted; ADR-0038 §6).
+    pub world_nodes: usize,
 }
 
 pub(super) const RECORD_COLUMNS: &str = "id, subject_key, subject_id, version, kind, scope_kind, \
@@ -318,6 +321,10 @@ pub(super) fn new_id(conn: &Connection, now_ms: i64) -> rusqlite::Result<String>
     )
 }
 
+/// A world batch to stage with a record: the graph, and what makes the
+/// batch from the version written.
+type WorldLink<'a> = (&'a gyrus::Graph, &'a dyn Fn(&Remembered) -> gyrus::Batch);
+
 /// The memory store over one connection, under the caller's writer lock
 /// (ADR-0030). Every write runs in one `IMMEDIATE` transaction with its
 /// log event, with `secure_delete` on.
@@ -350,7 +357,30 @@ impl<'c> MemoryStore<'c> {
         record: &NewRecord,
         now_ms: i64,
     ) -> Result<Remembered, MemoryError> {
-        self.write(writer, secrets, record, None, now_ms)
+        self.write(writer, secrets, record, None, None, now_ms)
+    }
+
+    /// [`Self::remember`], and the record's nodes and links in Bot's world
+    /// model (ADR-0038 §1: one transaction writes a record and its nodes
+    /// together), `link` making the batch from what was written (its
+    /// subject's random id names its `memory` node). The batch passes the
+    /// world gate too; a refusal of either writes nothing but its log
+    /// event. When the content was already current, nothing is written.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::remember`]; [`Refusal::World`] for a batch the world
+    /// gate refuses.
+    pub fn remember_linked(
+        &self,
+        writer: &KindWriter,
+        secrets: &dyn SecretScan,
+        record: &NewRecord,
+        graph: &gyrus::Graph,
+        link: &dyn Fn(&Remembered) -> gyrus::Batch,
+        now_ms: i64,
+    ) -> Result<Remembered, MemoryError> {
+        self.write(writer, secrets, record, None, Some((graph, link)), now_ms)
     }
 
     /// [`Self::remember`], and `also` appended to the log in the same
@@ -372,7 +402,7 @@ impl<'c> MemoryStore<'c> {
         also: &NewEvent,
         now_ms: i64,
     ) -> Result<Remembered, MemoryError> {
-        self.write(writer, secrets, record, Some(also), now_ms)
+        self.write(writer, secrets, record, Some(also), None, now_ms)
     }
 
     /// The current versions of one kind, newest change first (ties by id),
@@ -402,13 +432,15 @@ impl<'c> MemoryStore<'c> {
     }
 
     /// The gate, then the write, with `also` appended in the same
-    /// transaction when given.
+    /// transaction when given, and the world batch `world` makes staged in
+    /// it too (published after the commit).
     fn write(
         &self,
         writer: &KindWriter,
         secrets: &dyn SecretScan,
         record: &NewRecord,
         also: Option<&NewEvent>,
+        world: Option<WorldLink<'_>>,
         now_ms: i64,
     ) -> Result<Remembered, MemoryError> {
         let untrusted = record.text.is_untrusted() || holds_untrusted(&record.payload);
@@ -448,7 +480,28 @@ impl<'c> MemoryStore<'c> {
             event.version = Some(written.version);
             append_in(&tx, &event, None)?;
         }
+        let mut published = None;
+        if let Some((graph, link)) = world {
+            let batch = link(&written);
+            let staged = Self::world_gate(writer, secrets, graph, &batch)
+                .map_err(MemoryError::Refused)
+                .and_then(|()| super::world::stage_in(&tx, graph, &batch, now_ms));
+            match staged {
+                Ok(pending) => published = Some((graph, pending)),
+                Err(MemoryError::Refused(why)) => {
+                    drop(tx);
+                    let tx = write_transaction(self.conn)?;
+                    log_refusal(&tx, record, why, now_ms)?;
+                    tx.commit()?;
+                    return Err(MemoryError::Refused(why));
+                }
+                Err(other) => return Err(other),
+            }
+        }
         tx.commit()?;
+        if let Some((graph, pending)) = published {
+            graph.publish(&pending);
+        }
         Ok(written)
     }
 
@@ -518,10 +571,33 @@ impl<'c> MemoryStore<'c> {
         actor: &Actor,
         now_ms: i64,
     ) -> Result<Forgotten, MemoryError> {
+        self.forget_with_world(subject_key, actor, now_ms, None)
+    }
+
+    /// [`Self::forget`], reaching Bot's world model too (ADR-0038 §6): in
+    /// the same transaction the subject's `memory` node and the nodes of
+    /// the turns it redacted go, each with its links, aliases, vector and
+    /// keyword entry, and the keyword buckets that held them are rebuilt;
+    /// after the commit the WAL is truncated; then the same nodes leave
+    /// `graph`'s in-memory index. Without `graph` the index finds itself
+    /// behind (its generation) and is rebuilt before its next read.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures (nothing is removed unless all of it is).
+    pub fn forget_with_world(
+        &self,
+        subject_key: &str,
+        actor: &Actor,
+        now_ms: i64,
+        graph: Option<&gyrus::Graph>,
+    ) -> Result<Forgotten, MemoryError> {
         let mut out = Forgotten::default();
+        let mut world = None;
         {
             let _hold = SecureHold::on(self.conn)?;
             let tx = write_transaction(self.conn)?;
+            let mut forgotten_subjects: Vec<String> = Vec::new();
             for key in linked_keys(subject_key) {
                 let subjects: Vec<String> = tx
                     .prepare_cached(
@@ -530,6 +606,7 @@ impl<'c> MemoryStore<'c> {
                     .query_map([&key], |row| row.get(0))?
                     .collect::<rusqlite::Result<_>>()?;
                 for subject in subjects {
+                    forgotten_subjects.push(subject.clone());
                     let erased = erase_subject(&tx, &subject)?;
                     out.subjects += 1;
                     out.versions += erased.versions;
@@ -552,10 +629,18 @@ impl<'c> MemoryStore<'c> {
             }
             if out.subjects > 0 {
                 reindex(&tx)?;
+                if let Some((pending, erased)) = super::world::forget_in(&tx, &forgotten_subjects)?
+                {
+                    out.world_nodes = erased.nodes;
+                    world = Some(pending);
+                }
             }
             tx.commit()?;
         }
         out.wal_folded = fold_wal(self.conn)?;
+        if let (Some(graph), Some(pending)) = (graph, world) {
+            graph.publish(&pending);
+        }
         Ok(out)
     }
 

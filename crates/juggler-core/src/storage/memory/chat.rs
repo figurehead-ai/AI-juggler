@@ -444,6 +444,9 @@ impl<'c> ChatHistory<'c> {
             let tx = write_transaction(self.conn)?;
             let turns = tx.execute("DELETE FROM chat_turns", [])?;
             let topics = tx.execute("DELETE FROM chat_conversations", [])?;
+            // Bot's world-model nodes of those turns and topics go with
+            // them (ADR-0038 §6); its index finds itself behind and rebuilds.
+            super::world::forget_prefixed_in(&tx, &["turn:", "topic:"])?;
             tx.commit()?;
             Cleared {
                 turns: u32::try_from(turns).unwrap_or(u32::MAX),

@@ -318,21 +318,27 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v55, each App's own Account
-    // and each reading's, AJ-E3210) is undone by dropping its tables and
-    // rolling the version back, and runs again on open.
+    // One version behind: the last migration (v56, Bot's world model,
+    // AJ-E3832) is undone by dropping its tables and rolling the version
+    // back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 55,
-        "a new migration landed: undo it here instead (this test's undo is v55's)"
+        version, 56,
+        "a new migration landed: undo it here instead (this test's undo is v56's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE app_accounts; DROP TABLE quota_sample_sign_ins;")
-            .unwrap();
+        let fts: String = (0..16)
+            .map(|b| format!("DROP TABLE gyrus_fts_{b:02};"))
+            .collect();
+        conn.execute_batch(&format!(
+            "{fts} DROP TABLE gyrus_links; DROP TABLE gyrus_aliases; DROP TABLE gyrus_vectors;
+             DROP TABLE gyrus_meta; DROP TABLE gyrus_nodes;"
+        ))
+        .unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

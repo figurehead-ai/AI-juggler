@@ -832,11 +832,14 @@ const V53: &str = pools::LEAD_NEXT_MIGRATION;
 /// 0.5 (AJ-E3210, D-135): each App's own Account, and the Account each
 /// reading was read under ([`entities::APP_ACCOUNTS_MIGRATION`]).
 const V55: &str = entities::APP_ACCOUNTS_MIGRATION;
+/// 0.5.2 (AJ-E3832, ADR-0038 §1): Bot's world model, gyrus's tables, in
+/// this database ([`memory::world::V56`]).
+const V56: &str = memory::world::V56;
 
 /// The runner's list: a version is its index + 1. 0.5's `memory::V54` (the
 /// memory store and the AI log, ADR-0037 §1.7) follows 0.4.6's V53, its L1
 /// pieces in place (`scripts/migration_clash.py`'s `V54_GATE`); V55 is
-/// AJ-E3210's per-App Account.
+/// AJ-E3210's per-App Account; V56 is Bot's world model (AJ-E3832).
 const MIGRATIONS: &[&str] = &[
     V1,
     V2,
@@ -893,6 +896,7 @@ const MIGRATIONS: &[&str] = &[
     V53,
     memory::V54,
     V55,
+    V56,
 ];
 
 /// Owner-only (`0600`) on Unix: AI Juggler's data and its copies are no one

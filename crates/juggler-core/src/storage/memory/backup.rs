@@ -78,6 +78,13 @@ fn drop_tombstoned(conn: &Connection) -> rusqlite::Result<usize> {
     for subject in &subjects {
         versions += erase_subject(conn, subject)?.versions;
     }
+    // Their world-model nodes too (ADR-0038 §6), and any whose record a
+    // tombstone names though the record is long gone.
+    let forgotten: Vec<String> = conn
+        .prepare("SELECT subject_id FROM main.memory_forgotten")?
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<_>>()?;
+    super::world::forget_in(conn, &forgotten).map_err(super::world::sqlite)?;
     // A sidecar about a forgotten subject whose record is long gone.
     conn.execute(
         "DELETE FROM main.ai_log_text
@@ -99,6 +106,8 @@ fn empty_memory(conn: &Connection) -> rusqlite::Result<usize> {
          DELETE FROM chat_conversations;
          DELETE FROM ai_log_text;",
     )?;
+    // Bot's world model is memory too (ADR-0038 §6).
+    super::world::clear_in(conn).map_err(super::world::sqlite)?;
     Ok(records)
 }
 

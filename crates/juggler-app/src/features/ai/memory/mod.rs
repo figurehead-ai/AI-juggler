@@ -38,6 +38,7 @@ struct Slots {
     watches: Option<KindWriter>,
     chat: Option<KindWriter>,
     digest: Option<KindWriter>,
+    world: Option<KindWriter>,
 }
 
 impl MemoryWriters {
@@ -51,12 +52,14 @@ impl MemoryWriters {
                 watches,
                 chat,
                 digest,
+                world,
             } = writers;
             Slots {
                 memory: Some(memory),
                 watches: Some(watches),
                 chat: Some(chat),
                 digest: Some(digest),
+                world: Some(world),
             }
         });
         Self(std::sync::Mutex::new(slots))
@@ -87,6 +90,12 @@ impl MemoryWriters {
     /// on its first digest).
     pub fn take_digest(&self) -> Option<KindWriter> {
         self.0.lock().ok().and_then(|mut slots| slots.digest.take())
+    }
+
+    /// AJ-E3832: Bot's world model's own writer, once (`features/ai/world`
+    /// takes it when its index is first built).
+    pub fn take_world(&self) -> Option<KindWriter> {
+        self.0.lock().ok().and_then(|mut slots| slots.world.take())
     }
 }
 

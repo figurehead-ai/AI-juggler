@@ -6,7 +6,13 @@
 # needs a line here and a reason in its PR.
 
 [allow]
-juggler-core = []
+# ADR-0038 (AJ-E3832): Bot's world model, the generic typed graph over
+# SQLite, its own open-source crate: depends on nothing of ours
+# (tests/deps.rs fails on any host crate).
+gyrus = []
+# ADR-0038 §1: the world model's tables are a migration in this store's
+# chain, and its writes pass this store's write gate.
+juggler-core = ["gyrus"]
 juggler-floor = []
 # ADR-0026: the wgpu renderer draws the pure model's scene.
 juggler-floor-render = ["juggler-floor"]
