@@ -84,7 +84,7 @@ export const RECOMMENDED = {
   notYet: (count: number) => `${count} not yet`,
   adopt: "Use it",
   adoptLine: (jobs: string) => `Turns on ${jobs} as Beta, on this model. Off again any time below.`,
-  downloadLine: (jobs: string) => `Stays on ${THIS_MACHINE_IN_TEXT}. Then ${jobs} start as Beta; off again any time below.`,
+  downloadLine: (jobs: string) => `Stays on ${THIS_MACHINE_IN_TEXT}. Then ${jobs} ${jobs.includes(" and ") ? "start" : "starts"} as Beta; off again any time below.`,
   inUse: "In use",
   inUseLine: "Automatic sends every job it passes here.",
   tipAppleLead: `${THIS_MACHINE} can also run`,

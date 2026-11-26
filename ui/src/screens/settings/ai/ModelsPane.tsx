@@ -215,6 +215,7 @@ export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
           totalNow={view.totalNow}
           free={view.free ?? 0}
           tag={view.tagged.get(act.asking.id)}
+          absent={absentJobs(jobs)}
           onDownload={act.approve}
           onNotNow={act.notNow}
           onClose={act.closeAsk}

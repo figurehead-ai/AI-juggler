@@ -140,6 +140,19 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
     for (const card of screen.getAllByTestId("model-card")) expect(card.textContent).not.toContain("Turn reviews");
   });
 
+  it("the second-model approval names only the jobs this version has", async () => {
+    await show(STATES.approval!);
+    const granite = screen.getAllByTestId("model-card").find((card) => card.dataset.model === "granite-4-1-3b-q4km")!;
+    fireEvent.click(within(granite).getByTestId("model-download"));
+    const dialog = await screen.findByTestId("models-approval");
+    expect(dialog.textContent).toContain("Passed our tests for Bot’s AI.");
+  });
+
+  it("one job a download turns on is said in the singular", async () => {
+    await show(STATES.noapple!);
+    expect(screen.getByTestId("models-recommended").textContent).toContain("Then Bot’s AI starts as Beta;");
+  });
+
   it("a job's why is the notes of the model it would run on (Automatic's), not Bot's own pick", async () => {
     await show(STATES.installed!);
     expect(lineOf("chat")).toBe("On · Beta, your pick: Nemotron 3 Nano 4B");
