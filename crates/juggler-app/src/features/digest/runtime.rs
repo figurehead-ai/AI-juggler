@@ -1,18 +1,20 @@
-//! The digest at run time: the scheduler fed by the observation bus, one
-//! thread that sleeps until the next digest is due (or until woken, with
-//! nothing changed), and a digest made then: the rollup over the window's
-//! facts, stored, told to the views (Home's feed reads it), and its calm
-//! news handed to the notification path as one notification.
+//! The digest at run time: the scheduler fed by the observation bus, its
+//! next due time published to the one scheduler as a transient `At`
+//! (ADR-0039 §11.4, AJ-E2027: no clock of its own), and a digest made when
+//! that fires: the rollup over the window's facts, stored, told to the
+//! views (Home's feed reads it), and its calm news handed to the
+//! notification path as one notification.
 //!
 //! The AI digest stays behind its flag and the router (ADR-0034, D-131):
 //! `ai_digest_on` is off ("not yet", `v5-final.md`), and no model writer
 //! is built, so the rollup writes every digest; the log says why.
 //!
 //! Lock order: the digest's own lock is taken alone, or before the
-//! machine's; never with the store's.
+//! machine's; never with the store's, and let go before the scheduler is
+//! told.
 
 use std::collections::BTreeMap;
-use std::sync::{Arc, OnceLock, Weak};
+use std::sync::{Arc, OnceLock};
 
 use juggler_core::storage::Storage;
 use juggler_core::storage::memory::KindWriter;
@@ -39,12 +41,14 @@ pub fn enabled(storage: &Storage) -> bool {
     storage.app_settings().get(ON_KEY).ok().flatten().as_deref() != Some("false")
 }
 
+/// The digest's transient schedule on the one scheduler.
+pub const TRANSIENT: &str = "digest";
+
 #[derive(Default)]
 struct Inner {
     scheduler: Scheduler,
     window: BTreeMap<String, Vec<(i64, Observed)>>,
     made: u64,
-    closed: bool,
 }
 
 type Shared = Bell<Inner>;
@@ -53,14 +57,7 @@ type Shared = Bell<Inner>;
 #[derive(Default)]
 pub struct Digests {
     shared: Arc<Shared>,
-    thread: OnceLock<()>,
     writer: OnceLock<Option<KindWriter>>,
-}
-
-impl Drop for Digests {
-    fn drop(&mut self) {
-        self.shared.close(|inner| inner.closed = true);
-    }
 }
 
 impl std::fmt::Debug for Digests {
@@ -130,28 +127,25 @@ pub fn heard(state: &Arc<AppState>, observations: &[Observation]) {
         }
     }
     if any {
-        start_thread(state);
-        state.digests.shared.ring();
+        publish(state);
     }
 }
 
 /// AI Juggler came to the front or left it: a return from away makes the
 /// digest due at once.
 pub fn presence_changed(state: &Arc<AppState>) {
-    if state.digests.thread.get().is_some() {
-        state.digests.shared.ring();
-    }
+    publish(state);
 }
 
-fn start_thread(state: &Arc<AppState>) {
-    let digests = &state.digests;
-    digests.thread.get_or_init(|| {
-        let shared = digests.shared.clone();
-        let weak = Arc::downgrade(state);
-        let _ = std::thread::Builder::new()
-            .name("digest".into())
-            .spawn(move || run(&shared, &weak));
+/// The next digest's due time now (away read fresh), told to the one
+/// scheduler; none with nothing changed or while the user is away.
+pub fn publish(state: &AppState) {
+    let now = crate::commands::now_millis();
+    let due = state.digests.shared.lock().ok().and_then(|mut inner| {
+        inner.scheduler.set_away(state.notifier.away(now), now);
+        inner.scheduler.due_at()
     });
+    state.schedules.set_transient(TRANSIENT, due);
 }
 
 /// The battery is critical: on battery and low, or in Low Power Mode on
@@ -167,60 +161,39 @@ fn battery_critical(state: &AppState) -> bool {
 
 type Taken = (Due, BTreeMap<String, Vec<(i64, Observed)>>);
 
-/// The thread: sleeps until the next digest is due, makes it, and sleeps
-/// again; with nothing changed (or the user away) until woken.
-fn run(shared: &Shared, state: &Weak<AppState>) {
-    loop {
-        let taken: Taken = {
-            let Ok(mut inner) = shared.lock() else {
-                return;
-            };
-            loop {
-                if inner.closed {
-                    return;
-                }
-                let now = crate::commands::now_millis();
-                let Some(app) = state.upgrade() else {
-                    return;
-                };
-                inner.scheduler.set_away(app.notifier.away(now), now);
-                match inner.scheduler.due_at() {
-                    Some(at) if at <= now => {
-                        if battery_critical(&app) {
-                            inner.scheduler.defer(now);
-                            continue;
-                        }
-                        let Some(due) = inner.scheduler.take(now) else {
-                            continue;
-                        };
-                        let events = due
-                            .agents
-                            .iter()
-                            .filter_map(|agent| {
-                                inner.window.remove(agent).map(|e| (agent.clone(), e))
-                            })
-                            .collect();
-                        break (due, events);
-                    }
-                    due => {
-                        drop(app);
-                        let Some(next) = shared.sleep(inner, due, now) else {
-                            return;
-                        };
-                        inner = next;
-                    }
-                }
-            }
-        };
-        let Some(state) = state.upgrade() else {
-            return;
-        };
-        if make(&state, &taken.0, taken.1)
-            && let Ok(mut inner) = shared.lock()
-        {
-            inner.made += 1;
+/// The scheduler fired the digest's time: the digest due by now is made
+/// (a critical battery defers it five minutes, what changed kept), then
+/// the next due time is published.
+pub fn due_now(state: &Arc<AppState>) {
+    due_now_at(state, crate::commands::now_millis());
+}
+
+/// [`due_now`] at `now` (a test's clock).
+pub fn due_now_at(state: &Arc<AppState>, now: i64) {
+    let taken: Option<Taken> = state.digests.shared.lock().ok().and_then(|mut inner| {
+        inner.scheduler.set_away(state.notifier.away(now), now);
+        if inner.scheduler.due_at().is_none_or(|at| at > now) {
+            return None;
         }
+        if battery_critical(state) {
+            inner.scheduler.defer(now);
+            return None;
+        }
+        let due = inner.scheduler.take(now)?;
+        let events = due
+            .agents
+            .iter()
+            .filter_map(|agent| inner.window.remove(agent).map(|e| (agent.clone(), e)))
+            .collect();
+        Some((due, events))
+    });
+    if let Some((due, events)) = taken
+        && make(state, &due, events)
+        && let Ok(mut inner) = state.digests.shared.lock()
+    {
+        inner.made += 1;
     }
+    publish(state);
 }
 
 /// Why the rollup writes this digest alone: the AI digest's flag, else

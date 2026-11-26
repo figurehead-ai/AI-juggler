@@ -107,9 +107,9 @@ pub(crate) fn spawn_read_model_ticks(
     });
     let live_app = conversations_app.clone();
     features::conversations::spawn_tick(conversations_app, index_state.clone());
-    // AJ-E3832 (ADR-0038 §4): Bot's world model's upkeep, after the first
-    // paint and hourly, never while an AI job runs.
-    features::ai::world::maintain::start(&index_state);
+    // AJ-E3832 (ADR-0038 §4): Bot's world model's upkeep runs on the one
+    // scheduler (AJ-E2027, `schedule::upkeep`): idle, hourly, never in the
+    // first minutes or while an AI job runs.
     // AJ-E2101: what is open now, from the tools' own session files and
     // the process table (never an environment): small files every 2 s,
     // known pids every 5 s, the whole table at most once a minute. The UI

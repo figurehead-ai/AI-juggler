@@ -221,3 +221,37 @@ fn nothing_heard_nothing_scheduled_and_a_heard_burst_is_one_due_digest() {
     heard(&other, &[replayed]);
     assert_eq!(other.digests.due_at(), None);
 }
+
+#[test]
+fn the_digest_has_no_clock_of_its_own_its_due_time_is_the_schedulers() {
+    // AJ-E2027 (ADR-0039 §11.4): what was the digest thread's sleep is a
+    // transient `At` on the one scheduler; the same due time, the same
+    // digest when it fires, and nothing before.
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::seven_sessions(dir.path());
+    let now = crate::commands::now_millis();
+    let obs = Observation {
+        at_ms: now,
+        subject: crate::features::observe::Subject {
+            session: Some("s1".into()),
+            ..Default::default()
+        },
+        event: Observed::Ended {
+            how: EndKind::Clean,
+        },
+        replayed: false,
+    };
+    heard(&state, &[obs]);
+    let due = state.digests.due_at().unwrap();
+    assert_eq!(
+        state.schedules.transient_due(super::TRANSIENT),
+        Some(due),
+        "published to the scheduler"
+    );
+    super::due_now_at(&state, due - 1);
+    assert_eq!(state.digests.made(), 0, "not before its time");
+    assert_eq!(state.schedules.transient_due(super::TRANSIENT), Some(due));
+    super::due_now_at(&state, due);
+    assert_eq!(state.digests.due_at(), None, "taken: nothing changed since");
+    assert_eq!(state.schedules.transient_due(super::TRANSIENT), None);
+}

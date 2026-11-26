@@ -28,6 +28,7 @@ pub mod reminder;
 pub mod service;
 pub mod store;
 pub mod trigger;
+pub mod upkeep;
 pub mod zone;
 
 use std::sync::Arc;
@@ -41,16 +42,22 @@ use crate::state::AppState;
 pub fn handlers() -> registry::Registry {
     let mut registry = registry::Registry::default();
     let _ = registry.register(Arc::new(reminder::Reminder));
+    upkeep::register(&mut registry);
     registry
 }
 
 /// A transient schedule came due (in memory only, [`Scheduler::set_transient`]):
 /// its owner's call.
 pub fn transient(state: &Arc<AppState>, key: &'static str) {
-    let _ = (state, key);
+    if key == crate::features::digest::runtime::TRANSIENT {
+        crate::features::digest::runtime::due_now(state);
+    }
 }
 
-/// Starts the scheduler (once, at launch).
+/// Starts the scheduler (once, at launch): the app's own schedules kept
+/// in step, then the thread.
 pub fn start(state: &Arc<AppState>) {
-    service::start(state, handlers());
+    let registry = handlers();
+    upkeep::ensure_all(state, &registry);
+    service::start(state, registry);
 }

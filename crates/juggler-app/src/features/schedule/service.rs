@@ -446,6 +446,15 @@ impl Scheduler {
         self.shared.ring();
     }
 
+    /// A transient schedule's next due time, if it has one.
+    #[must_use]
+    pub fn transient_due(&self, key: &str) -> Option<i64> {
+        self.shared
+            .lock()
+            .ok()
+            .and_then(|inner| inner.transient.get(key).copied())
+    }
+
     /// A transient schedule (in memory, never stored): `key`'s next due
     /// time, or none. The digest publishes its window this way (§11).
     pub fn set_transient(&self, key: &'static str, due_ms: Option<i64>) {
