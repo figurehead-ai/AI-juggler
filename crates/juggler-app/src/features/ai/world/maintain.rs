@@ -1,6 +1,7 @@
-//! The world model's upkeep inside ADR-0037's maintenance (§2.3): two
-//! minutes after the first paint, then hourly, never while an AI job is
-//! starting or answering; each batch at most [`BATCH`] writes in one short
+//! The world model's upkeep inside ADR-0037's maintenance (§2.3), run by
+//! the one scheduler ([`crate::features::schedule::upkeep`]: two minutes
+//! after the first paint, then hourly), never while an AI job is starting
+//! or answering; each batch at most [`BATCH`] writes in one short
 //! writer hold, at most [`PASS`] a pass, stopping as soon as a job
 //! arrives (the next pass carries on from its cursor). One
 //! `memory.maintained` event per pass, counts only.
@@ -49,17 +50,6 @@ pub struct Passed {
     pub writes: usize,
     /// It stopped early for a job.
     pub stopped: bool,
-}
-
-/// Starts the hourly pass (the app's ticks call it once).
-pub fn start(state: &Arc<AppState>) {
-    let state = Arc::clone(state);
-    crate::ticks::every_after_paint("world-upkeep", FIRST_AFTER, PERIOD, move || {
-        let busy = || crate::features::ai::run::busy(crate::features::ai::service::shared());
-        if !busy() {
-            let _ = pass(&state, &busy);
-        }
-    });
 }
 
 fn chunks(batch: &gyrus::Batch) -> Vec<gyrus::Batch> {
