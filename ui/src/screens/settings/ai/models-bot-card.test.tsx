@@ -109,7 +109,7 @@ describe("AJ-E3826 R2: Recommended for this Mac only while no model is set up", 
 describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
   it("in use: on with its model, Beta, or off and why, the notes from the models section; the chip lit while on", async () => {
     await show(STATES.inuse!);
-    expect(lineOf("review")).toBe("Off · Not built yet");
+    expect(lineOf("review")).toBe("Off · Preferred over the plain review in 81 % of blind checks.");
     expect(lineOf("chat")).toBe("On · Beta with Apple's on-device model");
     expect(lineOf("attention")).toBe("On · Built from the facts, so it needs no model");
     expect(lineOf("feed")).toBe("Off · The plain line reads better for now.");
@@ -120,8 +120,10 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
     // Bot's model is chosen in the card: its row has its switch, no picker.
     expect(screen.getByTestId("models-beta-chat")).toBeTruthy();
     expect(screen.queryByTestId("models-pick-chat")).toBeNull();
-    // The turn review isn't built: no switch with nothing behind it.
-    expect(screen.queryByTestId("models-beta-review")).toBeNull();
+    // AJ-E3820 R4: the turn review is an opt-in Beta like the others, its
+    // switch offered, and it says which tools it covers (R5).
+    expect(screen.getByTestId("models-beta-review")).toBeTruthy();
+    expect(screen.getByTestId("models-job-covers-review").textContent).toBe("For Claude Code and Codex in the terminal, whose turn ends AI Juggler sees");
   });
 
   it("nothing on yet: each Beta off says what the tests found, with its switch", async () => {
@@ -132,8 +134,19 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
     expect(screen.getByTestId("models-job-chat").querySelector("[data-on]")).toBeNull();
   });
 
-  it("a job this version doesn't have is on no model card: no Turn reviews Beta beside Use it's promise", async () => {
+  it("AJ-E3820 R4: the turn review is built, so the cards name it as a Beta and Use it turns it on", async () => {
     await show(STATES.models!);
+    const rec = screen.getByTestId("models-recommended");
+    expect(rec.textContent).toContain("Turns on Turn reviews, Bot’s AI and Digest as Beta");
+    expect(lineOf("review")).toBe("Off · Preferred over the plain review in 81 % of blind checks.");
+  });
+
+  /** A job this version hasn't built (none today; the turn review was the
+   * last, until AJ-E3820) is on no card. */
+  const unbuilt = (state: ModelsState): ModelsState => ({ ...state, jobs: state.jobs.map((info) => (info.job === "review" ? { ...info, state: "off", why: "not_built", covers: [] } : info)) });
+
+  it("a job this version doesn't have is on no model card: no Turn reviews Beta beside Use it's promise", async () => {
+    await show(unbuilt(STATES.models!));
     const rec = screen.getByTestId("models-recommended");
     expect(rec.textContent).not.toContain("Turn reviews");
     expect(rec.textContent).toContain("Turns on Bot’s AI and Digest as Beta");
@@ -141,7 +154,7 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
   });
 
   it("the second-model approval names only the jobs this version has", async () => {
-    await show(STATES.approval!);
+    await show(unbuilt(STATES.approval!));
     const granite = screen.getAllByTestId("model-card").find((card) => card.dataset.model === "granite-4-1-3b-q4km")!;
     fireEvent.click(within(granite).getByTestId("model-download"));
     const dialog = await screen.findByTestId("models-approval");
@@ -149,7 +162,7 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
   });
 
   it("one job a download turns on is said in the singular", async () => {
-    await show(STATES.noapple!);
+    await show(unbuilt(STATES.noapple!));
     expect(screen.getByTestId("models-recommended").textContent).toContain("Then Bot’s AI starts as Beta;");
   });
 

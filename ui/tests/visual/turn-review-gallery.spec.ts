@@ -3,7 +3,9 @@
  * is shown, as the approved mock draws it
  * (`AIJuggler-design-refs/turn-review`): on Home's feed (a turn with the
  * Beta's lines opened, a failed turn opened, a clean one folded) and under
- * a command-line session's last turn on its page (code-only, opened).
+ * a command-line session's last turn on its page (code-only, opened);
+ * and its row on Settings › AI › Models (R4: an opt-in Beta, its switch
+ * off, the tools it covers, R5).
  * Both themes, axe 0 critical/serious on each. Invented turns, generic
  * names, no real transcript. Captures are written locally; no gate
  * baseline.
@@ -12,7 +14,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-import { allStatuses } from "./fixtures";
+import { allStatuses, goTo } from "./fixtures";
+import { STATES as MODELS } from "../../src/preview/ai-models";
 import { CLEAN, FAILED, STREAMED, STREAMED_AI } from "../../src/preview/turn-review";
 
 const DIR = resolve(process.cwd(), "../docs/qa/evidence/_gallery/99-turn-review");
@@ -153,5 +156,26 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     await page.getByTestId("last-messages").screenshot({ path: resolve(DIR, `session-1280-${theme}.png`) });
     await axeClean(page, `session ${theme}`);
+  });
+
+  test(`turn review — Models row — ${theme}`, async ({ page }) => {
+    const state = MODELS.models!;
+    await seed(page, theme, {
+      __AIJ_FIXTURE__: allStatuses,
+      __AIJ_AI_CATALOG__: state.catalog,
+      __AIJ_AI_MODELS__: state.models,
+      __AIJ_AI_JOBS__: state.jobs,
+    });
+    await page.addInitScript(() => localStorage.setItem("aij.settings.pane", "ai-models"));
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await goTo(page, "Settings");
+    await expect(page.getByTestId("models-screen")).toBeVisible();
+    const jobs = page.getByTestId("models-jobs");
+    await expect(page.getByTestId("models-job-covers-review")).toBeVisible();
+    await jobs.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    await jobs.screenshot({ path: resolve(DIR, `models-row-${theme}.png`) });
+    await axeClean(page, `models ${theme}`);
   });
 }

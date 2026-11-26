@@ -592,8 +592,8 @@ fn the_jobs_flags_are_declared_and_off_only() {
         .collect();
     assert_eq!(
         on,
-        ["feed", "chat", "digest", "watches"],
-        "D-149: the built jobs are on and their verdicts decide; the review waits for AJ-E3820"
+        ["feed", "review", "chat", "digest", "watches"],
+        "D-149: the built jobs are on and their verdicts decide (the review since AJ-E3820)"
     );
     assert!(
         jobs::by_name("attention").is_none(),
@@ -605,7 +605,7 @@ fn the_jobs_flags_are_declared_and_off_only() {
 /// `juggler-local-ai`) gives a ready card for an installed model, and the
 /// one query routes to it: Automatic picks the downloaded model the
 /// recommendation names (AJ-E3811) on a Mac without Apple's model, and a
-/// job that isn't in this build (the review, until AJ-E3820) says so.
+/// Beta job whose switch is off (the review, AJ-E3820) waits for it.
 /// macOS only, as the engine's own tests that start a helper: it starts
 /// one only there (`Local::command` is `None` elsewhere).
 #[cfg(target_os = "macos")]
@@ -667,8 +667,8 @@ fn the_local_engine_serves_its_installed_model_and_automatic_picks_it() {
     let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
     assert_eq!(
         review.state,
-        AiJobState::Off,
-        "the review waits for AJ-E3820"
+        AiJobState::BetaOff,
+        "the review is a Beta waiting for its switch (AJ-E3820 R4)"
     );
     engines.release();
 }

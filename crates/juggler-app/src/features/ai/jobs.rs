@@ -10,12 +10,14 @@
 //! digest and Bot's watch drafts are built, so their flags are on and each
 //! stays plain behind its `not_yet` verdict until a harness v6 round
 //! passes; that round flips it by a recorded verdict, not a code change
-//! (`docs/qa/evidence/AJ-E3709/harness/v6/v6-runbook.md`).
+//! (`docs/qa/evidence/AJ-E3709/harness/v6/v6-runbook.md`). AJ-E3820 built
+//! the turn review, so its flag is on too, and Apple's `beta` verdict
+//! offers it as an opt-in Beta.
 //!
 //! | Job | Flag default | Verdict on Apple's model today |
 //! |---|---|---|
 //! | Feed line | on | `not_yet`: A's excerpt; "pick, don't write" is re-measured (D-149) |
-//! | Turn review | off | D-131 allows it as opt-in Beta: on with AJ-E3820, which builds it (D-127: no switch with nothing behind it) |
+//! | Turn review | on | `beta`: opt-in Beta (D-149); the code-only review is the no-model path (AJ-E3820) |
 //! | Bot | on | `beta`: opt-in Beta |
 //! | Digest | on | `not_yet`: the code roundup; map and reduce is re-measured (D-149) |
 //! | Watches from Bot | on | `not_yet`: the Watches form; Bot fills it at >= 90 % exact (D-149) |
@@ -53,12 +55,12 @@ pub const FEED_ON: Flag = Flag {
     remote: RemoteMode::OffOnly,
 };
 
-/// The turn review's flag: off until AJ-E3820 builds the review (D-131
-/// allows it as opt-in Beta; D-127: a switch with nothing behind it isn't
-/// shown).
+/// The turn review's flag: on (AJ-E3820 R4, D-149): the review is built
+/// (`features::review`), so its verdict decides: Apple's `beta` serves
+/// it once the user turns its Beta on; otherwise the code-only review.
 pub const REVIEW_ON: Flag = Flag {
     name: "ai_review_on",
-    default: false,
+    default: true,
     remote: RemoteMode::OffOnly,
 };
 

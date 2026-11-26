@@ -102,6 +102,11 @@ function JobRow({
         <span className="text-meta text-muted" data-testid={`models-job-line-${job}`}>
           {view.line}
         </span>
+        {view.covers && (
+          <span className="text-label text-faint" data-testid={`models-job-covers-${job}`}>
+            {view.covers}
+          </span>
+        )}
       </span>
       <span className="flex justify-end">
         {view.beta && info && <Switch checked={info.beta_on} onChange={(on) => actions.onBeta(info.job, on)} label={JOBS.switchLabel(JOB_NAMES[job])} testId={`models-beta-${job}`} />}

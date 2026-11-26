@@ -163,15 +163,15 @@ function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" 
   return { installed: list, total_bytes: list.reduce((sum, row) => sum + row.size_bytes, 0), download: null, declined: [] };
 }
 
-/** The AI jobs' answer as this version gives it (AJ-E3826, D-149): Bot
- * and the digest with their Beta switch; the turn review not built yet
- * (AJ-E3820); the feed line and watches on their plain path by their
- * verdicts. */
+/** The AI jobs' answer as this version gives it (AJ-E3826, D-149): Bot,
+ * the digest and the turn review (AJ-E3820, for the tools whose turn
+ * ends AI Juggler sees) with their Beta switch; the feed line and
+ * watches on their plain path by their verdicts. */
 export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
   const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null, covers: [] });
   return [
     { ...base("feed", "no_engine") },
-    { ...base("review", "off"), why: "not_built", ...over.review },
+    { ...base("review", "beta_off"), covers: ["claude-code", "codex"], ...over.review },
     { ...base("chat", "beta_off"), ...over.chat },
     { ...base("digest", "beta_off"), ...over.digest },
     { ...base("watches", "no_engine") },
@@ -218,7 +218,7 @@ const NEEDS_APPROVAL: StartInfo = { started: false, refusal: "needs_approval", s
 /** Each state of the mock-up, by its `?s=` name. AJ-E3826: a model in
  * use opens on Bot's AI (`inuse`, `failed`, `approval`, `offline`,
  * `installed`); none in use, Recommended leads. */
-const NONE = { chat: { state: "no_engine" }, digest: { state: "no_engine" } } as const;
+const NONE = { chat: { state: "no_engine" }, digest: { state: "no_engine" }, review: { state: "no_engine" } } as const;
 export const STATES: Record<string, ModelsState> = {
   models: { catalog: catalog(MAC_AI, rec({ model_id: APPLE.id, why: "built_in" }), [APPLE, ...DOWNLOADS]), models: NO_MODELS, jobs: jobs() },
   inuse: {

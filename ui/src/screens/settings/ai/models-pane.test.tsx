@@ -45,7 +45,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(rec.textContent).toContain("no download, no disk");
     expect(within(rec).getByTestId("models-recommended-action").textContent).toBe("Use it");
     // AJ-E3826: only the Beta jobs this version has (the turn review isn't built yet).
-    expect(rec.textContent).toContain("Turns on Bot’s AI and Digest as Beta, on this model.");
+    expect(rec.textContent).toContain("Turns on Turn reviews, Bot’s AI and Digest as Beta, on this model.");
     expect(screen.getAllByTestId("model-card").map((card) => card.dataset.model)).toEqual(["qwen3-1-7b-q8", "granite-4-1-3b-q4km", "nemotron-3-nano-4b-q4km", "gemma-4-e2b-q4-0"]);
     expect(screen.getByTestId("models-total").textContent).toBe("0 GB");
     expect(document.getElementById("settings-ai-installed")?.textContent).toContain("Nothing downloaded yet");
@@ -83,7 +83,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
   it("Use it turns on the Beta jobs the model passed", async () => {
     await show(STATES.models!);
     fireEvent.click(screen.getByTestId("models-recommended-action"));
-    await waitFor(() => expect(window.__AIJ_AI_JOBS__?.filter((job) => job.beta_on).map((job) => job.job)).toEqual(["chat", "digest"]));
+    await waitFor(() => expect(window.__AIJ_AI_JOBS__?.filter((job) => job.beta_on).map((job) => job.job)).toEqual(["review", "chat", "digest"]));
   });
 
   it("a download recommended where Apple's AI can't run: Download names it, its size and what it needs", async () => {

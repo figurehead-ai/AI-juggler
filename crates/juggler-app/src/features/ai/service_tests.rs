@@ -73,8 +73,8 @@ fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     assert_eq!(state_of(&jobs, AiJob::Digest).0, AiJobState::BetaOff);
     assert_eq!(
         state_of(&jobs, AiJob::Review),
-        (AiJobState::Off, false, Some(AiJobWhy::NotBuilt)),
-        "the review waits for AJ-E3820 (the 0.5 walk's F-02), and Models says it isn't built yet (AJ-E3826)"
+        (AiJobState::BetaOff, false, None),
+        "AJ-E3820 R4: the review is built, an opt-in Beta on Apple's model waiting for its switch"
     );
     assert_eq!(state_of(&jobs, AiJob::Bot).0, AiJobState::BetaOff);
 
@@ -99,8 +99,8 @@ fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     );
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,
-        AiJobState::Off,
-        "Bot's Beta turns on Bot only; the review waits for AJ-E3820"
+        AiJobState::BetaOff,
+        "Bot's Beta turns on Bot only; the review keeps its own switch"
     );
 
     let (_, changed) = service.answer(
@@ -133,7 +133,11 @@ fn apple_intelligence_turned_off_mid_session_hides_the_jobs_with_the_reason() {
         state_of(&jobs, AiJob::Bot),
         (AiJobState::NoEngine, false, Some(AiJobWhy::TurnedOff))
     );
-    assert_eq!(state_of(&jobs, AiJob::Review).0, AiJobState::Off);
+    assert_eq!(
+        state_of(&jobs, AiJob::Review),
+        (AiJobState::NoEngine, false, Some(AiJobWhy::TurnedOff)),
+        "the review's Beta hides with Bot's, for the same reason"
+    );
     helper(dir.path(), "available");
     let (jobs, changed) =
         service.answer(&compiled, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
@@ -167,8 +171,8 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
     );
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,
-        AiJobState::Off,
-        "off by default until AJ-E3820"
+        AiJobState::Ready,
+        "AJ-E3820 R4: on by default, its Beta on here, the kill left it alone"
     );
 
     let mut apple = serde_json::to_value(json!({

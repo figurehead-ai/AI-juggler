@@ -9,7 +9,8 @@ import type { AiJob, AiJobInfo } from "../../../lib/ipc/ai";
 import type { CatalogModel, ModelsCatalog, ModelsInfo } from "../../../lib/ipc/models";
 import type { ModelJob } from "../../../types/generated/ModelJob";
 import type { ModelSpeed } from "../../../types/generated/ModelSpeed";
-import { FIT, JOBS, chipWords, memoryWords } from "./models-words";
+import { FIT, JOBS, chipWords, listWords, memoryWords } from "./models-words";
+import { toolSpec } from "../../../lib/tools";
 
 /** The jobs a model card lists (attention is code, never the model's:
  * it shows only in Each job uses): the routed jobs. */
@@ -200,6 +201,9 @@ export interface JobRowView {
    * above chooses). */
   picker: boolean;
   line: string;
+  /** AJ-E3820 R5: which tools it covers, when only some ("For Claude Code
+   * and Codex in the terminal…"); null for every tool or an off job. */
+  covers: string | null;
 }
 
 /** The note a model's tests give for `job`, from the `models` section. */
@@ -234,13 +238,14 @@ function runsWith(info: AiJobInfo, model: string | null): string | null {
 }
 
 export function jobRowView(job: ModelJob, info: AiJobInfo | undefined, catalog: ModelsCatalog | null, installed: ModelsInfo | null, reference: CatalogModel | null): JobRowView {
-  if (job === "attention") return { on: true, beta: false, picker: false, line: line(JOBS.on, JOBS.attention) };
-  if (!info) return { on: false, beta: false, picker: false, line: "" };
+  if (job === "attention") return { on: true, beta: false, picker: false, line: line(JOBS.on, JOBS.attention), covers: null };
+  if (!info) return { on: false, beta: false, picker: false, line: "", covers: null };
   const models = catalog?.models ?? [];
   const beta = info.state !== "off" && models.some((model) => verdictOf(model, job).verdict === "beta");
   const picker = job !== "chat" && ["ready", "waiting", "beta_off"].includes(info.state) && pickable(catalog, installed, job).length > 0;
   const model = info.model_name ?? nameOf(info.pick ?? info.model_id, catalog, installed);
-  const row = (on: boolean, state: string, why: string | null) => ({ on, beta, picker, line: line(state, why) });
+  const covers = info.state !== "off" && info.covers.length > 0 ? JOBS.covers(listWords(info.covers.map((tool) => toolSpec(tool).display_name))) : null;
+  const row = (on: boolean, state: string, why: string | null) => ({ on, beta, picker, line: line(state, why), covers });
   switch (info.state) {
     case "off":
       return row(false, JOBS.offLine, info.why === "not_built" ? JOBS.notBuilt : JOBS.paused);
