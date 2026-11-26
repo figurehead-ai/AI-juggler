@@ -449,7 +449,7 @@ Every check starts with an allowlist that may only shrink.
 **Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2025/manifest.md`, one row per item.
 
-### AJ-E2026 Durable commits on macOS: SQLite's full fsync at checkpoints, and on the critical write paths | Status: TODO (0.5.2) | Priority P1 | Effort S | Depends: —
+### AJ-E2026 Durable commits on macOS: SQLite's full fsync at checkpoints, and on the critical write paths | Status: DONE (0.5.2) | Priority P1 | Effort S | Depends: —
 **Found** (the coordinating session, 2026-11-26, from a durability lesson elsewhere): on macOS a plain `fsync` doesn't flush the drive's cache; only `F_FULLFSYNC` does. Our storage (`juggler-core/src/storage/mod.rs`) opens WAL with `synchronous=NORMAL` and never sets `fullfsync` or `checkpoint_fullfsync`, which the bundled SQLite leaves OFF, so a power loss can lose or corrupt checkpointed data.
 **UI**: no
 **Requirements**:

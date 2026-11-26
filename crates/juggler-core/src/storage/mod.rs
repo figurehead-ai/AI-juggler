@@ -1308,6 +1308,21 @@ impl Storage {
         }
     }
 
+    /// AJ-E2026: makes every commit so far survive a power cut: a WAL
+    /// checkpoint, whose syncs are `F_FULLFSYNC` on macOS
+    /// (`checkpoint_fullfsync`, set on every connection). Called after the
+    /// writes that must not be lost: a move's journal and manifest, a
+    /// backup's record, a memory's forget.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoreError::Storage`] when the checkpoint can't run.
+    pub fn make_durable(&self) -> Result<(), CoreError> {
+        self.conn
+            .query_row("PRAGMA wal_checkpoint(PASSIVE)", [], |_| Ok(()))
+            .map_err(CoreError::Storage)
+    }
+
     /// Raw connection access for migrations/fixture tooling (tests,
     /// diagnostics). Normal writes go through the repositories.
     #[must_use]
@@ -1447,10 +1462,18 @@ pub fn open_hardened_with(
 /// # Errors
 ///
 /// Returns the SQLite error when the setting can't be made.
+///
+/// AJ-E2026: and `checkpoint_fullfsync` on, so a checkpoint's syncs are
+/// `F_FULLFSYNC` on macOS (a plain `fsync` there leaves the drive's cache
+/// unflushed, and a power loss can lose what was checkpointed). In WAL
+/// with `synchronous=NORMAL` commits don't sync; checkpoints do, so this
+/// costs only at checkpoints. [`Storage::make_durable`] forces one after
+/// a write that must survive a power cut.
 pub(crate) fn harden(conn: &Connection) -> rusqlite::Result<()> {
     use rusqlite::config::DbConfig;
     conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
     conn.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
+    conn.pragma_update(None, "checkpoint_fullfsync", "ON")?;
     Ok(())
 }
 
