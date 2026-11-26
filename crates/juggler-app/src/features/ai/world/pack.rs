@@ -50,10 +50,7 @@ fn entity(name: &str, half_life: f64) -> KindSpec {
 ///
 /// A pack that doesn't hold together (a test builds it, so a build that
 /// ships has one that does).
-#[expect(
-    clippy::too_many_lines,
-    reason = "the pack is one declaration, kind by kind"
-)]
+#[expect(clippy::too_many_lines, reason = "one declaration, kind by kind")]
 pub fn pack() -> gyrus::Result<Pack> {
     let sessions_of = WalkRule::inward("part_of", 2, 6).decay(0.6);
     Pack::builder()
