@@ -591,6 +591,14 @@
 **Found**: the maintainer (2026-11-25) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; ADR-0038 accepted 2026-11-26 (D-150).
 **UI**: yes (Settings › AI › Memory; Bot's context and memory breakdown, AJ-E3825 R9, rebuilt on it in step 4)
 **Usability reasoning** (Opus, written first for Settings › AI › Memory and the breakdown, PAT-USE): what someone wants to know about what Bot remembers about their work, why, and how to make it forget, in plain words.
+- **The context breakdown** (built in step 4; re-checked on the built screen):
+  (1) Someone who wonders why Bot answered as it did opens "context …" under the box and expects to see what went to the model; the new part's name says it plainly: "Linked from your work".
+  (2) A newcomer sees the parts with their sizes (estimates labelled "≈ … est."), then up to six short lines, each a name and why in plain words: "agent11 · named in your question", "your own name for it", "matches your words", "shop · connected to agent11", and "and N more". No internal term (no node, graph, seed, walk, rule).
+  (3) Its value: it shows that Bot connected the right things, in the one breakdown that already lists what was sent; it replaces nothing and adds no second surface. The memory indicator counts a memory once, whether the question used it by name or the world model linked it.
+  (4) Unavailable or empty (the index still warming up, or nothing linked): the part reads 0 and no list shows; nothing else changes.
+  (5) No system prompt: the world model reads and writes AI Juggler's own database only.
+  (6) Watch for: a line naming something that wasn't sent (only what went into the request is listed: an empty section lists nothing); a state word in the list (the list names things, it never says what they are doing); a long name breaking the 248 px popover (each line truncates).
+- **Settings › AI › Memory** is not changed by this item: what Bot remembers is still listed, edited and forgotten there and in "What Bot remembers"; forgetting a memory now also removes what the world model linked to it, with no new control.
 **Requirements** (ADR-0038's Order of work):
 1. **The crate's core** (`crates/gyrus`, MIT OR Apache-2.0, its own README, tests, bench; a lint forbids any juggler-* dependency; no new crate in Cargo.lock): nodes, links, kind specs, the SQLite store (the next migration in AI Juggler's chain, checked on every branch), the in-memory index, write-through, rebuild, forget, the kill-at-every-step and test-phrase tests.
 2. **The operations:** `seed`, `expand`, `rank`, `matches`, `as_of`, `touch`, `explain`, with the benchmark suite at 10k, 100k and 1M links and its p95 budgets (ADR-0038 §3) in CI.

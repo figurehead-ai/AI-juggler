@@ -51,6 +51,8 @@ pub struct Asked<'a> {
     pub memory: &'a [BotMemoryInfo],
     /// The topic's last exchanges, oldest first.
     pub history: &'a [(String, String)],
+    /// What the world model connected to the question (ADR-0038 §5).
+    pub connected: &'a crate::features::ai::world::assemble::WorldContext,
 }
 
 /// What Bot answers.
@@ -156,27 +158,70 @@ fn details(
                 share(BotContextPart::Records, &parts.records),
                 share(BotContextPart::History, &parts.history),
                 share(BotContextPart::Question, &parts.question),
+                share(BotContextPart::World, &parts.world),
             ],
         },
-        memory: vec![
-            memory_share("preferences", &of_slot(&["alias", "focus"])),
-            memory_share("notes", &of_slot(&["note"])),
-            BotMemoryShare {
-                kind: "asked".to_owned(),
-                n: u32::try_from(asked.history.len()).unwrap_or(u32::MAX),
-                tokens: AiCount {
-                    n: estimate(&history_text),
-                    estimated: true,
+        memory: with_world_memory(
+            vec![
+                memory_share("preferences", &of_slot(&["alias", "focus"])),
+                memory_share("notes", &of_slot(&["note"])),
+                BotMemoryShare {
+                    kind: "asked".to_owned(),
+                    n: u32::try_from(asked.history.len()).unwrap_or(u32::MAX),
+                    tokens: AiCount {
+                        n: estimate(&history_text),
+                        estimated: true,
+                    },
                 },
+                // Watches go only as the world model's lines (a watch the
+                // user set, connected to the question).
+                BotMemoryShare {
+                    kind: "watches".to_owned(),
+                    n: 0,
+                    tokens: AiCount::default(),
+                },
+            ],
+            // Only what was sent: the general route sends no world section.
+            if parts.world.is_empty() {
+                &[]
+            } else {
+                &asked.connected.memory
             },
-            // Watches aren't sent with Bot's questions (ADR-0036's own job).
-            BotMemoryShare {
-                kind: "watches".to_owned(),
-                n: 0,
-                tokens: AiCount::default(),
-            },
-        ],
+            asked.memory,
+        ),
+        world: if parts.world.is_empty() {
+            Vec::new()
+        } else {
+            asked.connected.items.clone()
+        },
     }
+}
+
+/// The memory breakdown with the world model's memories added by their
+/// record's kind (a preference, a note, an earlier question, a watch).
+fn with_world_memory(
+    mut shares: Vec<BotMemoryShare>,
+    world: &[(juggler_core::storage::memory::Kind, String, u32)],
+    already: &[BotMemoryInfo],
+) -> Vec<BotMemoryShare> {
+    use juggler_core::storage::memory::Kind;
+    for (kind, key, tokens) in world {
+        // An alias the question used is counted once, already.
+        if already.iter().any(|m| &m.key == key) {
+            continue;
+        }
+        let slot = match kind {
+            Kind::Preference => "preferences",
+            Kind::Note => "notes",
+            Kind::StandingRequest => "watches",
+            _ => "asked",
+        };
+        if let Some(share) = shares.iter_mut().find(|s| s.kind == slot) {
+            share.n = share.n.saturating_add(1);
+            share.tokens.n = share.tokens.n.saturating_add(*tokens);
+        }
+    }
+    shares
 }
 
 fn generate(
@@ -255,6 +300,7 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
             }),
         memory: memory_lines(asked.memory),
         history: asked.history.to_vec(),
+        world: asked.connected.text.clone(),
     };
     let (request, parts) = written::request_with(
         asked.question,
@@ -330,18 +376,28 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
     let name = status.model_name.clone().unwrap_or_default();
     let history = written::history_section(asked.history);
     let memory = written::memory_section(&memory_lines(asked.memory));
+    // The world section goes with a general question too (ADR-0038 §5:
+    // every turn): what the user said shapes a plain answer; a reply that
+    // states a work fact from it is asked again grounded (D-148's guard).
+    let world = asked.connected.text.clone();
     let request = general::request(
         asked.question,
         asked.reading.lang,
         &name,
         status.version.as_deref(),
         &history,
-        &memory,
+        &[memory.as_str(), world.as_str()]
+            .iter()
+            .filter(|p| !p.is_empty())
+            .copied()
+            .collect::<Vec<_>>()
+            .join("\n"),
     );
     let parts = Parts {
         records: String::new(),
         memory,
         history,
+        world,
         question: asked.question.to_owned(),
     };
     let (generated, ms) = match generate(model, &request, &mut answer) {

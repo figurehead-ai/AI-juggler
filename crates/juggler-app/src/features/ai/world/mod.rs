@@ -14,6 +14,7 @@
 //! - **Entity nodes are pointers**; what they point at is read live
 //!   ([`resolve`]).
 
+pub mod assemble;
 pub mod link;
 pub mod pack;
 pub mod resolve;

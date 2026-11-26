@@ -2,6 +2,7 @@
 import type { AiCount } from "./AiCount";
 import type { BotContext } from "./BotContext";
 import type { BotMemoryShare } from "./BotMemoryShare";
+import type { BotWorldItemInfo } from "./BotWorldItemInfo";
 
 /**
  * AJ-E3825 R8/R9: an answer's calm details line and its breakdowns.
@@ -35,4 +36,9 @@ context: BotContext,
 /**
  * The memory in this turn, by kind.
  */
-memory: Array<BotMemoryShare>, };
+memory: Array<BotMemoryShare>, 
+/**
+ * What the world model connected, and why (empty when it wasn't
+ * ready or found nothing).
+ */
+world: Array<BotWorldItemInfo>, };

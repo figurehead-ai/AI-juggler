@@ -68,8 +68,9 @@ pub struct Resolved {
     pub name: String,
     /// The line for the model's context.
     pub line: String,
-    /// For a memory: the record's kind (the breakdown counts by it).
-    pub record: Option<Kind>,
+    /// For a memory: the record's kind and subject key (the breakdown
+    /// counts by kind, once per subject).
+    pub record: Option<(Kind, String)>,
 }
 
 /// "2 days ago", composed by code (ADR-0037 §3).
@@ -87,7 +88,10 @@ pub fn age_words(now_ms: i64, then_ms: i64) -> String {
     }
 }
 
-fn quoted(text: &str) -> String {
+/// The first 20 words, in curly quotes, neutralised (a record's words as
+/// data).
+#[must_use]
+pub fn quoted(text: &str) -> String {
     let words: Vec<&str> = text.split_whitespace().take(20).collect();
     format!("\u{201c}{}\u{201d}", neutral(&words.join(" ")))
 }
@@ -187,7 +191,13 @@ pub fn resolve(
         "memory" => memory_line(storage, world.now_ms, id),
         "turn" => {
             let turn = storage.chat().turn(id).ok().flatten()?;
-            if turn.redacted || turn.question.trim().is_empty() {
+            // A forgotten turn, or one whose answer the user marked wrong
+            // (AJ-E1548 #2: never sent back), is no line.
+            let flagged = serde_json::from_str::<serde_json::Value>(&turn.entities)
+                .ok()
+                .and_then(|meta| meta.get("flagged").and_then(serde_json::Value::as_bool))
+                .unwrap_or(false);
+            if turn.redacted || flagged || turn.question.trim().is_empty() {
                 return None;
             }
             Some(Resolved {
@@ -242,6 +252,6 @@ fn memory_line(storage: &Storage, now_ms: i64, subject_id: &str) -> Option<Resol
         plain: Plain::Memory,
         name: quoted(&record.text),
         line,
-        record: Some(record.kind),
+        record: Some((record.kind, record.subject_key.clone())),
     })
 }

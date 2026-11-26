@@ -44,8 +44,9 @@ fn seeds_come_from_the_hosts_matches_aliases_then_words() {
         .iter()
         .map(|s| (snap.node(s.node).unwrap().key.to_string(), s.via))
         .collect();
-    assert_eq!(found[0], ("project:api".into(), Via::Given));
-    assert_eq!(found[1], ("session:web".into(), Via::Alias), "{found:?}");
+    // The user's own name first, then the host's match.
+    assert_eq!(found[0], ("session:web".into(), Via::Alias), "{found:?}");
+    assert_eq!(found[1], ("project:api".into(), Via::Given));
     assert!(
         found.contains(&("note:1".into(), Via::Keyword)),
         "{found:?}"

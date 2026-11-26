@@ -371,6 +371,26 @@ pub enum BotContextPart {
     History,
     /// The question itself.
     Question,
+    /// What Bot's world model connected to the question, read live
+    /// (ADR-0038 §5).
+    World,
+}
+
+/// One thing Bot's world model put into a turn's context, and why
+/// (ADR-0038 §5, from `explain`), in plain words.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotWorldItemInfo {
+    /// What it is: `session`, `project`, `App`, `Account`, `pool`, `task`,
+    /// `memory`, `earlier question` or `note`.
+    pub kind: String,
+    /// Its name (a session's, the user's words for a memory).
+    pub name: String,
+    /// Why it went in: "named in your question", "your own name for it",
+    /// "matches your words", "connected to web".
+    pub why: String,
+    /// It is something the user said or set (counted under memory).
+    pub memory: bool,
 }
 
 /// One part's size.
@@ -430,6 +450,9 @@ pub struct BotDetails {
     pub context: BotContext,
     /// The memory in this turn, by kind.
     pub memory: Vec<BotMemoryShare>,
+    /// What the world model connected, and why (empty when it wasn't
+    /// ready or found nothing).
+    pub world: Vec<BotWorldItemInfo>,
 }
 
 /// The topic's running totals (AJ-E3825 R8): tokens this topic and the

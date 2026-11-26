@@ -3,4 +3,4 @@
 /**
  * One part of what was sent to the model (the context breakdown).
  */
-export type BotContextPart = "instructions" | "memory" | "records" | "history" | "question";
+export type BotContextPart = "instructions" | "memory" | "records" | "history" | "question" | "world";

@@ -68,6 +68,21 @@ fn topic_turns(
         .collect())
 }
 
+/// The current topic: a New topic started after the newest turn, else
+/// the newest turn's (`None` before the first question).
+fn current_topic(state: &AppState) -> Option<String> {
+    let storage = state.storage.lock().ok()?;
+    let page = storage.chat().page(None, 1).ok()?;
+    let newest = page.turns.first();
+    let started = page
+        .topics
+        .iter()
+        .filter(|t| newest.is_none_or(|n| t.started_ms >= n.at_ms))
+        .max_by_key(|t| t.started_ms)
+        .map(|t| t.id.clone());
+    started.or_else(|| newest.map(|t| t.topic.clone()))
+}
+
 /// The topic's last two exchanges Bot answered, oldest first (ADR-0034
 /// §6.7): never a redacted turn, never an answer marked wrong
 /// (AJ-E1548 #2).
@@ -106,6 +121,10 @@ pub fn bot_ask_impl(state: &Arc<AppState>, input: &BotAskInput) -> AppResult<Bot
 /// # Errors
 ///
 /// An empty question; storage failures.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one turn in order: read, remember or answer, keep, link (AJ-E3832 added the world model's two steps)"
+)]
 pub fn bot_ask_with(
     state: &Arc<AppState>,
     input: &BotAskInput,
@@ -142,6 +161,20 @@ pub fn bot_ask_with(
     }
     let memory: Vec<_> = used.iter().map(|(info, _)| info.clone()).collect();
     let history = history(state)?;
+    // ADR-0038 §5: the world model's section, rebuilt for this question,
+    // seeded from what the look-up finds, the words and this topic.
+    let topic = current_topic(state);
+    let looked = super::lookup::look_up(&reading, &world, scope.as_ref());
+    let connected = crate::features::ai::world::assemble::assemble(
+        state,
+        &crate::features::ai::world::assemble::Ask {
+            question: &question,
+            world: &world,
+            rows: &looked.rows,
+            topic: topic.as_deref(),
+            recent: &history,
+        },
+    );
     let answered = super::answer::answer(
         model,
         &super::answer::Asked {
@@ -152,6 +185,7 @@ pub fn bot_ask_with(
             again: marked_wrong(state, input.again.as_deref()),
             memory: &memory,
             history: &history,
+            connected: &connected,
         },
     );
     let outcome = answered.outcome.unwrap_or(BotOutcome::Failed);
@@ -207,6 +241,23 @@ pub fn bot_ask_with(
                 .link_turn(&kept.id, subject)
                 .map_err(memory_error)?;
         }
+        // The turn in the world model, part of its topic, about the records
+        // its answer rested on (ADR-0038 §5); then the uses its context
+        // queued, in this same hold.
+        let about: Vec<(super::dto::BotRowKind, String)> =
+            rows.iter().map(|r| (r.kind, r.id.clone())).collect();
+        let _ = state.world.write(
+            state,
+            &storage,
+            &crate::features::ai::world::link::turn_batch(
+                &kept.id,
+                &kept.topic,
+                &about,
+                world.now_ms,
+            ),
+            world.now_ms,
+        );
+        state.world.flush_uses(&storage, world.now_ms);
         kept
     };
     let mut info = turn_info(&kept, None, &|_| None);

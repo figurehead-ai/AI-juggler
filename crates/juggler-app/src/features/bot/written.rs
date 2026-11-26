@@ -193,6 +193,8 @@ pub struct Extras {
     pub memory: Vec<String>,
     /// Earlier exchanges in this topic, oldest first: question, answer.
     pub history: Vec<(String, String)>,
+    /// The world model's section (ADR-0038 §5), already framed as data.
+    pub world: String,
 }
 
 /// The prompt's parts, as sent (for the context breakdown).
@@ -204,6 +206,8 @@ pub struct Parts {
     pub memory: String,
     /// The history section.
     pub history: String,
+    /// The world model's section.
+    pub world: String,
     /// The question (and Ask again's note).
     pub question: String,
 }
@@ -259,11 +263,13 @@ pub fn request_with(
         records,
         memory: memory_section(&extras.memory),
         history: history_section(&extras.history),
+        world: extras.world.clone(),
         question: asked,
     };
     let prompt = [
         parts.history.as_str(),
         parts.memory.as_str(),
+        parts.world.as_str(),
         parts.records.as_str(),
         parts.question.as_str(),
     ]

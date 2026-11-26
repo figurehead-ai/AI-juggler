@@ -136,6 +136,18 @@ pub(super) fn forget_in(
         return Ok(None);
     }
     let mut keys: Vec<String> = subjects.iter().map(|s| memory_key(s)).collect();
+    // What was derived from a forgotten memory (a fact its words became)
+    // carries its words: it goes too.
+    let mut derived = tx.prepare_cached(
+        "SELECT s.key FROM gyrus_links l
+         JOIN gyrus_nodes s ON s.id = l.src JOIN gyrus_nodes d ON d.id = l.dst
+         WHERE l.kind = 'derived_from' AND d.key = ?1",
+    )?;
+    for subject in subjects {
+        for key in derived.query_map([memory_key(subject)], |row| row.get::<_, String>(0))? {
+            keys.push(key?);
+        }
+    }
     let mut stmt = tx.prepare_cached("SELECT id FROM chat_turns WHERE redacted = 1")?;
     let turns = stmt.query_map([], |row| row.get::<_, String>(0))?;
     for turn in turns {

@@ -4,8 +4,10 @@
  * breakdown on hover or click:
  * - **context** "context 3.1k / 4k": what the latest answer's request
  *   filled of the model's window, by part (instructions, Bot's memory,
- *   records and look-ups, conversation history, your question) and the
- *   room left for the answer;
+ *   records and look-ups, conversation history, your question, what Bot
+ *   linked from your work) and the room left for the answer; below them,
+ *   what Bot linked and why ("agent11 · named in your question"), from
+ *   its world model (AJ-E3832, ADR-0038 §5);
  * - **memory**: which memory went with it, by kind, with their tokens,
  *   and where to manage it.
  * Numbers are the engine's own counts where it gave one; an estimate is
@@ -32,6 +34,9 @@ function Indicator({ label, testId, children }: { label: string; testId: string;
     </span>
   );
 }
+
+/** The most linked things the context breakdown lists. */
+const LINKED_SHOWN = 6;
 
 function Row({ label, value }: { label: string; value: string }): JSX.Element {
   return (
@@ -71,6 +76,17 @@ export function BotUsageBar({ onMemories }: { onMemories: () => void }): JSX.Ele
           <Row key={part.part} label={CONTEXT_PART_WORDS[part.part]} value={countWords(part.tokens)} />
         ))}
         <Row label="Room for the answer" value={windowWords(context.answer_room)} />
+        {latest.world.length > 0 && (
+          <span className="mt-1 flex flex-col gap-0.5" data-testid="bot-context-linked">
+            {latest.world.slice(0, LINKED_SHOWN).map((item) => (
+              <span key={`${item.kind}:${item.name}`} className="flex min-w-0 gap-1">
+                <span className="truncate text-ink-2">{item.name}</span>
+                <span className="shrink-0 text-faint">· {item.why}</span>
+              </span>
+            ))}
+            {latest.world.length > LINKED_SHOWN && <span className="text-faint">and {latest.world.length - LINKED_SHOWN} more</span>}
+          </span>
+        )}
         <hr className="my-1 border-divider" />
         <Row label="Used of the window" value={`${countWords(context.used)} / ${windowWords(context.window)}`} />
       </Indicator>

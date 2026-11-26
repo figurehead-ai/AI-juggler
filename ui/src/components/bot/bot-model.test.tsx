@@ -37,6 +37,7 @@ const details: BotDetails = {
       { part: "records", tokens: { n: 500, estimated: true } },
       { part: "history", tokens: { n: 150, estimated: true } },
       { part: "question", tokens: { n: 12, estimated: true } },
+      { part: "world", tokens: { n: 40, estimated: true } },
     ],
   },
   memory: [
@@ -44,6 +45,10 @@ const details: BotDetails = {
     { kind: "notes", n: 0, tokens: { n: 0, estimated: true } },
     { kind: "asked", n: 2, tokens: { n: 150, estimated: true } },
     { kind: "watches", n: 0, tokens: { n: 0, estimated: false } },
+  ],
+  world: [
+    { kind: "session", name: "agent11", why: "named in your question", memory: false },
+    { kind: "project", name: "shop", why: "connected to agent11", memory: false },
   ],
 };
 
@@ -181,9 +186,13 @@ describe("the topic's totals", () => {
     expect(context.textContent).toBe("context 812 / 4.1k");
     fireEvent.click(context);
     const breakdown = screen.getByTestId("bot-context-breakdown").textContent ?? "";
-    for (const label of ["Instructions", "Bot’s memory", "Records", "Conversation history", "Your question", "Room for the answer"]) {
+    for (const label of ["Instructions", "Bot’s memory", "Records", "Conversation history", "Your question", "Linked from your work", "Room for the answer"]) {
       expect(breakdown).toContain(label);
     }
+    // What Bot linked from the user's work, and why, in plain words.
+    const linked = screen.getByTestId("bot-context-linked").textContent ?? "";
+    expect(linked).toContain("agent11· named in your question");
+    expect(linked).toContain("shop· connected to agent11");
     expect(breakdown).toContain("≈ 500 est.");
     fireEvent.click(screen.getByTestId("bot-memory"));
     const memory = screen.getByTestId("bot-memory-breakdown").textContent ?? "";

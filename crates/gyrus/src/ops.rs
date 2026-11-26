@@ -3,7 +3,7 @@
 //!
 //! | Operation | What it does |
 //! |---|---|
-//! | [`seed`] | starting nodes: the host's own matches and exact aliases first, then keyword (FTS5) and vector (exact cosine) search fused by reciprocal rank; at most K |
+//! | [`seed`] | starting nodes: exact aliases (the user's own names) and the host's own matches first, then keyword (FTS5, stop words left out) and vector (exact cosine) search fused by reciprocal rank; at most K |
 //! | [`expand`] | a best-first walk by the kinds' rules, keeping the **best** K per step (by score, never an arbitrary K), with a node cap and a depth cap |
 //! | [`rank`] | the top K, one node per fact key |
 //! | [`matches`] | a small typed pattern |
@@ -74,6 +74,9 @@ pub struct SeedQuery<'a> {
     pub vector: Option<&'a [f32]>,
     /// The host's own matches: node keys with their relevance (0..=1).
     pub given: &'a [(String, f32)],
+    /// The host's own keyword matches (its own index's hits), as node keys
+    /// with their relevance: reported as found by the words.
+    pub matched: &'a [(String, f32)],
     /// Only these kinds (empty: any).
     pub kinds: &'a [&'a str],
     /// At most this many seeds.
@@ -268,6 +271,10 @@ fn keyword(conn: &Connection, query: &str, k: usize) -> Result<Vec<(NodeId, f64)
 /// # Errors
 ///
 /// SQLite errors of the keyword or vector search.
+#[expect(
+    clippy::too_many_lines,
+    reason = "each source of seeds a short loop, in the order they rank"
+)]
 pub fn seed(
     conn: &Connection,
     snap: &Snapshot,
@@ -289,18 +296,8 @@ pub fn seed(
             have.relevance = have.relevance.max(seed.relevance);
         }
     };
-    for (key, relevance) in q.given {
-        if let Some(id) = snap.id_of(key).filter(|id| fits(*id)) {
-            add(
-                &mut out,
-                Seed {
-                    node: id,
-                    relevance: relevance.clamp(0.0, 1.0),
-                    via: Via::Given,
-                },
-            );
-        }
-    }
+    // The user's own names first, then the host's matches, then its own
+    // keyword hits (a node found more than one way keeps the first way).
     let words: Vec<String> = normalise(q.text)
         .split(' ')
         .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_owned())
@@ -320,6 +317,30 @@ pub fn seed(
                     );
                 }
             }
+        }
+    }
+    for (key, relevance) in q.given {
+        if let Some(id) = snap.id_of(key).filter(|id| fits(*id)) {
+            add(
+                &mut out,
+                Seed {
+                    node: id,
+                    relevance: relevance.clamp(0.0, 1.0),
+                    via: Via::Given,
+                },
+            );
+        }
+    }
+    for (key, relevance) in q.matched {
+        if let Some(id) = snap.id_of(key).filter(|id| fits(*id)) {
+            add(
+                &mut out,
+                Seed {
+                    node: id,
+                    relevance: relevance.clamp(0.0, 1.0),
+                    via: Via::Keyword,
+                },
+            );
         }
     }
     let k = q.k.max(1);

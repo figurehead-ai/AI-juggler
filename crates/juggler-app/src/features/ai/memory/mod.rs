@@ -139,9 +139,11 @@ pub(crate) fn memory_error(error: MemoryError) -> AppError {
 pub fn forget(state: &Arc<AppState>, subject_key: &str, actor: &Actor) -> AppResult<Forgotten> {
     let storage = crate::commands::lock_storage_arc(state)?;
     let now = juggler_core::model::Timestamp::now().millis();
+    // ADR-0038 §6: the world model's nodes go in the same transaction, and
+    // after the WAL is truncated, from its in-memory index.
     let forgotten = storage
         .memory()
-        .forget(subject_key, actor, now)
+        .forget_with_world(subject_key, actor, now, state.world.graph())
         .map_err(memory_error)?;
     crate::backup::drop_staged(&storage, &state.data_dir)?;
     Ok(forgotten)

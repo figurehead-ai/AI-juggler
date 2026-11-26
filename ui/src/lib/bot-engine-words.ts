@@ -86,6 +86,7 @@ export const CONTEXT_PART_WORDS: Record<BotContextPart, string> = {
   records: "Records",
   history: "Conversation history",
   question: "Your question",
+  world: "Linked from your work",
 };
 
 export const MEMORY_KIND_WORDS: Record<string, string> = {

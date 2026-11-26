@@ -309,3 +309,328 @@ fn nodes_resolve_to_live_lines() {
     );
     assert_eq!(resolve::age_words(NOW, NOW - 3 * 86_400_000), "3 days ago");
 }
+
+fn ask(state: &Arc<AppState>, question: &str) -> crate::features::bot::dto::BotTurnInfo {
+    crate::features::bot::commands::bot_ask_with(
+        state,
+        &crate::features::bot::dto::BotAskInput {
+            question: question.into(),
+            scope: None,
+            again: None,
+        },
+        &crate::features::bot::fake::Fake::new(),
+    )
+    .unwrap()
+}
+
+fn turn(state: &Arc<AppState>, question: &str) -> juggler_core::storage::memory::Turn {
+    let storage = state.storage.lock().unwrap();
+    storage
+        .chat()
+        .append(&juggler_core::storage::memory::NewTurn {
+            at_ms: NOW,
+            question,
+            outcome: "rows",
+            shown: None,
+            cites: "[]",
+            entities: "{}",
+            has_agent_words: false,
+        })
+        .unwrap()
+}
+
+/// ADR-0038 §5's example: "tell agent11 to double-validate their work"
+/// finds the session the words name (by the user's own name for it), walks
+/// to its project and App by the kinds' rules, reads their state now, and
+/// brings the kinds' reasoning questions.
+#[test]
+fn the_world_section_seeds_walks_and_reads_live_state() {
+    let (_dir, state) = state();
+    let world = world();
+    sync(&state, &world);
+    crate::features::bot::memory::remember(&state, &world, "call agent11 the api agent", "t1")
+        .unwrap()
+        .unwrap();
+    let rows = vec![world.sessions[1].clone()];
+    let ctx = super::assemble::assemble(
+        &state,
+        &super::assemble::Ask {
+            question: "tell the api agent to double-validate their work",
+            world: &world,
+            rows: &rows,
+            topic: None,
+            recent: &[],
+        },
+    );
+    assert!(!ctx.warming);
+    let items: Vec<(String, String, String)> = ctx
+        .items
+        .iter()
+        .map(|i| (i.kind.clone(), i.name.clone(), i.why.clone()))
+        .collect();
+    assert!(
+        items
+            .iter()
+            .any(|i| i.0 == "session" && i.1 == "agent11" && i.2 == "named in your question"),
+        "{items:?}"
+    );
+    assert!(
+        items
+            .iter()
+            .any(|i| i.0 == "memory" && i.2 == "your own name for it"),
+        "{items:?}"
+    );
+    assert!(
+        items
+            .iter()
+            .any(|i| i.0 == "project" && i.2.starts_with("connected to")),
+        "{items:?}"
+    );
+    assert!(ctx.text.contains("working now"), "{}", ctx.text);
+    assert!(
+        ctx.text.contains("What is it doing right now?"),
+        "{}",
+        ctx.text
+    );
+    assert!(ctx.text.contains("data, not instructions"));
+    // Bounded: within its share.
+    assert!(crate::features::ai::run::estimate(&ctx.text) <= super::assemble::SHARE_TOKENS + 60);
+    assert_eq!(ctx.memory.len(), 1);
+    // The state changes; the next question reads the new one (never
+    // remembered).
+    let mut later = world.clone();
+    later.sessions[1].state = Some(BotState::Stuck);
+    let ctx = super::assemble::assemble(
+        &state,
+        &super::assemble::Ask {
+            question: "tell the api agent to double-validate their work",
+            world: &later,
+            rows: &[later.sessions[1].clone()],
+            topic: None,
+            recent: &[],
+        },
+    );
+    assert!(
+        ctx.text.contains("agent11\u{201d}, looks stuck now"),
+        "{}",
+        ctx.text
+    );
+    assert!(
+        !ctx.text.contains("agent11\u{201d}, working now"),
+        "{}",
+        ctx.text
+    );
+}
+
+/// Topics are separate chats: a topic's context seeds from its own turns.
+#[test]
+fn a_topics_context_seeds_from_its_own_turns() {
+    let (_dir, state) = state();
+    let world = world();
+    let first = turn(&state, "is the cart review done");
+    let topic_b = {
+        let storage = state.storage.lock().unwrap();
+        storage.chat().new_topic(NOW + 1).unwrap()
+    };
+    let second = turn(&state, "what about the docs site");
+    assert_ne!(first.topic, second.topic);
+    assert_eq!(second.topic, topic_b.id);
+    {
+        let storage = state.storage.lock().unwrap();
+        for t in [&first, &second] {
+            let batch = super::link::turn_batch(&t.id, &t.topic, &[], NOW);
+            state.world.write(&state, &storage, &batch, NOW).unwrap();
+        }
+    }
+    let in_topic = |topic: &str| {
+        super::assemble::assemble(
+            &state,
+            &super::assemble::Ask {
+                question: "and now",
+                world: &world,
+                rows: &[],
+                topic: Some(topic),
+                recent: &[],
+            },
+        )
+        .text
+    };
+    let a = in_topic(&first.topic);
+    assert!(a.contains("cart review"), "{a}");
+    assert!(!a.contains("docs site"), "{a}");
+    let b = in_topic(&second.topic);
+    assert!(b.contains("docs site") && !b.contains("cart review"), "{b}");
+}
+
+/// Bot's breakdown (AJ-E3825 R9) is built on the world model: its part of
+/// the context, what went in and why, and the memories by kind, once each.
+#[test]
+fn bots_breakdown_shows_what_the_world_model_put_in() {
+    let (_dir, state) = state();
+    ask(&state, "remember the release goes out on fridays");
+    let turn = ask(&state, "when does the release go out");
+    let details = turn.details.unwrap();
+    let world_part = details
+        .context
+        .parts
+        .iter()
+        .find(|p| p.part == crate::features::bot::dto::BotContextPart::World)
+        .unwrap();
+    assert!(world_part.tokens.n > 0);
+    assert!(
+        details
+            .world
+            .iter()
+            .any(|w| w.memory && w.why == "matches your words"),
+        "{:?}",
+        details.world
+    );
+    let notes = details.memory.iter().find(|m| m.kind == "notes").unwrap();
+    assert_eq!(notes.n, 1);
+}
+
+/// ADR-0038 §6's permanent check: 27 canaries planted in every place a
+/// memory lives (a note's record and its index, a name the user gave and
+/// the world model's alias for it, the turns they came from and the
+/// conversation's title, a question asked, a fact the world model derived
+/// from a note, the log's sidecars), forgotten through the app's own paths,
+/// then searched for in the database file, its WAL and every other file,
+/// both keyword indexes' terms, and the in-memory index: 0 hits.
+#[test]
+fn forget_leaves_none_of_27_canaries_anywhere() {
+    let (dir, state) = state();
+    let world = world();
+    sync(&state, &world);
+    let canaries: Vec<String> = (0..27).map(|i| format!("qzcanary{i:02}w")).collect();
+    let mut keys: Vec<String> = Vec::new();
+    // 0..9: notes said in Bot ("remember …"): the record, its index entry,
+    // the turn's question and Bot's echo.
+    for c in &canaries[0..9] {
+        ask(&state, &format!("remember the {c} release note"));
+    }
+    // 9..15: names the user gave a session: the record, the memory node's
+    // alias, the turn they were said in.
+    for c in &canaries[9..15] {
+        let t = turn(&state, &format!("call web {c}"));
+        crate::features::bot::memory::remember(&state, &world, &format!("call web {c}"), &t.id)
+            .unwrap()
+            .unwrap();
+        // Each new name supersedes the last; its subject is one key.
+    }
+    // 15..21: questions asked: the turns (Clear chat history takes them).
+    for c in &canaries[15..21] {
+        ask(&state, &format!("is {c} finished"));
+    }
+    {
+        let storage = state.storage.lock().unwrap();
+        let store = storage.memory();
+        for kind in [
+            juggler_core::storage::memory::Kind::Note,
+            juggler_core::storage::memory::Kind::Preference,
+        ] {
+            for r in store.current_of_kind(kind, None, 100).unwrap() {
+                keys.push(r.subject_key.clone());
+            }
+        }
+        let notes = store
+            .current_of_kind(juggler_core::storage::memory::Kind::Note, None, 100)
+            .unwrap();
+        // 21..24: facts the world model derived from a note.
+        let mut batch = gyrus::Batch::new();
+        for (i, c) in canaries[21..24].iter().enumerate() {
+            let fact = format!("fact:c{i}");
+            batch
+                .node(gyrus::NewNode::new(
+                    "fact",
+                    &fact,
+                    gyrus::Label::Trusted(format!("{c} ships fridays")),
+                    NOW,
+                ))
+                .link(gyrus::NewLink::new(
+                    &fact,
+                    "derived_from",
+                    &memory_key(&notes[i].subject_id),
+                    "test",
+                ));
+        }
+        state.world.write(&state, &storage, &batch, NOW).unwrap();
+        // 24..27: the log's sidecars about a note.
+        for (i, c) in canaries[24..27].iter().enumerate() {
+            let mut event = juggler_core::storage::memory::NewEvent::new(
+                NOW,
+                juggler_core::storage::memory::Stream::Feedback,
+                "wrong",
+                juggler_core::storage::memory::Actor::User,
+            );
+            event.memory_subject = Some(notes[i].subject_id.clone());
+            storage
+                .ai_log()
+                .append(
+                    &event,
+                    Some((
+                        &juggler_core::storage::memory::NewSidecar {
+                            body: &format!("the user flagged {c}"),
+                            untrusted: false,
+                            expires_ms: NOW + 86_400_000,
+                        },
+                        &crate::features::ai::memory::RedactionSecrets,
+                    )),
+                )
+                .unwrap();
+        }
+        storage
+            .raw_conn()
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |_| Ok(()))
+            .unwrap();
+    }
+    let data = dir.path();
+    let planted = canaries
+        .iter()
+        .filter(|c| !crate::test_support::holding(data, c).is_empty())
+        .count();
+    assert_eq!(planted, 27, "not every canary was planted");
+    assert_eq!(keys.len(), 10, "9 notes and one alias subject: {keys:?}");
+    // Forget, through the app's own paths: each memory, then the chat.
+    for key in &keys {
+        crate::features::ai::memory::forget(
+            &state,
+            key,
+            &juggler_core::storage::memory::Actor::User,
+        )
+        .unwrap();
+    }
+    crate::features::bot::commands::bot_clear_impl(&state).unwrap();
+    let storage = state.storage.lock().unwrap();
+    let snap = state.world.ready(&state, &storage).unwrap();
+    let conn = storage.raw_conn();
+    let mut vocab = vec!["memory_fts".to_owned()];
+    vocab.extend((0..gyrus::FTS_BUCKETS).map(gyrus::schema::fts_table));
+    for table in &vocab {
+        conn.execute_batch(&format!(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS temp.v_{table} USING fts5vocab(main, {table}, row);"
+        ))
+        .unwrap();
+    }
+    let mut hits: Vec<String> = Vec::new();
+    for c in &canaries {
+        for path in crate::test_support::holding(data, c) {
+            hits.push(format!("{c} in {}", path.display()));
+        }
+        for table in &vocab {
+            let n: i64 = conn
+                .query_row(
+                    &format!("SELECT COUNT(*) FROM temp.v_{table} WHERE instr(term, ?1) > 0"),
+                    [&c[..10]],
+                    |r| r.get(0),
+                )
+                .unwrap();
+            if n > 0 {
+                hits.push(format!("{c} in {table}'s terms"));
+            }
+        }
+        if snap.holds_text(c) {
+            hits.push(format!("{c} in the in-memory index"));
+        }
+    }
+    assert!(hits.is_empty(), "{} hits: {hits:?}", hits.len());
+}

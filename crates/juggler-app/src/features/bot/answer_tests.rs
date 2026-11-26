@@ -327,7 +327,8 @@ fn history_and_memory_go_with_a_follow_up_and_are_counted() {
             BotContextPart::Memory,
             BotContextPart::Records,
             BotContextPart::History,
-            BotContextPart::Question
+            BotContextPart::Question,
+            BotContextPart::World
         ]
     );
     let preferences = details
