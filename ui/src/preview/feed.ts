@@ -57,6 +57,14 @@ export function feedItem(over: Omit<Partial<FeedItemInfo>, "facts" | "target"> &
   };
 }
 
+/** AJ-E3713 R6a: what the preview's finished sessions' last turns
+ * changed, as the backend reads it from their transcripts' edit and write
+ * calls (one counted, one a notebook's: files only). */
+const CHANGED: Record<string, FeedItemInfo["facts"]["changes"] | undefined> = {
+  "sess-done-1": { turn: "sess-done-1:0", files: 6, names: ["webhooks/stripe.ts", "webhooks/router.ts", "webhooks/verify.ts", "billing/events.ts", "tests/stripe.test.ts", "tests/router.test.ts"], added: 184, removed: 52 },
+  "sess-done-2": { turn: "sess-done-2:0", files: 2, names: ["sync/retry.ts", "notebooks/backoff.ipynb"], added: null, removed: null },
+};
+
 const ENDED: Record<string, [string, number] | undefined> = { finished: ["finished", 1], failed: ["failed", 3], stopped: ["stopped", 0] };
 
 /** A preview session's ending as the backend's item for it (tests seed
@@ -73,7 +81,7 @@ export function endingItem(session: InstanceInfo): FeedItemInfo | null {
     coalesce: `s:${session.id}`, rollup: kind === "failed" ? null : `v:${kind}:${session.account_id}:${session.project_id ?? "-"}:L${level}`, rollup_window_ms: 7_200_000,
     scope: `f:${session.account_id}`, subject: session.label ?? session.title ?? (folderName(session.cwd) || "A session"),
     author: { kind: "app", name: null, provider: session.provider, folder: session.account_id, folder_label: session.account_label, desktop: session.kind === "desktop" },
-    facts: { ...NO_FACTS, project_id: session.project_id, cwd: session.cwd ?? null, duration_ms: at - session.started_at_ms },
+    facts: { ...NO_FACTS, project_id: session.project_id, cwd: session.cwd ?? null, duration_ms: at - session.started_at_ms, changes: CHANGED[session.id] ?? null },
     target: { ...EMPTY_TARGET, session_id: session.id, project_id: session.project_id },
   });
 }

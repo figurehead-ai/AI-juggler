@@ -49,6 +49,14 @@ export function digestFeed(now: number): FeedItemInfo[] {
   ];
 }
 
+/** AJ-E3713 R6a: a turn's diff stat, as the backend reads it from the
+ * turn's edit and write calls (`null` lines: a tool whose calls don't
+ * count them, files only). */
+function changed(turn: string, files: number, added: number | null, removed: number | null): FeedItemInfo["facts"]["changes"] {
+  const names = ["src/auth/session.ts", "src/auth/login.ts", "src/auth/refresh.ts", "src/api/client.ts", "src/api/routes.ts", "src/ui/LoginForm.tsx", "src/ui/Header.tsx", "tests/login.test.ts", "tests/refresh.test.ts", "tests/routes.test.ts", "docs/auth.md", "src/auth/cookies.ts", "src/api/errors.ts", "src/ui/Banner.tsx"];
+  return { turn, files, names: names.slice(0, files), added, removed };
+}
+
 /** Every kind the feed draws, newest first, a rollup of four finished
  * sessions, and two from the night before (the away digest's). */
 export function busyFeed(now: number): FeedItemInfo[] {
@@ -58,11 +66,11 @@ export function busyFeed(now: number): FeedItemInfo[] {
     feedItem({
       id: `l:r${n}`, at_ms: now - (3 * HOUR + n * 20 * MIN), kind: "finished", category: "finished", coalesce: `s:r${n}`, rollup: "v:finished:claude-work:proj-ai-juggler:L0",
       rollup_window_ms: 2 * HOUR, scope: "f:claude-work", subject: `Fix flaky test ${n + 1}`, author: WORK,
-      facts: { project: "ai-juggler", project_id: "proj-ai-juggler", duration_ms: 12 * MIN }, target: { session_id: `r${n}` },
+      facts: { project: "ai-juggler", project_id: "proj-ai-juggler", duration_ms: 12 * MIN, changes: changed(`r${n}`, n + 1, 12 + n * 7, n * 3) }, target: { session_id: `r${n}` },
     }),
   );
   return [
-    item("l:1", 2 * MIN, "finished", "finished", { facts: { project: "ai-juggler", duration_ms: 18 * MIN } }),
+    item("l:1", 2 * MIN, "finished", "finished", { facts: { project: "ai-juggler", duration_ms: 18 * MIN, changes: changed("l1", 3, 58, 12) } }),
     item("l:2", 9 * MIN, "failed", "needs", { level: 3, subject: "Migrate the schema", facts: { project: "payments-api", detail: "exit code 1", duration_ms: 4 * MIN } }),
     // A crash and the restart after it: one session, one card.
     item("n:4", 13 * MIN, "restarted", "needs", { level: 3, coalesce: "s:idx", subject: "Index the docs", author: { ...PERSONAL, kind: "juggler" }, facts: { attempt: 1, tries: 3 } }),
@@ -75,7 +83,7 @@ export function busyFeed(now: number): FeedItemInfo[] {
     item("l:10", 80 * MIN, "task_done", "pools", { subject: "Add the paging test", author: { kind: "agent", name: "Tess", provider: "claude-code", folder: null, folder_label: null, desktop: false }, facts: { pool: "Release crew", pool_id: "pool-1", change: "In progress → Done" } }),
     item("l:11", 90 * MIN, "task_review", "pools", { level: 1, subject: "Review the diff", author: { kind: "agent", name: "Rae", provider: "codex", folder: null, folder_label: null, desktop: false }, facts: { pool: "Release crew", pool_id: "pool-1", change: "In progress → In review" } }),
     item("l:12", 100 * MIN, "message", "pools", { subject: "Which branch?", author: { kind: "agent", name: "Tess", provider: "claude-code", folder: null, folder_label: null, desktop: false }, facts: { pool: "Release crew", pool_id: "pool-1", thread: "Which branch?", thread_count: 3, quote: "I'd cut it from release/0.5 so the paging test lands with the feed." } }),
-    item("c:13", 110 * MIN, "worked", "other", { subject: "Plan the trip notes app", author: CODEX, facts: { project: "trip-notes" } }),
+    item("c:13", 110 * MIN, "worked", "other", { subject: "Plan the trip notes app", author: CODEX, facts: { project: "trip-notes", changes: changed("c13", 2, null, null) } }),
     ...rolled,
     // The night (BUSY_AWAY's digest): a failure and a finish while away.
     item("l:14", 6 * HOUR, "failed", "needs", { level: 3, subject: "Rebuild the search index", facts: { project: "ai-juggler", detail: "exit code 2", duration_ms: 40 * MIN } }),
@@ -221,10 +229,11 @@ export function mockHome(now: number) {
  * one ask pinned (Cart endpoints), then the posts it draws: a Claude app
  * post with its thread (Login refactor answered, then finished), AI
  * Juggler's switch with its before → after, Codex's finish quoting its
- * last reply, a pool's story (followed), and this morning's usage. Not
- * drawn, for want of the facts (no stand-in): the first post's diff stat
- * and three-session summary (the git reading's, AJ-E3708), and "2 keys
- * stayed hidden" (a switch's redaction count isn't kept).
+ * last reply, a pool's story (followed), and this morning's usage. The
+ * first post's diff stat is its turn's edit and write calls (AJ-E3713
+ * R6a: 14 files +412 −96, the mock's). Not drawn, for want of the facts
+ * (no stand-in): the three-session summary, and "2 keys stayed hidden" (a
+ * switch's redaction count isn't kept).
  */
 export const STORY_T0 = Date.UTC(2024, 9, 13, 15, 0, 0);
 
@@ -238,7 +247,7 @@ export function storyHome(now: number) {
   const fixture = { ...base.fixture, conversations } as unknown as FixtureSet;
   const at = (minutes: number) => now - minutes * MIN;
   const feed: FeedItemInfo[] = [
-    feedItem({ id: "n:fin", at_ms: at(7), kind: "finished", category: "finished", level: 1, coalesce: "s:login", subject: "Login refactor", author: CLAUDE_APP, facts: { project: "web-app", project_id: "proj-web", duration_ms: 18 * MIN }, target: { session_id: "login", project_id: "proj-web" } }),
+    feedItem({ id: "n:fin", at_ms: at(7), kind: "finished", category: "finished", level: 1, coalesce: "s:login", subject: "Login refactor", author: CLAUDE_APP, facts: { project: "web-app", project_id: "proj-web", duration_ms: 18 * MIN, changes: changed("login", 14, 412, 96) }, target: { session_id: "login", project_id: "proj-web" } }),
     feedItem({ id: "n:ans", at_ms: at(9), kind: "answered", category: "needs", level: 0, coalesce: "s:login", subject: "Login refactor", author: CLAUDE_APP, facts: { project: "web-app", project_id: "proj-web", need: "asks" }, target: { session_id: "login", project_id: "proj-web" } }),
     feedItem({ id: "w:port", at_ms: at(18), kind: "switch", category: "switches", level: 1, coalesce: "w:port", subject: "Port the parser", facts: { project: "web-app", project_id: "proj-web", from_label: "Work Max", from_provider: "claude-code", to_label: "Personal", to_provider: "codex", mechanism: "copy", fidelity: "full" }, target: { project_id: "proj-web" } }),
     feedItem({ id: "l:flaky", at_ms: at(25), kind: "finished", category: "finished", level: 1, coalesce: "s:flaky", subject: "Fix the flaky login test", author: CODEX_PERSONAL, facts: { project: "web-app", project_id: "proj-web", duration_ms: 42 * MIN, quote: "The race was in the session cookie's refresh. I now wait for the refresh before the second request, and the test passed 20 runs in a row." }, target: { session_id: "flaky", project_id: "proj-web" } }),
