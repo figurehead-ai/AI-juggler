@@ -734,6 +734,16 @@ fn v9s_misses_draft_as_said() {
         ),
     ];
     let c = v9_candidates();
+    // v12: a scope-neutral context clause is filler.
+    let out = run_on(
+        &c,
+        "whatever else is going on, I need to know the moment Till rounding finishes",
+        &Fake::new(&["FAIL"]),
+    );
+    assert_eq!(
+        filled(&out).map(|d| d.targets.clone()),
+        Some(vec![WatchTarget::Session("S-tr".into())])
+    );
     for (request, target, code, param, lifetime) in cases {
         let fake = Fake::new(&["FAIL"]);
         let out = run_on(&c, request, &fake);
@@ -753,7 +763,6 @@ fn v9s_misses_draft_as_said() {
         "I want to know about every new session, leave out OpenCode",
         "warn me when cache keys uses more than 1.5 million tokens today",
         "out of every session I have open, let me know when the Pattern export one asks me something",
-        "whatever else is going on, I need to know the moment Till rounding finishes",
         "Let me know, say, when billing-sync finishes.",
     ] {
         let fake = Fake::new(&["FAIL"]);

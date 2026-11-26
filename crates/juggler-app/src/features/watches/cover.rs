@@ -27,7 +27,7 @@ use crate::features::watches::draft::{
     self, Ask, LIFE_ALWAYS, LIFE_ENDS, LIFE_ONCE, LIFE_TODAY, WatchDrafted, cue_conditions,
     draft_info, masked, number_words, request_times, words,
 };
-use crate::features::watches::model::{Condition, LifetimeChoice, TargetKind};
+use crate::features::watches::model::{Condition, LifetimeChoice, Param, TargetKind, WatchTarget};
 use crate::features::watches::resolve;
 
 /// The labelling call's instructions (harness v11's text).
@@ -235,6 +235,13 @@ const FILLER: &[&str] = &[
     "quickly",
     "know",
     "whether",
+    "only",
+    "nur",
+    "anywhere",
+    "irgendwo",
+    "wann",
+    "telling",
+    "care",
     // German
     "ich",
     "mich",
@@ -364,6 +371,7 @@ const KINDS: &[&str] = &[
     "plan",
     "job",
     "jobs",
+    "lauf",
 ];
 /// A broad word, a target's only before a kind word or a name.
 const QUANTIFIERS: &[&str] = &[
@@ -443,7 +451,14 @@ const COND_EXTRA: &[&str] = &[
     "review",
     "throws",
     "making",
-    "progress",
+    "sits",
+    "sitting",
+    "up",
+    "down",
+    "spins",
+    "gets",
+    "comes",
+    "back",
 ];
 /// An indefinite word, a target's before a preposition and a name
 /// ("anything in pier", "something with the docs session").
@@ -485,6 +500,18 @@ const NEGATIONS: &[&str] = &[
 ];
 /// Asking phrases whose words aren't filler alone.
 const ASK_PHRASES: &[&str] = &[
+    // Scope-neutral context (v12): filler only because the negation guard
+    // has already turned away any request with a word that leaves
+    // something out.
+    "whatever else is running",
+    "whatever else is going on",
+    "whatever else is happening",
+    "whatever else happens",
+    "egal was sonst läuft",
+    "egal was sonst passiert",
+    "across everything i run",
+    "across everything i have running",
+    "von allen meinen sitzungen",
     "out of",
     "the moment",
     "the minute",
@@ -946,6 +973,80 @@ impl Reading {
     }
 }
 
+// ============================================================================ the negation guard
+
+/// Words that leave something out (v12's guard; "only" and "nur" are
+/// scope words, not these).
+const NEGATION_WORDS: &[&str] = &[
+    "not",
+    "never",
+    "nie",
+    "niemals",
+    "nicht",
+    "except",
+    "excluding",
+    "exclude",
+    "außer",
+    "ausser",
+    "ausgenommen",
+    "unless",
+    "without",
+    "ohne",
+    "ignore",
+    "ignoring",
+    "ignoriere",
+    "skip",
+    "skipping",
+    "cannot",
+];
+const NEGATION_PHRASES: &[&str] = &["es sei denn", "but not", "other than", "apart from"];
+/// The first half of an "n't" ("don't" is "don", "t").
+const NOT_STEMS: &[&str] = &[
+    "don", "doesn", "didn", "isn", "aren", "wasn", "weren", "won", "can", "couldn", "shouldn",
+    "wouldn", "haven", "hasn", "hadn", "ain", "mustn", "needn",
+];
+
+/// The first word that leaves something out, outside a name and a
+/// quiet-hours phrase code placed ("but not during quiet hours" keeps the
+/// default): `None` when there is none. Whatever the labels say.
+#[must_use]
+pub fn negated(r: &Reading) -> Option<usize> {
+    let w = &r.words;
+    (0..w.len()).find(|&i| {
+        if matches!(r.slots[i], Some(Slot::Target | Slot::QuietHours)) {
+            return false;
+        }
+        is(NEGATION_WORDS, &w[i])
+            || w[i].starts_with("kein")
+            || (w[i] == "t" && i > 0 && is(NOT_STEMS, &w[i - 1]))
+            || NEGATION_PHRASES
+                .iter()
+                .any(|p| phrase_at(w, i, p).is_some())
+    })
+}
+
+/// The request's own words from word `from` to its clause's end (at most
+/// eight words), and where that ends.
+#[must_use]
+pub fn clause_from(request: &str, from: usize) -> (String, usize) {
+    let t = token_spans(request);
+    let mut end = from + 1;
+    while end < t.len() && end < from + 8 {
+        let gap = &request[t[end - 1].2..t[end].1];
+        if gap.contains(['.', ';', '!', '?']) || (gap.contains(',') && end > from + 1) {
+            break;
+        }
+        end += 1;
+    }
+    let end = end.min(t.len());
+    let start = if from > 0 && t[from].0 == "t" {
+        from - 1
+    } else {
+        from
+    };
+    (said(request, start, end), end)
+}
+
 // ============================================================================ told back
 
 /// The nearest option for a request code can't draft: the target its
@@ -986,19 +1087,8 @@ pub fn nearest(
         }),
         _ => None,
     };
-    let offered: Vec<String> = one.map_or_else(
-        || {
-            let mut all: Vec<String> = ask
-                .candidates
-                .iter()
-                .flat_map(|c| c.offered.clone())
-                .collect();
-            all.sort();
-            all.dedup();
-            all
-        },
-        |c| c.offered.clone(),
-    );
+    let offered: Vec<String> =
+        one.map_or_else(|| draft::all_offered(ask.candidates), |c| c.offered.clone());
     let cue_text = {
         let sub = Ask {
             request: &outside(cue_skip),
@@ -1022,18 +1112,29 @@ pub fn nearest(
     )
 }
 
-/// A request code can't account for (`left`), told back: the model's
-/// labels say which words (an other or exclusion span, else the span with
-/// a word code can't place) and where the target is; code's own reading
-/// when the labels don't repeat the request. Returns the answer and the
-/// calls made.
-pub fn told_back(
+/// What the labels give: a draft code verified (with what its target
+/// offers), or what is told back.
+#[derive(Debug)]
+pub enum Labelled {
+    /// Every span verified by code.
+    Drafted(WatchDraftInfo, Vec<String>),
+    /// What can't be watched, with the nearest.
+    Told(WatchDrafted),
+}
+
+/// A request code can't place word by word (`left`), labelled by the
+/// model (v12: verified labels may draft). Code checks the spans repeat
+/// the request exactly; an exclusion or other span is told back; else the
+/// draft stands only when every check of [`verify`] holds. Labels code
+/// can't verify are asked again, then code tells back its own reading.
+/// Returns the answer and the calls made.
+pub fn labelled(
     model: &dyn JobModel,
     ask: &Ask<'_>,
     r: &Reading,
     left: &[usize],
     stop: &Stop,
-) -> (WatchDrafted, u32) {
+) -> (Labelled, u32) {
     let mut calls = 0;
     let mut note = String::new();
     for attempt in 0..=draft::RETRIES {
@@ -1042,41 +1143,209 @@ pub fn told_back(
         let Ok(out) = model.generate(&req, stop) else {
             break;
         };
-        match spans_of(&out.text, out.finish, &r.words) {
-            Ok(spans) => {
-                let unplaced = |a: usize, b: usize| (a..b).any(|i| left.contains(&i));
-                let told = |s: Slot| matches!(s, Slot::Other | Slot::Exclusion);
-                let Some(&(slot, a, b)) = spans
-                    .iter()
-                    .find(|(s, a, b)| told(*s) && unplaced(*a, *b))
-                    .or_else(|| spans.iter().find(|(_, a, b)| unplaced(*a, *b)))
-                else {
-                    break;
-                };
-                // The target from outside every span that says what can't
-                // be watched or what to leave out; the condition from
-                // outside what is left out.
-                let skip = spans
-                    .iter()
-                    .filter(|(s, ..)| told(*s))
-                    .fold((a, b), |(x, y), (_, p, q)| (x.min(*p), y.max(*q)));
-                let cue_skip = if slot == Slot::Exclusion {
-                    (a, b)
-                } else {
-                    (0, 0)
-                };
-                return (
-                    WatchDrafted::CantWatch {
-                        asked: said(ask.request, a, b),
-                        draft: Some(nearest(ask, r, skip, cue_skip)),
-                    },
-                    calls,
-                );
+        let why = match spans_of(&out.text, out.finish, &r.words) {
+            Ok(spans) => match verify(ask, r, &spans) {
+                Ok((d, offered)) => return (Labelled::Drafted(d, offered), calls),
+                Err(Check::Told(slot, a, b)) => {
+                    return (
+                        Labelled::Told(told_span(ask, r, &spans, (slot, a, b))),
+                        calls,
+                    );
+                }
+                Err(Check::Unverified(why)) => why,
+            },
+            Err(why) => why,
+        };
+        note = retry_note(&out.text, &why);
+    }
+    (Labelled::Told(code_told_back(ask, r, left)), calls)
+}
+
+/// A span that says what can't be watched, told back: the target from
+/// outside every such span, the condition from outside what is left out.
+fn told_span(
+    ask: &Ask<'_>,
+    r: &Reading,
+    spans: &[(Slot, usize, usize)],
+    (slot, a, b): (Slot, usize, usize),
+) -> WatchDrafted {
+    let told = |s: Slot| matches!(s, Slot::Other | Slot::Exclusion);
+    let skip = spans
+        .iter()
+        .filter(|(s, ..)| told(*s))
+        .fold((a, b), |(x, y), (_, p, q)| (x.min(*p), y.max(*q)));
+    let cue_skip = if slot == Slot::Exclusion {
+        (a, b)
+    } else {
+        (0, 0)
+    };
+    WatchDrafted::CantWatch {
+        asked: said(ask.request, a, b),
+        draft: Some(nearest(ask, r, skip, cue_skip)),
+    }
+}
+
+/// Why labels don't draft.
+enum Check {
+    /// An exclusion or other span: told back (its slot and words).
+    Told(Slot, usize, usize),
+    /// Code can't verify them: why.
+    Unverified(String),
+}
+
+/// The word indexes of the spans in `want`.
+fn indexes(spans: &[(Slot, usize, usize)], want: Slot) -> Vec<usize> {
+    spans
+        .iter()
+        .filter(|(s, ..)| *s == want)
+        .flat_map(|(_, a, b)| *a..*b)
+        .collect()
+}
+
+/// v12's checks on labels that repeat the request, all by code: no
+/// exclusion or other span; a word code can't place only in a target span,
+/// and then a word of the one entity the target spans resolve to (a name
+/// said in part also says its kind, or two of its words); the condition
+/// spans name exactly one condition (the cue table and its closed
+/// paraphrase map); every number in a parameter span whose unit that
+/// condition takes. The negation guard ran before any label.
+fn verify(
+    ask: &Ask<'_>,
+    r: &Reading,
+    spans: &[(Slot, usize, usize)],
+) -> Result<(WatchDraftInfo, Vec<String>), Check> {
+    let bad = |why: String| Err(Check::Unverified(why));
+    if let Some(&(slot, a, b)) = spans
+        .iter()
+        .find(|(s, ..)| matches!(s, Slot::Other | Slot::Exclusion))
+    {
+        return Err(Check::Told(slot, a, b));
+    }
+    for &(slot, a, b) in spans {
+        for i in a..b {
+            if r.slots[i].is_none() && slot != Slot::Target {
+                return bad(format!("“{}” is no {}", r.words[i], slot_word(slot)));
             }
-            Err(why) => note = retry_note(&out.text, &why),
+            if number(&r.words[i]).is_some()
+                && slot != Slot::ConditionParam
+                && !matches!(r.slots[i], Some(Slot::Lifetime | Slot::QuietHours))
+            {
+                return bad(format!(
+                    "the number “{}” belongs in a condition_param span",
+                    r.words[i]
+                ));
+            }
         }
     }
-    (code_told_back(ask, r, left), calls)
+    let target_idx = indexes(spans, Slot::Target);
+    let (target, offered) = target_of(ask, r, &target_idx).ok_or_else(|| {
+        Check::Unverified(
+            "the target spans name no one session, project, App or account".to_owned(),
+        )
+    })?;
+    let cond_text = indexes(spans, Slot::Condition)
+        .iter()
+        .map(|&i| r.words[i].as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let [code] = &cue_conditions(&cond_text)[..] else {
+        return bad("the condition spans name no one condition".to_owned());
+    };
+    let param = param_of(r, &indexes(spans, Slot::ConditionParam), code)?;
+    if param.is_none() && ["idle_for", "runway_below"].contains(&code.as_str()) {
+        return bad("that condition needs its number".to_owned());
+    }
+    let lifetime = match draft::lifetime_for(ask) {
+        LifetimeChoice::UntilEnds if target.kind() != TargetKind::Session => LifetimeChoice::Unsaid,
+        other => other,
+    };
+    let mut d = draft_info(
+        vec![target],
+        vec![Condition {
+            code: code.clone(),
+            param,
+        }],
+        lifetime,
+    );
+    d.even_in_quiet_hours = r.quiet_on;
+    Ok((d, offered))
+}
+
+/// The parameter span's number, read by code: one number with its unit,
+/// a unit `code` takes (else told back: a number no condition takes).
+fn param_of(r: &Reading, idx: &[usize], code: &str) -> Result<Option<Param>, Check> {
+    let (Some(&first), Some(&last)) = (idx.first(), idx.last()) else {
+        return Ok(None);
+    };
+    let mut sub = Reading {
+        words: idx.iter().map(|&i| r.words[i].clone()).collect(),
+        slots: vec![None; idx.len()],
+        params: Vec::new(),
+        quiet_on: false,
+    };
+    params(&mut sub);
+    let [(_, _, unit, value)] = sub.params[..] else {
+        return Err(Check::Unverified(
+            "a condition_param span holds one number with its unit".to_owned(),
+        ));
+    };
+    let takes = match unit {
+        Unit::Minutes => ["stuck", "asks_you", "idle_for"].contains(&code),
+        Unit::Percent => code == "runway_below",
+    };
+    if !takes {
+        return Err(Check::Told(Slot::Other, first, last + 1));
+    }
+    draft::param_of(code, &value.to_string()).map_err(Check::Unverified)
+}
+
+fn slot_word(slot: Slot) -> &'static str {
+    SLOTS
+        .iter()
+        .find(|(_, s)| *s == slot)
+        .map_or("slot", |(k, _)| k)
+}
+
+/// The one entity the target spans resolve to (or any session), and what
+/// it offers: a word code can't place must be one of that entity's own
+/// name words, and a name said only in part comes with its kind word or
+/// two of its words.
+fn target_of(ask: &Ask<'_>, r: &Reading, idx: &[usize]) -> Option<(WatchTarget, Vec<String>)> {
+    let said_words: Vec<String> = idx.iter().map(|&i| r.words[i].clone()).collect();
+    if said_words.is_empty() {
+        return None;
+    }
+    let found = resolve::resolve(&said_words.join(" "), ask.candidates);
+    let unplaced: Vec<&str> = idx
+        .iter()
+        .filter(|&&i| r.slots[i].is_none())
+        .map(|&i| r.words[i].as_str())
+        .collect();
+    match (found.candidates.as_slice(), found.picker.is_empty()) {
+        ([c], true) => {
+            let c = &ask.candidates[*c];
+            let names: Vec<&str> = std::iter::once(c.name.as_str())
+                .chain(c.aliases.iter().map(String::as_str))
+                .collect();
+            let mut own: Vec<String> = names
+                .iter()
+                .flat_map(|n| tokens(n).into_iter().chain(resolve::spaced(n)))
+                .collect();
+            own.sort();
+            own.dedup();
+            if !unplaced.iter().all(|u| own.iter().any(|o| o == u)) {
+                return None;
+            }
+            let whole = names.iter().any(|n| resolve::full_match(&said_words, n));
+            let kind = said_words.iter().any(|x| is(KINDS, x));
+            let parts = own.iter().filter(|o| said_words.contains(o)).count();
+            (whole || kind || parts >= 2).then(|| (c.target.clone(), c.offered.clone()))
+        }
+        ([], _) if found.any && unplaced.is_empty() => {
+            Some((WatchTarget::Any, draft::all_offered(ask.candidates)))
+        }
+        _ => None,
+    }
 }
 
 /// Code's own told-back answer: the words from the first it can't place

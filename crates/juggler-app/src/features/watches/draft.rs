@@ -156,7 +156,7 @@ fn starts(haystack: &[String], stems: &[&str]) -> Option<usize> {
         .position(|w| stems.iter().any(|s| w.starts_with(s)))
 }
 
-const ASK_TO_TELL: [&str; 27] = [
+const ASK_TO_TELL: &[&str] = &[
     "page me",
     "message me",
     "need to know",
@@ -184,8 +184,14 @@ const ASK_TO_TELL: [&str; 27] = [
     "erinner",
     "warne mich",
     "alarmier",
+    "telling me",
+    "keep me posted",
+    "care when",
+    "möchte wissen",
+    "will wissen",
+    "wissen",
 ];
-const WHEN: [&str; 18] = [
+const WHEN: &[&str] = &[
     "any time",
     "next time",
     "the moment",
@@ -204,6 +210,7 @@ const WHEN: [&str; 18] = [
     "jedes mal",
     "watch",
     "beobachte",
+    "wann",
 ];
 
 /// The words ask to be told when something happens (English, German):
@@ -224,8 +231,13 @@ pub fn is_watch_request(text: &str) -> bool {
     // A reminder is asked for in its own words ("remind me at 5"): answered
     // with what can't be watched and the nearest (harness v7, as measured).
     // "I want to know about every new session": an ask about a condition.
-    let about = has(&["want to know about", "need to know about", "hear about"])
-        && !cue_conditions(text).is_empty();
+    let about = has(&[
+        "want to know about",
+        "need to know about",
+        "hear about",
+        "tell me about any new",
+        "tell me about every new",
+    ]) && !cue_conditions(text).is_empty();
     // "Notify me about failures", "Warne mich bei Fehlern" (v10's W58,
     // W03): a verb that asks ahead, and a condition said.
     let ahead = has(&[
@@ -238,7 +250,7 @@ pub fn is_watch_request(text: &str) -> bool {
         "weck",
         "wake",
     ]) && !cue_conditions(text).is_empty();
-    has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]) || about || ahead)
+    has(ASK_TO_TELL) && (has(WHEN) || has(&["remind", "erinner"]) || about || ahead)
 }
 
 /// The number words the requests use (English, German); the reminder
@@ -495,7 +507,7 @@ fn text(got: &serde_json::Map<String, Value>, k: &str) -> String {
         .to_owned()
 }
 
-fn param_of(code: &str, raw: &str) -> Result<Option<Param>, String> {
+pub(super) fn param_of(code: &str, raw: &str) -> Result<Option<Param>, String> {
     let n = raw.parse::<u32>().ok();
     let needs = |name: &str| Err(format!("param: {code} needs its {name} from NUMBERS"));
     match (code, raw) {
@@ -664,8 +676,14 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
             ) && !next(i, &["up"])
         }),
         ("starts", &|i| {
-            (is(i, &["starts", "started", "startet"]) && !next(i, &["to", "failing", "asking"]))
+            (is(
+                i,
+                &[
+                    "starts", "started", "startet", "starting", "begins", "beginnt",
+                ],
+            ) && !next(i, &["to", "failing", "asking"]))
                 || (is(i, &["new"]) && next(i, &["session"]))
+                || (is(i, &["spins"]) && next(i, &["up"]))
         }),
         ("leaves_processes", &|i| pre(i, &["process", "prozess"])),
     ];
@@ -674,13 +692,66 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
             hits.push((i, code));
         }
     }
+    hits.extend(paraphrased(&w));
     hits.sort_unstable();
     let mut out: Vec<String> = hits.into_iter().map(|(_, c)| c.to_owned()).collect();
+    composites(&mut out);
     if out.iter().any(|c| c == "runway_below") && !w.iter().any(|x| x.starts_with("limit")) {
         out.retain(|c| c != "hits_limit");
     }
     out.dedup();
     out
+}
+
+/// Composites (v11's W04, W30): a crash and a start again is a restart;
+/// ending and leaving processes is the latter alone.
+fn composites(out: &mut Vec<String>) {
+    if out.iter().any(|c| c == "restarted") {
+        out.retain(|c| c != "fails" && c != "starts");
+    }
+    if out.iter().any(|c| c == "leaves_processes") {
+        out.retain(|c| c != "ends");
+    }
+}
+
+/// The closed paraphrase map (v12): phrasings the cue table's single words
+/// don't reach, each to one condition, with where it starts.
+fn paraphrased(w: &[String]) -> Vec<(usize, &'static str)> {
+    const MAP: &[(&str, &str)] = &[
+        ("gets started again", "restarted"),
+        ("started again", "restarted"),
+        ("starts again", "restarted"),
+        ("comes back up", "restarted"),
+        ("is restarted", "restarted"),
+        ("gets restarted", "restarted"),
+        ("restarts", "restarted"),
+        ("wieder gestartet", "restarted"),
+        ("neu gestartet", "restarted"),
+        ("neu startet", "restarted"),
+        ("blows up", "fails"),
+        ("falls over", "fails"),
+        ("dies", "fails"),
+        ("bricht ab", "fails"),
+        ("abgebrochen", "fails"),
+        ("needs me", "asks_you"),
+        ("wartet auf mich", "asks_you"),
+        ("wartet auf eine antwort", "asks_you"),
+        ("braucht mich", "asks_you"),
+        ("stops responding", "stuck"),
+        ("freezes up", "stuck"),
+        ("bleibt hängen", "stuck"),
+        ("shuts down", "ends"),
+        ("geschlossen", "ends"),
+        ("hits the cap", "hits_limit"),
+    ];
+    MAP.iter()
+        .filter_map(|(p, code)| {
+            let p = words(p);
+            (0..w.len())
+                .find(|&i| w.len() >= i + p.len() && w[i..i + p.len()] == p[..])
+                .map(|i| (i, *code))
+        })
+        .collect()
 }
 
 /// The number the request says for `code`'s parameter (a percent for
@@ -1069,16 +1140,7 @@ fn target_of(
 ) -> (Option<WatchTarget>, Vec<String>) {
     match chosen {
         Some(c) => (Some(c.target.clone()), c.offered.clone()),
-        None if found_any => {
-            let mut all: Vec<String> = ask
-                .candidates
-                .iter()
-                .flat_map(|c| c.offered.clone())
-                .collect();
-            all.sort();
-            all.dedup();
-            (Some(WatchTarget::Any), all)
-        }
+        None if found_any => (Some(WatchTarget::Any), all_offered(ask.candidates)),
         None => (None, Vec::new()),
     }
 }
@@ -1092,10 +1154,30 @@ pub fn draft(
     stop: &Stop,
     check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
 ) -> (Outcome, u32) {
+    // "die Fahrplan-Import-Sitzung" names "Fahrplan-Import" (v11's W28).
+    let text = uncompound(ask.request);
+    let ask = &Ask {
+        request: &text,
+        candidates: ask.candidates,
+        midnight_ms: ask.midnight_ms,
+        now_ms: ask.now_ms,
+    };
     if !is_watch_request(ask.request) {
         return (Outcome::NotAWatch, 0);
     }
     let reading = cover::read(ask);
+    // The negation guard (v12), whatever else is read: a word that leaves
+    // something out makes the request one that can't be watched.
+    if let Some(i) = cover::negated(&reading) {
+        let (asked, end) = cover::clause_from(ask.request, i);
+        return (
+            Outcome::Drafted(WatchDrafted::CantWatch {
+                asked,
+                draft: Some(cover::nearest(ask, &reading, (i, end), (i, end))),
+            }),
+            0,
+        );
+    }
     let (out, calls) = match reading.cover(ask) {
         cover::Cover::Claimed => {
             let (out, calls) = claimed(model, ask, stop, check);
@@ -1110,8 +1192,20 @@ pub fn draft(
             0,
         ),
         cover::Cover::Leftover(left) => {
-            let (out, calls) = cover::told_back(model, ask, &reading, &left, stop);
-            (Outcome::Drafted(out), calls)
+            let (out, calls) = cover::labelled(model, ask, &reading, &left, stop);
+            let out = match out {
+                cover::Labelled::Told(d) => Outcome::Drafted(d),
+                cover::Labelled::Drafted(d, offered) => {
+                    if !d.conditions.iter().all(|c| offered.contains(&c.code)) {
+                        unoffered(ask)
+                    } else if check(&d).is_some() {
+                        Outcome::Drafted(WatchDrafted::Form)
+                    } else {
+                        Outcome::Drafted(WatchDrafted::Filled { draft: d })
+                    }
+                }
+            };
+            (out, calls)
         }
     };
     // What can't be watched always comes with the nearest option.
@@ -1125,6 +1219,45 @@ pub fn draft(
         other => other,
     };
     (out, calls)
+}
+
+/// What any session offers: every candidate's conditions, once each.
+pub(super) fn all_offered(candidates: &[Candidate]) -> Vec<String> {
+    let mut all: Vec<String> = candidates.iter().flat_map(|c| c.offered.clone()).collect();
+    all.sort();
+    all.dedup();
+    all
+}
+
+/// A German compound's kind word apart: "Fahrplan-Import-Sitzung" is
+/// "Fahrplan-Import Sitzung" (also -Session, -Lauf, -Projekt).
+#[must_use]
+pub fn uncompound(text: &str) -> String {
+    const KINDS: &[&str] = &["-sitzung", "-session", "-lauf", "-projekt", "-project"];
+    let lower = text.to_lowercase();
+    if lower.len() != text.len() {
+        return text.to_owned(); // a case change that moves bytes: left as said
+    }
+    let mut out = text.to_owned();
+    for k in KINDS {
+        let mut from = 0;
+        while let Some(at) = lower[from..].find(k).map(|x| x + from) {
+            let end = at + k.len();
+            let whole = lower[end..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_alphanumeric());
+            let joined = lower[..at]
+                .chars()
+                .next_back()
+                .is_some_and(char::is_alphanumeric);
+            if whole && joined {
+                out.replace_range(at..=at, " ");
+            }
+            from = end;
+        }
+    }
+    out
 }
 
 /// "Even during quiet hours", as the request's words said it.
