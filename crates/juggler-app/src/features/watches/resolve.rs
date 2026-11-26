@@ -77,7 +77,7 @@ fn holds(said: &[String], needle: &[String]) -> bool {
     !needle.is_empty() && said.windows(needle.len()).any(|w| w == needle)
 }
 
-fn spaced(name: &str) -> Vec<String> {
+pub(super) fn spaced(name: &str) -> Vec<String> {
     words(&name.replace(['-', '_', '.', '/'], " "))
 }
 
@@ -337,8 +337,9 @@ fn settle_twins(
     }
 }
 
-/// A session and its own project or App named alike ("the beta tracker"),
-/// with no kind word: the session (v8's W23, W32).
+/// A session and a project or App named alike ("the beta tracker",
+/// "checkout-api"), with no kind word: the session (v8's W23, W32; v10's
+/// W05, its namesake another session's project).
 fn session_over_namesake(all: &[Candidate], said: &[String], cands: &mut Vec<usize>) {
     if cands.len() != 2 || !kinds_said(said).is_empty() {
         return;
@@ -349,12 +350,7 @@ fn session_over_namesake(all: &[Candidate], said: &[String], cands: &mut Vec<usi
         (TargetKind::Project | TargetKind::App, TargetKind::Session) => (cands[1], a),
         _ => return,
     };
-    let s = &all[session];
-    let belongs = [s.project.as_deref(), s.app.as_deref()]
-        .into_iter()
-        .flatten()
-        .any(|o| o == holder.name);
-    if belongs && spaced(&s.name) == spaced(&holder.name) {
+    if spaced(&all[session].name) == spaced(&holder.name) {
         *cands = vec![session];
     }
 }

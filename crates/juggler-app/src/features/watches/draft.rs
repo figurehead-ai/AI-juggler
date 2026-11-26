@@ -1,16 +1,18 @@
 //! AJ-E3830 (D-149 and its amendment of 2026-11-26): Bot fills the
-//! Watches form. **Code decides, the model picks** (harness v7's
-//! `watch3`, as measured: its prompts are these, a test keeps them equal):
+//! Watches form. **Code decides; the model labels or picks among code's
+//! own** (harness v11, which runs this code):
 //!
+//! - **Full coverage first** ([`cover`]): code drafts only a request it
+//!   accounts for word by word; anything else is told back with the
+//!   nearest option, the model's labels saying only which words.
 //! - **The target:** [`super::resolve`] lists the candidates from the
 //!   user's own names and aliases (exclusions first, owners, "any", kind
-//!   words, shared names). One candidate is code's; several, the model
-//!   picks one id or none (call 1); twins nothing settles open the form's
-//!   picker.
+//!   words, shared names). One candidate is code's; several (each named),
+//!   the model picks one id or none (call 1); twins nothing settles open
+//!   the form's picker.
 //! - **The conditions:** code's from the request's cue words, from the
 //!   app's offer for the target ([`Candidate::offered`], the catalogue);
-//!   idle and stuck stay apart. Only with no cue word does the model pick
-//!   (call 2), from the offer with one-line definitions.
+//!   idle and stuck stay apart. No cue word, no condition: the form.
 //! - **Numbers and lifetime:** code's, from the request's words; an
 //!   unsaid lifetime stays unsaid (ADR-0036's default).
 //! - **What can't be watched:** said in the request's own words, always
@@ -31,14 +33,15 @@ use crate::features::ai::engine::{Decoding, Draft, Finish, Request, Stop};
 use crate::features::ai::run::JobModel;
 use crate::features::observe::TaskState;
 
+/// Code reads every word first; the model only labels (harness v11).
+#[path = "cover.rs"]
+pub mod cover;
+
 /// Call 1's instructions, harness v7's text.
 pub const TARGET_INSTRUCTIONS: &str = include_str!("draft_prompts/target.txt");
-/// Call 2's instructions, harness v7's text.
-pub const WHEN_INSTRUCTIONS: &str = include_str!("draft_prompts/when.txt");
 /// Regenerations of each pick after a failed check (D-130).
 pub const RETRIES: u32 = 2;
 const TASK1: &str = "Pick the one CANDIDATE the REQUEST is about, or none.";
-const TASK2: &str = "Pick what to watch the TARGET for, from the CONDITIONS above.";
 
 /// What can't be watched, as the model names it (a short enum, D-149).
 const UNSUPPORTED: [&str; 12] = [
@@ -223,7 +226,19 @@ pub fn is_watch_request(text: &str) -> bool {
     // "I want to know about every new session": an ask about a condition.
     let about = has(&["want to know about", "need to know about", "hear about"])
         && !cue_conditions(text).is_empty();
-    has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]) || about)
+    // "Notify me about failures", "Warne mich bei Fehlern" (v10's W58,
+    // W03): a verb that asks ahead, and a condition said.
+    let ahead = has(&[
+        "notify",
+        "alert",
+        "warn",
+        "ping",
+        "page me",
+        "benachrichtig",
+        "weck",
+        "wake",
+    ]) && !cue_conditions(text).is_empty();
+    has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]) || about || ahead)
 }
 
 /// The number words the requests use (English, German); the reminder
@@ -548,6 +563,31 @@ pub(super) fn draft_info(
 
 // ============================================================================ code's readings
 
+const FAIL_STEMS: &[&str] = &[
+    "fail",
+    "error",
+    "crash",
+    "fehl",
+    "absturz",
+    "abgestürzt",
+    "abstürz",
+    "scheiter",
+    "schief",
+];
+const STUCK_WORDS: &[&str] = &[
+    "stuck",
+    "hangs",
+    "hanging",
+    "stalls",
+    "stalled",
+    "frozen",
+    "freezes",
+    "hängt",
+    "festhängt",
+    "hängen",
+    "hängenbleibt",
+];
+
 /// The conditions the request's cue words name, in its order (harness
 /// v7's `CUE_CONDITIONS`), read with names and exclusions blanked.
 #[must_use]
@@ -560,19 +600,8 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
     let mut hits: Vec<(usize, &str)> = Vec::new();
     let table: [(&str, &dyn Fn(usize) -> bool); 11] = [
         ("fails", &|i| {
-            pre(
-                i,
-                &[
-                    "fail",
-                    "error",
-                    "crash",
-                    "fehl",
-                    "absturz",
-                    "abgestürzt",
-                    "scheiter",
-                    "schief",
-                ],
-            ) || is(i, &["breaks", "broke", "broken", "kaputt"])
+            pre(i, FAIL_STEMS)
+                || is(i, &["breaks", "broke", "broken", "kaputt"])
                 || (is(i, &["wrong"]) && i > 0 && is(i - 1, &["goes", "go", "went"]))
         }),
         ("finishes", &|i| {
@@ -580,22 +609,11 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
                 i,
                 &["finish", "complet", "fertig", "erledigt", "abgeschlossen"],
             ) || is(i, &["done", "ready"])
+                || (is(i, &["wraps", "wrapped", "wrap"]) && next(i, &["up"]))
         }),
         ("stuck", &|i| {
-            is(
-                i,
-                &[
-                    "stuck",
-                    "hangs",
-                    "hanging",
-                    "stalls",
-                    "stalled",
-                    "frozen",
-                    "freezes",
-                    "hängt",
-                    "festhängt",
-                ],
-            ) || (is(i, &["stops", "stopped"]) && next(i, &["moving"]))
+            is(i, STUCK_WORDS)
+                || (is(i, &["stops", "stopped"]) && next(i, &["moving", "making", "progressing"]))
                 || (is(i, &["no"]) && next(i, &["progress"]))
         }),
         ("idle_for", &|i| {
@@ -605,8 +623,20 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
         ("asks_you", &|i| {
             pre(
                 i,
-                &["ask", "question", "approv", "frag", "rückfrag", "freigabe"],
+                &[
+                    "ask",
+                    "question",
+                    "approv",
+                    "frag",
+                    "rückfrag",
+                    "freigabe",
+                    "input",
+                ],
             ) && !(i > 0 && is(i - 1, &["i", "you"]))
+                || (is(i, &["waiting", "waits"])
+                    && next(i, &["on", "for"])
+                    && w.get(i + 2)
+                        .is_some_and(|n| ["me", "my", "you", "your"].contains(&n.as_str())))
         }),
         ("hits_limit", &|i| {
             pre(i, &["limit", "rate-limit", "throttl", "nutzungslimit"])
@@ -616,9 +646,14 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
                 && w.get(i + 1)
                     .is_some_and(|n| n.chars().next().is_some_and(|c| c.is_ascii_digit())))
                 || (is(i, &["runs", "running"]) && next(i, &["low"]))
+                || (is(i, &["less", "weniger"])
+                    && next(i, &["than", "als"])
+                    && w.get(i + 2)
+                        .is_some_and(|n| n.chars().next().is_some_and(|c| c.is_ascii_digit())))
         }),
         ("runway_resets", &|i| {
-            pre(i, &["reset", "zurückgesetzt"]) || (is(i, &["room"]) && next(i, &["again"]))
+            pre(i, &["reset", "zurückgesetzt", "spielraum"])
+                || (is(i, &["room"]) && next(i, &["again"]))
         }),
         ("ends", &|i| {
             is(
@@ -710,11 +745,85 @@ fn minutes_said(text: &str) -> Option<u32> {
     })
 }
 
+/// "Until it ends" in words.
+pub(super) const LIFE_ENDS: &[&str] = &[
+    "until it ends",
+    "until they end",
+    "until it is done",
+    "until they are done",
+    "until both are done",
+    "until it finishes",
+    "until the session ends",
+    "bis sie endet",
+    "bis es fertig ist",
+];
+/// Once, in words; a bare "once" is "when" (v8's W13, W24).
+pub(super) const LIFE_ONCE: &[&str] = &[
+    "just this once",
+    "just once",
+    "only once",
+    "once only",
+    "one time",
+    "the next time",
+    "next time",
+    "just the first time",
+    "only the first time",
+    "nur beim nächsten mal",
+    "beim nächsten mal",
+    "nur einmal",
+    "einmal",
+];
+/// Always, in words. "Any time" is "when" (v10's W54).
+pub(super) const LIFE_ALWAYS: &[&str] = &[
+    "whenever",
+    "every time",
+    "each time",
+    "from now on",
+    "until i say stop",
+    "until i remove it",
+    "always",
+    "permanently",
+    "permanent",
+    "keep watching",
+    "keep that on",
+    "keep it on",
+    "for good",
+    "forever",
+    "indefinitely",
+    "dauerhaft",
+    "auf dauer",
+    "immer wenn",
+    "immer",
+    "jedes mal",
+    "ab jetzt",
+];
+/// Today, in words.
+pub(super) const LIFE_TODAY: &[&str] = &[
+    "for the rest of today",
+    "for the rest of the day",
+    "für den rest des tages",
+    "den rest des tages",
+    "for today",
+    "today only",
+    "only today",
+    "just today",
+    "nur heute",
+    "until midnight",
+    "until tonight",
+    "bis mitternacht",
+    "today",
+    "tonight",
+    "this evening",
+    "bis heute abend",
+    "für heute",
+    "heute",
+];
+
 /// The lifetime the request's words say, by code; unsaid when none.
 #[must_use]
 pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
     let w = words(ask.request);
-    let has = |p: &str| holds(&w, &words(p));
+    let has = |p: &&str| holds(&w, &words(p));
     for (i, x) in w.iter().enumerate() {
         if ["until", "till", "by", "bis"].contains(&x.as_str())
             && let Some(t) = w
@@ -732,80 +841,27 @@ pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
             return LifetimeChoice::Until { at_ms: at };
         }
     }
-    let ends = [
-        "until it ends",
-        "until they end",
-        "until it is done",
-        "until they are done",
-        "until both are done",
-        "until it finishes",
-        "until the session ends",
-        "bis sie endet",
-        "bis es fertig ist",
-    ];
-    if ends.iter().any(|p| has(p)) {
-        return LifetimeChoice::UntilEnds;
+    if LIFE_ENDS.iter().any(has) {
+        LifetimeChoice::UntilEnds
+    } else if LIFE_ONCE.iter().any(has) {
+        LifetimeChoice::Once
+    } else if LIFE_ALWAYS.iter().any(has) {
+        LifetimeChoice::Always
+    } else if LIFE_TODAY.iter().any(has) {
+        LifetimeChoice::Today
+    } else {
+        LifetimeChoice::Unsaid
     }
-    // v10: lifetimes said in words. Once first ("just this once", "the next
-    // time", "einmal"); a bare "once" is "when" (v8's W13, W24).
-    let once = [
-        "just this once",
-        "just once",
-        "only once",
-        "once only",
-        "one time",
-        "next time",
-        "just the first time",
-        "only the first time",
-        "nur beim nächsten mal",
-        "beim nächsten mal",
-        "nur einmal",
-        "einmal",
-    ];
-    if once.iter().any(|p| has(p)) {
-        return LifetimeChoice::Once;
-    }
-    let always = [
-        "whenever",
-        "every time",
-        "each time",
-        "any time",
-        "from now on",
-        "until i say stop",
-        "until i remove it",
-        "always",
-        "permanently",
-        "permanent",
-        "keep watching",
-        "keep that on",
-        "keep it on",
-        "for good",
-        "forever",
-        "indefinitely",
-        "dauerhaft",
-        "auf dauer",
-        "immer wenn",
-        "immer",
-        "jedes mal",
-        "ab jetzt",
-    ];
-    if always.iter().any(|p| has(p)) {
-        return LifetimeChoice::Always;
-    }
-    let today = [
-        "for the rest of today",
-        "for today",
-        "today",
-        "tonight",
-        "this evening",
-        "bis heute abend",
-        "für heute",
-        "heute",
-    ];
-    if today.iter().any(|p| has(p)) {
-        return LifetimeChoice::Today;
-    }
-    LifetimeChoice::Unsaid
+}
+
+/// `code` has a definition (a condition Bot may draft).
+pub(super) fn definition_of(code: &str) -> bool {
+    definition(code).is_some()
+}
+
+/// An agent-written name, quoted as data.
+pub(super) fn quoted_name(name: &str) -> String {
+    quoted(name)
 }
 
 fn definition(code: &str) -> Option<&'static str> {
@@ -837,6 +893,29 @@ fn quiet_hours_said(text: &str) -> bool {
     night
         && w.iter()
             .any(|x| ["even", "wake", "auch", "weck", "trotzdem", "anyway"].contains(&x.as_str()))
+}
+
+/// What code's own readers name as what can't be watched ("tests pass",
+/// "at 5pm"), in the request's words, when they name one.
+pub(super) fn told_kind(ask: &Ask<'_>) -> Option<String> {
+    let read = resolve::split_exclusions(&masked(ask)).0.join(" ");
+    unsupported_in(&read, &cue_conditions(&read)).map(|(_, w)| w)
+}
+
+/// The nearest conditions code's own readers prefer for what can't be
+/// watched (a threshold's, a kind's), best first; none when they name none.
+pub(super) fn nearest_first(ask: &Ask<'_>) -> Vec<String> {
+    let all = masked(ask);
+    if let Some((_, near)) = threshold(&all) {
+        return near.iter().map(|c| (*c).to_owned()).collect();
+    }
+    let read = resolve::split_exclusions(&all).0.join(" ");
+    let conds = cue_conditions(&read);
+    match unsupported_in(&read, &conds) {
+        Some(("tests", w)) if w.contains("fail") || w.contains("fehl") => vec!["fails".to_owned()],
+        Some(("money" | "range", _)) => vec!["runway_below".to_owned(), "hits_limit".to_owned()],
+        _ => Vec::new(),
+    }
 }
 
 /// The request's own words for what it asks that no condition covers
@@ -927,33 +1006,6 @@ fn call1(ask: &Ask<'_>, picks: &[(String, &Candidate)], note: &str, attempt: u32
     }
 }
 
-fn call2(ask: &Ask<'_>, head: &str, conds: &[String], note: &str, attempt: u32) -> Request {
-    let defs: Vec<String> = conds
-        .iter()
-        .filter_map(|c| definition(c).map(|d| format!("{c} · {d}")))
-        .collect();
-    let mut with_none = conds.to_vec();
-    with_none.push("none".to_owned());
-    let unsupported: Vec<String> = UNSUPPORTED.iter().map(|s| (*s).to_owned()).collect();
-    Request {
-        instructions: WHEN_INSTRUCTIONS.to_owned(),
-        prompt: format!(
-            "{head}\n\nCONDITIONS (what each means in AI Juggler):\n{}\n\nREQUEST (from the developer): {}\n\n{TASK2}{note}",
-            defs.join("\n"),
-            ask.request
-        ),
-        shape: Some(
-            json!({ "type": "object", "name": "WatchCondition", "properties": [
-            { "name": "condition", "schema": enum_of("WatchCondition_condition", &with_none) },
-            { "name": "condition2", "schema": enum_of("WatchCondition_condition2", &with_none) },
-            { "name": "unsupported", "schema": enum_of("WatchCondition_unsupported", &unsupported) },
-        ] }),
-        ),
-        max_tokens: 60,
-        decoding: Decoding::for_attempt(&format!("watch-when:{}", ask.request), attempt),
-    }
-}
-
 // ============================================================================ the job
 
 /// One call: the draft and the shape it was asked in, or `None` when the
@@ -988,53 +1040,6 @@ fn pick_target<'a>(
     picks.first().map(|(_, c)| *c)
 }
 
-/// Call 2's answer: the conditions, and what can't be watched (its kind
-/// and the request's words) when the request asks for that.
-type Picked = (Vec<String>, Option<(&'static str, String)>);
-
-/// The model's condition pick (call 2), only when no cue word names one.
-fn pick_conditions(
-    model: &dyn JobModel,
-    ask: &Ask<'_>,
-    head: &str,
-    offered: &[String],
-    stop: &Stop,
-    calls: &mut u32,
-) -> Result<Picked, ()> {
-    let mut note_text = String::new();
-    for attempt in 0..=RETRIES {
-        let req = call2(ask, head, offered, &note_text, attempt);
-        *calls += 1;
-        let Some((out, shape)) = asked(model, &req, stop) else {
-            return Err(());
-        };
-        let why = match fields(&out, &shape) {
-            Ok(got) => {
-                let kind = text(&got, "unsupported");
-                let conds: Vec<String> = [text(&got, "condition"), text(&got, "condition2")]
-                    .into_iter()
-                    .filter(|c| c != "none")
-                    .collect();
-                if kind == "none" {
-                    return Ok((conds, None));
-                }
-                match (
-                    UNSUPPORTED.iter().find(|k| **k == kind),
-                    asked_words(&masked(ask), &kind),
-                ) {
-                    (Some(k), Some(w)) => return Ok((conds, Some((k, w)))),
-                    _ => format!(
-                        "unsupported: the request says nothing of {kind}; choose the kind it asks for, or none"
-                    ),
-                }
-            }
-            Err(why) => why,
-        };
-        note_text = note(&out.text, &[why], "the condition");
-    }
-    Err(())
-}
-
 /// The nearest the target offers for something it can't watch (D-149's
 /// amendment: always one, when the target offers anything).
 fn nearest_of(
@@ -1059,22 +1064,11 @@ fn nearest_of(
 /// The target chosen (or any), what it offers, and its line for call 2.
 fn target_of(
     ask: &Ask<'_>,
-    picks: &[(String, &Candidate)],
     chosen: Option<&Candidate>,
     found_any: bool,
-) -> (Option<WatchTarget>, Vec<String>, String) {
+) -> (Option<WatchTarget>, Vec<String>) {
     match chosen {
-        Some(c) => {
-            let r = picks
-                .iter()
-                .find(|(_, x)| std::ptr::eq(*x, c))
-                .map_or("s1", |(r, _)| r.as_str());
-            (
-                Some(c.target.clone()),
-                c.offered.clone(),
-                format!("TARGET: {}", line_of(r, c)),
-            )
-        }
+        Some(c) => (Some(c.target.clone()), c.offered.clone()),
         None if found_any => {
             let mut all: Vec<String> = ask
                 .candidates
@@ -1083,13 +1077,9 @@ fn target_of(
                 .collect();
             all.sort();
             all.dedup();
-            (
-                Some(WatchTarget::Any),
-                all,
-                "TARGET: any · every session on this computer".to_owned(),
-            )
+            (Some(WatchTarget::Any), all)
         }
-        None => (None, Vec::new(), String::new()),
+        None => (None, Vec::new()),
     }
 }
 
@@ -1105,6 +1095,60 @@ pub fn draft(
     if !is_watch_request(ask.request) {
         return (Outcome::NotAWatch, 0);
     }
+    let reading = cover::read(ask);
+    let (out, calls) = match reading.cover(ask) {
+        cover::Cover::Claimed => {
+            let (out, calls) = claimed(model, ask, stop, check);
+            (quiet_hours(out, reading.quiet_on), calls)
+        }
+        cover::Cover::NoCondition => (Outcome::Drafted(WatchDrafted::Form), 0),
+        cover::Cover::Untaken(asked) => (
+            Outcome::Drafted(WatchDrafted::CantWatch {
+                asked,
+                draft: Some(cover::nearest(ask, &reading, (0, 0), (0, 0))),
+            }),
+            0,
+        ),
+        cover::Cover::Leftover(left) => {
+            let (out, calls) = cover::told_back(model, ask, &reading, &left, stop);
+            (Outcome::Drafted(out), calls)
+        }
+    };
+    // What can't be watched always comes with the nearest option.
+    let out = match out {
+        Outcome::Drafted(WatchDrafted::CantWatch { asked, draft: None }) => {
+            Outcome::Drafted(WatchDrafted::CantWatch {
+                asked,
+                draft: Some(cover::nearest(ask, &reading, (0, 0), (0, 0))),
+            })
+        }
+        other => other,
+    };
+    (out, calls)
+}
+
+/// "Even during quiet hours", as the request's words said it.
+fn quiet_hours(out: Outcome, on: bool) -> Outcome {
+    match out {
+        Outcome::Drafted(WatchDrafted::Filled { mut draft }) => {
+            draft.even_in_quiet_hours = on;
+            Outcome::Drafted(WatchDrafted::Filled { draft })
+        }
+        Outcome::Drafted(WatchDrafted::Pick { mut draft }) => {
+            draft.even_in_quiet_hours = on;
+            Outcome::Drafted(WatchDrafted::Pick { draft })
+        }
+        other => other,
+    }
+}
+
+/// [`draft`] for a request code accounts for word by word.
+fn claimed(
+    model: &dyn JobModel,
+    ask: &Ask<'_>,
+    stop: &Stop,
+    check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
+) -> (Outcome, u32) {
     if let Some(out) = super::fail_closed::refused(ask) {
         return (Outcome::Drafted(out), 0);
     }
@@ -1160,7 +1204,7 @@ fn draft_in(
         1 => Some(picks[0].1),
         _ => pick_target(model, ask, &picks, stop, &mut calls),
     };
-    let (target, offered, head) = target_of(ask, &picks, chosen, found.any);
+    let (target, offered) = target_of(ask, chosen, found.any);
     let offered: Vec<String> = offered
         .into_iter()
         .filter(|c| definition(c).is_some())
@@ -1171,12 +1215,8 @@ fn draft_in(
         (Vec::new(), net)
     } else if !conds_said.is_empty() {
         (conds_said.clone(), net)
-    } else if target.is_some() && !offered.is_empty() {
-        match pick_conditions(model, ask, &head, &offered, stop, &mut calls) {
-            Ok(got) => got,
-            Err(()) => return (Outcome::Drafted(WatchDrafted::Form), calls),
-        }
     } else {
+        // No condition word: the form (v11: the model never picks one).
         (Vec::new(), None)
     };
     let targets: Vec<WatchTarget> = target.into_iter().collect();
@@ -1201,10 +1241,14 @@ fn draft_in(
             calls,
         );
     }
+    let said_any = !conds.is_empty() && !offered.is_empty();
     let conds: Vec<String> = conds
         .into_iter()
         .filter(|c| offered.iter().any(|o| o == c))
         .collect();
+    if !targets.is_empty() && conds.is_empty() && said_any {
+        return (unoffered(whole), calls);
+    }
     if targets.is_empty() || conds.is_empty() {
         return (Outcome::Drafted(WatchDrafted::Form), calls);
     }
@@ -1233,6 +1277,16 @@ fn draft_in(
         return (Outcome::Drafted(WatchDrafted::Form), calls);
     }
     (Outcome::Drafted(WatchDrafted::Filled { draft: d }), calls)
+}
+
+/// A condition its Apps can't report (D-127): told back, with the nearest
+/// it can.
+fn unoffered(whole: &Ask<'_>) -> Outcome {
+    let r = cover::read(whole);
+    Outcome::Drafted(WatchDrafted::CantWatch {
+        asked: r.said_as(whole.request, cover::Slot::Condition),
+        draft: Some(cover::nearest(whole, &r, (0, 0), (0, 0))),
+    })
 }
 
 /// Harness v8's two unsupported shapes, decided before any pick: an

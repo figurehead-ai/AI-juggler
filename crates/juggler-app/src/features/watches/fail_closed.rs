@@ -162,7 +162,8 @@ pub fn refused(ask: &Ask<'_>) -> Option<WatchDrafted> {
     }
     let found = resolve::resolve(ask.request, ask.candidates);
     let named = !found.candidates.is_empty() && read.contains(" _ ");
-    if let Some(q) = w.iter().position(|x| QUANTIFIERS.contains(&x.as_str()))
+    if let Some(q) =
+        (0..w.len()).find(|&i| QUANTIFIERS.contains(&w[i].as_str()) && !not_scope(&w, i))
         && named
         && !selection(&w, q)
         && !within(&read, &w[q])
@@ -229,6 +230,20 @@ fn entity_wins(ask: &Ask<'_>, found: &resolve::Resolved) -> bool {
                     .all(|x| ["the", "my", "of"].contains(&x.as_str()));
             any_time || indefinite || right_before
         })
+}
+
+/// A broad word that isn't a scope: a lifetime ("every time", "any time",
+/// "jedes Mal", v10's W59) or what is asked ("asks me anything", v10's
+/// W20).
+fn not_scope(w: &[String], q: usize) -> bool {
+    let next = w.get(q + 1).map_or("", String::as_str);
+    let asks = (1..=2).any(|k| {
+        q >= k
+            && ["ask", "asks", "asked", "fragt", "frage"].contains(&w[q - k].as_str())
+            && (k == 1 || ["me", "you", "mich", "dich"].contains(&w[q - 1].as_str()))
+    });
+    ["time", "mal"].contains(&next)
+        || (["anything", "something", "etwas"].contains(&w[q].as_str()) && asks)
 }
 
 /// "of all my sessions", "out of all", "von allen": a selection, not a scope.

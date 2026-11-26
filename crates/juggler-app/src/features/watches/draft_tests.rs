@@ -94,20 +94,23 @@ fn codes(d: &WatchDraftInfo) -> Vec<&str> {
 }
 
 #[test]
-fn the_prompts_are_the_ones_harness_v7_measured() {
+fn the_prompts_are_the_ones_the_harness_runs() {
     // Read from the harness at test time (the docs don't ship in the app).
-    let path = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../docs/qa/evidence/AJ-E3709/harness/v7/prompts/watch3.md"
-    );
-    let measured = std::fs::read_to_string(path).unwrap_or_default();
+    let read = |path: &str| {
+        std::fs::read_to_string(format!(
+            "{}/../../docs/qa/evidence/AJ-E3709/harness/{path}",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .unwrap_or_default()
+    };
     assert!(
-        measured.contains(TARGET_INSTRUCTIONS),
+        read("v7/prompts/watch3.md").contains(TARGET_INSTRUCTIONS),
         "call 1's instructions drifted from the harness"
     );
+    let v11 = read("v11/prompts/watch7.md");
     assert!(
-        measured.contains(WHEN_INSTRUCTIONS),
-        "call 2's instructions drifted from the harness"
+        v11.contains(TARGET_INSTRUCTIONS.trim_end())
+            && v11.contains(cover::LABEL_INSTRUCTIONS.trim_end())
     );
 }
 
@@ -122,14 +125,7 @@ type Case = (
 
 #[test]
 fn code_decides_the_target_conditions_numbers_and_lifetime() {
-    let cases: [Case; 7] = [
-        (
-            "Tell me when cedar-api asks something, and ignore aspen-board entirely.",
-            WatchTarget::Session("S-cedar".into()),
-            &["asks_you"],
-            None,
-            LifetimeChoice::Unsaid,
-        ),
+    let cases: [Case; 6] = [
         (
             "Ping me when cedar-api finishes or fails.",
             WatchTarget::Session("S-cedar".into()),
@@ -210,32 +206,20 @@ fn several_candidates_the_model_picks_one_of_them_sampled_on_retry() {
     );
 }
 
+/// v11: the model never picks a condition. No cue word, no condition:
+/// the form; words code can't place: told back, the model only labelling.
 #[test]
-fn no_condition_word_the_model_picks_from_the_offer_with_definitions() {
-    let fake = Fake::new(&[r#"{"condition":"idle_for","condition2":"none","unsupported":"none"}"#]);
-    let out = run_with(
-        "Let me know if cedar-api sits there doing nothing for 20 minutes.",
-        &fake,
-    );
-    let d = filled(&out).unwrap_or_else(|| unreachable!("{out:?}"));
-    assert_eq!(
-        d.conditions,
-        vec![Condition {
-            code: "idle_for".into(),
-            param: Some(Param::Minutes(20))
-        }]
-    );
-    let seen = fake.seen.borrow();
-    assert!(
-        seen[0].prompt.contains("stuck · AI Juggler sees it stuck")
-            && seen[0].prompt.contains("idle_for · no activity at all")
-    );
-    assert!(
-        seen[0]
-            .prompt
-            .contains("hits_limit · it reaches a usage limit"),
-        "the offer mirrors the app's, hits_limit included"
-    );
+fn no_condition_word_and_the_model_never_picks_one() {
+    let fake = Fake::new(&["FAIL"]);
+    assert!(matches!(
+        run_with("Tell me about cedar-api when you can.", &fake),
+        Outcome::Drafted(WatchDrafted::Form)
+    ));
+    assert_eq!(fake.calls(), 0, "no call to pick a condition");
+    let request = "Let me know if cedar-api sits there doing nothing for 20 minutes.";
+    let fake = Fake::new(&["FAIL"]);
+    let d = assert_told_back(request, run_with(request, &fake), &fake);
+    assert_eq!(d.targets, vec![WatchTarget::Session("S-cedar".into())]);
 }
 
 #[test]
@@ -264,7 +248,7 @@ fn what_cannot_be_watched_always_gets_the_nearest() {
             }
             other => unreachable!("{request}: {other:?}"),
         }
-        assert_eq!(fake.calls(), 0);
+        assert_only_labelled(request, &fake);
     }
     // Quiet hours and a usage limit are no false alarm.
     let out = run_with(
@@ -272,11 +256,18 @@ fn what_cannot_be_watched_always_gets_the_nearest() {
         &Fake::new(&["FAIL"]),
     );
     assert!(filled(&out).is_some(), "{out:?}");
-    let out = run_with(
-        "Tell me when the work plan hits its limit, the costs matter.",
-        &Fake::new(&["FAIL"]),
-    );
-    assert!(filled(&out).is_some(), "{out:?}");
+    // v11: words code can't place ("the costs matter") are told back, with
+    // the very watch as the nearest.
+    let request = "Tell me when the work plan hits its limit, the costs matter.";
+    match run_with(request, &Fake::new(&["FAIL"])) {
+        Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) => {
+            assert_eq!(asked, "costs matter");
+            let d = draft.unwrap_or_else(|| unreachable!("no nearest"));
+            assert_eq!(d.targets, vec![WatchTarget::Account("acc-w".into())]);
+            assert_eq!(codes(&d), ["hits_limit"]);
+        }
+        other => unreachable!("{other:?}"),
+    }
 }
 
 #[test]
@@ -429,15 +420,13 @@ fn a_request_that_excludes_something_is_never_widened() {
             assert!(draft.is_some(), "{request}: the nearest is offered");
         }
     }
-    // An ignore beside a named session still drafts that session.
-    let out = run_with(
-        "Tell me when cedar-api asks something, and ignore aspen-board entirely.",
-        &Fake::new(&["FAIL"]),
-    );
-    assert_eq!(
-        filled(&out).map(|d| d.targets.clone()),
-        Some(vec![WatchTarget::Session("S-cedar".into())])
-    );
+    // v11: an exclusion is told back, even beside a named session; its
+    // nearest names no target (the form asks), so never the one left out.
+    let request = "Tell me when cedar-api asks something, and ignore aspen-board entirely.";
+    let fake = Fake::new(&["FAIL"]);
+    let d = assert_told_back(request, run_with(request, &fake), &fake);
+    assert!(d.targets.is_empty(), "{:?}", d.targets);
+    assert_eq!(codes(&d), ["asks_you"]);
     let out = run_with("Always tell me if anything fails.", &Fake::new(&["FAIL"]));
     assert_eq!(
         filled(&out).map(|d| d.lifetime),
@@ -483,7 +472,7 @@ fn misses_run(request: &str, fake: &Fake) -> Outcome {
     run_on(&misses_candidates(), request, fake)
 }
 
-/// Told back with a nearest that never widens, decided with no call.
+/// Told back with a nearest that never widens, decided by code.
 fn assert_told_back(request: &str, out: Outcome, fake: &Fake) -> WatchDraftInfo {
     let Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) = out else {
         unreachable!("{request}: {out:?}");
@@ -498,12 +487,20 @@ fn assert_told_back(request: &str, out: Outcome, fake: &Fake) -> WatchDraftInfo 
         d.targets.iter().all(|t| t.kind() == TargetKind::Session),
         "{request}: never widened"
     );
-    assert_eq!(
-        fake.calls(),
-        0,
-        "{request}: decided by code, before any call"
-    );
+    assert_only_labelled(request, fake);
     d
+}
+
+/// The only call made was the labelling one (v11: the model labels, code
+/// decides).
+fn assert_only_labelled(request: &str, fake: &Fake) {
+    assert!(
+        fake.seen
+            .borrow()
+            .iter()
+            .all(|r| r.shape.as_ref().is_some_and(|s| s["name"] == "WatchSpans")),
+        "{request}: decided by code; the model only labels"
+    );
 }
 
 /// D-149 amendment 2: every unsupported-claimed miss so far (v7 W05, W19,
@@ -538,7 +535,7 @@ fn every_unsupported_claimed_miss_so_far_fails_closed() {
 /// project, and a bare "once" as "when".
 #[test]
 fn what_code_fully_understands_still_drafts() {
-    let cases: [(&str, WatchTarget, &str, LifetimeChoice); 6] = [
+    let cases: [(&str, WatchTarget, &str, LifetimeChoice); 3] = [
         (
             "Of all my sessions, tell me when checkout-api fails.",
             WatchTarget::Session("S-ca".into()),
@@ -550,24 +547,6 @@ fn what_code_fully_understands_still_drafts() {
             WatchTarget::Project("pier".into()),
             "fails",
             LifetimeChoice::Unsaid,
-        ),
-        (
-            "Tell me when the kiosk firmware session fails; it was split off from the pier board one.",
-            WatchTarget::Session("S-kf".into()),
-            "fails",
-            LifetimeChoice::Unsaid,
-        ),
-        (
-            "I'm comparing the beta tracker with the glossary hub, but only alert me if the beta tracker asks me something.",
-            WatchTarget::Session("S-bt".into()),
-            "asks_you",
-            LifetimeChoice::Unsaid,
-        ),
-        (
-            "Once the coupon engine is done, the reminder mails can start, so ping me just once when the coupon engine finishes.",
-            WatchTarget::Session("S-ce".into()),
-            "finishes",
-            LifetimeChoice::Once,
         ),
         (
             "Tell me once checkout-api finishes.",
@@ -583,6 +562,34 @@ fn what_code_fully_understands_still_drafts() {
         assert_eq!(codes(d), [code], "{request}");
         assert_eq!(d.lifetime, lifetime, "{request}");
     }
+    // v11, full coverage: a clause code can't place is told back, the
+    // watch it names offered as the nearest.
+    for (request, target, code) in [
+        (
+            "Tell me when the kiosk firmware session fails; it was split off from the pier board one.",
+            "S-kf",
+            "fails",
+        ),
+        (
+            "Once the coupon engine is done, the reminder mails can start, so ping me just once when the coupon engine finishes.",
+            "S-ce",
+            "finishes",
+        ),
+    ] {
+        let fake = Fake::new(&["FAIL"]);
+        let d = assert_told_back(request, misses_run(request, &fake), &fake);
+        assert_eq!(
+            d.targets,
+            vec![WatchTarget::Session(target.into())],
+            "{request}"
+        );
+        assert_eq!(codes(&d), [code], "{request}");
+    }
+    // "but only": a word that leaves something out, so no target at all.
+    let request = "I'm comparing the beta tracker with the glossary hub, but only alert me if the beta tracker asks me something.";
+    let fake = Fake::new(&["FAIL"]);
+    let d = assert_told_back(request, misses_run(request, &fake), &fake);
+    assert!(d.targets.is_empty() && codes(&d) == ["asks_you"], "{d:?}");
 }
 
 fn v9_candidates() -> Vec<Candidate> {
@@ -633,7 +640,7 @@ fn v9_candidates() -> Vec<Candidate> {
 #[test]
 fn v9s_misses_draft_as_said() {
     let always = LifetimeChoice::Always;
-    let cases: [(&str, WatchTarget, &str, Option<Param>, LifetimeChoice); 16] = [
+    let cases: [(&str, WatchTarget, &str, Option<Param>, LifetimeChoice); 13] = [
         (
             "Melde dich, wenn Karten mischen etwas fragt, dauerhaft",
             WatchTarget::Session("S-km".into()),
@@ -684,25 +691,11 @@ fn v9s_misses_draft_as_said() {
             LifetimeChoice::Once,
         ),
         (
-            "out of every session I have open, let me know when the Pattern export one asks me something",
-            WatchTarget::Session("S-pe".into()),
-            "asks_you",
-            None,
-            LifetimeChoice::Unsaid,
-        ),
-        (
             "Bei all meinen Projekten: melde mir bitte, wenn gartenplaner scheitert, für heute",
             WatchTarget::Session("S-gp".into()),
             "fails",
             None,
             LifetimeChoice::Today,
-        ),
-        (
-            "whatever else is going on, I need to know the moment Till rounding finishes",
-            WatchTarget::Session("S-tr".into()),
-            "finishes",
-            None,
-            LifetimeChoice::Unsaid,
         ),
         (
             "Tell me when all monorepo-ci sessions fail.",
@@ -719,13 +712,6 @@ fn v9s_misses_draft_as_said() {
             LifetimeChoice::Unsaid,
         ),
         (
-            "Let me know, say, when billing-sync finishes.",
-            WatchTarget::Session("S-bs".into()),
-            "finishes",
-            None,
-            LifetimeChoice::Unsaid,
-        ),
-        (
             "Ping me if any OpenCode session fails.",
             WatchTarget::App("opencode".into()),
             "fails",
@@ -737,7 +723,7 @@ fn v9s_misses_draft_as_said() {
             WatchTarget::App("studio".into()),
             "hits_limit",
             None,
-            always,
+            LifetimeChoice::Unsaid, // "any time" is "when" (v10's W54)
         ),
         (
             "Tell me if anything goes wrong with Chapter index.",
@@ -761,10 +747,14 @@ fn v9s_misses_draft_as_said() {
         assert_eq!(d.lifetime, lifetime, "{request}");
         assert_eq!(fake.calls(), 0, "{request}");
     }
-    // Still fail closed: the two unsupported misses get their nearest.
+    // Still fail closed: the two unsupported misses get their nearest; v11
+    // tells back what code can't place, the watch named as the nearest.
     for request in [
         "I want to know about every new session, leave out OpenCode",
         "warn me when cache keys uses more than 1.5 million tokens today",
+        "out of every session I have open, let me know when the Pattern export one asks me something",
+        "whatever else is going on, I need to know the moment Till rounding finishes",
+        "Let me know, say, when billing-sync finishes.",
     ] {
         let fake = Fake::new(&["FAIL"]);
         assert_told_back(request, run_on(&c, request, &fake), &fake);
