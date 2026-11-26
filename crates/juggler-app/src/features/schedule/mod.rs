@@ -20,8 +20,11 @@
 //! background task, no wake timer. What fell due while AI Juggler was
 //! closed runs under its missed-run policy on the next launch.
 
+pub mod commands;
 pub mod idle;
 pub mod registry;
+pub mod remind_draft;
+pub mod reminder;
 pub mod service;
 pub mod store;
 pub mod trigger;
@@ -36,7 +39,9 @@ use crate::state::AppState;
 /// Every handler this build registers (ADR-0019: each module's own).
 #[must_use]
 pub fn handlers() -> registry::Registry {
-    registry::Registry::default()
+    let mut registry = registry::Registry::default();
+    let _ = registry.register(Arc::new(reminder::Reminder));
+    registry
 }
 
 /// A transient schedule came due (in memory only, [`Scheduler::set_transient`]):

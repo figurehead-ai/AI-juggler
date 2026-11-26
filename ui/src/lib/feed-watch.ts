@@ -1,14 +1,17 @@
 /**
- * AJ-E3713 R3 — a post's Follow and Remind me, made the Watches way
- * (the same calls as the Watches form, `ipc/watch-view`): what the
- * post's thing can be watched for is the catalogue's (only what its Apps
- * report, D-127); the Notifications prompt is primed first, at the
- * user's click (PAT-OSP, AJ-E1548 #16); a watch the user makes is theirs
- * to change on the Watches page.
+ * AJ-E3713 R3 — a post's Follow, made the Watches way (the same calls as
+ * the Watches form, `ipc/watch-view`): what the post's thing can be
+ * watched for is the catalogue's (only what its Apps report, D-127).
+ * AJ-E2027 (ADR-0039 §11.1) — its Remind me is a reminder on the one
+ * scheduler (`ipc/schedules`), offered once the scheduler answers. Both
+ * prime the Notifications prompt first, at the user's click (PAT-OSP,
+ * AJ-E1548 #16); what the user makes is theirs to change on the Watches
+ * page (its Reminders list).
  */
 import { sharedRead, useSharedRead } from "./shared-read";
 import { osPromptRequest } from "./ipc/os-prompts";
 import { watchCatalogue, watchCreate, watchesPage, type WatchInfo } from "./ipc/watch-view";
+import { scheduleRemind, schedulesSummary } from "./ipc/schedules";
 import type { FeedItemInfo } from "./ipc/feed";
 import type { WatchTarget } from "../types/generated/WatchTarget";
 
@@ -46,7 +49,8 @@ export async function follow(target: Exclude<WatchTarget, { kind: "any" }>): Pro
   return made;
 }
 
-/** The reminder's condition (a time, not an observation). */
+/** The old reminder condition's code (a watch made before the scheduler
+ * never counts as following). */
 const REMIND = "remind";
 
 /** Remind me's times: in 30 min, 1 h, 3 h, tomorrow at 9. */
@@ -62,26 +66,27 @@ export function REMIND_CHOICES(now: number): { label: string; minutes: number }[
   ];
 }
 
-/** A one-time reminder about `target` in `minutes`; when it is due. */
-export async function remindAt(target: Exclude<WatchTarget, { kind: "any" }>, minutes: number): Promise<number> {
+/** A reminder about `target` (called `name`) in `minutes`; when it is due. */
+export async function remindAt(target: Exclude<WatchTarget, { kind: "any" }>, name: string, minutes: number): Promise<number> {
   await osPromptRequest("notifications").catch(() => undefined);
-  await watchCreate({
-    targets: [target],
-    matching: "each",
-    conditions: [{ code: REMIND, param: { kind: "minutes", value: minutes } }],
-    lifetime: { kind: "once" },
-    evenInQuietHours: false,
-  });
-  void LIVE.refresh();
-  return Date.now() + minutes * 60_000;
+  const made = await scheduleRemind({ at_ms: Date.now() + minutes * 60_000, title: remindTitle(name), about: target, chat_turn: null });
+  return made.next_due_ms ?? made.created_ms + minutes * 60_000;
+}
+
+/** A reminder's words: "Look at “api”". */
+export function remindTitle(name: string): string {
+  return `Look at “${name}”`;
 }
 
 /** The live watches (at most 50), shared by every post. */
 const LIVE = sharedRead(async () => (await watchesPage("live", { cursor: null, limit: 50 })).items, "the live watches");
 
-/** Whether the watches offer a reminder (D-127: Remind me shows only
- * then); read once for every post. */
-const REMIND_OFFERED = sharedRead(async () => (await watchCatalogue({ kind: "any" })).some((entry) => entry.code === REMIND), "the reminder's offer");
+/** Whether reminders can be set (D-127: Remind me shows only then): the
+ * scheduler answers; read once for every post. */
+const REMIND_OFFERED = sharedRead(async () => {
+  await schedulesSummary();
+  return true;
+}, "the reminder's offer");
 
 /** A followed target, and the watch that follows it. */
 export interface Followed {

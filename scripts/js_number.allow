@@ -235,6 +235,8 @@ RelationCountsInfo.pools                           # a count of things on this M
 RelationCountsInfo.projects                        # a count of things on this Mac, far below 2^53
 RelationCountsInfo.subscriptions                   # a count of things on this Mac, far below 2^53
 RelationCountsInfo.tools                           # a count of things on this Mac, far below 2^53
+RemindRequest.at_ms                                # ms epoch, < 2^53 until year 287396
+ReminderDraftInfo.at_ms                            # ms epoch, < 2^53 until year 287396
 RemoteAboutInfo.last_checked_ms                    # ms epoch, < 2^53 until year 287396
 RemoteAlertInfo.at_ms                              # ms epoch, < 2^53 until year 287396
 RemoteFileInfo.expires_at_ms                       # ms epoch, < 2^53 until year 287396
@@ -268,6 +270,10 @@ RunwayDisplay.resets_at_ms                         # ms epoch, < 2^53 until year
 RunwayDisplay.series                               # (ms epoch, value) points; ms epoch < 2^53 until year 287396
 RunwayDisplay.sessions_counted                     # a count of things on this Mac, far below 2^53
 RunwayDisplay.starts_ms                            # ms epoch, < 2^53 until year 287396
+ScheduleInfo.created_ms                            # ms epoch, < 2^53 until year 287396
+ScheduleInfo.ended_ms                              # ms epoch, < 2^53 until year 287396
+ScheduleInfo.last_run_ms                           # ms epoch, < 2^53 until year 287396
+ScheduleInfo.next_due_ms                           # ms epoch, < 2^53 until year 287396
 SessionEventInfo.at_ms                             # ms epoch, < 2^53 until year 287396
 SessionsCountsInfo.all                             # a count of things on this Mac, far below 2^53
 SessionsCountsInfo.archived                        # a count of things on this Mac, far below 2^53
@@ -428,6 +434,7 @@ command processes_mark(start_time)                 # epoch seconds, < 2^53
 command processes_observed_stop(start_time)        # epoch seconds, < 2^53
 command processes_observed_verify(start_time)      # epoch seconds, < 2^53
 command reset_queue_queue(resume_at_ms)            # ms epoch, < 2^53 until year 287396
+command schedule_update(at_ms)                     # ms epoch, < 2^53 until year 287396
 command sessions_unmark_reviewed(at_ms)            # ms epoch (a batch's stamp), < 2^53 until year 287396
 command sessions_unmark_reviewed->                 # a count of sessions on this Mac, far below 2^53
 command subagents_conversation(before)             # a transcript offset (lines/bytes), < 2^53

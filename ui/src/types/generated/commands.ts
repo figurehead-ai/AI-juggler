@@ -187,6 +187,7 @@ import type { RecoverySummaryInfo } from "./RecoverySummaryInfo";
 import type { RedactionPolicyInfo } from "./RedactionPolicyInfo";
 import type { RelatedIdsInfo } from "./RelatedIdsInfo";
 import type { RelationCountsInfo } from "./RelationCountsInfo";
+import type { RemindRequest } from "./RemindRequest";
 import type { RemoteAboutInfo } from "./RemoteAboutInfo";
 import type { RemoteCommandOutcomeInfo } from "./RemoteCommandOutcomeInfo";
 import type { RemoteMachineInfo } from "./RemoteMachineInfo";
@@ -208,6 +209,9 @@ import type { RuntimeChoicesInfo } from "./RuntimeChoicesInfo";
 import type { RuntimeViewInfo } from "./RuntimeViewInfo";
 import type { SavedHandoverInfo } from "./SavedHandoverInfo";
 import type { ScanReportInfo } from "./ScanReportInfo";
+import type { ScheduleInfo } from "./ScheduleInfo";
+import type { ScheduleListWhich } from "./ScheduleListWhich";
+import type { SchedulesSummary } from "./SchedulesSummary";
 import type { SearchRecordsInfo } from "./SearchRecordsInfo";
 import type { ServersSyncInfo } from "./ServersSyncInfo";
 import type { ServiceAccountRequest } from "./ServiceAccountRequest";
@@ -1127,6 +1131,20 @@ export interface Commands {
   runtime_trust_choose: { args: { profileId: string; cwd?: string | null; trusted: boolean }; result: FolderTrustInfo | null };
   /** Write features::environment::commands::scan_cancel */
   scan_cancel: { args: Record<string, never>; result: void };
+  /** Read features::schedule::commands::schedule_list */
+  schedule_list: { args: { request: PageRequest; which?: ScheduleListWhich | null }; result: Page<ScheduleInfo> };
+  /** Write features::schedule::commands::schedule_pause */
+  schedule_pause: { args: { id: string; paused: boolean }; result: ScheduleInfo };
+  /** Write features::schedule::commands::schedule_pause_all */
+  schedule_pause_all: { args: { paused: boolean }; result: SchedulesSummary };
+  /** Write features::schedule::commands::schedule_remind */
+  schedule_remind: { args: { request: RemindRequest }; result: ScheduleInfo };
+  /** Write features::schedule::commands::schedule_remove */
+  schedule_remove: { args: { id: string }; result: void };
+  /** Read features::schedule::commands::schedule_summary */
+  schedule_summary: { args: Record<string, never>; result: SchedulesSummary };
+  /** Write features::schedule::commands::schedule_update */
+  schedule_update: { args: { id: string; atMs: number; title: string }; result: ScheduleInfo };
   /** Write features::service_accounts::commands::service_accounts_add */
   service_accounts_add: { args: { request: ServiceAccountRequest }; result: AccountInfo[] };
   /** Read features::service_accounts::commands::service_accounts_catalog */

@@ -46,6 +46,7 @@ afterEach(() => {
   cleanup();
   Reflect.deleteProperty(window, "__AIJ_FEED__");
   Reflect.deleteProperty(window, "__AIJ_WATCH_VIEW__");
+  Reflect.deleteProperty(window, "__AIJ_SCHEDULES__");
 });
 
 describe("AJ-E3713 R6a — the diff stat on a post", () => {
@@ -181,23 +182,30 @@ describe("AJ-E3713 R3 — Follow, Remind me, Ask Bot, Open", () => {
     await waitFor(() => expect(screen.getByTestId("feed-follow").textContent).toBe("Following"));
   });
 
-  it("Remind me shows only when the watches offer a reminder (D-127), and makes a one-time reminder at the time picked", async () => {
+  it("AJ-E2027: Remind me shows only once the scheduler answers (D-127), and sets a reminder about the post's thing at the time picked", async () => {
     seed([done("a", NOW - MIN)]);
+    window.__AIJ_SCHEDULES__ = { off: true, calls: [] };
     const { unmount } = feed();
     await screen.findByTestId("feed-card");
     await act(async () => undefined);
     expect(screen.queryByTestId("feed-remind")).toBeNull();
     unmount();
     forgetSharedReads();
-    const remind = { code: "remind", label: "Remind me", told: "is due for a look", need: false, param: { name: "min", kind: "minutes", min: 5, max: 10_080, required: true } };
-    window.__AIJ_WATCH_VIEW__!.catalogue = { ...WATCHES_CATALOGUE, any: [...WATCHES_CATALOGUE.any!, remind] };
+    window.__AIJ_SCHEDULES__ = { calls: [] };
     feed();
     fireEvent.click(await screen.findByTestId("feed-remind"));
+    const before = Date.now();
     await act(async () => {
       fireEvent.click(screen.getAllByTestId("feed-remind-choice")[1]!);
     });
-    const calls = window.__AIJ_WATCH_VIEW__?.calls ?? [];
-    expect(calls[calls.length - 1]![1]).toMatchObject({ targets: [{ kind: "session", id: "a" }], conditions: [{ code: "remind", param: { kind: "minutes", value: 60 } }], lifetime: { kind: "once" } });
+    const calls = window.__AIJ_SCHEDULES__.calls ?? [];
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toEqual(["schedule_remind", expect.objectContaining({ about: { kind: "session", id: "a" }, title: expect.stringMatching(/^Look at “.+”$/) })]);
+    const request: unknown = calls[0]![1];
+    const at = typeof request === "object" && request !== null && "at_ms" in request ? request.at_ms : null;
+    expect(typeof at === "number" && at - before >= 60 * 60_000 - 1_000 && at - before <= 60 * 60_000 + 5_000).toBe(true);
+    // No watch is made for it.
+    expect(window.__AIJ_WATCH_VIEW__?.calls ?? []).toHaveLength(0);
   });
 
   it("Open opens the post's thing; Ask Bot is hidden while Bot's AI isn't ready (D-144)", async () => {

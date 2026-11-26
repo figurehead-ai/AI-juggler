@@ -10,6 +10,7 @@
 import { useEffect, useRef, type JSX } from "react";
 import { IconEye } from "./bot-icons";
 import { openWatches, type WatchesIntent } from "../../lib/watches-open";
+import { BotReminderDraft } from "./BotReminderDraft";
 import type { BotTurnInfo } from "../../types/generated/BotTurnInfo";
 import type { WatchDrafted } from "../../types/generated/WatchDrafted";
 
@@ -21,6 +22,7 @@ const WORDS = {
     form: "I couldn't fill the form from your words. The Watches form is open.",
     past: "Bot filled in the Watches form for this.",
     open: "Open the form",
+    remind: (at: boolean) => (at ? "I drafted the reminder. Check the time, then set it." : "I drafted the reminder. Pick a time, then set it."),
   },
   de: {
     filled: "Ich habe das Beobachtungsformular ausgefüllt. Prüf es und füge die Beobachtung dort hinzu.",
@@ -29,11 +31,13 @@ const WORDS = {
     form: "Ich konnte das Formular aus deinen Worten nicht ausfüllen. Es ist offen.",
     past: "Bot hat dafür das Beobachtungsformular ausgefüllt.",
     open: "Formular öffnen",
+    remind: (at: boolean) => (at ? "Ich habe die Erinnerung vorbereitet. Prüf die Zeit und setz sie." : "Ich habe die Erinnerung vorbereitet. Wähl eine Zeit und setz sie."),
   },
 };
 
 /** What the form opens on for a draft. */
 function intentOf(drafted: WatchDrafted): WatchesIntent {
+  if (drafted.kind === "remind") return { kind: "list" };
   if (drafted.kind === "filled" || drafted.kind === "pick") return { kind: "new", draft: drafted.draft };
   if (drafted.kind === "cant_watch" && drafted.draft) return { kind: "new", draft: drafted.draft };
   return { kind: "new" };
@@ -53,12 +57,13 @@ export function BotWatchDraft({ turn }: { turn: BotTurnInfo }): JSX.Element {
   const opened = useRef(false);
   useEffect(() => {
     // The turn just asked opens the form once; a turn read back doesn't.
-    if (drafted && turn.live && !opened.current) {
+    if (drafted && drafted.kind !== "remind" && turn.live && !opened.current) {
       opened.current = true;
       openWatches(intentOf(drafted));
     }
   }, [drafted, turn.live]);
   const w = WORDS[turn.lang] ?? WORDS.en;
+  if (drafted?.kind === "remind") return <BotReminderDraft draft={drafted.reminder} line={w.remind(drafted.reminder.at_ms !== null)} />;
   return (
     <div className="flex flex-col items-start gap-2">
       <p className="flex items-center gap-2 text-body leading-normal text-ink-2" data-testid="bot-watch-draft">

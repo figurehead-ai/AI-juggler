@@ -13,6 +13,7 @@ use super::world::World;
 use crate::features::ai::dto::AiJob;
 use crate::features::ai::engine::Stop;
 use crate::features::ai::run::LiveJob;
+use crate::features::schedule::remind_draft;
 use crate::features::watches::commands::{watches_catalogue_impl, watches_preview_impl};
 use crate::features::watches::draft::{self, Ask, Candidate, Outcome, WatchDrafted};
 use crate::features::watches::model::WatchTarget;
@@ -107,6 +108,11 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
 /// The form to open for `question`, or `None` when Bot answers as usual
 /// (not a watch request, or the Watches job isn't served).
 pub fn drafted(state: &Arc<AppState>, world: &World, question: &str) -> Option<WatchDrafted> {
+    // AJ-E2027: a reminder is code's alone (no model call): its time and
+    // words from the request, what it is about from the user's names.
+    if remind_draft::is_reminder_request(question) && state.schedules.registry().is_some() {
+        return Some(reminder(state, world, question));
+    }
     if !draft::is_watch_request(question) {
         return None;
     }
@@ -119,6 +125,27 @@ pub fn drafted(state: &Arc<AppState>, world: &World, question: &str) -> Option<W
         return None;
     }
     drafted_with(&live, state, world, question)
+}
+
+/// The reminder draft for `question`: what it is about when the request
+/// names one target the resolver settles.
+pub fn reminder(state: &Arc<AppState>, world: &World, question: &str) -> WatchDrafted {
+    let cands = candidates(state, world);
+    let found = crate::features::watches::resolve::resolve(question, &cands);
+    let about = match found.candidates.as_slice() {
+        [one] if found.picker.is_empty() => {
+            cands.get(*one).map(|c| (c.target.clone(), c.name.clone()))
+        }
+        _ => None,
+    };
+    WatchDrafted::Remind {
+        reminder: remind_draft::draft(
+            question,
+            world.now_ms,
+            &crate::features::schedule::zone::local(),
+            about,
+        ),
+    }
 }
 
 /// [`drafted`] through `model` (a test's fake).
@@ -172,6 +199,13 @@ pub fn shown(d: &WatchDrafted) -> String {
         WatchDrafted::Form => {
             "I couldn't fill the form from your words. The Watches form is open.".to_owned()
         }
+        WatchDrafted::Remind { reminder } => {
+            if reminder.at_ms.is_some() {
+                "I drafted the reminder. Check the time, then set it.".to_owned()
+            } else {
+                "I drafted the reminder. Pick a time, then set it.".to_owned()
+            }
+        }
     }
 }
 
@@ -186,6 +220,7 @@ pub fn attach(info: &mut BotTurnInfo, mut d: WatchDrafted) {
         WatchDrafted::CantWatch {
             draft: Some(draft), ..
         } => draft.chat_turn = Some(turn),
+        WatchDrafted::Remind { reminder } => reminder.chat_turn = Some(turn),
         WatchDrafted::CantWatch { draft: None, .. } | WatchDrafted::Form => {}
     }
     info.watch_draft = Some(d);

@@ -7,8 +7,8 @@
  *   of event, the App and the project (`lib/feed-leans`). The lean behind
  *   a post lights its arrow; the panel under the post says what it does,
  *   with Undo and the way to every memory (What Bot remembers).
- * - **Remind me**: a one-time reminder watch at a picked time, through
- *   the Watches flow. Shown only when the watches offer a reminder
+ * - **Remind me**: a reminder at a picked time, on the one scheduler
+ *   (AJ-E2027). Shown only when the scheduler answers
  *   (D-127).
  * - **Follow**: a watch on the post's session, pool, project, Account or
  *   App for what it can report (finishes, asks you, fails …), made the
@@ -140,8 +140,8 @@ function RemindMenu({ at, item, name, onClose }: { at: MenuAt; item: FeedItemInf
     onClose();
     const target = followTarget(item);
     if (!target) return;
-    void remindAt(target, minutes).then(
-      (when) => showToast({ message: `Reminder set for ${clock(when)}.`, detail: `About ${name}.`, action: { label: "Watches", run: () => openWatches({ kind: "list" }) } }),
+    void remindAt(target, name, minutes).then(
+      (when) => showToast({ message: `Reminder set for ${clock(when)}.`, detail: `About ${name}.`, action: { label: "Reminders", run: () => openWatches({ kind: "list" }) } }),
       (error: unknown) => showToast({ message: "The reminder couldn't be set.", detail: errorText(error), tone: "error" }),
     );
   };

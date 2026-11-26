@@ -30,6 +30,7 @@ import { WatchesEmpty, startersFor, type Starter } from "./WatchesEmpty";
 import { LimitAlert, QuietLine, WatchesHead, type ToolbarState } from "./WatchesHead";
 import { watchesChanged } from "./WatchDoor";
 import { EndedSection, WatchingSection } from "./WatchesLists";
+import { RemindersSection } from "./RemindersSection";
 import { stateFrom } from "./watch-form-state";
 import { appOfSession, draftOf, nextMidnight, pickerLists, quietHours, targetBook, type TargetOption, type TargetSources } from "./watches-view";
 import { PAGE, TOAST } from "./watches-words";
@@ -286,6 +287,7 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
             />
             {counts.ended > 0 && <EndedSection count={counts.ended} open={endedOpen} onToggle={() => setEndedOpen((open) => !open)} book={book} now={now} appOf={appOf} actions={acts.ended} />}
         </LoadingState>
+        <RemindersSection book={book} now={now} />
       </div>
     </div>
   );

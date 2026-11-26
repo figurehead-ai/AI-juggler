@@ -68,7 +68,7 @@ const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; w
   { id: "reset", label: "An account has room again", hint: "Its window reset after it was almost out.", when: "an account has room again" },
   { id: "this_mac", label: `${THIS_MACHINE} is getting tight`, hint: `Memory, disk or heat near its limit, as ${THIS_MACHINE} shows it.`, when: `${THIS_MACHINE} gets tight` },
   // AJ-E3817: on by default; the user asked for each watch when they set it.
-  { id: "watch", label: "Watches you set", hint: "A watch you set was met. Quiet hours hold it, unless that watch is set to tell you even then.", when: "a watch you set is met" },
+  { id: "watch", label: "Watches and reminders", hint: "A watch you set was met, or a reminder came due. Quiet hours hold a watch unless it is set to tell you even then; a reminder comes at the time you picked.", when: "a watch you set is met or a reminder comes due" },
   // AJ-E3712: off by default, like every other kind.
   { id: "digest", label: "The digest", hint: "What your agents did, in a few lines, every 15 to 30 minutes while they work. Finished sessions are told in it, not one each.", when: "a digest is ready" },
 ];

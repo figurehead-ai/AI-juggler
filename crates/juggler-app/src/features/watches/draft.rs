@@ -112,6 +112,12 @@ pub enum WatchDrafted {
     },
     /// No draft passed its checks: the empty form.
     Form,
+    /// AJ-E2027: a reminder, read by code from the request's words (its
+    /// time and what it is about); only the user's click sets it.
+    Remind {
+        /// The draft.
+        reminder: crate::features::schedule::remind_draft::ReminderDraftInfo,
+    },
 }
 
 /// The job's outcome.

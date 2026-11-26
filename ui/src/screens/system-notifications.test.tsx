@@ -73,16 +73,16 @@ describe("AJ-E1510 — Settings › Notifications", () => {
     expect(w().__AIJ_NOTIFY__).toEqual({ waiting: false, stuck: false, limit: false, finished: false, this_mac: false, left_behind: false, quota: true, crash: true, reset: true, watch: true, digest: false });
   });
 
-  it("AJ-E3817, AJ-E3712: Watches you set is on by default, the digest off, each saved on its own", async () => {
+  it("AJ-E3817, AJ-E3712: Watches and reminders is on by default, the digest off, each saved on its own", async () => {
     const { findByTestId, getByTestId } = render(<SettingsScreen focusSection="notifications" />);
     const group = await findByTestId("system-notifications");
-    expect(within(group).getByLabelText("Watches you set")).toHaveProperty("checked", true);
+    expect(within(group).getByLabelText("Watches and reminders")).toHaveProperty("checked", true);
     expect(within(group).getByLabelText("The digest")).toHaveProperty("checked", false);
     await act(async () => {
-      fireEvent.click(within(group).getByLabelText("Watches you set"));
+      fireEvent.click(within(group).getByLabelText("Watches and reminders"));
     });
     expect(w().__AIJ_NOTIFY__).toMatchObject({ watch: false, digest: false });
-    await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain("No notification when a watch you set is met."));
+    await waitFor(() => expect(getByTestId("settings-notifications").textContent).toContain("No notification when a watch you set is met or a reminder comes due."));
     await act(async () => {
       fireEvent.click(within(group).getByLabelText("The digest"));
     });
