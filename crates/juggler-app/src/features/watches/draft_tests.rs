@@ -1,43 +1,8 @@
-use std::cell::RefCell;
 use std::time::{Duration, Instant};
 
 use super::*;
-use crate::features::ai::engine::Usage;
-use crate::features::ai::run::AiFailure;
 
-/// A fake engine: answers in order (the last repeated), keeps each request.
-struct Fake {
-    answers: Vec<&'static str>,
-    seen: RefCell<Vec<Request>>,
-}
-
-impl Fake {
-    fn new(answers: &[&'static str]) -> Self {
-        Self {
-            answers: answers.to_vec(),
-            seen: RefCell::new(Vec::new()),
-        }
-    }
-    fn calls(&self) -> usize {
-        self.seen.borrow().len()
-    }
-}
-
-impl JobModel for Fake {
-    fn generate(&self, request: &Request, _stop: &Stop) -> Result<Draft, AiFailure> {
-        let n = self.seen.borrow().len();
-        self.seen.borrow_mut().push(request.clone());
-        let text = self.answers[n.min(self.answers.len() - 1)];
-        if text == "FAIL" {
-            return Err(AiFailure::TimedOut);
-        }
-        Ok(Draft {
-            text: text.to_owned(),
-            finish: Finish::Stop,
-            usage: Usage::default(),
-        })
-    }
-}
+type Fake = crate::features::ai::scripted::Scripted;
 
 const ALL: [&str; 6] = ["finishes", "ends", "asks_you", "fails", "stuck", "idle_for"];
 
@@ -93,8 +58,12 @@ fn filled(outcome: &Outcome) -> &WatchDraftInfo {
 
 #[test]
 fn the_prompts_are_the_ones_harness_v6_measured() {
-    let measured =
-        include_str!("../../../../../docs/qa/evidence/AJ-E3709/harness/v6/prompts/watch2.md");
+    // Read from the harness at test time (the docs don't ship in the app).
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../docs/qa/evidence/AJ-E3709/harness/v6/prompts/watch2.md"
+    );
+    let measured = std::fs::read_to_string(path).unwrap_or_default();
     assert!(
         measured.contains(TARGET_INSTRUCTIONS),
         "call 1's instructions drifted from the harness"

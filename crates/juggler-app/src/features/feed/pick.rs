@@ -665,25 +665,12 @@ pub fn line(model: &dyn JobModel, turn: &Turn<'_>, stop: &Stop) -> Option<String
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
     use std::time::{Duration, Instant};
 
     use super::*;
-    use crate::features::ai::engine::{Draft, Usage};
-    use crate::features::ai::run::AiFailure;
 
-    struct Fake(Vec<&'static str>, RefCell<Vec<Request>>);
-    impl JobModel for Fake {
-        fn generate(&self, request: &Request, _stop: &Stop) -> Result<Draft, AiFailure> {
-            let n = self.1.borrow().len();
-            self.1.borrow_mut().push(request.clone());
-            Ok(Draft {
-                text: self.0[n.min(self.0.len() - 1)].to_owned(),
-                finish: Finish::Stop,
-                usage: Usage::default(),
-            })
-        }
-    }
+    use crate::features::ai::scripted::Scripted;
+
     fn stop() -> Stop {
         Stop::at(Instant::now() + Duration::from_secs(5))
     }
@@ -691,9 +678,12 @@ mod tests {
 
     #[test]
     fn the_instructions_are_the_ones_harness_v6_measured() {
-        let measured = include_str!(
-            "../../../../../docs/qa/evidence/AJ-E3709/harness/v6/prompts/feed_pick.md"
+        // Read from the harness at test time (the docs don't ship in the app).
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../docs/qa/evidence/AJ-E3709/harness/v6/prompts/feed_pick.md"
         );
+        let measured = std::fs::read_to_string(path).unwrap_or_default();
         assert!(measured.contains(INSTRUCTIONS));
     }
 
@@ -711,15 +701,12 @@ mod tests {
         let chs = choices(&turn);
         assert_eq!(chs[1].verb.as_deref(), Some("added"));
         assert_eq!(chs[2].verb, None, "a statement is shown whole");
-        let fake = Fake(
-            vec![r#"{"fact":"2","verb":"added"}"#],
-            RefCell::new(Vec::new()),
-        );
+        let fake = Scripted::new(&[r#"{"fact":"2","verb":"added"}"#]);
         assert_eq!(
             line(&fake, &turn, &stop()).as_deref(),
             Some("Added a flush after the final batch in sync/vega_flush.rs, 14 passed")
         );
-        let req = &fake.1.borrow()[0];
+        let req = &fake.seen.borrow()[0];
         assert_eq!(
             req.shape.as_ref().unwrap()["properties"][0]["schema"]["type"],
             "enum"
@@ -735,25 +722,22 @@ mod tests {
             tests: Tests::NotRun,
             failed: false,
         };
-        let fake = Fake(
-            vec![
-                r#"{"fact":"9","verb":"none"}"#,
-                r#"{"fact":"3","verb":"none"}"#,
-            ],
-            RefCell::new(Vec::new()),
-        );
+        let fake = Scripted::new(&[
+            r#"{"fact":"9","verb":"none"}"#,
+            r#"{"fact":"3","verb":"none"}"#,
+        ]);
         assert_eq!(
             line(&fake, &turn, &stop()).as_deref(),
             Some("The last batch now lands every time; tests were not run")
         );
         assert!(matches!(
-            fake.1.borrow()[1].decoding,
+            fake.seen.borrow()[1].decoding,
             Decoding::Sampled { .. }
         ));
-        assert!(fake.1.borrow()[1].prompt.contains("fact: not one of"));
-        let fake = Fake(vec!["nonsense"], RefCell::new(Vec::new()));
+        assert!(fake.seen.borrow()[1].prompt.contains("fact: not one of"));
+        let fake = Scripted::new(&["nonsense"]);
         assert_eq!(line(&fake, &turn, &stop()), None);
-        assert_eq!(fake.1.borrow().len(), 3);
+        assert_eq!(fake.seen.borrow().len(), 3);
     }
 
     #[test]

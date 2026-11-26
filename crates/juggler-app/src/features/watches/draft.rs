@@ -478,7 +478,7 @@ fn quoted(name: &str) -> String {
 
 fn target_line(r: &str, c: Option<&Candidate>) -> String {
     let Some(c) = c else {
-        return "any · every session on this Mac".to_owned();
+        return "any · every session on this computer".to_owned();
     };
     let kind = match c.target.kind() {
         TargetKind::App => "App",
@@ -907,6 +907,13 @@ fn draft_info(
 
 // ============================================================================ the job
 
+/// One call: the draft and the shape it was asked in, or `None` when the
+/// engine failed (the plain form then opens).
+fn asked(model: &dyn JobModel, req: &Request, stop: &Stop) -> Option<(Draft, Value)> {
+    let out = model.generate(req, stop).ok()?;
+    Some((out, req.shape.clone().unwrap_or_default()))
+}
+
 /// The two calls, checked and retried; `check` is the form's own check of
 /// a draft (its problem's words, or none). Returns the outcome and the
 /// calls made.
@@ -926,10 +933,9 @@ pub fn draft(
         if chosen.is_none() {
             let req = call1(ask, &note1, k1);
             calls += 1;
-            let Ok(out) = model.generate(&req, stop) else {
+            let Some((out, shape)) = asked(model, &req, stop) else {
                 return (Outcome::Drafted(WatchDrafted::Form), calls);
             };
-            let shape = req.shape.clone().unwrap_or_default();
             let checked = fields(&out, &shape).and_then(|got| {
                 let intent = text(&got, "intent");
                 if intent != "create" {
@@ -963,10 +969,9 @@ pub fn draft(
         let target_none = r == "none";
         let req = call2(ask, (!target_none).then_some((r.as_str(), c)), &note2, k2);
         calls += 1;
-        let Ok(out) = model.generate(&req, stop) else {
+        let Some((out, shape)) = asked(model, &req, stop) else {
             return (Outcome::Drafted(WatchDrafted::Form), calls);
         };
-        let shape = req.shape.clone().unwrap_or_default();
         match fields(&out, &shape).and_then(|got| when_of(ask, &got, target_none, c, check)) {
             Ok(drafted) => return (Outcome::Drafted(drafted), calls),
             Err(why) if why.starts_with("target:") => {
@@ -990,10 +995,9 @@ fn finish_pick(
     _said: &[String],
 ) -> (Outcome, u32) {
     let req = call2(ask, None, "", 0);
-    let Ok(out) = model.generate(&req, stop) else {
+    let Some((out, shape)) = asked(model, &req, stop) else {
         return (Outcome::Drafted(WatchDrafted::Form), 1);
     };
-    let shape = req.shape.clone().unwrap_or_default();
     let conds = fields(&out, &shape)
         .ok()
         .map(|got| {

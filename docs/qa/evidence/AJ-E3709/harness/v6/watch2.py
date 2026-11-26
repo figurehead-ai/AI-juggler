@@ -59,7 +59,9 @@ RULES1 = [
 ]
 FIELDS1 = "Fields, in this order: intent; target (one ref, any, or none)."
 TASK1 = "Pick the one TARGET the REQUEST is about."
-def targets_text(w): return W.catalogue(w).split("\n\nCONDITIONS")[0]
+def targets_text(w):
+    # "this computer", the app's words for any computer (the platform lint): the app renders the same line
+    return W.catalogue(w).split("\n\nCONDITIONS")[0].replace("any · every session on this Mac", "any · every session on this computer")
 def schema1(w): return j4.O("WatchTarget", [("intent", j4.E(INTENTS)), ("target", j4.E([e["ref"] for e in w["entries"]] + ["none"]))])
 def prompt1(w): return targets_text(w) + "\n\nREQUEST (from the developer): " + w["request"] + "\n\n" + TASK1
 

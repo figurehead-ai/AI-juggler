@@ -1,0 +1,9 @@
+# Evidence manifest: AJ-E3831 (feed line "pick, don't write" and digest "map and reduce")
+
+Built 2026-11-26 on release/0.5.2 (Opus): code done, the eval rounds pending. Nothing was run against a model. Harness v6 (`../AJ-E3709/harness/v6/`, runbook `v6-runbook.md`); the app's pick prompt is the harness's, as measured (a test keeps them equal). The v6 blind sets were not opened by the builder.
+
+R1: PASS (code) — the feed line: code lists the turn's checked facts (the agent's clauses past every v5 check, git's kept files in the harness), the model picks one by number and a verb from an enum, code renders the line with the tests (harness `pick.py`, `selftest_v6.py` "pick: …", three fresh examples; app `feed::pick::tests`). Commits 98d775f96, 0fb9e121b.
+R2: PASS (code) — the digest: one pick per calm agent; code orders, groups, counts and assembles, the model never writes the digest (harness `digest_mr.py`, "digest_mr: …"; app `digest::lines::map` in the digest's run, only when the router serves the job; the window shows the picked words in place of the last words, vitest `home-feed-digest.test.tsx`).
+R3: PENDING — one round each on fresh blind sets (`heldout/v6/turns-v6.json`, `digest-v6.json`) by the runbook, a Sonnet round, Opus verifying; on only if preferred over the plain text in the blind checks (the value row uses D-130's 60 % of decided pairs: the coordinator confirms that reading), recorded as the `feed` / `digest` verdict with no code change (fe6fb87cf). Until then each stays plain with its one-line why in the `models` section (`builtin.json`'s notes), which Settings › AI › Models shows (AJ-E3826).
+
+Usability answer (the one-line why): PASS — "Not yet: in blind checks the plain line read better (43 %). A way of picking the line is being tested." / "…the plain roundup read better (33 %). A digest built line by line is being tested." (each under the 120-character bound).

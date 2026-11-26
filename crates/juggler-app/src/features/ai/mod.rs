@@ -15,6 +15,8 @@ pub mod memory;
 pub mod models;
 pub mod router;
 pub mod run;
+#[cfg(test)]
+pub mod scripted;
 pub mod service;
 
 #[cfg(test)]

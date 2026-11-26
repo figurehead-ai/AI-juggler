@@ -33,7 +33,7 @@ const WORDS = {
 };
 
 /** What the form opens on for a draft. */
-export function intentOf(drafted: WatchDrafted): WatchesIntent {
+function intentOf(drafted: WatchDrafted): WatchesIntent {
   if (drafted.kind === "filled" || drafted.kind === "pick") return { kind: "new", draft: drafted.draft };
   if (drafted.kind === "cant_watch" && drafted.draft) return { kind: "new", draft: drafted.draft };
   return { kind: "new" };

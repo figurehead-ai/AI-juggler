@@ -1,23 +1,7 @@
-use std::cell::RefCell;
-
 use super::*;
-use crate::features::ai::engine::{Draft, Finish, Request, Usage};
-use crate::features::ai::run::{AiFailure, JobModel};
+use crate::features::ai::scripted::Scripted;
 use crate::features::bot::dto::{BotAskInput, BotOutcome, BotRowInfo, BotState};
 use crate::features::bot::world::tests_support::row;
-
-struct Fake(Vec<&'static str>, RefCell<usize>);
-impl JobModel for Fake {
-    fn generate(&self, _request: &Request, _stop: &Stop) -> Result<Draft, AiFailure> {
-        let n = *self.1.borrow();
-        *self.1.borrow_mut() += 1;
-        Ok(Draft {
-            text: self.0[n.min(self.0.len() - 1)].to_owned(),
-            finish: Finish::Stop,
-            usage: Usage::default(),
-        })
-    }
-}
 
 fn world() -> World {
     let session = |id: &str, title: &str, project: &str| BotRowInfo {
@@ -47,13 +31,10 @@ fn world() -> World {
 #[test]
 fn a_watch_request_fills_the_form_and_adds_nothing() {
     let (_dir, state) = crate::features::bot::tests::state();
-    let fake = Fake(
-        vec![
-            r#"{"intent":"create","target":"s2"}"#,
-            r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-        ],
-        RefCell::new(0),
-    );
+    let fake = Scripted::new(&[
+        r#"{"intent":"create","target":"s2"}"#,
+        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
+    ]);
     let got =
         drafted_with(&fake, &state, &world(), "Let me know when api finishes.").expect("a draft");
     match &got {
