@@ -6,7 +6,9 @@
 //! Only a tool whose adapter reads its transcripts' work
 //! (`reports_activity`: Claude Code, Codex) is read; another tool's posts
 //! carry no stat. A read is kept by the file's stamp, so a page read again
-//! reads only what changed.
+//! reads only what changed, and a page spends at most [`PAGE_BUDGET`] on
+//! files it hasn't read (each read is at most 8 MB back from a file's
+//! end, most a 256 KB window).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -26,6 +28,11 @@ pub const TURN_KINDS: &[&str] = &[
 
 /// The most reads kept.
 const KEPT_MAX: usize = 512;
+
+/// The most time a page spends reading transcripts it hasn't read
+/// before (instant-and-paged): past it, the rest of the page's posts go
+/// without a stat until a later read finds them kept or reads them.
+const PAGE_BUDGET: std::time::Duration = std::time::Duration::from_millis(250);
 
 /// A read, by its file and turn: the file's stamp when read, and what it
 /// said.
@@ -48,10 +55,11 @@ pub fn attach(state: &Arc<AppState>, items: &mut [FeedItemInfo]) {
         return;
     }
     let sessions = session_transcripts(state, wanted.iter().map(|at| &items[*at]));
+    let started = std::time::Instant::now();
     for at in wanted {
         let item = &mut items[at];
         if let Some(path) = path_of(state, item, &sessions) {
-            item.facts.changes = read(&path, item.at_ms);
+            item.facts.changes = read(&path, item.at_ms, started.elapsed() < PAGE_BUDGET);
         }
     }
 }
@@ -110,8 +118,9 @@ fn path_of(
 }
 
 /// What the turn that ended by `until` changed, read again only when the
-/// file changed since.
-fn read(path: &Path, until: i64) -> Option<FeedChangesInfo> {
+/// file changed since; `fresh`: the file may be read (else only what was
+/// kept is said).
+fn read(path: &Path, until: i64, fresh: bool) -> Option<FeedChangesInfo> {
     let stamp = juggler_adapters::last_turns::stamp(path).ok()?;
     let key = (path.to_path_buf(), until);
     if let Ok(kept) = KEPT.lock()
@@ -119,6 +128,9 @@ fn read(path: &Path, until: i64) -> Option<FeedChangesInfo> {
         && *was == stamp
     {
         return said.clone();
+    }
+    if !fresh {
+        return None;
     }
     let said = turn_changes(path, Some(until))
         .ok()
