@@ -29,7 +29,8 @@ coded! {
     /// What a record holds (ADR-0037 §1.1). There is no "fact" kind: live
     /// facts are read live (§3).
     Kind {
-        /// A stated preference from a closed set of slots (`alias`, `focus`).
+        /// A stated preference from a closed set of slots (`alias`, `focus`,
+        /// and `feed`: a post's More or Less like this, AJ-E3713).
         Preference = "preference",
         /// The user's own words after "remember…".
         Note = "note",
@@ -127,6 +128,8 @@ coded! {
         WatchesView = "watches_view",
         /// Settings › AI › Memory.
         Settings = "settings",
+        /// Home's feed: a post's More or Less like this (AJ-E3713).
+        HomeFeed = "home_feed",
         /// The digest job.
         DigestJob = "digest_job",
         /// The (Beta) note job.
@@ -300,6 +303,7 @@ impl KindWriter {
                 SourceKind::ChatTurn,
                 SourceKind::WatchesView,
                 SourceKind::Settings,
+                SourceKind::HomeFeed,
                 SourceKind::DigestJob,
                 SourceKind::NoteJob,
                 SourceKind::Maintenance,
@@ -353,6 +357,7 @@ impl Writers {
                     SourceKind::ChatTurn,
                     SourceKind::Settings,
                     SourceKind::NoteJob,
+                    SourceKind::HomeFeed,
                 ],
             },
             watches: KindWriter {

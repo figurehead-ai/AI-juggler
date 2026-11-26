@@ -352,6 +352,68 @@ fn the_filters_narrow_by_chip_project_pool_and_account_and_my_acts_wait_to_be_as
     );
 }
 
+/// AJ-E3713 R5: the story feed's tabs (Sessions and Tasks beside the
+/// chips 0.5.1 had) and its state chips (Finished, Failed, and Running:
+/// the sessions running now).
+#[test]
+fn the_tabs_and_state_chips_keep_what_they_say() {
+    let storage = store();
+    day(&storage);
+    let tab = |category: &str| FeedFiltersInfo {
+        category: Some(category.to_owned()),
+        ..FeedFiltersInfo::default()
+    };
+    let state = |state: &str| FeedFiltersInfo {
+        state: Some(state.to_owned()),
+        ..FeedFiltersInfo::default()
+    };
+    assert_eq!(
+        kinds(&read(&storage, None, 30, &tab("sessions")).items),
+        ["answered", "failed", "finished", "finished"]
+    );
+    assert_eq!(
+        kinds(&read(&storage, None, 30, &tab("tasks")).items),
+        ["task_done"]
+    );
+    assert_eq!(
+        kinds(&read(&storage, None, 30, &state("finished")).items),
+        ["task_done", "finished", "finished"]
+    );
+    assert_eq!(
+        kinds(&read(&storage, None, 30, &state("failed")).items),
+        ["failed"]
+    );
+    let both = FeedFiltersInfo {
+        category: Some("sessions".to_owned()),
+        state: Some("finished".to_owned()),
+        ..FeedFiltersInfo::default()
+    };
+    assert_eq!(
+        kinds(&read(&storage, None, 30, &both).items),
+        ["finished", "finished"]
+    );
+    // Running: only the items of the sessions running now.
+    let request = PageRequest {
+        cursor: None,
+        limit: Some(30),
+    };
+    let running = page::Ask::of(&state("running")).with_running(["s-ok".to_owned()]);
+    let kept = page::page_for(&storage, &request, &running, Read::default()).unwrap();
+    assert!(!kept.items.is_empty());
+    assert!(
+        kept.items
+            .iter()
+            .all(|item| item.target.session_id.as_deref() == Some("s-ok"))
+    );
+    let none = page::Ask::of(&state("running")).with_running(Vec::<String>::new());
+    assert!(
+        page::page_for(&storage, &request, &none, Read::default())
+            .unwrap()
+            .items
+            .is_empty()
+    );
+}
+
 /// 5,000 events across the journals, a few seconds apart.
 fn busy(storage: &Storage) {
     for at in 0..20 {

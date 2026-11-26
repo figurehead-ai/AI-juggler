@@ -86,13 +86,56 @@ pub const TASK_CHANGES: &[(&str, &str)] = &[
 /// in its thread's count).
 pub const MESSAGE_KINDS: &[&str] = &["handoff", "review_request", "question", "status"];
 
+/// AJ-E3713 R5: what a session did (the Sessions tab): its endings, its
+/// restarts, a need it had settled, the user's marks, other apps' work.
+pub const SESSION_KINDS: &[&str] = &[
+    "finished",
+    "failed",
+    "crashed",
+    "ended",
+    "restarted",
+    "stopped",
+    "reviewed",
+    "archived",
+    "answered",
+    "worked",
+];
+
+/// Whether `kind` is under the tab `chip` (AJ-E3713 R5: All · Needs you ·
+/// Sessions · Tasks · Pools · Switches & limits · This Mac). A tab may
+/// share kinds with another (a failed session is a need and a session's);
+/// the categories (`category_of`) keep their own chips, so a viewer's
+/// kept 0.5.1 filter ("finished") still reads.
+#[must_use]
+pub fn in_chip(kind: &str, chip: &str) -> bool {
+    match chip {
+        "sessions" => SESSION_KINDS.contains(&kind),
+        "tasks" => kind.starts_with("task_"),
+        _ => category_of(kind) == chip,
+    }
+}
+
+/// AJ-E3713 R5: the state chips that need no live state (Running asks
+/// the sessions running now, [`super::page::Ask`]).
+#[must_use]
+pub fn in_state(kind: &str, state: &str) -> bool {
+    match state {
+        "finished" => matches!(kind, "finished" | "task_done"),
+        "failed" => matches!(
+            kind,
+            "failed" | "crashed" | "switch_failed" | "task_blocked"
+        ),
+        _ => true,
+    }
+}
+
 /// Of `table`'s `(stored, kind)` pairs, the stored words whose kind is
 /// under `category` (all of them for none).
 #[must_use]
 pub fn stored_for(table: &[(&str, &str)], category: Option<&str>) -> Vec<String> {
     table
         .iter()
-        .filter(|(_, kind)| category.is_none_or(|chip| category_of(kind) == chip))
+        .filter(|(_, kind)| category.is_none_or(|chip| in_chip(kind, chip)))
         .map(|(stored, _)| (*stored).to_owned())
         .collect()
 }

@@ -76,6 +76,8 @@ import type { ExpertSetupInfo } from "./ExpertSetupInfo";
 import type { FacetFilters } from "./FacetFilters";
 import type { FeedFiltersInfo } from "./FeedFiltersInfo";
 import type { FeedItemInfo } from "./FeedItemInfo";
+import type { FeedLeanAsk } from "./FeedLeanAsk";
+import type { FeedLeanInfo } from "./FeedLeanInfo";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -567,8 +569,14 @@ export interface Commands {
   expert_reveal: { args: { provider: string; accountId?: string | null }; result: void };
   /** Write features::expert::commands::expert_setup_info */
   expert_setup_info: { args: { provider: string; accountId?: string | null; recipeId?: string | null }; result: ExpertSetupInfo };
+  /** Write features::feed::commands::prefs::feed_lean */
+  feed_lean: { args: { ask: FeedLeanAsk }; result: FeedLeanInfo | null };
+  /** Read features::feed::commands::prefs::feed_leans */
+  feed_leans: { args: Record<string, never>; result: FeedLeanInfo[] };
   /** Read features::feed::commands::feed_page */
   feed_page: { args: { request: PageRequest; filters: FeedFiltersInfo }; result: Page<FeedItemInfo> };
+  /** Write features::feed::commands::prefs::feed_unlean */
+  feed_unlean: { args: { key: string }; result: void };
   /** Write figurehead::figurehead_claim */
   figurehead_claim: { args: { code: string; name?: string | null }; result: FigureheadStatusInfo };
   /** Write figurehead::figurehead_dismiss_notice */

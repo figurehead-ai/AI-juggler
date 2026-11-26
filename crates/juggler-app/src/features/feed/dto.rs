@@ -147,8 +147,8 @@ pub struct FeedItemInfo {
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct FeedFiltersInfo {
-    /// One chip's category (`needs`, `finished`, `switches`, `pools`,
-    /// `mac`); none: All.
+    /// One tab (`needs`, `sessions`, `tasks`, `pools`, `switches`, `mac`;
+    /// 0.5.1's `finished` still reads); none: All.
     #[serde(default)]
     #[ts(optional = nullable)]
     pub category: Option<String>,
@@ -167,4 +167,9 @@ pub struct FeedFiltersInfo {
     /// The user's own acts too (off by default).
     #[serde(default)]
     pub include_mine: bool,
+    /// AJ-E3713 R5: one state chip (`running`, `finished`, `failed`);
+    /// none: every state.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub state: Option<String>,
 }

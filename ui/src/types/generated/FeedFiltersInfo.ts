@@ -5,8 +5,8 @@
  */
 export type FeedFiltersInfo = { 
 /**
- * One chip's category (`needs`, `finished`, `switches`, `pools`,
- * `mac`); none: All.
+ * One tab (`needs`, `sessions`, `tasks`, `pools`, `switches`, `mac`;
+ * 0.5.1's `finished` still reads); none: All.
  */
 category?: string | null, 
 /**
@@ -24,4 +24,9 @@ folders?: Array<string> | null,
 /**
  * The user's own acts too (off by default).
  */
-include_mine: boolean, };
+include_mine: boolean, 
+/**
+ * AJ-E3713 R5: one state chip (`running`, `finished`, `failed`);
+ * none: every state.
+ */
+state?: string | null, };
