@@ -59,6 +59,7 @@ pub mod relations;
 pub mod remote_config;
 pub mod reset_queue;
 pub mod runtime;
+pub mod schedule;
 pub mod service_accounts;
 pub mod sessions;
 pub mod sign_ins;

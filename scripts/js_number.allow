@@ -158,6 +158,7 @@ MachineUsageInfo.used_units                        # tokens, < 2^53 is 9e15 toke
 MessageInfo.at_ms                                  # ms epoch, < 2^53 until year 287396
 MessageNeedInfo.at_ms                              # ms epoch, < 2^53 until year 287396
 ModelsInfo.total_bytes                             # bytes, < 2^53 is 8 PiB
+Modifiers.jitter_ms                                # ms, at most an hour (trigger::JITTER_MAX_MS)
 MoveBackupsInfo.bytes                              # bytes, < 2^53 is 8 PiB
 MoveBackupsInfo.old_bytes                          # bytes, < 2^53 is 8 PiB
 MoveOfferInfo.bytes                                # bytes, < 2^53 is 8 PiB
@@ -342,6 +343,12 @@ ToolUpdateInfo.checked_ms                          # ms epoch, < 2^53 until year
 TransitionInfo.at_ms                               # ms epoch, < 2^53 until year 287396
 TreeSampleInfo.at_ms                               # ms epoch, < 2^53 until year 287396
 TreeSampleInfo.rss_bytes                           # bytes, < 2^53 is 8 PiB
+Trigger::AfterEvent.delay_ms                       # ms, at most 30 days (trigger::WAIT_MAX_MS)
+Trigger::At.at_ms                                  # ms epoch, < 2^53 until year 287396
+Trigger::Every.anchor_ms                           # ms epoch, < 2^53 until year 287396
+Trigger::Every.interval_ms                         # ms, at most 366 days (trigger::EVERY_MAX_MS)
+Trigger::WhenIdle.after_ms                         # ms, at most 30 days (trigger::WAIT_MAX_MS)
+Trigger::WhenIdle.max_wait_ms                      # ms, at most 30 days (trigger::WAIT_MAX_MS)
 TurnBlockInfo.at_ms                                # ms epoch, < 2^53 until year 287396
 TurnCallInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
 TurnInfo.at_ms                                     # ms epoch, < 2^53 until year 287396

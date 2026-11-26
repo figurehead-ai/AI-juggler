@@ -2948,6 +2948,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
+ "jiff",
  "juggler-account",
  "juggler-adapter",
  "juggler-adapters",
