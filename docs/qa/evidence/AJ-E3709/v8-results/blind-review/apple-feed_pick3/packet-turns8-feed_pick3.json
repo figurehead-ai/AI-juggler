@@ -1,0 +1,738 @@
+[
+ {
+  "pair": "turns8-feed_pick3-001",
+  "item": "V8T01",
+  "source": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file. Step 2 of 4 in the plan is done; steps 3 and 4 are cosmetic. 26 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 26,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "board/Card.tsx",
+     "added": 38,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "board/theme.css",
+     "added": 7,
+     "removed": 7,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file.\nStep 2 of 4 in the plan is done; steps 3 and 4 are cosmetic.",
+  "second": "Added a drag handle to the cards in lantern-board, 26 passed; step 2 of 4 in the plan is done"
+ },
+ {
+  "pair": "turns8-feed_pick3-002",
+  "item": "V8T04",
+  "source": "Moved the retry logic of mossy-queue into one helper (3 call sites). I also deleted two unused imports and bumped the changelog. 58 tests pass; I did not look at the slow integration suite.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "queue/retry.py",
+     "added": 33,
+     "removed": 40,
+     "status": "M"
+    },
+    {
+     "path": "queue/worker.py",
+     "added": 5,
+     "removed": 18,
+     "status": "M"
+    },
+    {
+     "path": "CHANGELOG.md",
+     "added": 2,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Moved the retry logic of mossy-queue into one helper (3 call sites), 58 passed",
+  "second": "Moved the retry logic of mossy-queue into one helper (3 call sites)."
+ },
+ {
+  "pair": "turns8-feed_pick3-003",
+  "item": "V8T07",
+  "source": "Tried splitting the monolith handler in ripple-chat into three modules, found circular imports and put everything back. The net result is a docstring fix in handler.py. No tests run.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "chat/handler.py",
+     "added": 3,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "chat/handlers/",
+     "note": "the three-module split was put back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept chat/handler.py (+3 -1); reverted chat/handlers/\nNo tests run; tests were not run",
+  "second": "git: kept chat/handler.py (+3 -1); reverted chat/handlers/\nThe agent says: “Tried splitting the monolith handler in ripple-chat into three modules, found circular imports and put everything back.”"
+ },
+ {
+  "pair": "turns8-feed_pick3-004",
+  "item": "V8T09",
+  "source": "Started the audit-trail export for pine-ledger. Step 1 of 3 (collect events) works; formatting and the download button are not started. 5 tests pass.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "audit/collect.py",
+     "added": 80,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/test_collect.py",
+     "added": 30,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Started the audit-trail export for pine-ledger.\nStep 1 of 3 (collect events) works; formatting and the download button are not started.",
+  "second": "5 tests pass; step 1 of 3"
+ },
+ {
+  "pair": "turns8-feed_pick3-005",
+  "item": "V8T11",
+  "source": "Replaced the home-grown date parser in kelp-planner with the standard one. 4 files changed, mostly import lines. 92 tests pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 92,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "planner/dates.py",
+     "added": 6,
+     "removed": 41,
+     "status": "M"
+    },
+    {
+     "path": "planner/events.py",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "planner/export.py",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "planner/cli.py",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Replaced the home-grown date parser in kelp-planner with the standard one.",
+  "second": "Replaced the home-grown date parser in kelp-planner with the standard one, 92 passed"
+ },
+ {
+  "pair": "turns8-feed_pick3-006",
+  "item": "V8T14",
+  "source": "Fixed the off-by-one in the pagination of the sleet-api list endpoint. I believe it's right now but I didn't run the tests.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/list.py",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Fixed the off-by-one in the pagination of the sleet-api list endpoint.\nI believe it's right now but I didn't run the tests.",
+  "second": "Fixed the off-by-one in the pagination of the sleet-api list endpoint; I didn't run the tests"
+ },
+ {
+  "pair": "turns8-feed_pick3-007",
+  "item": "V8T15",
+  "source": "Wired up the push-notification opt-in in cedar-mobile and then reverted the iOS half because the entitlement is missing. The Android half is in. 33 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 33,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "android/OptIn.kt",
+     "added": 74,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "android/Manifest.xml",
+     "added": 3,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "ios/OptIn.swift",
+     "note": "the iOS half was reverted"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept android/OptIn.kt (new, +74 -0); android/Manifest.xml (+3 -0); reverted ios/OptIn.swift\nWired up the push-notification opt-in in cedar-mobile and then reverted the iOS half because the entitlement is missing.",
+  "second": "git: kept android/OptIn.kt (new, +74 -0); android/Manifest.xml (+3 -0); reverted ios/OptIn.swift\nWired up the push-notification opt-in in cedar-mobile and then reverted the iOS half because the entitlement is missing, 33 passed"
+ },
+ {
+  "pair": "turns8-feed_pick3-008",
+  "item": "V8T16",
+  "source": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer). I also noticed the font file is huge but left it. 8 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 8,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "assets/sprites.png",
+     "added": 0,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer).",
+  "second": "8 tests pass"
+ },
+ {
+  "pair": "turns8-feed_pick3-009",
+  "item": "V8T20",
+  "source": "Added a request id to every log line in thistle-gateway. I briefly added a debug print and removed it again before finishing. 120 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 120,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "gateway/log.go",
+     "added": 17,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "gateway/middleware.go",
+     "added": 9,
+     "removed": 1,
+     "status": "M"
+    },
+    {
+     "path": "gateway/log_test.go",
+     "added": 26,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a request id to every log line in thistle-gateway.",
+  "second": "Added a request id to every log line in thistle-gateway, 120 passed"
+ },
+ {
+  "pair": "turns8-feed_pick3-010",
+  "item": "V8T21",
+  "source": "Looked into why the nightly build of reed-docs is slow. Found three suspects (image resize, link check, search index) but changed nothing yet. That was step 1 of my plan.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Looked into why the nightly build of reed-docs is slow.",
+  "second": "Found three suspects (image resize, link check, search index) but changed nothing yet; tests were not run"
+ },
+ {
+  "pair": "turns8-feed_pick3-011",
+  "item": "V8T24",
+  "source": "Ich habe die Rechnungsnummern im Projekt nordlicht-shop auf das neue Format umgestellt (Schritt 2 von 3). Schritt 3, die Altdaten, fehlt noch. 17 Tests laufen durch.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "ran",
+    "passed": 17,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "rechnung/nummern.py",
+     "added": 39,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_nummern.py",
+     "added": 20,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "17 Tests laufen durch; schritt 2 von 3",
+  "second": "Ich habe die Rechnungsnummern im Projekt nordlicht-shop auf das neue Format umgestellt (Schritt 2 von 3)."
+ },
+ {
+  "pair": "turns8-feed_pick3-012",
+  "item": "V8T26",
+  "source": "Ich wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte. Übrig ist nur ein neuer Alt-Text. Tests nicht ausgeführt.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "galerie/bild.html",
+     "added": 2,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "galerie/lazy.js",
+     "note": "die Lazy-Loading-Umstellung wurde zurückgenommen"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten galerie/bild.html (+2 -1); zurückgenommen galerie/lazy.js\nIch wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte.\nTests nicht ausgeführt.",
+  "second": "git: behalten galerie/bild.html (+2 -1); zurückgenommen galerie/lazy.js\nÜbrig ist nur ein neuer Alt-Text; tests nicht ausgeführt"
+ },
+ {
+  "pair": "turns8-feed_pick3-013",
+  "item": "V8T29",
+  "source": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente. 61 Tests bestehen, 0 schlagen fehl. Danach habe ich die README ergänzt und einen Test für Umlaute hinzugefügt.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 61,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "suche/normalisieren.py",
+     "added": 23,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "README.md",
+     "added": 8,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_umlaute.py",
+     "added": 15,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Danach habe ich die README ergänzt und einen Test für Umlaute hinzugefügt",
+  "second": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente."
+ },
+ {
+  "pair": "turns8-feed_pick3-014",
+  "item": "V8T39",
+  "source": "Checked 5 of 5 endpoints in the heron-api health check and all respond. I did not change code. One slow endpoint (/reports, 4.2 s) is worth a look.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Checked 5 of 5 endpoints in the heron-api health check and all respond; tests were not run",
+  "second": "Checked 5 of 5 endpoints in the heron-api health check and all respond."
+ },
+ {
+  "pair": "turns8-feed_pick3-015",
+  "item": "V8T40",
+  "source": "I rebuilt the search ranking in juniper-shop, then reverted to the old scoring after the new one pushed unrelated items to the top. I kept a tweak to the synonyms file. The remaining 44 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 44,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "search/synonyms.yaml",
+     "added": 6,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "search/scoring.py",
+     "note": "the new ranking was reverted"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~2"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept search/synonyms.yaml (+6 -2); reverted search/scoring.py\nKept a tweak to the synonyms file, 44 passed",
+  "second": "git: kept search/synonyms.yaml (+6 -2); reverted search/scoring.py\nI rebuilt the search ranking in juniper-shop, then reverted to the old scoring after the new one pushed unrelated items to the top."
+ },
+ {
+  "pair": "turns8-feed_pick3-016",
+  "item": "V8T44",
+  "source": "Added a --dry-run flag to the quill-deploy script. 16 tests pass; 3 were skipped because they need docker, which isn't installed here.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 16,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "deploy/cli.py",
+     "added": 21,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_cli.py",
+     "added": 30,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a --dry-run flag to the quill-deploy script, 16 passed",
+  "second": "Added a --dry-run flag to the quill-deploy script."
+ },
+ {
+  "pair": "turns8-feed_pick3-017",
+  "item": "V8T45",
+  "source": "I stopped after writing the schema for the ember-rooms booking tables. The migration is not written yet and nothing is committed.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/schema/bookings.sql",
+     "added": 72,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Changed db/schema/bookings.sql (new, +72 -0); tests were not run; the migration is not written yet and nothing is committed",
+  "second": "I stopped after writing the schema for the ember-rooms booking tables.\nThe migration is not written yet and nothing is committed."
+ },
+ {
+  "pair": "turns8-feed_pick3-018",
+  "item": "V8T48",
+  "source": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages. The build still passes; I haven't run the 120-test suite.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/legacy/old_cart.js",
+     "added": 0,
+     "removed": 88,
+     "status": "D"
+    },
+    {
+     "path": "src/legacy/old_nav.js",
+     "added": 0,
+     "removed": 54,
+     "status": "D"
+    },
+    {
+     "path": "package.json",
+     "added": 0,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages.\nThe build still passes; I haven't run the 120-test suite.",
+  "second": "Removed three dead files and two unused packages; tests were not run"
+ },
+ {
+  "pair": "turns8-feed_pick3-019",
+  "item": "V8T49",
+  "source": "Added exponential backoff to the upload client in sand-sync. On the first run 28 passed and 4 failed (timing); I re-ran and all 32 passed, so the failures look flaky.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 32,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "upload/client.py",
+     "added": 34,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_client.py",
+     "added": 22,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added exponential backoff to the upload client in sand-sync, 32 passed",
+  "second": "Added exponential backoff to the upload client in sand-sync."
+ },
+ {
+  "pair": "turns8-feed_pick3-020",
+  "item": "V8T50",
+  "source": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder. It is still in git history, so you may want to rotate it. 6 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 6,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "config/sample.env",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder.",
+  "second": "Replaced it with a placeholder, 6 passed"
+ }
+]

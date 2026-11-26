@@ -1,0 +1,574 @@
+[
+ {
+  "pair": "turns8-feed_why-001",
+  "item": "V8T01",
+  "source": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file. Step 2 of 4 in the plan is done; steps 3 and 4 are cosmetic. 26 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 26,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "board/Card.tsx",
+     "added": 38,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "board/theme.css",
+     "added": 7,
+     "removed": 7,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file.\nStep 2 of 4 in the plan is done; steps 3 and 4 are cosmetic.",
+  "second": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file — drag handle improves interaction, tidy vars reduce CSS noise\nStep 2 of 4 in the plan is done; steps 3 and 4 are cosmetic."
+ },
+ {
+  "pair": "turns8-feed_why-002",
+  "item": "V8T04",
+  "source": "Moved the retry logic of mossy-queue into one helper (3 call sites). I also deleted two unused imports and bumped the changelog. 58 tests pass; I did not look at the slow integration suite.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 58,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "queue/retry.py",
+     "added": 33,
+     "removed": 40,
+     "status": "M"
+    },
+    {
+     "path": "queue/worker.py",
+     "added": 5,
+     "removed": 18,
+     "status": "M"
+    },
+    {
+     "path": "CHANGELOG.md",
+     "added": 2,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Moved the retry logic of mossy-queue into one helper (3 call sites) — retry logic now centralizes calls for cleaner code",
+  "second": "Moved the retry logic of mossy-queue into one helper (3 call sites)."
+ },
+ {
+  "pair": "turns8-feed_why-003",
+  "item": "V8T09",
+  "source": "Started the audit-trail export for pine-ledger. Step 1 of 3 (collect events) works; formatting and the download button are not started. 5 tests pass.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "audit/collect.py",
+     "added": 80,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/test_collect.py",
+     "added": 30,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Started the audit-trail export for pine-ledger — no progress on formatting or download button\nStep 1 of 3 (collect events) works; formatting and the download button are not started.",
+  "second": "Started the audit-trail export for pine-ledger.\nStep 1 of 3 (collect events) works; formatting and the download button are not started."
+ },
+ {
+  "pair": "turns8-feed_why-004",
+  "item": "V8T11",
+  "source": "Replaced the home-grown date parser in kelp-planner with the standard one. 4 files changed, mostly import lines. 92 tests pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 92,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "planner/dates.py",
+     "added": 6,
+     "removed": 41,
+     "status": "M"
+    },
+    {
+     "path": "planner/events.py",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "planner/export.py",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "planner/cli.py",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Replaced the home-grown date parser in kelp-planner with the standard one.",
+  "second": "Replaced the home-grown date parser in kelp-planner with the standard one — standard parser ensures consistent date handling across projects"
+ },
+ {
+  "pair": "turns8-feed_why-005",
+  "item": "V8T14",
+  "source": "Fixed the off-by-one in the pagination of the sleet-api list endpoint. I believe it's right now but I didn't run the tests.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/list.py",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Fixed the off-by-one in the pagination of the sleet-api list endpoint.\nI believe it's right now but I didn't run the tests.",
+  "second": "Fixed the off-by-one in the pagination of the sleet-api list endpoint — no tests ran, so fix not confirmed\nI believe it's right now but I didn't run the tests."
+ },
+ {
+  "pair": "turns8-feed_why-006",
+  "item": "V8T16",
+  "source": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer). I also noticed the font file is huge but left it. 8 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 8,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "assets/sprites.png",
+     "added": 0,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer).",
+  "second": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer) — smaller assets speed up loading for every user"
+ },
+ {
+  "pair": "turns8-feed_why-007",
+  "item": "V8T20",
+  "source": "Added a request id to every log line in thistle-gateway. I briefly added a debug print and removed it again before finishing. 120 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 120,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "gateway/log.go",
+     "added": 17,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "gateway/middleware.go",
+     "added": 9,
+     "removed": 1,
+     "status": "M"
+    },
+    {
+     "path": "gateway/log_test.go",
+     "added": 26,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a request id to every log line in thistle-gateway.",
+  "second": "Added a request id to every log line in thistle-gateway — traceability grows with every request id"
+ },
+ {
+  "pair": "turns8-feed_why-008",
+  "item": "V8T21",
+  "source": "Looked into why the nightly build of reed-docs is slow. Found three suspects (image resize, link check, search index) but changed nothing yet. That was step 1 of my plan.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Looked into why the nightly build of reed-docs is slow.",
+  "second": "Looked into why the nightly build of reed-docs is slow — slow build hints at hidden bottlenecks"
+ },
+ {
+  "pair": "turns8-feed_why-009",
+  "item": "V8T26",
+  "source": "Ich wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte. Übrig ist nur ein neuer Alt-Text. Tests nicht ausgeführt.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "galerie/bild.html",
+     "added": 2,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "galerie/lazy.js",
+     "note": "die Lazy-Loading-Umstellung wurde zurückgenommen"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten galerie/bild.html (+2 -1); zurückgenommen galerie/lazy.js\nIch wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte.\nTests nicht ausgeführt.",
+  "second": "git: behalten galerie/bild.html (+2 -1); zurückgenommen galerie/lazy.js\nIch wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte — flaky preview forced rollback, alt-text now required\nTests nicht ausgeführt."
+ },
+ {
+  "pair": "turns8-feed_why-010",
+  "item": "V8T28",
+  "source": "Ich habe nur geschaut: Die Konfiguration von wiese-sync ist in Ordnung. Ich habe nichts geändert und nichts ausgeführt.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Ich habe nur geschaut: Die Konfiguration von wiese-sync ist in Ordnung.\nIch habe nichts geändert und nichts ausgeführt.",
+  "second": "Ich habe nur geschaut: Die Konfiguration von wiese-sync ist in Ordnung — no action means clear path for next check\nIch habe nichts geändert und nichts ausgeführt."
+ },
+ {
+  "pair": "turns8-feed_why-011",
+  "item": "V8T29",
+  "source": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente. 61 Tests bestehen, 0 schlagen fehl. Danach habe ich die README ergänzt und einen Test für Umlaute hinzugefügt.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 61,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "suche/normalisieren.py",
+     "added": 23,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "README.md",
+     "added": 8,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_umlaute.py",
+     "added": 15,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente — search now handles accented terms",
+  "second": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente."
+ },
+ {
+  "pair": "turns8-feed_why-012",
+  "item": "V8T39",
+  "source": "Checked 5 of 5 endpoints in the heron-api health check and all respond. I did not change code. One slow endpoint (/reports, 4.2 s) is worth a look.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Checked 5 of 5 endpoints in the heron-api health check and all respond.",
+  "second": "Checked 5 of 5 endpoints in the heron-api health check and all respond — slow endpoint needs optimization"
+ },
+ {
+  "pair": "turns8-feed_why-013",
+  "item": "V8T44",
+  "source": "Added a --dry-run flag to the quill-deploy script. 16 tests pass; 3 were skipped because they need docker, which isn't installed here.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 16,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "deploy/cli.py",
+     "added": 21,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_cli.py",
+     "added": 30,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a --dry-run flag to the quill-deploy script — dry-run flag skips docker tests, saving time on setup",
+  "second": "Added a --dry-run flag to the quill-deploy script."
+ },
+ {
+  "pair": "turns8-feed_why-014",
+  "item": "V8T48",
+  "source": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages. The build still passes; I haven't run the 120-test suite.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/legacy/old_cart.js",
+     "added": 0,
+     "removed": 88,
+     "status": "D"
+    },
+    {
+     "path": "src/legacy/old_nav.js",
+     "added": 0,
+     "removed": 54,
+     "status": "D"
+    },
+    {
+     "path": "package.json",
+     "added": 0,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages — no tests run, but build passes after file removal\nThe build still passes; I haven't run the 120-test suite.",
+  "second": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages.\nThe build still passes; I haven't run the 120-test suite."
+ },
+ {
+  "pair": "turns8-feed_why-015",
+  "item": "V8T49",
+  "source": "Added exponential backoff to the upload client in sand-sync. On the first run 28 passed and 4 failed (timing); I re-ran and all 32 passed, so the failures look flaky.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 32,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "upload/client.py",
+     "added": 34,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_client.py",
+     "added": 22,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added exponential backoff to the upload client in sand-sync — makes uploads more reliable after flaky timing",
+  "second": "Added exponential backoff to the upload client in sand-sync."
+ },
+ {
+  "pair": "turns8-feed_why-016",
+  "item": "V8T50",
+  "source": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder. It is still in git history, so you may want to rotate it. 6 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 6,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "config/sample.env",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder — confidential data now masked, rotation needed",
+  "second": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder."
+ }
+]

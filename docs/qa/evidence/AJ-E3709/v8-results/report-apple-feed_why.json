@@ -1,0 +1,216 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"available\":\"available\",\"extensions\":[\"fields\",\"sampling\"],\"os\":\"Version 27.0.1 (Build 26A434)\",\"protocol\":3,\"hello\":true,\"guided\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "feed_why"
+  ],
+  "prompt_sha256": {
+   "feed_why": "d33d7c1ee0f939041d02a39191261ae544bbb193f377634548973f7c44bb932f"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "turns8",
+    "file": "turns-v8.json",
+    "sha256": "b8b5a776ecc60fb4f3cc6e8983e15ba7b039fcbfc846289b54ad07bf19045d43",
+    "items_in_file": 50,
+    "items_run": 50
+   }
+  ],
+  "calls": 35,
+  "wall_s": 39.0,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   4.5,
+   4.5,
+   5.2
+  ],
+  "load_avg_end": [
+   8.5,
+   5.5,
+   5.5
+  ],
+  "helper_cpu_s": 0.71,
+  "cpu_deltas": [
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 2.06
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.87
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.7
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.51
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 130.5,
+   "peak": 135.0,
+   "after": 136.6
+  },
+  "started": "2026-11-26 12:25:31"
+ },
+ "criteria": "D-149 and the v8 calls (2026-11-26): watches: 0 unsupported claimed, then >= 90 % exact; the feed line (A or B) on only if preferred (60 % of decided pairs, pooled); B's fabrication <= 1 %",
+ "corpora": {
+  "turns8": {
+   "feed_why": {
+    "stats": {
+     "items": 50,
+     "decided_by_code": 29,
+     "model_called": 21,
+     "passed_first_attempt": 13,
+     "passed_after_a_retry": 3,
+     "fell_back": 5,
+     "passed_first_pct": 61.9,
+     "passed_with_retries_pct": 76.19,
+     "fallback_pct": 23.81,
+     "attempts_per_item": {
+      "1": 13,
+      "2": 2,
+      "3": 6
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1063,
+      "p95": 1204
+     },
+     "latency_ms_item_total": {
+      "median": 1134,
+      "p95": 3484
+     },
+     "kinds_shown": {
+      "written": 16,
+      "excerpt_routed": 28,
+      "excerpt": 6
+     }
+    },
+    "severity": {
+     "items": 50,
+     "model_shown_items": 16,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_reaching_pct_of_all_items": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 15,
+     "critical_caught_items": 5,
+     "critical_caught_by_detector": {
+      "contradiction": 15
+     },
+     "omission_items": 0,
+     "omission_denominator": 16,
+     "omission_pct": 0.0,
+     "omission_by_detector": {},
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "minor": {}
+    },
+    "bar_check": [
+     {
+      "bar": "fabrication (D-130 critical), % of shown model half-sentences",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "critical reaching the user, % of shown model items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "systematic critical patterns",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown items (Chat: of all questions)",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "model text on a turn that needs you (feed)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "value: AI preferred, % of decided pairs",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     }
+    ],
+    "kinds": {
+     "written": 16,
+     "excerpt_routed": 28,
+     "excerpt": 6
+    }
+   }
+  }
+ },
+ "replay_mismatches": []
+}
