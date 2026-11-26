@@ -283,6 +283,7 @@
 | AJ-E2024 | Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | E20-engineering-and-security.md | P1 | S | — |
 | AJ-E2025 | 0.4.6's deferred architecture findings: turn-end codes into the adapter; an external-terminal session placed by its process | E20-engineering-and-security.md | P1 | M | — |
 | AJ-E2026 | Durable commits on macOS: SQLite's full fsync at checkpoints, and on the critical write paths | E20-engineering-and-security.md | P1 | S | — |
+| AJ-E2027 | One scheduler for everything time-based (ADR-0039, D-151) | E20-engineering-and-security.md | P0 | XL | ADR-0037, ADR-0036 |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
 | AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |
@@ -529,5 +530,5 @@
 | AJ-E3830 | Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | E38-chat.md | P1 | M | AJ-E3709, AJ-E3825 |
 | AJ-E3831 | Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | E38-chat.md | P1 | M | AJ-E3709 |
 | AJ-E3832 | Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | E38-chat.md | P0 | XL | ADR-0037, ADR-0038 |
-Total: 527 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+Total: 528 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

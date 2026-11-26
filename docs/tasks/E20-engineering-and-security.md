@@ -458,3 +458,16 @@ Every check starts with an allowlist that may only shrink.
 3. The move engine's own file writes (handover backups, journals) call `sync_all()` (F_FULLFSYNC on Apple) before reporting success.
 4. A test asserts the pragmas; a note in the storage docs.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2026/manifest.md`.
+
+### AJ-E2027 One scheduler for everything time-based (ADR-0039, D-151) | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: ADR-0037, ADR-0036
+**Found** by the maintainer (2026-11-26) on the feed's Remind me: build a general scheduled and periodic trigger capability, not a watches-only time condition; six separate timers today.
+**UI**: yes (the user's schedules list; Settings › Advanced's read-only list; Remind me's picker)
+**Usability reasoning** (Opus, written first for the list and Remind me, PAT-USE): what someone wants to see about "what AI Juggler will do for me later", in plain words, with one place to pause or remove it.
+**Requirements** (ADR-0039's Order of work):
+1. The pure trigger maths: next due, missed runs, DST (spring gap, autumn overlap), windows, jitter, with property tests; `jiff` as a direct dependency, Cargo.lock unchanged.
+2. The `schedules` table (the next migration), the service, the handler registry, run controls, the log stream, and recompute on launch, wake and clock change (the clock seam gains a change observer).
+3. The reminder handler: the feed's Remind me and Bot's "remind me at…" through draft and confirm; the Notifications prompt primed at creation; the user's list with Pause all.
+4. `WhenIdle` consumers: ADR-0037's maintenance, gyrus `dream`; the digest's window through `At`.
+5. Migrations, one per commit, behaviour-unchanged tests: cloud backup, the cleanup sweep, watches' time conditions, the bell; risky ones listed, not forced.
+6. Settings › Advanced's read-only list; a Sonnet walk, an Opus critique, and the real-app check: a reminder fires after a restart and after sleep.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2027/manifest.md`.
