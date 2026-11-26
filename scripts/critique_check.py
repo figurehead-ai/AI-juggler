@@ -59,6 +59,8 @@ RICH = frozenset(
         "44-settings", "62-privacy", "64-crash", "65-settings-sections", "83-account-settings", "84-notifications",
         "89-budget-caps", "82-project-sync", "97-controls", "98-local-cache", "99-debug-mode", "99-floor-settings",
         "99-keep-alive", "99-new-session", "99-settings-keyboard", "99-settings-search", "98-pool-setup",
+        # AJ-E3826: Settings › AI › Models (models-gallery.spec.ts).
+        "99-ai-models",
     }
 )
 
