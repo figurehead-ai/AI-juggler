@@ -8,7 +8,7 @@
 //!   no-model path.
 //! - [`lines`]: the model's Beta lines on it (a description per changed
 //!   file and the risk), each through Bot's shared guard and check.
-//! - [`read`]: reading a turn (only an App whose turn ends are seen, R5;
+//! - [`read`](mod@self::read): reading a turn (only an App whose turn ends are seen, R5;
 //!   only while Last messages is on).
 //! - [`commands`]: the IPC.
 //!

@@ -30,3 +30,4 @@ gap keep-alive-gallery         D-63 evidence gallery with no gate() state; its e
 gap new-session-gallery        AJ-E3207 evidence gallery with no gate() state; its expects run only on a local regenerate
 gap outside-search             AJ-E1538 evidence gallery with no gate() state; its expects run only on a local regenerate
 gap related-list-gallery       AJ-E3103 evidence gallery with no gate() state; its expects run only on a local regenerate
+gap turn-review-gallery        AJ-E3820 evidence gallery with no gate() state (the coordinator's one gate pass over 0.5.2); its expects run only on a local regenerate

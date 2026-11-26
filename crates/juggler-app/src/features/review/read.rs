@@ -171,7 +171,7 @@ pub fn read(state: &Arc<AppState>, ask: &ReviewAsk) -> Read {
     read_at(&path, ask)
 }
 
-/// [`read`] past the gates: the transcript at `path`.
+/// [`read`](fn@read) past the gates: the transcript at `path`.
 #[must_use]
 pub fn read_at(path: &Path, ask: &ReviewAsk) -> Read {
     let Ok(changes) = turn_changes(path, ask.until_ms) else {
