@@ -27,4 +27,4 @@ v11 (2026-11-26, the coordinator's design after v10's FAIL: 3 unsupported claime
 - Harness `../AJ-E3709/harness/v11/` runs the app's own drafting through `examples/watch_round.rs`; `selftest_v11.py` covers every fixture of v5 to v11 with three labellers. Runbook: `v11-runbook.md`.
 - Blind set `heldout/v11/watch-v11.json`, written by a Sonnet writer that never saw prompts or code.
 
-R3: PENDING the v11 round.
+R3 (v11, 2026-11-26, Apple, Sonnet run, Opus verified): FAIL on exact only. Unsupported claimed 0 (PASS). Exact 65.8 % with the ADR default (25 of 38; strict 57.9 %) against 90 % (FAIL). Nearest offered 95.5 % (21 of 22, PASS). Watches written 0. Every miss is code under-reading a supported request: German "-Sitzung" compounds, ways of asking that aren't recognised, context clauses, paraphrases and two composite conditions. See `../AJ-E3709/v11-results/summary.md`. Verdict stays `not_yet`; v12 waits for the coordinator.
