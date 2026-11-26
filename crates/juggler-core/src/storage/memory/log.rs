@@ -39,6 +39,9 @@ pub enum Stream {
     Memory,
     /// The context assembler.
     Assembly,
+    /// The scheduler's runs, skips, misses, retries and failures
+    /// (ADR-0039 §7).
+    Schedule,
 }
 
 impl Stream {
@@ -53,6 +56,7 @@ impl Stream {
             Self::Chat => "chat",
             Self::Memory => "memory",
             Self::Assembly => "assembly",
+            Self::Schedule => "schedule",
         }
     }
 }

@@ -51,7 +51,8 @@ fn generation(storage: &Storage) -> i64 {
 fn v56_holds_the_world_model_tables() {
     let storage = installed_storage();
     assert!(w::installed(&storage.conn).unwrap());
-    assert_eq!(Storage::schema_version(), 56);
+    // V57 (AJ-E2027's schedules) follows.
+    assert!(Storage::schema_version() >= 56);
     assert_eq!(Storage::migrations()[55], gyrus::SCHEMA_V1);
 }
 

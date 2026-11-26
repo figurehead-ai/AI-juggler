@@ -1149,6 +1149,9 @@ pub fn run() {
             );
             // AJ-E3814: the watches hear the observation bus from here on.
             features::watches::runtime::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // AJ-E2027 (ADR-0039): the one scheduler; what came due while
+            // AI Juggler was closed runs under its policy now.
+            features::schedule::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
             // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
             // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
             // read model's first pass: a lab's scope (ADR-0027 conditions

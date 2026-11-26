@@ -62,6 +62,54 @@ fn words(
     }
 }
 
+/// ADR-0039 §3: what moved the time under the scheduler.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ClockChange {
+    /// The wall clock ran ahead of the monotonic clock: the Mac slept (the
+    /// monotonic clock stops while asleep) or the clock was set forward.
+    Ahead,
+    /// The wall clock went back against the monotonic clock: it was set back.
+    Back,
+}
+
+/// A jump bigger than this between the two clocks is a wake or a clock
+/// change, never drift.
+pub const JUMP_MS: i64 = 60_000;
+
+/// D-52's fallback where a system can't tell of a wake or a clock change:
+/// each tick compares how far the wall clock moved with how far the
+/// monotonic clock did.
+#[derive(Clone, Copy, Debug)]
+pub struct JumpCheck {
+    wall_ms: i64,
+    mono: std::time::Instant,
+}
+
+impl JumpCheck {
+    /// A check from the wall time `wall_ms` at the monotonic `mono`.
+    #[must_use]
+    pub const fn new(wall_ms: i64, mono: std::time::Instant) -> Self {
+        Self { wall_ms, mono }
+    }
+
+    /// The clocks at this tick: a [`ClockChange`] when they parted by more
+    /// than [`JUMP_MS`] since the last tick; the next check starts here.
+    pub fn check(&mut self, wall_ms: i64, mono: std::time::Instant) -> Option<ClockChange> {
+        let wall = wall_ms.saturating_sub(self.wall_ms);
+        let steady = i64::try_from(mono.saturating_duration_since(self.mono).as_millis())
+            .unwrap_or(i64::MAX);
+        *self = Self::new(wall_ms, mono);
+        let drift = wall.saturating_sub(steady);
+        if drift > JUMP_MS {
+            Some(ClockChange::Ahead)
+        } else if drift < -JUMP_MS {
+            Some(ClockChange::Back)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(target_os = "macos")]
 mod imp {
     use std::cell::RefCell;
@@ -196,6 +244,23 @@ mod imp {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_jump_between_the_clocks_is_a_wake_or_a_clock_change() {
+        use super::{ClockChange, JumpCheck};
+        let start = std::time::Instant::now();
+        let at = |s: u64| start + std::time::Duration::from_secs(s);
+        let mut check = JumpCheck::new(1_000_000, start);
+        // Ten seconds on both clocks: nothing.
+        assert_eq!(check.check(1_010_000, at(10)), None);
+        // Drift under a minute: nothing.
+        assert_eq!(check.check(1_075_000, at(20)), None);
+        // An hour on the wall in ten steady seconds: asleep (or set ahead).
+        assert_eq!(check.check(4_675_000, at(30)), Some(ClockChange::Ahead));
+        // The wall clock set back two minutes.
+        assert_eq!(check.check(4_565_000, at(40)), Some(ClockChange::Back));
+        assert_eq!(check.check(4_575_000, at(50)), None);
+    }
+
     #[test]
     fn a_time_to_come_reads_as_the_app_writes_it() {
         let day = || "Thu".to_owned();

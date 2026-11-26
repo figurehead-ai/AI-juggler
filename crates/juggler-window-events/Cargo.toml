@@ -25,7 +25,9 @@ description = "Audited AppKit shim (ADR-0026, ADR-0032, D-112, D-113): mouse, tr
 # one window, through NSNotificationCenter (objc2-app-kit's NSWindow and
 # objc2-foundation's NSNotification, NSOperation and NSString features,
 # already on), so a close from full screen hides once the exit is over;
-# tao's window delegate is never touched.
+# tao's window delegate is never touched. ADR-0039 (AJ-E2027) reads three
+# more notification names under audits 5 and 6 (the wake, the clock and
+# the time zone; objc2-foundation's NSDate and NSTimeZone features).
 [dependencies]
 raw-window-handle = "0.6.2"
 
@@ -33,4 +35,4 @@ raw-window-handle = "0.6.2"
 block2 = { workspace = true }
 objc2 = { workspace = true }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "block2", "objc2-core-foundation", "NSAccessibility", "NSApplication", "NSEvent", "NSGraphics", "NSResponder", "NSScreen", "NSView", "NSWindow", "NSWorkspace"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "objc2-core-services", "NSAppleEventDescriptor", "NSAppleEventManager", "NSGeometry", "NSNotification", "NSOperation", "NSString"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "objc2-core-services", "NSAppleEventDescriptor", "NSAppleEventManager", "NSDate", "NSGeometry", "NSNotification", "NSOperation", "NSString", "NSTimeZone"] }

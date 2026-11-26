@@ -40,6 +40,7 @@ mod pools;
 mod process_ledger;
 mod projects;
 mod relations;
+mod schedules;
 mod settings;
 mod sightings;
 mod switch_graph;
@@ -94,6 +95,10 @@ pub use profiles::ProfilesRepo;
 pub use projects::ProjectsRepo;
 pub use projects::{WorktreeHome, project_root, project_root_with, worktree_repo_root};
 pub use relations::{InstanceColumn, RelationsRepo, SessionFacet, StampReader, StoredStamps};
+pub use schedules::{
+    SCHEDULE_ENDED_KEEP_MS, SCHEDULES_READ_MAX, ScheduleKey, ScheduleRow, ScheduleTiming,
+    SchedulesRepo,
+};
 pub use sessions::{ConversationLink, SessionBrief, SessionMarks, SessionsRepo};
 pub use settings::AppSettingsRepo;
 pub use sightings::{
@@ -835,11 +840,15 @@ const V55: &str = entities::APP_ACCOUNTS_MIGRATION;
 /// 0.5.2 (AJ-E3832, ADR-0038 §1): Bot's world model, gyrus's tables, in
 /// this database ([`memory::world::V56`]).
 const V56: &str = memory::world::V56;
+/// 0.5.2 (AJ-E2027, ADR-0039 §3): the one table of schedules
+/// ([`schedules::MIGRATION`]).
+const V57: &str = schedules::MIGRATION;
 
 /// The runner's list: a version is its index + 1. 0.5's `memory::V54` (the
 /// memory store and the AI log, ADR-0037 §1.7) follows 0.4.6's V53, its L1
 /// pieces in place (`scripts/migration_clash.py`'s `V54_GATE`); V55 is
-/// AJ-E3210's per-App Account; V56 is Bot's world model (AJ-E3832).
+/// AJ-E3210's per-App Account; V56 is Bot's world model (AJ-E3832); V57
+/// is the scheduler's table (AJ-E2027).
 const MIGRATIONS: &[&str] = &[
     V1,
     V2,
@@ -897,6 +906,7 @@ const MIGRATIONS: &[&str] = &[
     memory::V54,
     V55,
     V56,
+    V57,
 ];
 
 /// Owner-only (`0600`) on Unix: AI Juggler's data and its copies are no one
@@ -1284,6 +1294,12 @@ impl Storage {
     #[must_use]
     pub fn notices(&self) -> NoticesRepo<'_> {
         NoticesRepo::new(&self.conn)
+    }
+
+    /// The schedules (schema v57, AJ-E2027, ADR-0039 §3).
+    #[must_use]
+    pub fn schedules(&self) -> SchedulesRepo<'_> {
+        SchedulesRepo::new(&self.conn)
     }
 
     /// Repository for footprints (schema v29, AJ-E1406).

@@ -198,6 +198,8 @@ pub struct AppState {
     /// AJ-E3712: the agent digest at run time (its scheduler on the
     /// observation bus, its thread started on the first observation).
     pub digests: crate::features::digest::Digests,
+    /// AJ-E2027 (ADR-0039): the one scheduler at run time.
+    pub schedules: crate::features::schedule::Scheduler,
 }
 
 impl Drop for AppState {
@@ -539,6 +541,7 @@ impl AppState {
             world: crate::features::ai::world::WorldModel::new(),
             watches: crate::features::watches::Watches::default(),
             digests: crate::features::digest::Digests::default(),
+            schedules: crate::features::schedule::Scheduler::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
             folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),
