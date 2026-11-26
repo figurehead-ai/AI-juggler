@@ -13,6 +13,7 @@
  * router reads.
  */
 import type { JSX } from "react";
+import { Radio } from "../../../components/controls/Toggle";
 import { IconWarn } from "../../../components/icons-menu";
 import { countWords, failureWords, modelName } from "../../../lib/bot-engine-words";
 import { useEngineStatus } from "../../../lib/bot-engine";
@@ -135,7 +136,7 @@ function ChoiceRow({
   }
   return (
     <label className={`${row} has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/60`} data-testid={`models-bot-choice-${choice.id}`} data-chosen={chosen || undefined}>
-      <input type="radio" name="models-bot-ai" className="sr-only" checked={chosen} onChange={onChoose} aria-label={choice.name} />
+      <Radio name="models-bot-ai" className="sr-only" checked={chosen} onChange={onChoose} aria-label={choice.name} />
       {body}
     </label>
   );

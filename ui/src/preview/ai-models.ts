@@ -9,7 +9,8 @@
  * here is fetched.
  */
 import type { AiJobInfo } from "../lib/ipc/ai";
-import type { AiEngineStatusInfo } from "../lib/ipc/ai-engine";
+import type { AiEngineStatusInfo } from "../types/generated/AiEngineStatusInfo";
+import { ENGINE_OFF } from "../lib/ai-engine-off";
 import type { CatalogModel, ModelsCatalog, ModelsInfo, StartInfo } from "../lib/ipc/models";
 import type { MacInfo } from "../types/generated/MacInfo";
 import type { ModelJobVerdict } from "../types/generated/ModelJobVerdict";
@@ -180,20 +181,7 @@ export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<
 /** Bot's engine as `ai_engine_status` gives it (AJ-E3825), for the
  * Models card (AJ-E3826). */
 export function engine(over: Partial<AiEngineStatusInfo> = {}): AiEngineStatusInfo {
-  return {
-    state: "off",
-    failure: null,
-    model_id: null,
-    model_name: null,
-    short_name: null,
-    engine: null,
-    version: null,
-    context_tokens: null,
-    started_ms: null,
-    answered_ms: null,
-    today: { answers: 0, tokens_in: { n: 0, estimated: false }, tokens_out: { n: 0, estimated: false } },
-    ...over,
-  };
+  return { ...structuredClone(ENGINE_OFF), ...over };
 }
 
 /** The gallery's clock (`models-gallery.spec.ts`): 2026-11-19 12:00 UTC. */

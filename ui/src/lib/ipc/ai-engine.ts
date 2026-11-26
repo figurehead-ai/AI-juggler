@@ -13,6 +13,7 @@ import { hasLiveBackend } from "../bridge";
 import type { AiJob } from "../../types/generated/AiJob";
 import type { AiEngineStatusInfo } from "../../types/generated/AiEngineStatusInfo";
 import type { AiFailure } from "../../types/generated/AiFailure";
+import { ENGINE_OFF } from "../ai-engine-off";
 
 export type { AiEngineStatusInfo, AiFailure };
 
@@ -22,28 +23,14 @@ declare global {
   }
 }
 
-const OFF: AiEngineStatusInfo = {
-  state: "off",
-  failure: null,
-  model_id: null,
-  model_name: null,
-  short_name: null,
-  engine: null,
-  version: null,
-  context_tokens: null,
-  started_ms: null,
-  answered_ms: null,
-  today: { answers: 0, tokens_in: { n: 0, estimated: false }, tokens_out: { n: 0, estimated: false } },
-};
-
 /** `job`'s engine now (starts nothing). */
 export async function aiEngineStatus(job: AiJob): Promise<AiEngineStatusInfo> {
-  if (!hasLiveBackend()) return window.__AIJ_AI_ENGINE__ ?? OFF;
+  if (!hasLiveBackend()) return window.__AIJ_AI_ENGINE__ ?? ENGINE_OFF;
   return call("ai_engine_status", { job });
 }
 
 /** Starts `job`'s engine when it isn't running; how it stands after. */
 export async function aiEngineStart(job: AiJob): Promise<AiEngineStatusInfo> {
-  if (!hasLiveBackend()) return window.__AIJ_AI_ENGINE__ ?? OFF;
+  if (!hasLiveBackend()) return window.__AIJ_AI_ENGINE__ ?? ENGINE_OFF;
   return call("ai_engine_start", { job });
 }

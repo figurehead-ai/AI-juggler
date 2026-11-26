@@ -56,7 +56,7 @@ export const IconOffline = draw(
 export const IconRefresh = draw(<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4" />);
 
 /** AJ-E3826 (M1): a downloaded model, a box that stays on this Mac. */
-export const IconModelBox = draw(
+const IconModelBox = draw(
   <>
     <path d="M12 3.5 19.5 7.5v9L12 20.5 4.5 16.5v-9Z" />
     <path d="M4.5 7.5 12 11.5l7.5-4M12 11.5v9" />
