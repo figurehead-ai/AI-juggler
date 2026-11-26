@@ -32,8 +32,8 @@ type Kind = BotRowInfo["kind"];
 const ORDER: BotState[] = ["asks_you", "stuck", "limit", "failed", "blocked", "in_review", "working", "finished", "done", "ended", "ready", "todo", "cancelled"];
 
 const NOUN: Record<BotLang, Record<Kind, [string, string]>> = {
-  en: { session: ["session", "sessions"], task: ["task", "tasks"], account: ["account", "accounts"] },
-  de: { session: ["Sitzung", "Sitzungen"], task: ["Aufgabe", "Aufgaben"], account: ["Konto", "Konten"] },
+  en: { session: ["session", "sessions"], task: ["task", "tasks"], account: ["account", "accounts"], memory: ["memory", "memories"] },
+  de: { session: ["Sitzung", "Sitzungen"], task: ["Aufgabe", "Aufgaben"], account: ["Konto", "Konten"], memory: ["Erinnerung", "Erinnerungen"] },
 };
 
 /** Each state's verb phrase, one and many. */
@@ -96,7 +96,7 @@ export function lead(rows: readonly BotRowInfo[], lang: BotLang, about?: BotScop
   if (tallies && tallies.length > 0) for (const t of tallies) add(t.kind, t.state, t.n);
   else for (const row of rows) add(row.kind, leadState(row), 1);
   const rank = (state: BotState | null) => (state === null ? ORDER.length : ORDER.indexOf(state));
-  const kindRank = (kind: Kind) => ["session", "task", "account"].indexOf(kind);
+  const kindRank = (kind: Kind) => ["session", "task", "account", "memory"].indexOf(kind);
   const ordered = [...groups.values()].sort((a, b) => rank(a.state) - rank(b.state) || kindRank(a.kind) - kindRank(b.kind));
   const named = new Set<Kind>();
   const clauses: Piece[][] = ordered.map((group) => {
@@ -152,6 +152,7 @@ export function stateLevel(state: BotState | null): 0 | 1 | 2 {
 /** The second line under a row's state: how long, or when. */
 export function stateSub(row: BotRowInfo, now: number): string {
   if (row.kind === "account") return row.resets_at_ms ? `resets ${resetDay(row.resets_at_ms, now)}` : "";
+  if (row.kind === "memory") return row.at_ms ? `you said, ${agoWords(row.at_ms, now)}` : "";
   const at = row.at_ms ?? 0;
   switch (row.state) {
     case "asks_you":
@@ -189,6 +190,8 @@ export function rowPlace(row: BotRowInfo): string {
     return ["Session", app, row.project].filter(Boolean).join(" · ");
   }
   if (row.kind === "task") return ["Task", row.pool, row.holder].filter(Boolean).join(" · ");
+  // AJ-E3832 G9: something the user told Bot, in their own words.
+  if (row.kind === "memory") return row.about ? `What Bot remembers · your name for ${row.about}` : "What Bot remembers · your note";
   return ["Account", row.window === "weekly" ? "this week" : row.window === "five_hour" ? "5-hour window" : null].filter(Boolean).join(" · ");
 }
 

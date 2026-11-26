@@ -21,7 +21,7 @@ use juggler_core::storage::memory::{
 };
 use serde::Serialize;
 
-use super::dto::{BotMemoryInfo, BotRowKind};
+use super::dto::{BotMemoryInfo, BotRowInfo, BotRowKind};
 use super::world::World;
 use crate::error::{AppError, AppResult};
 use crate::features::ai::memory::{FORGET_AND_BACKUPS, RedactionSecrets, memory_error};
@@ -389,15 +389,86 @@ pub fn with_aliases(
     (text, used)
 }
 
-/// A memory as it stands now, by its subject key (`None`: forgotten).
+/// The words that ask what Bot was told to remember (AJ-E3832 G9).
+const RECALL_CUES: &[&str] = &[
+    "remember",
+    "told you",
+    "asked you",
+    "what do i call",
+    "what did i call",
+    "my name for",
+    "merken",
+    "gemerkt",
+    "gesagt",
+    "wie nenne ich",
+];
+
+/// The question asks what the user told Bot (not a "Remember …" itself).
+#[must_use]
+pub fn asks_about_memory(question: &str) -> bool {
+    let lower = question.to_lowercase();
+    RECALL_CUES.iter().any(|cue| lower.contains(cue))
+}
+
+/// The most memories offered as records for one question.
+const MEMORY_ROWS: usize = 5;
+
+/// A memory as a citable record (AJ-E3832 G9): its id the subject's
+/// random id, its words the user's own.
+#[must_use]
+pub fn row_of(record: &Record) -> BotRowInfo {
+    let info = info_of(record, 0);
+    BotRowInfo {
+        at_ms: Some(record.as_of_ms),
+        about: info.about,
+        memory_key: Some(record.subject_key.clone()),
+        ..super::world::empty_row(BotRowKind::Memory, record.subject_id.clone(), info.text)
+    }
+}
+
+/// The memories a question about memory rests on, through ADR-0037's read
+/// path: the ones the world model linked to it (`keys`), else the newest
+/// the user stated; the user's own words only (never agent text), at most
+/// a handful.
+#[must_use]
+pub fn rows_for(storage: &juggler_core::storage::Storage, keys: &[String]) -> Vec<BotRowInfo> {
+    let store = storage.memory();
+    let mut records: Vec<Record> = keys
+        .iter()
+        .filter_map(|key| store.current(key).ok().flatten())
+        .collect();
+    if records.is_empty() {
+        for kind in [Kind::Preference, Kind::Note] {
+            records.extend(
+                store
+                    .current_of_kind(kind, None, LISTED)
+                    .unwrap_or_default(),
+            );
+        }
+        records.sort_by_key(|r| std::cmp::Reverse(r.as_of_ms));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    records
+        .into_iter()
+        .filter(|r| !r.untrusted && matches!(r.kind, Kind::Preference | Kind::Note))
+        .filter(|r| seen.insert(r.subject_id.clone()))
+        .take(MEMORY_ROWS)
+        .map(|r| row_of(&r))
+        .collect()
+}
+
+/// A memory as it stands now, by its subject key, or by its random subject
+/// id written `subject:<id>` (a kept turn's memory row); `None`: forgotten.
 #[must_use]
 pub fn current(storage: &juggler_core::storage::Storage, key: &str) -> Option<BotMemoryInfo> {
-    storage
-        .memory()
-        .current(key)
-        .ok()
-        .flatten()
-        .map(|record| info_of(&record, 0))
+    let store = storage.memory();
+    match key.strip_prefix("subject:") {
+        Some(subject) => store.current_by_subject(subject),
+        None => store.current(key),
+    }
+    .ok()
+    .flatten()
+    .map(|record| info_of(&record, 0))
 }
 
 /// Every memory the user stated, for "What Bot remembers".

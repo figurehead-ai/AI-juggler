@@ -391,6 +391,43 @@ const FIRST_PERSON: &[&str] = &[
     "unsere",
 ];
 
+/// What a sentence resting on memories may say of them: what the user
+/// told Bot, in English and German. "me" and "mir" only as told to Bot.
+const TOLD: &[&str] = &[
+    "me",
+    "told",
+    "tell",
+    "asked",
+    "ask",
+    "said",
+    "say",
+    "remember",
+    "remembered",
+    "call",
+    "calls",
+    "called",
+    "name",
+    "named",
+    "names",
+    "memory",
+    "memories",
+    "noted",
+    "note",
+    "matters",
+    "most",
+    "important",
+    "mir",
+    "gesagt",
+    "gebeten",
+    "merken",
+    "gemerkt",
+    "nennst",
+    "genannt",
+    "wichtigsten",
+    "wichtig",
+    "erinnern",
+];
+
 /// The check's own words: grammar, and the words the window writes about
 /// rows (kinds, fields, the state words it checks). English and German.
 const VOCAB: &[&str] = &[
@@ -562,6 +599,7 @@ pub(super) fn names_of(row: &BotRowInfo) -> impl Iterator<Item = &str> {
         row.pool.as_ref(),
         row.holder.as_ref(),
         row.branch.as_ref(),
+        row.about.as_ref(),
     ]
     .into_iter()
     .flatten()
@@ -694,7 +732,14 @@ fn check_part(
     }
     let (quoted, rest) = split_quotes(&part.text);
     let sentence = words(&rest);
-    if sentence.iter().any(|w| FIRST_PERSON.contains(&w.as_str())) {
+    // A sentence resting only on memories may say what the user told Bot
+    // ("You asked me to remember …", "You call “api” …"): those words,
+    // never an act ("I did", "we will").
+    let of_memory = !cited.is_empty() && cited.iter().all(|r| r.kind == BotRowKind::Memory);
+    if sentence
+        .iter()
+        .any(|w| FIRST_PERSON.contains(&w.as_str()) && !(of_memory && TOLD.contains(&w.as_str())))
+    {
         return Err(Refused::Acting);
     }
     if sentence
@@ -729,7 +774,12 @@ fn check_part(
     // row, a number the question says, or a count of the cited rows.
     // A count is of the cited rows, never of every row found (R1).
     let mut counts = vec![cited.len() as u64];
-    for kind in [BotRowKind::Session, BotRowKind::Task, BotRowKind::Account] {
+    for kind in [
+        BotRowKind::Session,
+        BotRowKind::Task,
+        BotRowKind::Account,
+        BotRowKind::Memory,
+    ] {
         counts.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
     }
     let held: Vec<u64> = cited.iter().flat_map(|r| held_numbers(r)).collect();
@@ -766,6 +816,7 @@ fn check_part(
             continue;
         }
         if VOCAB.contains(&word.as_str())
+            || (of_memory && TOLD.contains(&word.as_str()))
             || name_words.contains(word)
             || question_words.contains(word)
         {

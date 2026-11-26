@@ -7,8 +7,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::dto::{
-    BotDetails, BotGeneral, BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotScope,
-    BotShortcut, BotTally, BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
+    BotDetails, BotGeneral, BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotRowKind,
+    BotScope, BotShortcut, BotTally, BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
 };
 use super::world::World;
 use crate::features::ai::run::AiFailure;
@@ -65,6 +65,11 @@ pub struct Meta {
 /// A row as kept: no agent words, no then/now marks.
 #[must_use]
 pub fn kept_row(row: &BotRowInfo) -> BotRowInfo {
+    if row.kind == BotRowKind::Memory {
+        // A memory keeps only its random id with the turn: its words are
+        // read again when shown, so a forget leaves none behind.
+        return super::world::empty_row(BotRowKind::Memory, row.id.clone(), String::new());
+    }
     BotRowInfo {
         quote: None,
         then_state: None,
@@ -107,6 +112,18 @@ pub fn turn_info(
         .into_iter()
         .map(|then| match world {
             None => then,
+            Some(_) if then.kind == BotRowKind::Memory => {
+                match memory(&format!("subject:{}", then.id)) {
+                    Some(info) => BotRowInfo {
+                        title: info.text,
+                        about: info.about,
+                        memory_key: Some(info.key),
+                        at_ms: Some(info.at_ms),
+                        ..then
+                    },
+                    None => BotRowInfo { gone: true, ..then },
+                }
+            }
             Some(world) => match world.find(then.kind, &then.id) {
                 Some(now) => BotRowInfo {
                     then_state: then.state.filter(|was| Some(*was) != now.state),

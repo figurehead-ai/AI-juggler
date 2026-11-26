@@ -188,6 +188,7 @@ pub fn entities_batch(
                 node(&mut batch, "account", format!("account:{}", row.id));
                 continue;
             }
+            BotRowKind::Memory => continue,
         };
         if let Some(project) = &row.project_id {
             let p = node(&mut batch, "project", format!("project:{project}"));
@@ -241,6 +242,9 @@ pub fn turn_batch(
             BotRowKind::Session => ("session", format!("session:{id}")),
             BotRowKind::Task => ("task", format!("task:{id}")),
             BotRowKind::Account => ("account", format!("account:{id}")),
+            // A memory's own node is the user's (written with its record);
+            // a turn never writes it, and its link waits for the upkeep.
+            BotRowKind::Memory => continue,
         };
         if seen.insert(key.clone()) {
             batch.node(pointer(kind, &key, now)).link(NewLink::new(

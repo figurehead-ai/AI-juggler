@@ -175,6 +175,21 @@ pub fn bot_ask_with(
             recent: &history,
         },
     );
+    // AJ-E3832 G9: a question about what the user told Bot gets those
+    // memories as records it can cite (the ones the world model linked to
+    // it, else the newest), read through ADR-0037's store.
+    let memories = if super::memory::asks_about_memory(&question) {
+        let keys: Vec<String> = connected
+            .memory
+            .iter()
+            .map(|(_, key, _)| key.clone())
+            .chain(memory.iter().map(|m| m.key.clone()))
+            .collect();
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        super::memory::rows_for(&storage, &keys)
+    } else {
+        Vec::new()
+    };
     let answered = super::answer::answer(
         model,
         &super::answer::Asked {
@@ -186,6 +201,7 @@ pub fn bot_ask_with(
             memory: &memory,
             history: &history,
             connected: &connected,
+            memories: &memories,
         },
     );
     let outcome = answered.outcome.unwrap_or(BotOutcome::Failed);
@@ -239,6 +255,17 @@ pub fn bot_ask_with(
             storage
                 .memory()
                 .link_turn(&kept.id, subject)
+                .map_err(memory_error)?;
+        }
+        // A memory shown as a record is linked too: its forget redacts the
+        // turn that showed it.
+        for row in rows
+            .iter()
+            .filter(|r| r.kind == super::dto::BotRowKind::Memory)
+        {
+            storage
+                .memory()
+                .link_turn(&kept.id, &row.id)
                 .map_err(memory_error)?;
         }
         // The turn in the world model, part of its topic, about the records

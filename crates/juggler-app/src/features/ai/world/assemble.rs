@@ -76,6 +76,9 @@ fn row_key(row: &BotRowInfo) -> String {
         BotRowKind::Session => "session",
         BotRowKind::Task => "task",
         BotRowKind::Account => "account",
+        BotRowKind::Memory => {
+            return juggler_core::storage::memory::world::memory_key(&row.id);
+        }
     };
     format!("{kind}:{}", row.id)
 }

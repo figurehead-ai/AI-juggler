@@ -5,7 +5,8 @@
  */
 import { useMemo, type JSX, type ReactNode } from "react";
 import { lazyNamed } from "../../lib/lazy";
-import { useBot } from "../../lib/bot-store";
+import { expandBot, useBot } from "../../lib/bot-store";
+import { focusMemory } from "../../lib/bot-memory-focus";
 import { useActionHost } from "../ItemMenu";
 import { BotNavContext, type BotNav } from "./bot-nav";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -36,6 +37,12 @@ export function BotNavProvider({
         if (row.kind === "session") openSession(row.id);
         else if (row.kind === "task" && row.pool_id) openPool(row.pool_id);
         else if (row.kind === "account") openAccount(row.id);
+        else if (row.kind === "memory") {
+          // AJ-E3832 G9: a memory's chip opens What Bot remembers on it.
+          focusMemory(row.memory_key ?? null);
+          expandBot();
+          window.setTimeout(() => window.dispatchEvent(new Event("aij:bot-memories")), 0);
+        }
       },
       goTo: host.focusSession
         ? (row) => {

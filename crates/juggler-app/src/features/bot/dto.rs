@@ -18,6 +18,11 @@ pub enum BotRowKind {
     Task,
     /// An Account (its page).
     Account,
+    /// Something the user told Bot to remember (AJ-E3832 G9): their own
+    /// words, shown only to them; its chip opens What Bot remembers on it.
+    /// Its id is the memory's random subject id (a turn keeps nothing
+    /// else of it: the words are read again, or it is gone).
+    Memory,
 }
 
 /// A row's state, from the owning module's facts. Never merged: each row
@@ -164,6 +169,14 @@ pub struct BotRowInfo {
     /// History: it no longer exists.
     #[serde(default)]
     pub gone: bool,
+    /// A memory: the record it names (a name the user gave to "api").
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub about: Option<String>,
+    /// A memory: its key in What Bot remembers (never kept with a turn).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub memory_key: Option<String>,
 }
 
 /// What a question was asked about (D-136 point 3): the chip "About:

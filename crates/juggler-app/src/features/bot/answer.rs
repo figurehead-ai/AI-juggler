@@ -53,6 +53,10 @@ pub struct Asked<'a> {
     pub history: &'a [(String, String)],
     /// What the world model connected to the question (ADR-0038 §5).
     pub connected: &'a crate::features::ai::world::assemble::WorldContext,
+    /// What the user told Bot to remember, as records, when the question
+    /// asks about it (AJ-E3832 G9): numbered with the look-up's rows, so
+    /// an answer from a memory cites it.
+    pub memories: &'a [super::dto::BotRowInfo],
 }
 
 /// What Bot answers.
@@ -358,7 +362,17 @@ mod tests;
 #[must_use]
 pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
     let mut answer = Answer::default();
-    let found = look_up(asked.reading, asked.world, asked.scope);
+    let mut found = look_up(asked.reading, asked.world, asked.scope);
+    if !asked.memories.is_empty() {
+        // The memories are records of this question: the grounded route,
+        // and "nothing found" no longer holds.
+        if found.unknown == Some(BotUnknown::NothingFound) {
+            found.unknown = None;
+        }
+        found.rows.extend(asked.memories.iter().cloned());
+        grounded(model, asked, found, &mut answer);
+        return answer;
+    }
     // Rows its own words matched, or something AI Juggler knows it
     // doesn't record; a question whose words matched nothing isn't about
     // the records (the 0.5.1 Nightly's "nothing matches" for 3+5).

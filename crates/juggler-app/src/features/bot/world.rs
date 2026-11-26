@@ -67,6 +67,8 @@ impl World {
             BotRowKind::Session => &self.sessions,
             BotRowKind::Task => &self.tasks,
             BotRowKind::Account => &self.accounts,
+            // Memories aren't records the world reads (bot::memory does).
+            BotRowKind::Memory => return None,
         };
         rows.iter().find(|row| row.id == id)
     }
@@ -101,7 +103,7 @@ pub const fn task_state(status: TaskStatus) -> BotState {
     }
 }
 
-fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
+pub(crate) fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
     BotRowInfo {
         kind,
         id,
@@ -128,6 +130,8 @@ fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
         quote: None,
         then_state: None,
         gone: false,
+        about: None,
+        memory_key: None,
     }
 }
 

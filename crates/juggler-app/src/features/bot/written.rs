@@ -106,6 +106,11 @@ pub fn frame(rows: &[BotRowInfo]) -> String {
             BotRowKind::Session => "session",
             BotRowKind::Task => "task",
             BotRowKind::Account => "account",
+            BotRowKind::Memory => {
+                out.push_str(&memory_line(i + 1, row));
+                out.push('\n');
+                continue;
+            }
         };
         let mut line = format!("{}. {kind} \u{201c}{}\u{201d}", i + 1, neutral(&row.title));
         if let Some(state) = row.state {
@@ -144,6 +149,27 @@ pub fn frame(rows: &[BotRowInfo]) -> String {
     }
     out.push_str("\"\"\"");
     out
+}
+
+/// A memory as a numbered record (AJ-E3832 G9): what the user told Bot,
+/// in their own words, said as theirs.
+fn memory_line(n: usize, row: &BotRowInfo) -> String {
+    let key = row.memory_key.as_deref().unwrap_or("note:");
+    match row.about.as_deref() {
+        Some(about) if key.starts_with("alias:") => format!(
+            "{n}. memory: the user's own name for \u{201c}{}\u{201d} is \u{201c}{}\u{201d} (the user told you to call it that)",
+            neutral(about),
+            neutral(&row.title)
+        ),
+        Some(_) if key.starts_with("focus:") => format!(
+            "{n}. memory: what matters most to the user is \u{201c}{}\u{201d} (the user told you)",
+            neutral(&row.title)
+        ),
+        _ => format!(
+            "{n}. memory: the user asked you to remember \u{201c}{}\u{201d}",
+            neutral(&row.title)
+        ),
+    }
 }
 
 /// The output's shape: up to three sentences, each with its records.

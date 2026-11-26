@@ -72,6 +72,7 @@ fn by_kind(found: Found) -> SearchRecordsInfo {
         match row.kind {
             BotRowKind::Session => out.sessions.push(row),
             BotRowKind::Account => out.usage.push(row),
+            BotRowKind::Memory => {}
             BotRowKind::Task => {
                 if let (Some(id), Some(name)) = (row.pool_id.as_ref(), row.pool.as_ref()) {
                     match out.pools.iter_mut().find(|pool| &pool.id == id) {

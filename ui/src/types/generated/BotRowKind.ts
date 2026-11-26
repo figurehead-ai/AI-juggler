@@ -3,4 +3,4 @@
 /**
  * What kind of record a row is: its link opens that page.
  */
-export type BotRowKind = "session" | "task" | "account";
+export type BotRowKind = "session" | "task" | "account" | "memory";

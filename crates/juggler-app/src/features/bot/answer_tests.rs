@@ -384,3 +384,81 @@ fn with_no_records_an_honest_none_stands_and_a_claim_does_not() {
     assert_eq!(turn.outcome, BotOutcome::DontKnow);
     assert!(turn.written.is_none());
 }
+
+/// The number of the first memory record in a grounded request's frame.
+fn memory_number(prompt: &str) -> Option<u32> {
+    prompt
+        .lines()
+        .find(|l| l.contains(". memory:"))
+        .and_then(|l| l.split('.').next())
+        .and_then(|n| n.trim().parse().ok())
+}
+
+/// AJ-E3832 G9: a question about what the user told Bot gets the memory as
+/// a numbered record; an answer resting on it is shown, cites it, and its
+/// row opens What Bot remembers (its key); an invented memory isn't shown.
+#[test]
+fn a_memory_is_a_record_an_answer_can_cite() {
+    let (_dir, state) = seeded();
+    let remembered = ask_with(
+        &state,
+        &Fake::new(),
+        "Remember: call api the payments agent",
+    );
+    assert_eq!(remembered.outcome, BotOutcome::Remembered);
+    let honest = Fake::with(Box::new(|request| {
+        let n = memory_number(&request.prompt).unwrap_or(0);
+        Ok(serde_json::json!({"sentences":[{
+            "text": "You asked me to call \u{201c}api\u{201d} \u{201c}the payments agent\u{201d}.",
+            "records": [n]}]})
+        .to_string())
+    }));
+    let turn = ask_with(&state, &honest, "what did I ask you to remember about api?");
+    assert_eq!(turn.outcome, BotOutcome::Answered, "{turn:?}");
+    let written = turn.written.as_ref().unwrap();
+    let cited = written.parts[0].cites[0] as usize;
+    let row = &turn.rows[cited - 1];
+    assert_eq!(row.kind, crate::features::bot::dto::BotRowKind::Memory);
+    assert_eq!(row.title, "the payments agent");
+    assert_eq!(row.about.as_deref(), Some("api"));
+    assert_eq!(row.memory_key.as_deref(), Some("alias:session:s-api"));
+    // The turn keeps only the memory's random id: read again on the page.
+    let storage = state.storage.lock().unwrap();
+    let kept = storage.chat().turn(&turn.id).unwrap().unwrap();
+    assert!(!kept.cites.contains("payments"), "{}", kept.cites);
+    drop(storage);
+    let page = crate::features::bot::commands::bot_page_impl(&state, None, 20).unwrap();
+    let shown = page.turns.iter().find(|t| t.id == turn.id).unwrap();
+    assert!(
+        shown
+            .rows
+            .iter()
+            .any(|r| r.title == "the payments agent" && !r.gone)
+    );
+
+    // An invented memory claim cites the memory but says what it doesn't.
+    let invented = Fake::with(Box::new(|request| {
+        let n = memory_number(&request.prompt).unwrap_or(0);
+        Ok(serde_json::json!({"sentences":[{
+            "text": "You asked me to deploy the billing service on Mondays.",
+            "records": [n]}]})
+        .to_string())
+    }));
+    let refused = ask_with(
+        &state,
+        &invented,
+        "what did I ask you to remember about api?",
+    );
+    assert_eq!(refused.outcome, BotOutcome::DontKnow, "{refused:?}");
+    assert!(refused.written.is_none());
+    // "I will" stays an act even beside a memory.
+    let acting = Fake::with(Box::new(|request| {
+        let n = memory_number(&request.prompt).unwrap_or(0);
+        Ok(serde_json::json!({"sentences":[{
+            "text": "I will call \u{201c}api\u{201d} \u{201c}the payments agent\u{201d}.",
+            "records": [n]}]})
+        .to_string())
+    }));
+    let acted = ask_with(&state, &acting, "what did I ask you to remember about api?");
+    assert!(acted.written.is_none(), "{acted:?}");
+}

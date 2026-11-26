@@ -101,6 +101,7 @@ fn row_line(row: &BotRowInfo) -> String {
         BotRowKind::Session => "session",
         BotRowKind::Task => "task",
         BotRowKind::Account => "Account",
+        BotRowKind::Memory => "memory",
     };
     let mut line = format!("{kind} {}", quoted(&row.title));
     if let Some(state) = row.state {
