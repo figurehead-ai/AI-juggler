@@ -277,7 +277,7 @@
 **Research basis**: D-132 point 1; D-130; D-118; ADR-0033 and ADR-0034; ADR-0036.
 **Handover note**: Build the non-AI rollup first; it is the fallback and the baseline the model must beat in blind pairs (60 %, D-130). The model phrases; code supplies the truth. No model is downloaded to build this.
 
-### AJ-E3713 Home's feed tells the story: posts with a gesture bar, threads instead of rows, a feed that learns from more and less | Status: TODO (0.5.2: mock approved by the maintainer, 2026-11-26: "The Feed gui mockups look good") | Priority P0 | Effort L | Depends: AJ-E3701, AJ-E3831, ADR-0037
+### AJ-E3713 Home's feed tells the story: posts with a gesture bar, threads instead of rows, a feed that learns from more and less | Status: IN PROGRESS (0.5.2: built to the approved mock, 2026-11-26; every R passes but R3's Remind me, which waits on a reminder condition in the watches: `docs/qa/evidence/AJ-E3713/manifest.md`) | Priority P0 | Effort L | Depends: AJ-E3701, AJ-E3831, ADR-0037
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): Home's feed reads like a log list; it was meant to read like Twitter, an intelligent AI telling the story of what's happening, posts with a gesture bar. Also a bug: the ChatGPT · Codex row's bold title centred and wrapped mid-row.
 **UI**: yes
 **Usability reasoning** (Opus, before the mock):
