@@ -10,6 +10,7 @@ import type { ConversationInfo } from "../../../src/types/generated/Conversation
 import type { KnownPlaceInfo } from "../../../src/types/generated/KnownPlaceInfo";
 import type { MessageNeedInfo } from "../../../src/types/generated/MessageNeedInfo";
 import type { FixtureSet } from "../../../src/preview/fixtures";
+import type { WatchInfo } from "../../../src/types/generated/WatchInfo";
 
 
 type Over = Omit<Parameters<typeof feedItem>[0], "id" | "at_ms" | "kind" | "category">;
@@ -212,4 +213,46 @@ export function mockHome(now: number) {
       .map((one, n) => ({ id: 500 + n, kind: "finished", needs: false, title: `${one.subject} finished`, detail: "", project_id: null, project: null, target, facts, action: null, meter: null, created_ms: one.at_ms, unread: false, snoozed_until_ms: null, muted: false, dismissed: false })),
   };
   return { fixture, quota, places, messages, feed, notices, summary: away(now, 13, 2.5) };
+}
+
+/**
+ * AJ-E3713 — the approved story-feed mock's data
+ * (`AIJuggler-design-refs/story-feed/mock-story-feed.html`), at 3 PM UTC:
+ * one ask pinned (Cart endpoints), then the posts it draws: a Claude app
+ * post with its thread (Login refactor answered, then finished), AI
+ * Juggler's switch with its before → after, Codex's finish quoting its
+ * last reply, a pool's story (followed), and this morning's usage. Not
+ * drawn, for want of the facts (no stand-in): the first post's diff stat
+ * and three-session summary (the git reading's, AJ-E3708), and "2 keys
+ * stayed hidden" (a switch's redaction count isn't kept).
+ */
+export const STORY_T0 = Date.UTC(2024, 9, 13, 15, 0, 0);
+
+export function storyHome(now: number) {
+  const base = mockHome(now);
+  const CLAUDE_APP = { kind: "app", name: null, provider: "claude-code", folder: "claude-work", folder_label: "work-max", desktop: true } as const;
+  const CODEX_PERSONAL = { kind: "app", name: null, provider: "codex", folder: "codex-personal", folder_label: "Personal", desktop: false } as const;
+  const conversations = (base.fixture as unknown as { conversations: ConversationInfo[] }).conversations.map((one) =>
+    one.id === "m-1" ? { ...one, title: "Cart endpoints", last_activity_ms: now - 4 * MIN } : one.state === "asks_you" ? { ...one, state: "working" as const } : one,
+  );
+  const fixture = { ...base.fixture, conversations } as unknown as FixtureSet;
+  const at = (minutes: number) => now - minutes * MIN;
+  const feed: FeedItemInfo[] = [
+    feedItem({ id: "n:fin", at_ms: at(7), kind: "finished", category: "finished", level: 1, coalesce: "s:login", subject: "Login refactor", author: CLAUDE_APP, facts: { project: "web-app", project_id: "proj-web", duration_ms: 18 * MIN }, target: { session_id: "login", project_id: "proj-web" } }),
+    feedItem({ id: "n:ans", at_ms: at(9), kind: "answered", category: "needs", level: 0, coalesce: "s:login", subject: "Login refactor", author: CLAUDE_APP, facts: { project: "web-app", project_id: "proj-web", need: "asks" }, target: { session_id: "login", project_id: "proj-web" } }),
+    feedItem({ id: "w:port", at_ms: at(18), kind: "switch", category: "switches", level: 1, coalesce: "w:port", subject: "Port the parser", facts: { project: "web-app", project_id: "proj-web", from_label: "Work Max", from_provider: "claude-code", to_label: "Personal", to_provider: "codex", mechanism: "copy", fidelity: "full" }, target: { project_id: "proj-web" } }),
+    feedItem({ id: "l:flaky", at_ms: at(25), kind: "finished", category: "finished", level: 1, coalesce: "s:flaky", subject: "Fix the flaky login test", author: CODEX_PERSONAL, facts: { project: "web-app", project_id: "proj-web", duration_ms: 42 * MIN, quote: "The race was in the session cookie's refresh. I now wait for the refresh before the second request, and the test passed 20 runs in a row." }, target: { session_id: "flaky", project_id: "proj-web" } }),
+    feedItem({ id: "m:cents", at_ms: at(41), kind: "message", category: "pools", level: 1, coalesce: "m:cents", subject: "Totals in cents", author: { kind: "agent", name: "Builder", provider: "claude-code", folder: null, folder_label: null, desktop: false }, facts: { pool: "Checkout redesign", pool_id: "pool-checkout", thread: "Totals in cents", change: "question" }, target: { pool_id: "pool-checkout" } }),
+    feedItem({ id: "n:quota", at_ms: Date.UTC(2024, 9, 13, 9, 40), kind: "quota", category: "switches", level: 1, coalesce: "q:work", subject: "Work Max", author: { kind: "account", name: "Work Max", provider: null, folder: "claude-work", folder_label: null, desktop: false }, facts: { window: "5-hour", meter: 39, resets_at_ms: Date.UTC(2024, 9, 13, 15, 0) + 0, sessions: 2 }, target: { account_id: "claude-work" } }),
+  ];
+  // The pool post is followed (a live watch on the pool, the Watches stand-in's).
+  const watchView = {
+    watches: [{
+      watch: { id: "w-10000", targets: [{ kind: "pool", id: "pool-checkout" }], matching: "each", conditions: [{ code: "pool_message" }], lifetime: { kind: "always" }, paused: false, evenInQuietHours: false, createdMs: now - 3 * HOUR },
+      words: "Tell me when Checkout redesign gets a message.", echo: { head: [], lifetime: "Always.", quiet: null }, state: "watching",
+      ended: null, endedWords: null, endedMs: null, told: 0, lastToldMs: null, lastToldCode: null, lastToldWords: null, version: 1, changedMs: now - 3 * HOUR,
+    } satisfies WatchInfo],
+    calls: [],
+  };
+  return { ...base, fixture, feed, summary: away(now, 1, 0.9), messages: { ...base.messages, needs: [] }, notices: { earlier: [] }, watchView };
 }

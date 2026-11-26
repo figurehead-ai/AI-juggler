@@ -59,6 +59,8 @@ export const DEFAULT_BINDINGS: Partial<Record<ShortcutId, Binding>> = {
   "home-handover": b("KeyH", { primary: false }),
   "home-snooze": b("KeyS", { primary: false }),
   "home-archive": b("KeyE", { primary: false }),
+  "home-more": b("KeyL", { primary: false }),
+  "home-less": b("KeyM", { primary: false }),
 };
 
 /** Why a shortcut can't be changed (the platform's, a control's, a range). */

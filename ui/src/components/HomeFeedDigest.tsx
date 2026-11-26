@@ -17,7 +17,14 @@
 import { useState, type JSX } from "react";
 import { CliAppMark } from "./PlaceMarks";
 import { IconJuggler } from "./icons";
+import { POST } from "./HomeFeedParts";
 import { digestHeader, digestLineWords, digestMoreWords, exactWhen } from "../lib/feed-words";
+
+/** AJ-E3713 R4: the digest's header as its story's first line. */
+function digestStory(digest: DigestInfo): string {
+  const count = digest.lines.length;
+  return count === 0 ? "Nothing changed in your sessions." : `${digestHeader(digest)} changed:`;
+}
 import { tellApart } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import type { DigestInfo } from "../types/generated/DigestInfo";
@@ -48,7 +55,7 @@ function Line({ line, name, onOpen }: { line: DigestLineInfo; name: string; onOp
 }
 
 /** The digest's body: its header, its first lines, the rest folded. */
-export function HomeFeedDigest({ item, digest, when, onOpen }: { item: FeedItemInfo; digest: DigestInfo; when: string; onOpen: (sessionId: string) => void }): JSX.Element {
+export function HomeFeedDigest({ item, digest, when, pos, onOpen }: { item: FeedItemInfo; digest: DigestInfo; when: string; pos?: number; onOpen: (sessionId: string) => void }): JSX.Element {
   const [all, setAll] = useState(false);
   const shown = all ? digest.lines : digest.lines.slice(0, digest.shown);
   const more = digestMoreWords(all ? 0 : digest.lines.length - digest.shown, digest.quiet);
@@ -58,21 +65,24 @@ export function HomeFeedDigest({ item, digest, when, onOpen }: { item: FeedItemI
   return (
     <article
       aria-labelledby={`${id}-who ${id}-what`}
+      aria-posinset={pos}
+      aria-setsize={pos === undefined ? undefined : -1}
       tabIndex={-1}
       data-feed-item
       data-home-item
       data-testid="feed-digest"
       data-kind={item.kind}
       data-feed-ids={item.id}
-      className="group/card tone-host relative flex min-w-0 gap-3 rounded-lg px-3 py-2.5 outline-none hover:bg-surface/70 focus-within:bg-surface/70 focus-visible:ring-1 focus-visible:ring-accent/60"
+      className={POST + " pb-3"}
     >
-      <span aria-hidden="true" className="app-tone mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted"><IconJuggler width={16} height={16} /></span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="flex min-w-0 items-baseline gap-1.5 text-meta">
-          <span id={`${id}-who`} className="truncate font-medium text-ink-2">AI Juggler · Digest</span>
-          <time className="ml-auto shrink-0 pl-2 text-label text-muted" dateTime={new Date(item.at_ms).toISOString()} title={exactWhen(item.at_ms)} aria-label={exactWhen(item.at_ms)}>{when}</time>
+      {/* AJ-E3713: AI Juggler's own post, its mark on its tile. */}
+      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-surface-3"><IconJuggler width={26} height={26} /></span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="flex min-w-0 items-baseline gap-1.5 text-meta text-muted">
+          <span id={`${id}-who`} className="truncate"><b className="font-semibold text-ink">AI Juggler</b> · Digest</span>
+          <time className="shrink-0" dateTime={new Date(item.at_ms).toISOString()} title={exactWhen(item.at_ms)} aria-label={exactWhen(item.at_ms)}>· {when}</time>
         </p>
-        <p id={`${id}-what`} className="text-[0.84375rem] leading-snug text-ink" data-testid="digest-header">{digestHeader(digest)}</p>
+        <p id={`${id}-what`} className="mt-[3px] text-body leading-normal text-ink" data-testid="digest-header">{digestStory(digest)}</p>
         <ul className="mt-1 flex flex-col gap-1" data-testid="digest-lines">
           {shown.map((line) => <Line key={line.session_id} line={line} name={names.get(line) ?? line.name} onOpen={onOpen} />)}
         </ul>

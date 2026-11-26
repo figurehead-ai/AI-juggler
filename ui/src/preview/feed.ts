@@ -15,6 +15,7 @@ import type { Page } from "../types/generated/Page";
 import type { PageRequest } from "../types/generated/PageRequest";
 import { MOCK_SESSIONS, seeded } from "./fixtures";
 import { folderName } from "../lib/session-titles";
+import { inState, inTab } from "../lib/feed-chips";
 
 /** A seeded list, as far as the stand-in reads one (the seam's own). */
 function isItems(value: unknown): value is FeedItemInfo[] {
@@ -91,9 +92,17 @@ export function feedItems(): FeedItemInfo[] {
   return [...all].sort((a, b) => b.at_ms - a.at_ms || (a.id < b.id ? 1 : -1));
 }
 
+/** The sessions running now, as the backend's Running chip reads them. */
+function running(): Set<string> {
+  return new Set((seeded.sessions ?? MOCK_SESSIONS).filter((one) => one.status === "running" || one.status === "starting").map((one) => one.id));
+}
+
 function keeps(item: FeedItemInfo, filters: FeedFiltersInfo): boolean {
   if (item.mine && !filters.include_mine) return false;
-  if (filters.category && filters.category !== "all" && item.category !== filters.category) return false;
+  // AJ-E3713 R5: the tabs and state chips by the backend's rules.
+  if (filters.category && filters.category !== "all" && !inTab(item, filters.category)) return false;
+  if (filters.state === "running" && !(item.target.session_id && running().has(item.target.session_id))) return false;
+  if (filters.state && filters.state !== "running" && !inState(item.kind, filters.state)) return false;
   if (filters.project && item.facts.project_id !== filters.project && item.target.project_id !== filters.project) return false;
   if (filters.pool && item.facts.pool_id !== filters.pool) return false;
   if (filters.folders && !filters.folders.includes(item.author.folder ?? "")) return false;

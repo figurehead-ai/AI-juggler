@@ -43,7 +43,8 @@ function thingsOf(items: readonly FeedItemInfo[]): FeedThing[] {
   const things: FeedThing[] = [];
   const at = new Map<string, FeedThing>();
   for (const item of items) {
-    const key = item.coalesce ?? `id:${item.id}`;
+    // AJ-E3713 R2: a task's changes are one thread too, as a session's are.
+    const key = item.coalesce ?? (item.target.task_id ? `task:${item.target.task_id}` : `id:${item.id}`);
     const thing = at.get(key);
     if (thing) {
       if (!thing.items.some((one) => one.id === item.id)) thing.items.push(item);
@@ -115,6 +116,30 @@ export function cardsOf(given: readonly FeedItemInfo[]): FeedCard[] {
     if (key) open.set(key, { card, scope: state.scope });
   }
   return cards;
+}
+
+/** Two items of one thing this close, of one kind, are one event told
+ * twice (a session's ending and its finished notice). */
+const SAME_EVENT_MS = 5 * 60_000;
+
+/** AJ-E3713 R2: a thing as a post and its thread: the post is its first
+ * item, the follow-ups what came next, oldest first ("↳ 2 min later ·
+ * finished"). One event told by two journals is one. */
+export interface Thread {
+  post: FeedItemInfo;
+  follow: FeedItemInfo[];
+}
+
+/** A thing's thread. */
+export function threadOf(thing: FeedThing): Thread {
+  const items = [...thing.items].sort((a, b) => a.at_ms - b.at_ms || (a.id < b.id ? -1 : 1));
+  const told: FeedItemInfo[] = [];
+  for (const item of items) {
+    const twice = told.some((one) => one.kind === item.kind && Math.abs(one.at_ms - item.at_ms) <= SAME_EVENT_MS);
+    if (!twice) told.push(item);
+  }
+  const [post, ...follow] = told;
+  return { post: post ?? thing.head, follow };
 }
 
 /** The away boundary is shown when the last look is this long ago. */

@@ -96,7 +96,7 @@ describe("AJ-E3712 — the digest item", () => {
   it.each([1, 3, 7])("with %i sessions shows at most six, the rest behind one fold", (count) => {
     const onOpen = vi.fn();
     const { getByTestId, queryByTestId } = render(<HomeFeedDigest item={item} digest={digest(count, 2)} when="10:45 AM" onOpen={onOpen} />);
-    expect(getByTestId("digest-header").textContent).toBe(`${count} ${count === 1 ? "session" : "sessions"}`);
+    expect(getByTestId("digest-header").textContent).toBe(`${count} ${count === 1 ? "session" : "sessions"} changed:`);
     expect(within(getByTestId("digest-lines")).getAllByTestId("digest-line")).toHaveLength(Math.min(6, count));
     if (count > 6) {
       const more = getByTestId("digest-more");
@@ -120,7 +120,7 @@ describe("AJ-E3712 — the digest item", () => {
   it("AJ-E1548 #20: two sessions with one name are told apart, by when each changed", () => {
     const twins: DigestInfo = { start_ms: 0, end_ms: 1_000, lines: [line("api", { session_id: "s-b", at_ms: 900 }), line("api", { session_id: "s-a", at_ms: 400 }), line("web")], shown: 3, quiet: 0, ai: false };
     const { getAllByRole, getByTestId } = render(<HomeFeedDigest item={item} digest={twins} when="10:45 AM" onOpen={() => {}} />);
-    expect(getByTestId("digest-header").textContent).toBe("3 sessions");
+    expect(getByTestId("digest-header").textContent).toBe("3 sessions changed:");
     expect(getAllByRole("button").map((b) => b.textContent)).toEqual(["api (2)", "api (1)", "web"]);
   });
 });

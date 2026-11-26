@@ -17,7 +17,7 @@ import { resolve } from "node:path";
 import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
-import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome } from "./fixtures/home-feed";
+import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome, STORY_T0, storyHome } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
 const T0 = 1_728_800_000_000;
@@ -344,6 +344,43 @@ test.describe("the mock-up's data", () => {
       await expect(page.getByTestId("feed-card").first()).toBeVisible();
       await page.mouse.move(0, 0);
       await page.screenshot({ path: resolve(OUT, `mock-1280-${theme}.png`) });
+    });
+  }
+});
+
+/**
+ * AJ-E3713: the approved story-feed mock's data ("story" state, 1280 by
+ * the mock's own 1560 height, both themes), for side-by-sides with
+ * `AIJuggler-design-refs/story-feed/mock-story-feed-<theme>.png`: Less
+ * like this on the switch post (its why open), the pool post followed,
+ * and the first post's More like this hovered (its tip). Capture only this:
+ *   playwright test home-feed-gallery -g "the story mock's data"
+ */
+test.describe("the story mock's data", () => {
+  test.use({ locale: "en-US", timezoneId: "UTC" });
+  for (const theme of ["dark", "light"] as const) {
+    test(`home feed — story — 1280 — ${theme}`, gate("68-home-feed"), async ({ page }) => {
+      const story = storyHome(STORY_T0);
+      await seed(page, story.fixture, theme, { width: 1280, height: 1560 }, {
+        feed: story.feed,
+        summary: story.summary,
+        now: STORY_T0,
+        globals: { __AIJ_QUOTA_DISPLAY__: story.quota, __AIJ_PLACES__: story.places, __AIJ_MESSAGES__: story.messages, __AIJ_NOTICES__: story.notices, __AIJ_WATCH_VIEW__: story.watchView },
+      });
+      await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
+      const posts = page.getByTestId("feed-card");
+      await expect(posts).toHaveCount(5);
+      // The thread under the first post; the pool post followed.
+      await expect(posts.nth(0).getByTestId("feed-followup")).toHaveText(/^↳ 2 min later · Login refactor finished/);
+      await expect(posts.nth(3).getByTestId("feed-follow")).toHaveText("Following");
+      // Less like this on the switch: kept, its why open, the post in place.
+      await posts.nth(1).getByTestId("feed-less-like").click();
+      await expect(posts.nth(1).getByTestId("feed-why")).toContainText("You'll see fewer switch posts.");
+      await expect(page.getByTestId("feed-day")).toHaveText(["Today", "This morning"]);
+      await axeClean(page, "home feed story");
+      await posts.nth(0).getByTestId("feed-more-like").hover();
+      await expect(page.getByTestId("feed-gesture-tip")).toHaveText("More like this");
+      await page.screenshot({ path: resolve(OUT, `story-1280-${theme}.png`) });
     });
   }
 });

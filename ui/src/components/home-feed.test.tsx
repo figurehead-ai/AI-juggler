@@ -101,17 +101,16 @@ describe("D-118 — the feed", () => {
     expect(calls()).toHaveLength(1);
   });
 
-  it("filters by chip, says so in a muted line with ×, and remembers it per viewer", async () => {
+  it("filters by tab, shows the tab chosen, and remembers it per viewer", async () => {
     seed([...many(2), feedItem({ id: "w:1", at_ms: NOW - 30_000, kind: "switch", category: "switches", subject: "Move it" })]);
     feed();
     await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(3));
-    fireEvent.click(screen.getByRole("radio", { name: "Switches & limits" }));
+    fireEvent.click(screen.getByRole("button", { name: "Switches & limits" }));
     await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(1));
-    expect(screen.getByTestId("feed-filtered").textContent).toContain("Filtered: Switches & limits");
+    expect(screen.getByRole("button", { name: "Switches & limits" }).getAttribute("aria-pressed")).toBe("true");
     expect(keptFilters().category).toBe("switches");
-    fireEvent.click(screen.getByRole("button", { name: "Show everything" }));
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
     await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(3));
-    expect(screen.queryByTestId("feed-filtered")).toBeNull();
   });
 
   it("names the Showing picker as it reads, so its name holds its words (axe: label-content-name-mismatch)", async () => {
@@ -254,11 +253,14 @@ describe("0.5.1 F56 — an empty feed shows no filters (D-127)", () => {
     seed(many(2));
     feed();
     await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(2));
-    fireEvent.click(screen.getByRole("radio", { name: "Switches & limits" }));
-    expect(await screen.findByTestId("feed-empty")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Switches & limits" }));
+    const empty = await screen.findByTestId("feed-empty");
+    // AJ-E3713 (usability answer 4): it says so and offers All.
+    expect(empty.textContent).toContain("Nothing under Switches & limits yet.");
     expect(screen.getByTestId("feed-filters")).toBeTruthy();
-    expect(screen.getByTestId("feed-filtered")).toBeTruthy();
     expect(screen.queryByTestId("feed-empty-mine")).toBeNull();
+    fireEvent.click(screen.getByTestId("feed-show-all"));
+    await waitFor(() => expect(screen.getAllByTestId("feed-card")).toHaveLength(2));
   });
 });
 

@@ -3,7 +3,7 @@
  * the size budget): J/K or the arrows move between rows, Enter opens
  * (each row's first control is a button), A runs the row's action (also
  * from the row's own action button, Mark reviewed); r, h, s and e on the
- * focused row. The keys come from the registry (lib/shortcuts.ts), with
+ * focused row; l and m lean a feed post (More / Less like this, AJ-E3713). The keys come from the registry (lib/shortcuts.ts), with
  * its typing rule: never while typing in a field or the terminal. A row
  * is `[data-home-row]` inside its `[data-home-item]` (a pinned need, a
  * parked session, a feed card).
@@ -66,6 +66,14 @@ export function useHomeKeys({ busy, restoreUntil, onOpenSession, onArchive }: {
     } else if (matches("home-archive", event) && id && item?.dataset.ended === "yes") {
       event.preventDefault();
       onArchive(id);
+    } else if ((matches("home-more", event) || matches("home-less", event)) && item) {
+      // AJ-E3713 R7: l / m lean the focused post (its gesture bar's arrows).
+      const which = matches("home-more", event) ? "more" : "less";
+      const arrow = item.querySelector<HTMLElement>(`[data-feed-lean="${which}"]`);
+      if (arrow) {
+        event.preventDefault();
+        arrow.click();
+      }
     }
   };
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => handleKey(event);

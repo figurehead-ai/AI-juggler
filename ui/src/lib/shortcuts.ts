@@ -210,6 +210,9 @@ export const SHORTCUTS = [
   { id: "home-handover", owner: "home", area: "Home", keys: ["H"], label: "Continue it in another app", match: plain("h", "H") },
   { id: "home-snooze", owner: "home", area: "Home", keys: ["S"], label: "Its snooze choices", match: plain("s", "S") },
   { id: "home-archive", owner: "home", area: "Home", keys: ["E"], label: "Archive an ended row", match: plain("e", "E") },
+  // AJ-E3713 R7: on the focused post, More or Less like this.
+  { id: "home-more", owner: "home", area: "Home", keys: ["L"], label: "More posts like this one", match: plain("l", "L") },
+  { id: "home-less", owner: "home", area: "Home", keys: ["M"], label: "Fewer posts like this one", match: plain("m", "M") },
   // From any app
   {
     id: "go-to",
