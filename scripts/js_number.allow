@@ -88,6 +88,7 @@ FeedFactsInfo.resets_at_ms                         # ms epoch, < 2^53 until year
 FeedFactsInfo.thread_count                         # a count of things on this Mac, far below 2^53
 FeedItemInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
 FeedItemInfo.rollup_window_ms                      # ms duration, < 2^53 ms is 285,000 years
+FeedLeanInfo.at_ms                                 # ms epoch, < 2^53 until year 287396
 FigureheadLinkInfo.expires_at_ms                   # ms epoch, < 2^53 until year 287396
 FigureheadStatusInfo.refreshed_at_ms               # ms epoch, < 2^53 until year 287396
 FleetPeerInfo.last_seen_ms                         # ms epoch, < 2^53 until year 287396

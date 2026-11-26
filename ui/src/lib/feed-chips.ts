@@ -67,7 +67,7 @@ export const GROUPS: Record<string, string> = {
   usage: "usage",
   task: "task",
   pool: "pool",
-  mac: "This Mac",
+  mac: THIS_MACHINE,
   digest: "digest",
   watch: "watch",
 };

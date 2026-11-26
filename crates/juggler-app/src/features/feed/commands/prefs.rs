@@ -30,7 +30,7 @@ pub const GROUPS: &[(&str, &str)] = &[
     ("usage", "usage"),
     ("task", "task"),
     ("pool", "pool"),
-    ("mac", "This Mac"),
+    ("mac", "this computer"),
     ("digest", "digest"),
     ("watch", "watch"),
 ];
