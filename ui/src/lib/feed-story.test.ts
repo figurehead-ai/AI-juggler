@@ -63,6 +63,11 @@ describe("AJ-E3713 R4 — the template stories", () => {
     expect(attachmentOf(quota)).toEqual({ kind: "usage", left: 39, window: "5-hour", resetsAt: null });
   });
 
+  it("names the Account even when the item carries no name of its own (never a sentence without its subject)", () => {
+    const reset = feedItem({ id: "n:3", at_ms: NOW, kind: "reset", category: "switches", subject: "", facts: { window: null } });
+    expect(storyText(story(reset))).toBe("An Account has room again: its usage window reset.");
+  });
+
   it("names the post's author by the App's own word and profile", () => {
     expect(postAuthor(finished())).toEqual({ kind: "app", name: "Claude app", place: "work-max" });
   });

@@ -113,7 +113,7 @@ function switched(item: FeedItemInfo): StoryPart[] {
 
 function usage(item: FeedItemInfo): StoryPart[] {
   const { facts } = item;
-  const who = item.author.name ?? item.subject ?? "An Account";
+  const who = item.author.name || item.subject || "An Account";
   const resets = facts.resets_at_ms ? ` It resets at ${clock(facts.resets_at_ms)}` : "";
   const sessions = facts.sessions ? `${resets ? ", and" : " Right now"} ${facts.sessions} ${facts.sessions === 1 ? "session uses" : "sessions use"} it` : "";
   const tail = resets || sessions ? `${resets}${sessions}.` : "";

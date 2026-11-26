@@ -101,7 +101,7 @@ for (const theme of THEMES) {
       await expect(chips).toBeVisible();
       await shot(page, CHIPS, `home-${where}`);
       // One chip picked: the list narrows, the counts elsewhere don't.
-      await chips.getByRole("radio").nth(1).click();
+      await chips.getByTestId("feed-chip").getByRole("button").nth(1).click();
       await shot(page, CHIPS, `narrowed-${where}`);
     });
 
@@ -126,7 +126,7 @@ for (const theme of THEMES) {
     const chips = page.getByTestId("feed-filters");
     await expect(chips).toBeVisible();
     await shot(page, CHIPS, `home-1440x900-${theme}`);
-    await chips.getByRole("radio").nth(1).click();
+    await chips.getByTestId("feed-chip").getByRole("button").nth(1).click();
     await shot(page, CHIPS, `narrowed-1440x900-${theme}`);
   });
 }
