@@ -283,7 +283,7 @@ A record is *used* only when it is included in an assembled context or shown in 
 #### 4.4 Later, behind the same trait
 
 - **Embeddings:** an on-device embedder's vectors beside FTS5, fused with BM25 by reciprocal rank fusion. Added only if the recall harness (§10.2) shows keyword recall missing what users ask, and never by a download without the user's click (D-131).
-- **Entity relations:** recall widened through AI Juggler's own `relations` tables (a pool's members, a project's sessions), no graph store.
+- **Entity relations:** recall widened through AI Juggler's own `relations` tables (a pool's members, a project's sessions), no graph store. *Superseded by [ADR-0038](./0038-world-model-engine.md) (2026-11-26): the world model is a typed graph kept in memory over this SQLite store, the `gyrus` crate.*
 - Each is a new `Retriever` impl chosen per job by its budget row; the trait's contract tests run over every impl, so callers never change.
 
 ### 5. One context assembler
@@ -496,7 +496,7 @@ D-123 places the bot in 0.6 as an extension of Chat. It uses this store, this lo
 
 #### 8.3 The research ideas that don't fit now, and where the bot may use them
 
-- **A graph store and many typed edge kinds:** AI Juggler's entity set is closed and relational. The bot gets the narrow `memory_links` table (§8.1), not a graph database.
+- **A graph store and many typed edge kinds:** AI Juggler's entity set is closed and relational. The bot gets the narrow `memory_links` table (§8.1), not a graph database. *Superseded by [ADR-0038](./0038-world-model-engine.md) (2026-11-26): a typed in-memory graph over SQLite, still no separate graph database.*
 - **Dense embeddings and a re-ranking model:** they need extra models and memory that a 4K budget can't spare. Behind the `Retriever` trait if recall tests fail, and on larger engine rows for the bot (§4.4).
 - **Multi-writer authority classes and a supersede review:** Chat has one user, and the user's edits rule. The bot is a second writer, so §8.2 brings them in.
 - **Confidence driven by verification:** Chat has no verifier. The bot's outcomes are one (§8.2).

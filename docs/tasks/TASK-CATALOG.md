@@ -528,6 +528,6 @@
 | AJ-E3829 | Bot's real-model check on the reference Mac, in the release gate for any AI change | E38-chat.md | P0 | M | AJ-E3825 |
 | AJ-E3830 | Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | E38-chat.md | P1 | M | AJ-E3709, AJ-E3825 |
 | AJ-E3831 | Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | E38-chat.md | P1 | M | AJ-E3709 |
-| AJ-E3832 | The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | E38-chat.md | P0 | XL | AJ-E3825, ADR-0037 |
+| AJ-E3832 | Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | E38-chat.md | P0 | XL | ADR-0037, ADR-0038 |
 Total: 527 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

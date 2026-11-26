@@ -587,18 +587,15 @@
 3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
 
-### AJ-E3832 The world model: a bi-temporal graph in AI Juggler's SQLite (ADR-0038, D-150), the foundation every later version extends | Status: ON HOLD (D-150 proposed, pending the maintainer's discussion) | Priority P0 | Effort XL | Depends: AJ-E3825, ADR-0037
-**Found**: the maintainer (2026-11-25, through the coordinating session) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later (D-150). Research: `docs/research/2026-11-25-graph-memory-research.md`.
-**UI**: yes (Bot's memory indicator and its breakdown, AJ-E3825 R9; Settings › AI › Memory: what's remembered, why, forget)
-**Usability reasoning** (to be written first for Settings › AI › Memory and the indicator, PAT-USE): what someone wants to know about what Bot remembers, why it remembers it, and how to make it forget, in plain words.
-**Requirements**:
-1. ADR-0038 written from D-150 (supersedes ADR-0037's "no graph store" line; ADR-0037's kinds, write gate, tiers and forget stay).
-2. One additive migration (the next V number after checking every branch): `wm_entity`, `wm_alias`, `wm_edge` (closed relation types with cardinality, bi-temporal columns, `superseded_by`, authority, episode ref, quote hash, confidence), `memory_entities` as the record↔entity link, `memory_records.valid_to_ms`; episodes as refs into the existing logs.
-3. The `WorldModel` port (trait) and its SQLite adapter; callers never touch the tables.
-4. Writes only through ADR-0037's write gate: deterministic observers of app events (switches, moves, pool joins, task links, the agent asked/answered) and a backfill from history; a contradiction invalidates, never deletes.
-5. Forget, backup and restore extended to the new tables in the same transaction (ADR-0037 §1.5's guarantees, tested).
-6. Reads through the Retriever menu: neighbors, path (≤ 3 hops), timeline, recall with one-hop graph expansion; results as numbered refs under the citation check; graph cases added to the recall harness.
-7. Bot's memory indicator (AJ-E3825 R9) reads from it.
-8. A 200k-edge, 3-hop benchmark with a recorded budget, gated in CI.
-9. Settings › AI › Memory: what's remembered, why, and forget, in rich mode (D-126, PAT-COLOR).
+### AJ-E3832 Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: ADR-0037, ADR-0038
+**Found**: the maintainer (2026-11-25) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; ADR-0038 accepted 2026-11-26 (D-150).
+**UI**: yes (Settings › AI › Memory; Bot's context and memory breakdown, AJ-E3825 R9, rebuilt on it in step 4)
+**Usability reasoning** (Opus, written first for Settings › AI › Memory and the breakdown, PAT-USE): what someone wants to know about what Bot remembers about their work, why, and how to make it forget, in plain words.
+**Requirements** (ADR-0038's Order of work):
+1. **The crate's core** (`crates/gyrus`, MIT OR Apache-2.0, its own README, tests, bench; a lint forbids any juggler-* dependency; no new crate in Cargo.lock): nodes, links, kind specs, the SQLite store (the next migration in AI Juggler's chain, checked on every branch), the in-memory index, write-through, rebuild, forget, the kill-at-every-step and test-phrase tests.
+2. **The operations:** `seed`, `expand`, `rank`, `matches`, `as_of`, `touch`, `explain`, with the benchmark suite at 10k, 100k and 1M links and its p95 budgets (ADR-0038 §3) in CI.
+3. **AI Juggler's kind pack** (`features/ai/world/`): kinds, link types, rules, reasoning questions, live resolvers; ADR-0037's records linked as `memory` nodes by a one-time pass; nothing moves.
+4. **Assembly:** the `world` section; topics as separate chats; Bot's context and memory breakdown (AJ-E3825 R9) built on it.
+5. **Dreaming and tiers:** merges, archive, salience, inside ADR-0037's maintenance batches.
+6. **The real-engine check:** fixed questions asked of Bot on the reference Mac, the answers read and judged (ai-features-tested-for-real); the 27-canary forget test reads 0.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3832/manifest.md`.
