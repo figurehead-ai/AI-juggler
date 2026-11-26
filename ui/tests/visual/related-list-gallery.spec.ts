@@ -180,7 +180,7 @@ for (const theme of ["dark", "light"] as const) {
   // D-118: "Pick up where you left off" is retired; its role is the feed's Finished chip.
   test(`Home's feed, Finished filter — ${theme}`, async ({ page }) => {
     await seed(page, theme);
-    await page.getByTestId("feed-chip-finished").click();
+    await page.getByTestId("feed-state-finished").click();
     await expect(page.getByTestId("feed-card").first()).toBeVisible();
     // An ended session's card carries no repeated state word (the 0.4
     // design review, 45).

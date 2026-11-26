@@ -5251,7 +5251,7 @@ for (const theme of THEMES) {
         await expect(page.getByTestId("home-needs").getByRole("button").first()).toBeVisible();
         await page.screenshot({ path: resolve(GALLERY, `55-triage/home-populated-${vp.name}-${density}-${theme}.png`) });
         // D-118: finished, not reviewed, is the feed's Finished filter.
-        await page.getByTestId("feed-chip-finished").click();
+        await page.getByTestId("feed-state-finished").click();
         await expect(page.getByTestId("feed-card").first()).toBeVisible();
         await page.screenshot({ path: resolve(GALLERY, `55-triage/home-finished-${vp.name}-${density}-${theme}.png`) });
       });

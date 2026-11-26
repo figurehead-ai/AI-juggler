@@ -29,7 +29,7 @@ One store, in AI Juggler's existing database, written only through one service (
 
 | Kind | Built in | What it holds | Authority | Written only by | Subject key |
 |---|---|---|---|---|---|
-| `preference` | 0.5 | a stated preference from a closed set of slots: `alias` (the user's own name for a session, App, project or pool: "the api agent") and `focus` (what the user cares about most, per scope) | user; model only through §2.4's gate | `features/ai/memory/` (Chat's remember flow, Settings) | `alias:<entity kind>:<id>`, `focus:<scope>` |
+| `preference` | 0.5 | a stated preference from a closed set of slots: `alias` (the user's own name for a session, App, project or pool: "the api agent"), `focus` (what the user cares about most, per scope) and, from 0.5.2, `feed` (a Home feed post's More or Less like this, scoped to the kind of event, the App and the project; AJ-E3713) | user; model only through §2.4's gate | `features/ai/memory/` (Chat's remember flow, Settings), its writer lent to Bot's remember flow and the feed's gesture (`features/feed/commands/prefs.rs`, source `home_feed`) | `alias:<entity kind>:<id>`, `focus:<scope>`, `feed:<group>:<scope hash>` |
 | `note` | 0.5 | the user's own words after "remember…" | user; model only through §2.4's gate | `features/ai/memory/` | `note:<hash of the normalised text>` |
 | `standing_request` | 0.5 | a confirmed watch; the payload is ADR-0036's typed `Watch` | user | `features/watches/` (its three commands) | `watch:<WatchId>` |
 | `asked` | 0.5 | a question the user asked, in their words, with the entities it resolved to | app (recorded by code) | `features/ai/chat/` | `asked:<normalised question hash>:<entity ids>` |

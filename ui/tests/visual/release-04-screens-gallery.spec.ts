@@ -86,7 +86,7 @@ for (const theme of THEMES) {
     test(`Resume — ${where}`, first ? gate("99-resume") : {}, async ({ page }) => {
       await open(page, theme, size);
       // D-118: "Pick up where you left off" is the feed's Finished chip.
-      await page.getByTestId("feed-chip-finished").click();
+      await page.getByTestId("feed-state-finished").click();
       const card = page.getByTestId("feed-card").first();
       await expect(card).toBeVisible();
       await card.getByRole("button").first().click();
@@ -179,13 +179,13 @@ test("AJ-E2910: no chip changes the rail; Mark all and its toast; at 1440", asyn
   // for a chip's doing (0.5 gate triage).
   await expect(page.getByTestId("rail-needs-you")).toContainText(/Needs you\s*5/i);
   const before = await rail.innerText();
-  const chips = page.getByTestId("feed-filters").getByRole("radio");
+  const chips = page.getByTestId("feed-chip").getByRole("button");
   for (let i = 0; i < (await chips.count()); i++) {
     await chips.nth(i).click();
     expect(await rail.innerText(), `the rail after chip ${i + 1}`).toBe(before);
   }
   // D-118: "Mark all N reviewed" is in the Finished chip's ⋯ menu (feed-review-all).
-  await page.getByTestId("feed-chip-finished").click();
+  await page.getByTestId("feed-state-finished").click();
   await page.getByTestId("feed-more").click();
   // 0.5.1 F60: the menu as it opens, every line with its icon.
   await expect(page.getByTestId("feed-review-all-label")).toHaveText(/Mark all \d+ reviewed/);
