@@ -248,7 +248,8 @@ async function toolbarBoxes(page: Page) {
       return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
     };
     const at = (id: string) => bar.querySelector(`[data-testid="${id}"]`)!;
-    const parts = [...bar.querySelectorAll('[data-testid^="feed-chip-"]'), at("feed-facet"), at("feed-more")];
+    // AJ-E3713: Showing: sits on the state chips' row under the tabs now.
+    const parts = [...bar.querySelectorAll('[data-testid^="feed-chip-"]'), at("feed-more")];
     const edge = box(bar);
     const cut = parts
       .filter((node) => {
