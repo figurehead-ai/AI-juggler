@@ -3883,3 +3883,10 @@ With an AI ready, a question with no AI Juggler records in it ("what is 3+5") ge
 - **Cargo.lock** (the 0.5.2 builder's technical call, 2026-11-26): adding `jiff` as a direct dependency adds one line, ` "jiff",`, to juggler-app's own `dependencies` list in the lock; no package, version or checksum changes and nothing is fetched. That line is allowed; "Cargo.lock unchanged" means nothing new locked or fetched.
 - **The maintainer's standing note (2026-11-26):** library and technical-level calls are the builders' to make on quality, performance and reliability, with the reasoning recorded; only product or scope questions go to the maintainer.
 - Built in 0.5.2 under ADR-0039's Order of work; RemindAt (the feed and Bot) first.
+
+### D-149 amendment 2 — after v8: watches fail closed; the feed line stays plain pending the maintainer; the fabrication gate checks support, not only contradiction (2026-11-26)
+
+- **Ruling** (the coordinating session, 2026-11-26, on v8: watches 75 % exact with 3 unsupported claimed, one the inverse of the request; feed A 42 %, B 7 % with 44 % fabrication):
+1. **Watches fail closed:** code accepts a draft only when the request parses into a shape it fully understands (target, condition, lifetime accounted for); a broad quantifier with a named entity is unsupported unless the entity is clearly the target; a number in a unit no condition takes is refused before the model is called; any leftover meaning-changing word (but, except, skipping, other than, besides, not, without…) makes it unsupported with the nearest option; never widen. The confirm card states the watch in plain words, its target included. A regression test for every miss so far. Round v9 on a fresh blind set.
+2. **The feed line stays the plain excerpt in 0.5.2** until the maintainer chooses (it was a promised 0.5 feature); no more rounds meanwhile.
+3. **The fabrication gate** (D-130): a claimed outcome, benefit, state, count or cause must trace to a checked clause; contradiction alone was a hole. Re-run over the digest's passing v6 outputs and Bot's E3829 answers; a changed digest verdict goes to the coordinating session; Opus verifies by eye.
