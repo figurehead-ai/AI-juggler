@@ -636,3 +636,21 @@ fn forget_takes_a_feed_preference_through_the_same_gate() {
         "a watch is still not a memory here"
     );
 }
+
+/// AJ-E3832 R6: the question's own words ("app", "remember", "running")
+/// never become part of the name looked up, so "which app is web running
+/// in?" finds web, and "what did I ask you to remember about api?" finds api.
+#[test]
+fn question_words_are_never_taken_for_a_records_name() {
+    for (q, name) in [
+        ("which app is web running in?", "web"),
+        ("what did I ask you to remember about api?", "api"),
+    ] {
+        let r = read(q);
+        assert_eq!(r.subject, [name], "{q}");
+        assert!(
+            !look_up(&r, &world(), None).rows.is_empty(),
+            "{q}: nothing found"
+        );
+    }
+}

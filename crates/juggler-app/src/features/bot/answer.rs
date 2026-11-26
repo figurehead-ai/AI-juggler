@@ -83,7 +83,7 @@ pub struct Answer {
 fn not_recorded(unknown: BotUnknown) -> &'static str {
     match unknown {
         BotUnknown::NothingFound => {
-            "AI Juggler has nothing that matches. Say so plainly in the user's own terms (\"You have no sessions right now.\", \"Nothing needs you right now.\") and name nothing."
+            "No record matched these words. If the memory or the conversation above answers the question, answer from it; otherwise say plainly, in a few words of your own, that you found nothing about it. Never claim how many sessions or tasks there are."
         }
         BotUnknown::TestDurations => "AI Juggler doesn't record how long tests take.",
         BotUnknown::TestResults => "AI Juggler doesn't record test results for a session.",
