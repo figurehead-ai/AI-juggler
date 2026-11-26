@@ -939,7 +939,7 @@ Step 2, "Sign in": (1) a newcomer signing in expects the provider's own page, no
 2. The subagents icon is a helpers/agents glyph, legible at 12 px in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E1557/manifest.md`.
 
-### AJ-E1558 Settings, edit and selection pages in rich mode and colour (D-126, PAT-COLOR), audited, fixed and enforced | Status: TODO (0.5.2) | Priority P0 | Effort L | Depends: AJ-E1550
+### AJ-E1558 Settings, edit and selection pages in rich mode and colour (D-126, PAT-COLOR), audited, fixed and enforced | Status: DONE (0.5.2) | Priority P0 | Effort L | Depends: AJ-E1550
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): Settings, the edit and create sheets and the pickers are "monochrome hell" again, against D-126's rich mode and PAT-COLOR; the design system existed but these surfaces weren't held to it.
 **UI**: yes
 **Usability reasoning** (Opus, before building): (1) someone setting things up scans for the section and the option they need; colour and icons are how they find it and see what's chosen; (2) each section and option carries its icon, semantic colour in soft steps marks meaning (on, Beta, warning, off), tags and chips say state, the selected choice is unmistakable; (3) it replaces the neutral-only rows, reusing the d126 kit; (4) a page with one option still reads as rich (icon, tone), never a bare list; (5) none; (6) watch for colour without meaning, bright borders (PAT-SURF), contrast failures, a selected state shown only by a ring.

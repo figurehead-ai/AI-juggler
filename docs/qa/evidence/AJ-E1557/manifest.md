@@ -38,3 +38,7 @@ gallery families re-captured, critiques stamped).
 ## Left
 
 The Needs you rows keep their App's identity dot before the title (D-117 R8: the App's one colour, not a state); it is not an idle or ended row's mark, so it stays as specified.
+
+## Amendment (2026-11-25, AJ-E1558)
+
+Decided by the maintainer after this task closed: no bullet-like dot before any rail row, so the Needs you rows lose their App's colour dot too. Built in AJ-E1558 (4b76afc5c): `NeedRow` (`components/PlaceRows.tsx`) leads with nothing, its gutter kept empty like an idle row's, so no title moves; the need's own state mark (its level's mark, or review's ✓) stays before why it needs you; the App is named on the row's place line ("ai-juggler · Claude Code CLI · Work"), and a compact row, which has no place line, names it after why ("Asks you · Claude Code CLI"). Proof: `rail-calm-lenses.test.tsx` (the Needs you row has no `place-mark` and an empty gutter), `layout-shift.spec.ts` (the row's title, why and where hold still with no mark to measure); the rail's gate baselines and 01-rail's captures re-rendered with AJ-E1558 (its manifest, R2 and R5).
