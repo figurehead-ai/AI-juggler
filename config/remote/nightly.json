@@ -22,10 +22,10 @@
           "attention_note": "Built from the facts; no misses in testing.",
           "chat": "beta",
           "chat_note": "Preferred over the plain answer in 75 % of blind checks.",
-          "digest": "not_yet",
-          "digest_note": "The plain roundup reads better for now.",
+          "digest": "beta",
+          "digest_note": "Preferred over the plain roundup in 64 % of blind checks.",
           "watches": "not_yet",
-          "watches_note": "Drafts matched the request 70 % of the time; we want 95 %."
+          "watches_note": "Drafts are being made exact before Bot fills the form."
         },
         {
           "id": "qwen3-1-7b-q8",

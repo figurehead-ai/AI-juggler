@@ -56,16 +56,16 @@
           "commit": "c8b4ec881"
         },
         "digest": {
-          "verdict": "not_yet",
-          "note": "The plain roundup reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "verdict": "beta",
+          "note": "Preferred over the plain roundup in 64 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v6-results/review-opus.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-26",
+          "commit": "529f3859f"
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 70 % of the time; we want 95 %.",
+          "note": "Drafts are being made exact before Bot fills the form.",
           "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
           "confirmed_by": "opus",
           "date": "2026-11-18",
