@@ -1,0 +1,4349 @@
+[
+ {
+  "id": "V12-W01",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Bei allen Apps egal, aber wenn OpenCode abstürzt, will ich es wissen",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-oc"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W02",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Meld dich, wenn die Render-queue-Sitzung 45 Minuten still ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ren"
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 45
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W04",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Tell me when the checkout-api session fails, even during quiet hours",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-chk"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null,
+   "even_in_quiet_hours": true
+  }
+ },
+ {
+  "id": "V12-W09",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "I don't care about the rest of my apps, just alert me when Cursor needs an approval",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "asks_you"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W12",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Bis ich es wieder lösche: warne mich, wenn das Depot-Pro-Konto sein Limit erreicht",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-depot"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit"
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "V12-W16",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Tell me when the Render queue session finishes, but keep it silent at night",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ren"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W17",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Buzz me when a Claude Code CLI · Depot session ends and leaves processes running behind",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-ccd"
+   },
+   "conditions": [
+    {
+     "type": "leaves_processes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W19",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Benachrichtige mich, wenn Depot Pro wieder Luft hat",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-depot"
+   },
+   "conditions": [
+    {
+     "type": "runway_resets"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W20",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Heute noch benachrichtigen, sobald der Suchindex eine Rückfrage an mich hat",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-suc"
+   },
+   "conditions": [
+    {
+     "type": "asks_you"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W23",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "One heads-up is enough: tell me the first time the Render queue session needs my input",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ren"
+   },
+   "conditions": [
+    {
+     "type": "asks_you"
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "V12-W24",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Sag Bescheid, wenn die Rechnungsexport-Sitzung durch ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-rex"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W30",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Wake me up when the Garage account hits its limit, quiet hours don't matter",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-garage"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit"
+    }
+   ],
+   "lifetime": null,
+   "even_in_quiet_hours": true
+  }
+ },
+ {
+  "id": "V12-W33",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Across all projects, the one I care about is pixel-forge: tell me when a new session starts there",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ren"
+   },
+   "conditions": [
+    {
+     "type": "starts"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W34",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Permanent watch on the Garage account: say when it has room again",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-garage"
+   },
+   "conditions": [
+    {
+     "type": "runway_resets"
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "V12-W35",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Every account is fine, but ping me when Depot Pro runs below 15 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-depot"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W38",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Gib mir Bescheid, wenn die Onboarding-flow-Sitzung nach 10 Minuten immer noch hängt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-onb"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 10
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W40",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Der Suchindex-Agent will meine Freigabe – sag mir das",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-suc"
+   },
+   "conditions": [
+    {
+     "type": "asks_you"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W42",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Sag mir, wenn irgendeine Sitzung zu Ende ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any"
+   },
+   "conditions": [
+    {
+     "type": "ends"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W44",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Von allen meinen Sitzungen interessiert mich nur der Suchindex: sag Bescheid, wenn er fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-suc"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W48",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Shout if the Render queue session goes quiet for 20 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ren"
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 20
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W49",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Melde dich, wenn Cursor neu gestartet wurde, auch nachts in der Ruhezeit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "restarted"
+    }
+   ],
+   "lifetime": null,
+   "even_in_quiet_hours": true
+  }
+ },
+ {
+  "id": "V12-W50",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Sag mir, wenn der Suchindex fertig ist, aber in der Ruhezeit bitte nicht",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-suc"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V12-W52",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Keep telling me whenever the checkout-api session fails, until I delete the watch",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-chk"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "V12-W54",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Einmalig bitte: Bescheid, wenn die Rechnungsexport-Sitzung abstürzt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-rex"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "V12-W59",
+  "origin": "v12 miss as quoted in v12-results/summary.md; made-up context",
+  "request": "Alle Konten sind mir egal, nur beim Garage-Konto: sag mir, wenn wieder Platz ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-garage"
+   },
+   "conditions": [
+    {
+     "type": "runway_resets"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N13-01",
+  "origin": "made-up (v13 selftest)",
+  "request": "Tell me when any session fails, aside from the Lint cleanup one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N13-02",
+  "origin": "made-up (v13 selftest)",
+  "request": "Ping me when sessions finish, save for the Suchindex",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N13-03",
+  "origin": "made-up (v13 selftest)",
+  "request": "Let me know when any session asks me something, with the exception of Render queue",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "asks_you"
+  }
+ },
+ {
+  "id": "N13-04",
+  "origin": "made-up (v13 selftest)",
+  "request": "Sag mir, wenn alle Sitzungen fertig sind, bis auf den Suchindex",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N13-05",
+  "origin": "made-up (v13 selftest)",
+  "request": "Melde dich, wenn eine Sitzung abstürzt, abgesehen von Rechnungsexport",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N13-06",
+  "origin": "made-up (v13 selftest)",
+  "request": "Tell me when the Render queue session fails on the staging branch",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N13-07",
+  "origin": "made-up (v13 selftest)",
+  "request": "Tell me when the Checkout API session fails during the nightly build",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N13-08",
+  "origin": "made-up (v13 selftest)",
+  "request": "Ping me when the Lint cleanup session finishes every morning",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N13-09",
+  "origin": "made-up (v13 selftest)",
+  "request": "Tell me when the Suchindex session errors out twice",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N13-10",
+  "origin": "made-up (v13 selftest)",
+  "request": "Gib mir Bescheid, wenn der Suchindex mehrmals abstürzt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N13-11",
+  "origin": "made-up (v13 selftest)",
+  "request": "Tell me when the Render queue session is through",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N13-12",
+  "origin": "made-up (v13 selftest)",
+  "request": "Let me know when the Lint cleanup session wraps up, cheers",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "name": "Checkout API",
+     "app": "Claude Code CLI · Depot",
+     "project": "checkout-api"
+    },
+    {
+     "id": "s-rex",
+     "name": "Rechnungsexport",
+     "app": "Codex CLI · Depot",
+     "project": "billing-export"
+    },
+    {
+     "id": "s-onb",
+     "name": "Onboarding flow",
+     "app": "Claude app · Garage",
+     "project": "signup-web"
+    },
+    {
+     "id": "s-lin",
+     "name": "Lint cleanup",
+     "app": "OpenCode",
+     "project": "tidy-kit"
+    },
+    {
+     "id": "s-ren",
+     "name": "Render queue",
+     "app": "Claude Code CLI · Garage",
+     "project": "pixel-forge"
+    },
+    {
+     "id": "s-suc",
+     "name": "Suchindex",
+     "app": "Cursor",
+     "project": "finder-app"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccd",
+     "name": "Claude Code CLI · Depot"
+    },
+    {
+     "id": "app-cxd",
+     "name": "Codex CLI · Depot"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clg",
+     "name": "Claude app · Garage"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccg",
+     "name": "Claude Code CLI · Garage"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-rex",
+     "name": "billing-export"
+    },
+    {
+     "id": "p-onb",
+     "name": "signup-web"
+    },
+    {
+     "id": "p-lin",
+     "name": "tidy-kit"
+    },
+    {
+     "id": "p-ren",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "p-ber",
+     "name": "report-lab"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-depot",
+     "name": "Depot Pro"
+    },
+    {
+     "id": "acct-garage",
+     "name": "Garage"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lin"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ }
+]
