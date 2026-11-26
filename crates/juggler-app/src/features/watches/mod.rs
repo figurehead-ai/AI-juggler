@@ -46,6 +46,7 @@ pub mod draft;
 pub mod echo;
 pub mod engine;
 pub mod model;
+pub mod resolve;
 pub mod runtime;
 pub mod store;
 pub mod words;

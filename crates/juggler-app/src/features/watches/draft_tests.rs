@@ -4,35 +4,65 @@ use super::*;
 
 type Fake = crate::features::ai::scripted::Scripted;
 
-const ALL: [&str; 6] = ["finishes", "ends", "asks_you", "fails", "stuck", "idle_for"];
+const SESSION: [&str; 8] = [
+    "finishes",
+    "ends",
+    "asks_you",
+    "fails",
+    "stuck",
+    "idle_for",
+    "hits_limit",
+    "leaves_processes",
+];
 
-fn session(id: &str, name: &str, project: &str) -> Candidate {
+fn session(id: &str, name: &str, project: &str, app: &str) -> Candidate {
     Candidate {
         target: WatchTarget::Session(id.to_owned()),
         name: name.to_owned(),
-        app: Some("Claude Code".to_owned()),
+        aliases: Vec::new(),
+        app: Some(app.to_owned()),
         project: Some(project.to_owned()),
-        offered: ALL.map(str::to_owned).to_vec(),
+        offered: SESSION.map(str::to_owned).to_vec(),
+    }
+}
+
+fn owner(target: WatchTarget, name: &str, offered: &[&str], aliases: &[&str]) -> Candidate {
+    Candidate {
+        target,
+        name: name.to_owned(),
+        aliases: aliases.iter().map(|a| (*a).to_owned()).collect(),
+        app: None,
+        project: None,
+        offered: offered.iter().map(|o| (*o).to_owned()).collect(),
     }
 }
 
 fn candidates() -> Vec<Candidate> {
     vec![
-        session("S-vega", "vega-sync", "vega"),
-        session("S-deneb", "deneb-ui", "deneb"),
-        session("S-api-a", "api", "altair"),
-        session("S-api-r", "api", "rigel"),
-        Candidate {
-            target: WatchTarget::Account("acc-s".to_owned()),
-            name: "studio max".to_owned(),
-            app: None,
-            project: None,
-            offered: vec!["runway_below".to_owned(), "hits_limit".to_owned()],
-        },
+        session("S-cedar", "cedar-api", "cedar", "Claude Code"),
+        session("S-aspen", "aspen-board", "aspen", "Codex"),
+        session("S-b1", "Index rebuild", "birch-docs", "Claude Code"),
+        session("S-b2", "Link check", "birch-docs", "Claude Code"),
+        session("S-api-c", "api", "cedar", "Claude Code"),
+        session("S-api-a", "api", "aspen", "Codex"),
+        owner(WatchTarget::Project("cedar".into()), "cedar", &SESSION, &[]),
+        owner(WatchTarget::Project("aspen".into()), "aspen", &SESSION, &[]),
+        owner(
+            WatchTarget::Project("birch-docs".into()),
+            "birch-docs",
+            &SESSION,
+            &[],
+        ),
+        owner(
+            WatchTarget::Account("acc-w".into()),
+            "work max",
+            &["hits_limit", "runway_below", "runway_resets"],
+            &["the work plan"],
+        ),
     ]
 }
 
-fn run(request: &str, fake: &Fake) -> Outcome {
+fn run_with(request: &str, fake: &Fake) -> Outcome {
     let c = candidates();
     let ask = Ask {
         request,
@@ -49,19 +79,23 @@ fn run(request: &str, fake: &Fake) -> Outcome {
     .0
 }
 
-fn filled(outcome: &Outcome) -> &WatchDraftInfo {
+fn filled(outcome: &Outcome) -> Option<&WatchDraftInfo> {
     match outcome {
-        Outcome::Drafted(WatchDrafted::Filled { draft }) => draft,
-        other => unreachable!("not filled: {other:?}"),
+        Outcome::Drafted(WatchDrafted::Filled { draft }) => Some(draft),
+        _ => None,
     }
 }
 
+fn codes(d: &WatchDraftInfo) -> Vec<&str> {
+    d.conditions.iter().map(|c| c.code.as_str()).collect()
+}
+
 #[test]
-fn the_prompts_are_the_ones_harness_v6_measured() {
+fn the_prompts_are_the_ones_harness_v7_measured() {
     // Read from the harness at test time (the docs don't ship in the app).
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../../docs/qa/evidence/AJ-E3709/harness/v6/prompts/watch2.md"
+        "/../../docs/qa/evidence/AJ-E3709/harness/v7/prompts/watch3.md"
     );
     let measured = std::fs::read_to_string(path).unwrap_or_default();
     assert!(
@@ -74,53 +108,105 @@ fn the_prompts_are_the_ones_harness_v6_measured() {
     );
 }
 
+/// v6's misses, each decided by code now with no model call.
+type Case = (
+    &'static str,
+    WatchTarget,
+    &'static [&'static str],
+    Option<Param>,
+    LifetimeChoice,
+);
+
 #[test]
-fn two_calls_fill_the_form_the_target_first() {
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s1"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
-    let out = run("Let me know when vega-sync finishes.", &fake);
-    let draft = filled(&out);
-    assert_eq!(
-        draft.targets,
-        vec![WatchTarget::Session("S-vega".to_owned())]
-    );
-    assert_eq!(draft.conditions[0].code, "finishes");
-    let seen = fake.seen.borrow();
-    assert_eq!(seen.len(), 2);
-    assert!(seen[0].prompt.contains("s1 session “vega-sync”"));
-    assert!(
-        seen[1].prompt.starts_with("TARGET: s1 session “vega-sync”"),
-        "the second call is built for the target"
-    );
-    let target = &seen[0].shape.as_ref().unwrap()["properties"][1]["schema"];
-    assert_eq!(target["type"], "enum", "one target, never a list");
-    assert_eq!(
-        seen[0].decoding,
-        Decoding::Tested,
-        "a first attempt keeps the tested decoding"
-    );
+fn code_decides_the_target_conditions_numbers_and_lifetime() {
+    let cases: [Case; 8] = [
+        (
+            "Tell me when cedar-api asks something, and ignore aspen-board entirely.",
+            WatchTarget::Session("S-cedar".into()),
+            &["asks_you"],
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Ping me when cedar-api finishes or fails.",
+            WatchTarget::Session("S-cedar".into()),
+            &["finishes", "fails"],
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Alert me when anything in birch-docs stops moving for 25 minutes.",
+            WatchTarget::Project("birch-docs".into()),
+            &["stuck"],
+            Some(Param::Minutes(25)),
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Tell me if any session is idle for an hour.",
+            WatchTarget::Any,
+            &["idle_for"],
+            Some(Param::Minutes(60)),
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Let me know when the work plan hits its limit.",
+            WatchTarget::Account("acc-w".into()),
+            &["hits_limit"],
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Let me know when api finishes, not the aspen one.",
+            WatchTarget::Session("S-api-c".into()),
+            &["finishes"],
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Today, tell me when cedar-api is done.",
+            WatchTarget::Session("S-cedar".into()),
+            &["finishes"],
+            None,
+            LifetimeChoice::Today,
+        ),
+        (
+            "Tell me when a session in the birch-docs project gets stuck for 15 minutes.",
+            WatchTarget::Project("birch-docs".into()),
+            &["stuck"],
+            Some(Param::Minutes(15)),
+            LifetimeChoice::Unsaid,
+        ),
+    ];
+    for (request, target, want, param, lifetime) in cases {
+        let fake = Fake::new(&["FAIL"]);
+        let out = run_with(request, &fake);
+        let d = filled(&out).unwrap_or_else(|| unreachable!("{request}: {out:?}"));
+        assert_eq!(d.targets, vec![target], "{request}");
+        assert_eq!(codes(d), want, "{request}");
+        assert_eq!(d.conditions[0].param, param, "{request}");
+        assert_eq!(d.lifetime, lifetime, "{request}");
+        assert_eq!(fake.calls(), 0, "{request}: code decided, no call");
+    }
 }
 
 #[test]
-fn a_target_the_request_does_not_name_is_asked_again_sampled() {
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s2"}"#,
-        r#"{"intent":"create","target":"s1"}"#,
-        r#"{"condition":"stuck","param":"20","condition2":"none","param2":"none","lifetime":"today","until":"none","unsupported":"none"}"#,
-    ]);
-    let out = run(
-        "Tell me today when vega-sync is stuck for 20 minutes.",
-        &fake,
+fn several_candidates_the_model_picks_one_of_them_sampled_on_retry() {
+    let fake = Fake::new(&[r#"{"target":"zz"}"#, r#"{"target":"s2"}"#]);
+    let out = run_with("Tell me when cedar-api or aspen-board finishes.", &fake);
+    assert_eq!(
+        filled(&out).map(|d| d.targets.clone()),
+        Some(vec![WatchTarget::Session("S-aspen".into())])
     );
-    let draft = filled(&out);
-    assert_eq!(draft.conditions[0].param, Some(Param::Minutes(20)));
-    assert_eq!(draft.lifetime, LifetimeChoice::Today);
     let seen = fake.seen.borrow();
-    assert!(
-        seen[1].prompt.contains("is not named in the request"),
-        "the reason is in the retry"
+    let values = &seen[0]
+        .shape
+        .as_ref()
+        .map(|s| s["properties"][0]["schema"]["values"].clone())
+        .unwrap_or_default();
+    assert_eq!(
+        values.as_array().map(Vec::len),
+        Some(3),
+        "the candidates only, and none"
     );
     assert!(
         matches!(seen[1].decoding, Decoding::Sampled { .. }),
@@ -129,121 +215,98 @@ fn a_target_the_request_does_not_name_is_asked_again_sampled() {
 }
 
 #[test]
-fn what_cannot_be_watched_is_said_in_the_requests_words_with_the_nearest() {
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s1"}"#,
-        r#"{"condition":"none","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"tests"}"#,
-    ]);
-    match run("Tell me when the tests pass in vega-sync.", &fake) {
-        Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) => {
-            assert_eq!(asked, "tests pass");
-            assert_eq!(draft.unwrap().conditions[0].code, "finishes");
-        }
-        other => unreachable!("{other:?}"),
-    }
-    // A draft that claims to watch the tests is caught by the net, never a watch.
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s1"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
-    assert!(matches!(
-        run("Tell me when the tests pass in vega-sync.", &fake),
-        Outcome::Drafted(WatchDrafted::CantWatch { .. })
-    ));
-    // A kind the request doesn't say is retried.
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s1"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"deploy"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
-    filled(&run("Let me know when vega-sync finishes.", &fake));
+fn no_condition_word_the_model_picks_from_the_offer_with_definitions() {
+    let fake = Fake::new(&[r#"{"condition":"idle_for","condition2":"none","unsupported":"none"}"#]);
+    let out = run_with(
+        "Let me know if cedar-api sits there doing nothing for 20 minutes.",
+        &fake,
+    );
+    let d = filled(&out).unwrap_or_else(|| unreachable!("{out:?}"));
+    assert_eq!(
+        d.conditions,
+        vec![Condition {
+            code: "idle_for".into(),
+            param: Some(Param::Minutes(20))
+        }]
+    );
+    let seen = fake.seen.borrow();
     assert!(
-        fake.seen.borrow()[2]
+        seen[0].prompt.contains("stuck · AI Juggler sees it stuck")
+            && seen[0].prompt.contains("idle_for · no activity at all")
+    );
+    assert!(
+        seen[0]
             .prompt
-            .contains("says nothing of deploy")
+            .contains("hits_limit · it reaches a usage limit"),
+        "the offer mirrors the app's, hits_limit included"
     );
 }
 
 #[test]
-fn a_shared_name_opens_the_form_with_its_picker_and_the_context_settles_one() {
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s3"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
-    match run("Let me know when api finishes.", &fake) {
+fn what_cannot_be_watched_always_gets_the_nearest() {
+    for (request, asked_text, near) in [
+        (
+            "Tell me when the tests pass in cedar-api.",
+            "tests pass",
+            "finishes",
+        ),
+        (
+            "Remind me at 5pm to look at aspen-board.",
+            "at 5pm",
+            "finishes",
+        ),
+    ] {
+        let fake = Fake::new(&["FAIL"]);
+        match run_with(request, &fake) {
+            Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) => {
+                assert_eq!(asked, asked_text, "{request}");
+                assert_eq!(
+                    draft.map(|d| d.conditions[0].code.clone()).as_deref(),
+                    Some(near),
+                    "{request}"
+                );
+            }
+            other => unreachable!("{request}: {other:?}"),
+        }
+        assert_eq!(fake.calls(), 0);
+    }
+    // Quiet hours and a usage limit are no false alarm.
+    let out = run_with(
+        "Wake me even at 3am if cedar-api fails.",
+        &Fake::new(&["FAIL"]),
+    );
+    assert!(filled(&out).is_some(), "{out:?}");
+    let out = run_with(
+        "Tell me when the work plan hits its limit, the costs matter.",
+        &Fake::new(&["FAIL"]),
+    );
+    assert!(filled(&out).is_some(), "{out:?}");
+}
+
+#[test]
+fn twins_nothing_settles_open_the_picker_and_not_a_watch_passes() {
+    match run_with("Let me know when api finishes.", &Fake::new(&["FAIL"])) {
         Outcome::Drafted(WatchDrafted::Pick { draft }) => {
             assert!(draft.targets.is_empty());
-            assert_eq!(draft.conditions[0].code, "finishes");
+            assert_eq!(codes(&draft), ["finishes"]);
         }
         other => unreachable!("{other:?}"),
     }
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s4"}"#,
-        r#"{"intent":"create","target":"s3"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
-    let out = run("Let me know when the api in altair finishes.", &fake);
-    assert_eq!(
-        filled(&out).targets,
-        vec![WatchTarget::Session("S-api-a".to_owned())]
-    );
-}
-
-#[test]
-fn not_a_watch_fails_and_engine_errors() {
-    let fake = Fake::new(&[r#"{"intent":"not_a_watch","target":"none"}"#]);
     assert!(matches!(
-        run("Tell me when vega-sync last finished?", &fake),
+        run_with("When did cedar-api last finish?", &Fake::new(&["FAIL"])),
         Outcome::NotAWatch
     ));
-    assert_eq!(fake.calls(), 1);
-    let fake = Fake::new(&[r#"{"intent":"create","target":"zz"}"#]);
-    assert!(matches!(
-        run("Let me know when vega-sync finishes.", &fake),
-        Outcome::Drafted(WatchDrafted::Form)
-    ));
-    assert_eq!(
-        fake.calls(),
-        3,
-        "three tries of call 1, then the empty form"
-    );
-    let fake = Fake::new(&["FAIL"]);
-    assert!(matches!(
-        run("Let me know when vega-sync finishes.", &fake),
-        Outcome::Drafted(WatchDrafted::Form)
-    ));
-}
-
-#[test]
-fn the_forms_own_check_and_parameters_are_held() {
     let c = candidates();
     let ask = Ask {
-        request: "Warn me when studio max drops below 15 percent.",
+        request: "Let me know when cedar-api finishes.",
         candidates: &c,
         midnight_ms: 0,
         now_ms: 1,
     };
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"acct1"}"#,
-        r#"{"condition":"runway_below","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-        r#"{"condition":"runway_below","param":"15","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
     let stop = Stop::at(Instant::now() + Duration::from_secs(5));
-    let (out, calls) = draft(&fake, &ask, &stop, &|_| None);
-    assert_eq!(filled(&out).conditions[0].param, Some(Param::Percent(15)));
-    assert_eq!(calls, 3, "a missing percent asked again");
-    assert!(fake.seen.borrow()[1].prompt.contains("NUMBERS: none, 15"));
-    let fake = Fake::new(&[
-        r#"{"intent":"create","target":"s1"}"#,
-        r#"{"condition":"finishes","param":"none","condition2":"none","param2":"none","lifetime":"unsaid","until":"none","unsupported":"none"}"#,
-    ]);
-    let ask = Ask {
-        request: "Let me know when vega-sync finishes.",
-        candidates: &c,
-        midnight_ms: 0,
-        now_ms: 1,
-    };
-    let (out, _) = draft(&fake, &ask, &stop, &|_| Some("limit".to_owned()));
+    let (out, _) = draft(&Fake::new(&["FAIL"]), &ask, &stop, &|_| {
+        Some("limit".to_owned())
+    });
     assert!(
         matches!(out, Outcome::Drafted(WatchDrafted::Form)),
         "the form's own refusal is never drafted past"
@@ -251,24 +314,50 @@ fn the_forms_own_check_and_parameters_are_held() {
 }
 
 #[test]
+fn the_resolver_reads_exclusions_owners_aliases_and_kinds() {
+    let c = candidates();
+    let r = resolve::resolve("tell me when cedar-api asks, but not aspen-board", &c);
+    assert_eq!(r.candidates, vec![0]);
+    assert!(r.excluded.contains(&1));
+    assert_eq!(
+        resolve::resolve("anything in birch-docs that fails", &c).candidates,
+        vec![8],
+        "the project, not its sessions"
+    );
+    assert_eq!(
+        resolve::resolve("when the work plan runs low", &c).candidates,
+        vec![9],
+        "an alias"
+    );
+    assert_eq!(resolve::resolve("when api finishes", &c).picker, vec![4, 5]);
+    assert!(resolve::resolve("when any session fails", &c).any);
+}
+
+#[test]
 fn the_words_code_reads() {
-    assert!(is_watch_request("Let me know when vega-sync finishes."));
     assert!(is_watch_request(
         "Gib mir Bescheid, sobald deneb dich etwas fragt."
     ));
-    assert!(!is_watch_request("When did vega-sync finish?"));
     assert!(!is_watch_request("What needs me?"));
     assert_eq!(
-        request_numbers("stuck for 20 minutes or an hour, below fifteen %"),
-        vec![15, 20, 60]
+        cue_conditions("tell me when it finishes or errors"),
+        ["finishes", "fails"]
     );
+    assert_eq!(
+        cue_conditions("warn me when we hit the rate limit"),
+        ["hits_limit"]
+    );
+    assert_eq!(
+        cue_conditions("tell me when the account drops below 10 percent"),
+        ["runway_below"]
+    );
+    assert_eq!(cue_conditions("tell me once it ends up done"), ["finishes"]);
     assert_eq!(
         request_times("until 6pm or 18:30, bis 9 Uhr"),
         vec!["18:00", "18:30", "09:00"]
     );
     assert_eq!(
-        asked_words("ping me when the pull request is merged", "merge").as_deref(),
-        Some("merged")
+        param_for("drops below 20 percent", "runway_below").as_deref(),
+        Some("20")
     );
-    assert_eq!(asked_words("tell me when it finishes", "deploy"), None);
 }

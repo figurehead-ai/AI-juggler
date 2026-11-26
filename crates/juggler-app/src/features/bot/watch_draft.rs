@@ -49,6 +49,7 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
             offered: offered(state, &target),
             target,
             name: row.title.clone(),
+            aliases: Vec::new(),
             app: row.app_label.clone(),
             project: row.project.clone(),
         });
@@ -71,6 +72,7 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
             name,
             app: None,
             project: None,
+            aliases: Vec::new(),
         });
     }
     for (id, name) in projects {
@@ -81,6 +83,7 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
             name,
             app: None,
             project: None,
+            aliases: Vec::new(),
         });
     }
     for row in world
@@ -95,6 +98,7 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
             name: row.title.clone(),
             app: None,
             project: None,
+            aliases: Vec::new(),
         });
     }
     out

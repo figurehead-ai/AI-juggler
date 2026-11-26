@@ -266,8 +266,30 @@ pub fn bot_topic_usage_impl(state: &Arc<AppState>) -> AppResult<BotTopicUsageInf
     Ok(usage)
 }
 
-/// "Remember …": the turn kept, then the memory written from it (so a
-/// forget clears the message it came from), then its echo noted.
+/// A turn with no rows kept as it is (a watch draft, a memory echo).
+fn keep_turn(
+    state: &Arc<AppState>,
+    world: &World,
+    question: &str,
+    outcome: BotOutcome,
+    shown: Option<&str>,
+    meta: &Meta,
+) -> AppResult<juggler_core::storage::memory::Turn> {
+    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    storage
+        .chat()
+        .append(&NewTurn {
+            at_ms: world.now_ms,
+            question,
+            outcome: outcome.code(),
+            shown,
+            cites: "[]",
+            entities: &serde_json::to_string(meta).unwrap_or_else(|_| "{}".to_owned()),
+            has_agent_words: false,
+        })
+        .map_err(memory_error)
+}
+
 /// AJ-E3830: the turn that opens the Watches form filled in (nothing is
 /// added: the user's click in the form adds the watch).
 fn watch_turn(
@@ -281,27 +303,22 @@ fn watch_turn(
         lang: read(question).lang,
         ..Meta::default()
     };
-    let kept = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        storage
-            .chat()
-            .append(&NewTurn {
-                at_ms: world.now_ms,
-                question,
-                outcome: BotOutcome::WatchDraft.code(),
-                shown: Some(&shown),
-                cites: "[]",
-                entities: &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
-                has_agent_words: false,
-            })
-            .map_err(memory_error)?
-    };
+    let kept = keep_turn(
+        state,
+        world,
+        question,
+        BotOutcome::WatchDraft,
+        Some(&shown),
+        &meta,
+    )?;
     let mut info = turn_info(&kept, None, &|_| None);
     info.live = true;
     super::watch_draft::attach(&mut info, drafted);
     Ok(info)
 }
 
+/// "Remember …": the turn kept, then the memory written from it (so a
+/// forget clears the message it came from), then its echo noted.
 fn remember_turn(
     state: &Arc<AppState>,
     world: &World,
@@ -316,21 +333,7 @@ fn remember_turn(
     } else {
         BotOutcome::Remembered
     };
-    let kept = {
-        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        storage
-            .chat()
-            .append(&NewTurn {
-                at_ms: world.now_ms,
-                question,
-                outcome: outcome.code(),
-                shown: None,
-                cites: "[]",
-                entities: &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
-                has_agent_words: false,
-            })
-            .map_err(memory_error)?
-    };
+    let kept = keep_turn(state, world, question, outcome, None, &meta)?;
     let mut kept_memory = None;
     if !secret {
         kept_memory = super::memory::remember(state, world, words, &kept.id)?;

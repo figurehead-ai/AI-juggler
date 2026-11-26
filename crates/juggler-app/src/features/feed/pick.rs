@@ -7,7 +7,7 @@
 //! then `None`, and A's excerpt stays (the plain line).
 //!
 //! The instructions are harness v6's, as measured
-//! (`docs/qa/evidence/AJ-E3709/harness/v6/prompts/feed_pick.md`; a test
+//! (`docs/qa/evidence/AJ-E3709/harness/v7/prompts/feed_pick2.md`; a test
 //! keeps them equal). The digest's map step uses it per agent
 //! ([`crate::features::digest::lines`]); it runs only when the router
 //! serves its job (its verdict), so until a round passes nothing changes.
@@ -479,6 +479,164 @@ fn verb_lead(clause: &str, german: bool) -> Option<(String, String)> {
     (EN_VERBS.contains(&v.as_str()) && toks.len() > i + 1).then(|| (v, toks[i + 1..].join(" ")))
 }
 
+/// D-149's amendment (harness v7's `pick2.rank`): what the turn came to
+/// (an outcome or a decision) first, the change itself next, side details
+/// and the problem it started from last; the model picks from these three.
+pub const TOP: usize = 3;
+const OUTCOME_WORDS: &[&str] = &[
+    "now",
+    "works",
+    "working",
+    "passes",
+    "passing",
+    "green",
+    "instead",
+    "again",
+    "faster",
+    "jetzt",
+    "funktioniert",
+    "läuft",
+    "wieder",
+    "schneller",
+];
+const DECISION_WORDS: &[&str] = &[
+    "decided",
+    "chose",
+    "chosen",
+    "opted",
+    "entschieden",
+    "gewählt",
+    "beibehalten",
+];
+const SUBSTANCE: &[&str] = &[
+    "added",
+    "fixed",
+    "replaced",
+    "implemented",
+    "moved",
+    "switched",
+    "rewrote",
+    "built",
+    "created",
+    "introduced",
+    "migrated",
+    "ported",
+    "reworked",
+    "restructured",
+    "split",
+    "extracted",
+    "converted",
+    "wired",
+    "enabled",
+    "cached",
+    "guarded",
+    "handled",
+    "renamed",
+    "refactored",
+    "batched",
+    "validated",
+    "unified",
+    "corrected",
+    "patched",
+    "umgebaut",
+    "hinzugefügt",
+    "behoben",
+    "ersetzt",
+    "umgestellt",
+    "eingebaut",
+    "verschoben",
+    "implementiert",
+    "repariert",
+];
+const SIDE: &[&str] = &[
+    "deleted",
+    "removed",
+    "cleaned",
+    "tidied",
+    "bumped",
+    "formatted",
+    "reformatted",
+    "lint",
+    "typo",
+    "typos",
+    "comment",
+    "comments",
+    "whitespace",
+    "lockfile",
+    "cargo.lock",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "gelöscht",
+    "entfernt",
+    "aufgeräumt",
+    "formatiert",
+];
+const PROBLEM: &[&str] = &["was", "were", "kept", "used", "before"];
+const PROBLEM_WHAT: &[&str] = &[
+    "failing", "crashing", "dropping", "choking", "hanging", "slow", "broken", "wrong", "timing",
+];
+
+fn rank_score(c: &Choice) -> i32 {
+    let w = lower_words(&c.words);
+    let verb = c.verb.as_deref().unwrap_or("");
+    let has = |set: &[&str]| w.iter().any(|x| set.contains(&x.as_str())) || set.contains(&verb);
+    let mut s = 0;
+    if has(OUTCOME_WORDS) || (w.windows(2).any(|p| p[0] == "so" && p[1] == "that")) {
+        s += 3;
+    }
+    if has(DECISION_WORDS) || verb == "went" {
+        s += 3;
+    }
+    match c.verb.as_deref() {
+        Some(v) if SUBSTANCE.contains(&v) => s += 2,
+        Some(_) => s += 1,
+        None => {}
+    }
+    if has(SIDE) {
+        s -= 3;
+    }
+    if !has(OUTCOME_WORDS)
+        && w.iter().any(|x| PROBLEM.contains(&x.as_str()))
+        && w.iter().any(|x| PROBLEM_WHAT.contains(&x.as_str()))
+    {
+        s -= 2;
+    }
+    s
+}
+
+/// The choices the model sees: code's top three, best first.
+#[must_use]
+pub fn top(turn: &Turn<'_>) -> Vec<Choice> {
+    let mut ranked: Vec<(i32, usize, Choice)> = choices(turn)
+        .into_iter()
+        .enumerate()
+        .map(|(i, c)| (-rank_score(&c), i, c))
+        .collect();
+    ranked.sort_by_key(|(s, i, _)| (*s, *i));
+    ranked.into_iter().take(TOP).map(|(_, _, c)| c).collect()
+}
+
+/// G7 (the digest's map step): the words undo or abandon the change.
+#[must_use]
+pub fn undone(text: &str) -> bool {
+    let low = text.to_lowercase();
+    holds_phrase(&low, UNDO)
+        || holds_phrase(
+            &low,
+            &[
+                "abandon",
+                "gave up",
+                "giving up",
+                "parked",
+                "shelved",
+                "backed out",
+                "no code changes remain",
+                "nothing was kept",
+                "aufgegeben",
+            ],
+        )
+}
+
 /// The turn's choices, in the message's order.
 #[must_use]
 pub fn choices(turn: &Turn<'_>) -> Vec<Choice> {
@@ -635,7 +793,7 @@ fn parse(text: &str, n: usize, verbs: &[String]) -> Result<(usize, String), Stri
 /// The model's line for `turn`, or `None` (no choice, a failing engine,
 /// or every pick refused: A's excerpt stays).
 pub fn line(model: &dyn JobModel, turn: &Turn<'_>, stop: &Stop) -> Option<String> {
-    let chs = choices(turn);
+    let chs = top(turn);
     if chs.is_empty() {
         return None;
     }
@@ -681,7 +839,7 @@ mod tests {
         // Read from the harness at test time (the docs don't ship in the app).
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../docs/qa/evidence/AJ-E3709/harness/v6/prompts/feed_pick.md"
+            "/../../docs/qa/evidence/AJ-E3709/harness/v7/prompts/feed_pick2.md"
         );
         let measured = std::fs::read_to_string(path).unwrap_or_default();
         assert!(measured.contains(INSTRUCTIONS));
@@ -724,7 +882,7 @@ mod tests {
         };
         let fake = Scripted::new(&[
             r#"{"fact":"9","verb":"none"}"#,
-            r#"{"fact":"3","verb":"none"}"#,
+            r#"{"fact":"1","verb":"none"}"#,
         ]);
         assert_eq!(
             line(&fake, &turn, &stop()).as_deref(),

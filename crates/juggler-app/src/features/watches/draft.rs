@@ -1,23 +1,24 @@
-//! AJ-E3830 (D-149): Bot fills the Watches form. A request ("tell me when
-//! the build finishes") becomes a draft in two small calls, every field a
-//! constrained choice, and the form opens filled in; **only the user's
-//! click adds the watch** (nothing here writes the store).
+//! AJ-E3830 (D-149 and its amendment of 2026-11-26): Bot fills the
+//! Watches form. **Code decides, the model picks** (harness v7's
+//! `watch3`, as measured: its prompts are these, a test keeps them equal):
 //!
-//! - **Call 1** `{intent, target}`: exactly one target, an enum of this
-//!   request's refs (its sessions, projects, Apps, accounts, pools, any)
-//!   or none. Code checks the request names it, and a shared name the
-//!   request doesn't settle asks with the form's picker.
-//! - **Call 2** `{condition, param, condition2, param2, lifetime, until,
-//!   unsupported}`: enums built for that target (its kind's conditions on
-//!   offer, the numbers and clock times the request says, the lifetimes,
-//!   and a short enum for what can't be watched). What can't be watched is
-//!   said in the request's own words, found by code, never the model's.
-//! - A failed check retries the call it is about, **sampled** (a seed per
-//!   request and attempt), at most twice; then the plain, empty form.
+//! - **The target:** [`super::resolve`] lists the candidates from the
+//!   user's own names and aliases (exclusions first, owners, "any", kind
+//!   words, shared names). One candidate is code's; several, the model
+//!   picks one id or none (call 1); twins nothing settles open the form's
+//!   picker.
+//! - **The conditions:** code's from the request's cue words, from the
+//!   app's offer for the target ([`Candidate::offered`], the catalogue);
+//!   idle and stuck stay apart. Only with no cue word does the model pick
+//!   (call 2), from the offer with one-line definitions.
+//! - **Numbers and lifetime:** code's, from the request's words; an
+//!   unsaid lifetime stays unsaid (ADR-0036's default).
+//! - **What can't be watched:** said in the request's own words, always
+//!   with the nearest the target offers.
+//! - A failed pick retries, sampled, at most twice; then code's best (the
+//!   target) or the empty form. **Only the user's click adds the watch.**
 //!
-//! The system prompts are harness v6's, as measured
-//! (`docs/qa/evidence/AJ-E3709/harness/v6/prompts/watch2.md`; a test keeps
-//! them equal). The job runs only when the router serves it (its verdict,
+//! The job runs only when the router serves it (its verdict,
 //! `jobs::WATCHES`), so until a round passes Bot answers as before.
 
 use serde::{Deserialize, Serialize};
@@ -25,26 +26,19 @@ use serde_json::{Value, json};
 
 use super::commands::WatchDraftInfo;
 use super::model::{Condition, LifetimeChoice, Matching, Param, TargetKind, WatchTarget};
+use super::resolve;
 use crate::features::ai::engine::{Decoding, Draft, Finish, Request, Stop};
 use crate::features::ai::run::JobModel;
 use crate::features::observe::TaskState;
 
-/// Call 1's instructions, harness v6's text.
+/// Call 1's instructions, harness v7's text.
 pub const TARGET_INSTRUCTIONS: &str = include_str!("draft_prompts/target.txt");
-/// Call 2's instructions, harness v6's text.
+/// Call 2's instructions, harness v7's text.
 pub const WHEN_INSTRUCTIONS: &str = include_str!("draft_prompts/when.txt");
-/// Regenerations of each call after a failed check (D-130).
+/// Regenerations of each pick after a failed check (D-130).
 pub const RETRIES: u32 = 2;
-const TASK1: &str = "Pick the one TARGET the REQUEST is about.";
+const TASK1: &str = "Pick the one CANDIDATE the REQUEST is about, or none.";
 const TASK2: &str = "Pick what to watch the TARGET for, from the CONDITIONS above.";
-const LIFETIMES: [&str; 6] = [
-    "once",
-    "until_ends",
-    "today",
-    "until_time",
-    "always",
-    "unsaid",
-];
 
 /// What can't be watched, as the model names it (a short enum, D-149).
 const UNSUPPORTED: [&str; 12] = [
@@ -69,6 +63,8 @@ pub struct Candidate {
     pub target: WatchTarget,
     /// Its name (agent-written for a session: untrusted).
     pub name: String,
+    /// Other names the user calls it by (the resolver reads them too).
+    pub aliases: Vec<String>,
     /// A session's App's name.
     pub app: Option<String>,
     /// A session's project's name.
@@ -81,7 +77,7 @@ pub struct Candidate {
 pub struct Ask<'a> {
     /// The user's words.
     pub request: &'a str,
-    /// The targets, sessions first; "any" is added by the job.
+    /// The targets, sessions first.
     pub candidates: &'a [Candidate],
     /// Local midnight today, epoch ms (an "until 18:00" is today's).
     pub midnight_ms: i64,
@@ -106,7 +102,7 @@ pub enum WatchDrafted {
         draft: WatchDraftInfo,
     },
     /// Something no condition covers: said in the request's own words,
-    /// with the nearest the form can watch when there is one.
+    /// with the nearest the form can watch.
     CantWatch {
         /// The request's words for it.
         asked: String,
@@ -118,7 +114,7 @@ pub enum WatchDrafted {
     Form,
 }
 
-/// The two calls' choices, and what came of them.
+/// The job's outcome.
 #[derive(Debug)]
 pub enum Outcome {
     /// Not about being told: Bot answers as it would.
@@ -207,7 +203,9 @@ pub fn is_watch_request(text: &str) -> bool {
             }
         })
     };
-    has(&ASK_TO_TELL) && has(&WHEN)
+    // A reminder is asked for in its own words ("remind me at 5"): answered
+    // with what can't be watched and the nearest (harness v7, as measured).
+    has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]))
 }
 
 fn number_words() -> [(&'static str, u32); 28] {
@@ -379,7 +377,13 @@ pub fn asked_words(text: &str, kind: &str) -> Option<String> {
                             .is_some_and(|s| ["am", "pm", "uhr"].contains(&s.as_str()))
                 })
             })
-            .and_then(|i| span(i, 3)),
+            .and_then(|i| {
+                // "at 5pm" is two words, "at 5 pm" three (harness v5's cue match).
+                let split = w
+                    .get(i + 2)
+                    .is_some_and(|s| ["am", "pm", "uhr"].contains(&s.as_str()));
+                span(i, if split { 3 } else { 2 })
+            }),
         "reminder" => starts(&w, &["remind", "erinner"]).and_then(|i| span(i, 2)),
         "action" => w
             .iter()
@@ -400,68 +404,6 @@ pub fn asked_words(text: &str, kind: &str) -> Option<String> {
     }
 }
 
-const ANY: [&str; 8] = [
-    "any",
-    "every",
-    "all",
-    "anything",
-    "alle",
-    "jede",
-    "jeder",
-    "irgendeine",
-];
-
-/// How strongly the request names a candidate: its whole name (100 and
-/// up), its project or App (10), the count of its name's 4+ letter words.
-fn name_score(said: &[String], c: &Candidate) -> u32 {
-    let name = words(&c.name);
-    if holds(said, &name) || holds(said, &spaced(&c.name)) {
-        return 100 + u32::try_from(name.len()).unwrap_or(0);
-    }
-    let parts: Vec<String> = spaced(&c.name)
-        .into_iter()
-        .filter(|w| w.chars().count() >= 4)
-        .collect();
-    let n = parts.iter().filter(|p| said.contains(p)).count();
-    u32::try_from(n).unwrap_or(0)
-}
-
-fn spaced(name: &str) -> Vec<String> {
-    words(&name.replace(['-', '_', '.', '/'], " "))
-}
-
-fn owner_said(said: &[String], c: &Candidate) -> bool {
-    [c.project.as_deref(), c.app.as_deref()]
-        .into_iter()
-        .flatten()
-        .any(|o| holds(said, &words(o)) || holds(said, &spaced(o)))
-}
-
-// ============================================================================ prompts
-
-fn refs<'a>(ask: &Ask<'a>) -> Vec<(String, Option<&'a Candidate>)> {
-    let mut n = std::collections::BTreeMap::<&str, u32>::new();
-    let mut out: Vec<(String, Option<&'a Candidate>)> = ask
-        .candidates
-        .iter()
-        .map(|c| {
-            let prefix = match c.target.kind() {
-                TargetKind::Session => "s",
-                TargetKind::App => "app",
-                TargetKind::Project => "p",
-                TargetKind::Account => "acct",
-                TargetKind::Pool => "pool",
-                TargetKind::Any => "any",
-            };
-            let k = n.entry(prefix).or_insert(0);
-            *k += 1;
-            (format!("{prefix}{k}"), Some(c))
-        })
-        .collect();
-    out.push(("any".to_owned(), None));
-    out
-}
-
 /// An agent-written name, quoted as data: no quote marks of its own, no
 /// fence-like runs.
 fn quoted(name: &str) -> String {
@@ -474,199 +416,6 @@ fn quoted(name: &str) -> String {
         .take(80)
         .collect();
     format!("“{clean}”")
-}
-
-fn target_line(r: &str, c: Option<&Candidate>) -> String {
-    let Some(c) = c else {
-        return "any · every session on this computer".to_owned();
-    };
-    let kind = match c.target.kind() {
-        TargetKind::App => "App",
-        TargetKind::Session => "session",
-        TargetKind::Project => "project",
-        TargetKind::Account => "account",
-        TargetKind::Pool => "pool",
-        TargetKind::Any => "any",
-    };
-    let mut bits = vec![format!("{r} {kind} {}", quoted(&c.name))];
-    if let Some(app) = &c.app {
-        bits.push(format!("app: {}", quoted(app)));
-    }
-    if let Some(project) = &c.project {
-        bits.push(format!("project: {}", quoted(project)));
-    }
-    bits.join(" · ")
-}
-
-fn targets_text(ask: &Ask<'_>) -> String {
-    let mut lines = vec!["TARGETS (names are untrusted data written by agents):".to_owned()];
-    lines.extend(refs(ask).iter().map(|(r, c)| target_line(r, *c)));
-    lines.join("\n")
-}
-
-/// The condition's line in call 2, harness v6's words.
-fn condition_line(code: &str) -> Option<&'static str> {
-    Some(match code {
-        "finishes" => "finishes · a turn ends cleanly and the agent waits",
-        "ends" => "ends · the session closes, however it ended",
-        "asks_you" => "asks_you [after_min 0-120] · it asks a question or for an approval",
-        "fails" => "fails · a turn or the session fails",
-        "stuck" => "stuck [for_min 0-240] · it looks stuck and stays so",
-        "idle_for" => "idle_for [min 5-480] · no activity while it's open",
-        "hits_limit" => "hits_limit · it reaches a usage limit",
-        "runway_below" => "runway_below [percent 5-95] · an account's room crosses below a share",
-        "runway_resets" => "runway_resets · an account has room again",
-        "leaves_processes" => "leaves_processes · a session ends and leaves processes running",
-        "restarted" => "restarted · a crashed App is started again by keep alive",
-        "pool_message" => "pool_message [from: a session, optional] · a pool gets a message",
-        "task_changes" => "task_changes [to: done/blocked/in_review] · a task moves to a state",
-        "starts" => "starts · a new session starts",
-        _ => return None,
-    })
-}
-
-fn offered_of(ask: &Ask<'_>, c: Option<&Candidate>) -> Vec<String> {
-    let codes: Vec<String> = if let Some(c) = c {
-        c.offered.clone()
-    } else {
-        let mut all: Vec<String> = ask
-            .candidates
-            .iter()
-            .flat_map(|c| c.offered.clone())
-            .collect();
-        all.sort();
-        all.dedup();
-        all
-    };
-    codes
-        .into_iter()
-        .filter(|code| condition_line(code).is_some())
-        .collect()
-}
-
-fn enum_of(name: &str, values: &[String]) -> Value {
-    json!({ "type": "enum", "name": name, "values": values })
-}
-
-fn object(name: &str, fields: Vec<(&str, Value)>) -> Value {
-    let properties: Vec<Value> = fields
-        .into_iter()
-        .map(|(n, schema)| json!({ "name": n, "schema": schema }))
-        .collect();
-    json!({ "type": "object", "name": name, "properties": properties })
-}
-
-fn params_of(ask: &Ask<'_>, conds: &[String]) -> Vec<String> {
-    let mut out = vec!["none".to_owned()];
-    out.extend(request_numbers(ask.request).iter().map(u32::to_string));
-    if conds.iter().any(|c| c == "task_changes") {
-        let said = words(ask.request);
-        for state in ["done", "blocked", "in_review"] {
-            if holds(&said, &words(&state.replace('_', " "))) {
-                out.push(state.to_owned());
-            }
-        }
-    }
-    out
-}
-
-fn call1(ask: &Ask<'_>, note: &str, attempt: u32) -> Request {
-    let mut values: Vec<String> = refs(ask).into_iter().map(|(r, _)| r).collect();
-    values.push("none".to_owned());
-    let prompt = format!(
-        "{}\n\nREQUEST (from the developer): {}\n\n{TASK1}{note}",
-        targets_text(ask),
-        ask.request
-    );
-    Request {
-        instructions: TARGET_INSTRUCTIONS.to_owned(),
-        shape: Some(object(
-            "WatchTarget",
-            vec![
-                (
-                    "intent",
-                    enum_of(
-                        "WatchTarget_intent",
-                        &["create", "list", "not_a_watch"].map(str::to_owned),
-                    ),
-                ),
-                ("target", enum_of("WatchTarget_target", &values)),
-            ],
-        )),
-        decoding: Decoding::for_attempt(&format!("watch-target:{}", ask.request), attempt),
-        prompt,
-        max_tokens: 80,
-    }
-}
-
-fn call2(
-    ask: &Ask<'_>,
-    chosen: Option<(&str, Option<&Candidate>)>,
-    note: &str,
-    attempt: u32,
-) -> Request {
-    let c = chosen.and_then(|(_, c)| c);
-    let mut conds = offered_of(ask, c);
-    if conds.is_empty() {
-        conds.push("finishes".to_owned());
-    }
-    let params = params_of(ask, &conds);
-    let mut times = vec!["none".to_owned()];
-    times.extend(request_times(ask.request));
-    let head = match chosen {
-        None => {
-            "TARGET: none named (the request names no session, project, App or account)".to_owned()
-        }
-        Some((r, c)) => format!("TARGET: {}", target_line(r, c)),
-    };
-    let mut lines = vec!["CONDITIONS (param):".to_owned()];
-    lines.extend(
-        conds
-            .iter()
-            .filter_map(|c| condition_line(c))
-            .map(str::to_owned),
-    );
-    let prompt = format!(
-        "{head}\n\n{}\nNUMBERS: {}\nTIMES: {}\n\nREQUEST (from the developer): {}\n\n{TASK2}{note}",
-        lines.join("\n"),
-        params.join(", "),
-        times.join(", "),
-        ask.request
-    );
-    let with_none = |mut v: Vec<String>| {
-        v.push("none".to_owned());
-        v
-    };
-    Request {
-        instructions: WHEN_INSTRUCTIONS.to_owned(),
-        shape: Some(object(
-            "WatchWhen",
-            vec![
-                (
-                    "condition",
-                    enum_of("WatchWhen_condition", &with_none(conds.clone())),
-                ),
-                ("param", enum_of("WatchWhen_param", &params)),
-                (
-                    "condition2",
-                    enum_of("WatchWhen_condition2", &with_none(conds)),
-                ),
-                ("param2", enum_of("WatchWhen_param2", &params)),
-                (
-                    "lifetime",
-                    enum_of("WatchWhen_lifetime", &LIFETIMES.map(str::to_owned)),
-                ),
-                ("until", enum_of("WatchWhen_until", &times)),
-                (
-                    "unsupported",
-                    enum_of("WatchWhen_unsupported", &UNSUPPORTED.map(str::to_owned)),
-                ),
-            ],
-        )),
-        decoding: Decoding::for_attempt(&format!("watch-when:{}", ask.request), attempt),
-        prompt,
-        max_tokens: 80,
-    }
 }
 
 /// The retry note: our checks' reasons and the previous answer (harness
@@ -711,94 +460,6 @@ fn text(got: &serde_json::Map<String, Value>, k: &str) -> String {
         .to_owned()
 }
 
-// ============================================================================ checks
-
-/// Call 1's checks: `Err(reason)` retries it; `Ok(None)` a shared name the
-/// request doesn't settle (the picker).
-fn check_target(
-    ask: &Ask<'_>,
-    said: &[String],
-    r: &str,
-    c: Option<&Candidate>,
-) -> Result<Option<()>, String> {
-    let named_full = ask.candidates.iter().find(|x| name_score(said, x) >= 100);
-    if r == "none" {
-        return named_full.map_or(Ok(Some(())), |x| {
-            Err(format!(
-                "target: none, while the request names {}",
-                quoted(&x.name)
-            ))
-        });
-    }
-    let Some(c) = c else {
-        // any
-        if !said.iter().any(|w| ANY.contains(&w.as_str())) && named_full.is_some() {
-            return Err("target: any, while the request names a target".to_owned());
-        }
-        return Ok(Some(()));
-    };
-    let mine = name_score(said, c);
-    let only_of_owner = c.target.kind() == TargetKind::Session
-        && owner_said(said, c)
-        && ask
-            .candidates
-            .iter()
-            .filter(|x| {
-                x.target.kind() == TargetKind::Session && x.project == c.project && x.app == c.app
-            })
-            .count()
-            == 1;
-    if mine == 0 && !only_of_owner {
-        return Err(format!(
-            "target: {r} {} is not named in the request",
-            quoted(&c.name)
-        ));
-    }
-    let same: Vec<&Candidate> = ask
-        .candidates
-        .iter()
-        .filter(|x| x.target.kind() == c.target.kind() && words(&x.name) == words(&c.name))
-        .collect();
-    if same.len() > 1 {
-        let settled: Vec<&&Candidate> = same.iter().filter(|x| owner_said(said, x)).collect();
-        return match settled.as_slice() {
-            [one] if one.target == c.target => Ok(Some(())),
-            [one] => Err(format!(
-                "target: {} resolves to another from the request's other words ({})",
-                quoted(&c.name),
-                one.project.clone().unwrap_or_default()
-            )),
-            _ => Ok(None),
-        };
-    }
-    let better = ask
-        .candidates
-        .iter()
-        .filter(|x| {
-            x.target.kind() == c.target.kind() && x.target != c.target && name_score(said, x) > mine
-        })
-        .count();
-    if better == 1 {
-        return Err(format!(
-            "target: the request names another {} better than {}",
-            kind_word(c.target.kind()),
-            quoted(&c.name)
-        ));
-    }
-    Ok(Some(()))
-}
-
-const fn kind_word(kind: TargetKind) -> &'static str {
-    match kind {
-        TargetKind::Session => "session",
-        TargetKind::App => "App",
-        TargetKind::Project => "project",
-        TargetKind::Pool => "pool",
-        TargetKind::Account => "account",
-        TargetKind::Any => "target",
-    }
-}
-
 fn param_of(code: &str, raw: &str) -> Result<Option<Param>, String> {
     let n = raw.parse::<u32>().ok();
     let needs = |name: &str| Err(format!("param: {code} needs its {name} from NUMBERS"));
@@ -832,55 +493,15 @@ fn param_of(code: &str, raw: &str) -> Result<Option<Param>, String> {
     }
 }
 
-fn lifetime_of(ask: &Ask<'_>, life: &str, until: &str) -> Result<LifetimeChoice, String> {
-    Ok(match life {
-        "once" => LifetimeChoice::Once,
-        "until_ends" => LifetimeChoice::UntilEnds,
-        "today" => LifetimeChoice::Today,
-        "always" => LifetimeChoice::Always,
-        "until_time" => {
-            let Some((h, m)) = until
-                .split_once(':')
-                .and_then(|(h, m)| Some((h.parse::<i64>().ok()?, m.parse::<i64>().ok()?)))
-            else {
-                return Err("lifetime: until_time needs a time from TIMES".to_owned());
-            };
-            let mut at = ask.midnight_ms + (h * 60 + m) * 60_000;
-            if at <= ask.now_ms {
-                at += 86_400_000;
-            }
-            LifetimeChoice::Until { at_ms: at }
-        }
-        _ => LifetimeChoice::Unsaid,
-    })
-}
-
-/// The nearest the form can watch for an unsupported kind (a cue's own
-/// mapping, harness v5's), when the target reports it.
-fn nearest(kind: &str, asked: &str, conds: &[Condition], offered: &[String]) -> Vec<Condition> {
-    let wanted: Vec<&str> = match kind {
-        "tests" if asked.contains("fail") || asked.contains("fehl") => vec!["fails"],
-        "tests" | "merge" | "deploy" | "agent_says" | "push" => vec!["finishes"],
-        "action" | "other_mac" => return conds.to_vec(),
-        _ => Vec::new(),
-    };
-    wanted
-        .into_iter()
-        .filter(|c| offered.iter().any(|o| o == c))
-        .map(|c| Condition {
-            code: c.to_owned(),
-            param: None,
-        })
-        .collect()
-}
-
 /// The request, lowercased, with every candidate's name blanked.
 fn masked(ask: &Ask<'_>) -> String {
     let mut out = ask.request.to_lowercase();
     let mut names: Vec<String> = ask
         .candidates
         .iter()
-        .map(|c| c.name.to_lowercase())
+        .flat_map(|c| {
+            std::iter::once(c.name.to_lowercase()).chain(c.aliases.iter().map(|a| a.to_lowercase()))
+        })
         .filter(|n| n.chars().count() >= 2)
         .collect();
     names.sort_by_key(|n| std::cmp::Reverse(n.len()));
@@ -905,197 +526,607 @@ fn draft_info(
     }
 }
 
+// ============================================================================ code's readings
+
+/// The conditions the request's cue words name, in its order (harness
+/// v7's `CUE_CONDITIONS`), read with names and exclusions blanked.
+#[must_use]
+pub fn cue_conditions(text: &str) -> Vec<String> {
+    let w = words(text);
+    let at = |pred: &dyn Fn(usize) -> bool| (0..w.len()).find(|&i| pred(i));
+    let is = |i: usize, set: &[&str]| set.contains(&w[i].as_str());
+    let pre = |i: usize, set: &[&str]| set.iter().any(|p| w[i].starts_with(p));
+    let next = |i: usize, set: &[&str]| w.get(i + 1).is_some_and(|n| set.contains(&n.as_str()));
+    let mut hits: Vec<(usize, &str)> = Vec::new();
+    let table: [(&str, &dyn Fn(usize) -> bool); 11] = [
+        ("fails", &|i| {
+            pre(
+                i,
+                &[
+                    "fail",
+                    "error",
+                    "crash",
+                    "fehl",
+                    "absturz",
+                    "abgestürzt",
+                    "scheiter",
+                ],
+            ) || is(i, &["breaks", "broke", "broken", "kaputt"])
+        }),
+        ("finishes", &|i| {
+            pre(
+                i,
+                &["finish", "complet", "fertig", "erledigt", "abgeschlossen"],
+            ) || is(i, &["done", "ready"])
+        }),
+        ("stuck", &|i| {
+            is(
+                i,
+                &[
+                    "stuck",
+                    "hangs",
+                    "hanging",
+                    "stalls",
+                    "stalled",
+                    "frozen",
+                    "freezes",
+                    "hängt",
+                    "festhängt",
+                ],
+            ) || (is(i, &["stops", "stopped"]) && next(i, &["moving"]))
+                || (is(i, &["no"]) && next(i, &["progress"]))
+        }),
+        ("idle_for", &|i| {
+            is(i, &["idle", "inactive", "untätig", "inaktiv"])
+                || (is(i, &["no"]) && next(i, &["activity"]))
+        }),
+        ("asks_you", &|i| {
+            pre(
+                i,
+                &["ask", "question", "approv", "frag", "rückfrag", "freigabe"],
+            ) && !(i > 0 && is(i - 1, &["i", "you"]))
+        }),
+        ("hits_limit", &|i| {
+            pre(i, &["limit", "rate-limit", "throttl", "nutzungslimit"])
+        }),
+        ("runway_below", &|i| {
+            (is(i, &["below", "under", "unter"])
+                && w.get(i + 1)
+                    .is_some_and(|n| n.chars().next().is_some_and(|c| c.is_ascii_digit())))
+                || (is(i, &["runs", "running"]) && next(i, &["low"]))
+        }),
+        ("runway_resets", &|i| {
+            pre(i, &["reset", "zurückgesetzt"]) || (is(i, &["room"]) && next(i, &["again"]))
+        }),
+        ("ends", &|i| {
+            is(
+                i,
+                &[
+                    "ends", "ended", "closes", "closed", "exits", "quits", "endet", "beendet",
+                ],
+            ) && !next(i, &["up"])
+        }),
+        ("starts", &|i| {
+            (is(i, &["starts", "started", "startet"]) && !next(i, &["to", "failing", "asking"]))
+                || (is(i, &["new"]) && next(i, &["session"]))
+        }),
+        ("leaves_processes", &|i| pre(i, &["process", "prozess"])),
+    ];
+    for (code, test) in &table {
+        if let Some(i) = at(*test) {
+            hits.push((i, code));
+        }
+    }
+    hits.sort_unstable();
+    let mut out: Vec<String> = hits.into_iter().map(|(_, c)| c.to_owned()).collect();
+    if out.iter().any(|c| c == "runway_below") && !w.iter().any(|x| x.starts_with("limit")) {
+        out.retain(|c| c != "hits_limit");
+    }
+    out.dedup();
+    out
+}
+
+/// The number the request says for `code`'s parameter (a percent for
+/// runway, minutes otherwise), by code.
+#[must_use]
+pub fn param_for(text: &str, code: &str) -> Option<String> {
+    match code {
+        "stuck" | "asks_you" | "idle_for" => {}
+        "runway_below" => {
+            let w = words(text);
+            return w.iter().enumerate().find_map(|(i, x)| {
+                let n: String = x.chars().take_while(char::is_ascii_digit).collect();
+                let pct = x.ends_with('%')
+                    || w.get(i + 1)
+                        .is_some_and(|s| ["%", "percent", "prozent"].contains(&s.as_str()));
+                (!n.is_empty() && pct).then_some(n)
+            });
+        }
+        "task_changes" => {
+            let w = words(text);
+            return ["done", "blocked"]
+                .iter()
+                .find(|s| w.iter().any(|x| x == *s))
+                .map(|s| (*s).to_owned())
+                .or_else(|| {
+                    (w.windows(2).any(|p| p[0] == "in" && p[1] == "review"))
+                        .then(|| "in_review".to_owned())
+                });
+        }
+        _ => return None,
+    }
+    request_numbers(text)
+        .into_iter()
+        .find(|n| *n >= 1)
+        .map(|n| n.to_string())
+}
+
+/// The lifetime the request's words say, by code; unsaid when none.
+#[must_use]
+pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
+    let w = words(ask.request);
+    let has = |p: &str| holds(&w, &words(p));
+    for (i, x) in w.iter().enumerate() {
+        if ["until", "till", "by", "bis"].contains(&x.as_str())
+            && let Some(t) = w
+                .get(i + 1)
+                .map(|n| format!("{n} {}", w.get(i + 2).map_or("", String::as_str)))
+                .and_then(|s| request_times(&s).into_iter().next())
+            && let Some((h, m)) = t
+                .split_once(':')
+                .and_then(|(h, m)| Some((h.parse::<i64>().ok()?, m.parse::<i64>().ok()?)))
+        {
+            let mut at = ask.midnight_ms + (h * 60 + m) * 60_000;
+            if at <= ask.now_ms {
+                at += 86_400_000;
+            }
+            return LifetimeChoice::Until { at_ms: at };
+        }
+    }
+    let ends = [
+        "until it ends",
+        "until they end",
+        "until it is done",
+        "until they are done",
+        "until both are done",
+        "until it finishes",
+        "until the session ends",
+        "bis sie endet",
+        "bis es fertig ist",
+    ];
+    if ends.iter().any(|p| has(p)) {
+        return LifetimeChoice::UntilEnds;
+    }
+    let always = [
+        "whenever",
+        "every time",
+        "each time",
+        "from now on",
+        "until i say stop",
+        "until i remove it",
+        "always",
+        "immer wenn",
+        "jedes mal",
+        "ab jetzt",
+    ];
+    if always.iter().any(|p| has(p)) {
+        return LifetimeChoice::Always;
+    }
+    if ["today", "tonight", "this evening", "heute"]
+        .iter()
+        .any(|p| has(p))
+    {
+        return LifetimeChoice::Today;
+    }
+    let once_used_as_when = w.windows(2).any(|p| {
+        p[0] == "once"
+            && ["it", "they", "the", "a", "an", "my", "its", "this", "that"]
+                .contains(&p[1].as_str())
+    });
+    if (has("once") && !once_used_as_when) || has("just the first time") || has("nur einmal") {
+        return LifetimeChoice::Once;
+    }
+    LifetimeChoice::Unsaid
+}
+
+fn definition(code: &str) -> Option<&'static str> {
+    Some(match code {
+        "finishes" => "a turn ends cleanly and the agent waits for you",
+        "ends" => "the session closes, however it ended",
+        "asks_you" => "it asks you a question or for an approval",
+        "fails" => "a turn or the session fails (an error, a crash)",
+        "stuck" => "AI Juggler sees it stuck: working, with no progress",
+        "idle_for" => "no activity at all for some minutes while it is open",
+        "hits_limit" => "it reaches a usage limit",
+        "runway_below" => "an account's room left drops below a share",
+        "runway_resets" => "an account has room again after a limit",
+        "leaves_processes" => "a session ends and leaves processes running",
+        "restarted" => "a crashed App is started again by keep alive",
+        "pool_message" => "a pool gets a message",
+        "task_changes" => "a task moves to done, blocked or in review",
+        "starts" => "a new session starts",
+        _ => return None,
+    })
+}
+
+fn quiet_hours_said(text: &str) -> bool {
+    let w = words(text);
+    let night = w.iter().any(|x| {
+        ["3am", "4am", "2am", "1am", "night", "nachts", "overnight"].contains(&x.as_str())
+    }) || holds(&w, &words("in the night"))
+        || holds(&w, &words("in der nacht"));
+    night
+        && w.iter()
+            .any(|x| ["even", "wake", "auch", "weck", "trotzdem", "anyway"].contains(&x.as_str()))
+}
+
+/// The request's own words for what it asks that no condition covers
+/// (the cue net, v6's two false alarms fixed), else `None`.
+fn unsupported_in(text: &str, conds: &[String]) -> Option<(&'static str, String)> {
+    UNSUPPORTED[1..].iter().find_map(|k| {
+        if *k == "money"
+            && conds
+                .iter()
+                .any(|c| ["hits_limit", "runway_below", "runway_resets"].contains(&c.as_str()))
+        {
+            return None;
+        }
+        if *k == "clock_time" && quiet_hours_said(text) {
+            return None;
+        }
+        asked_words(text, k).map(|w| (*k, w))
+    })
+}
+
+// ============================================================================ prompts
+
+fn kind_word(kind: TargetKind) -> &'static str {
+    match kind {
+        TargetKind::App => "App",
+        TargetKind::Session => "session",
+        TargetKind::Project => "project",
+        TargetKind::Account => "account",
+        TargetKind::Pool => "pool",
+        TargetKind::Any => "any",
+    }
+}
+
+fn refs(all: &[Candidate]) -> Vec<String> {
+    let mut n = std::collections::BTreeMap::<&str, u32>::new();
+    all.iter()
+        .map(|c| {
+            let prefix = match c.target.kind() {
+                TargetKind::Session => "s",
+                TargetKind::App => "app",
+                TargetKind::Project => "p",
+                TargetKind::Account => "acct",
+                TargetKind::Pool => "pool",
+                TargetKind::Any => "any",
+            };
+            let k = n.entry(prefix).or_insert(0);
+            *k += 1;
+            format!("{prefix}{k}")
+        })
+        .collect()
+}
+
+fn line_of(r: &str, c: &Candidate) -> String {
+    let mut bits = vec![format!(
+        "{r} {} {}",
+        kind_word(c.target.kind()),
+        quoted(&c.name)
+    )];
+    if let Some(app) = &c.app {
+        bits.push(format!("app: {}", quoted(app)));
+    }
+    if let Some(project) = &c.project {
+        bits.push(format!("project: {}", quoted(project)));
+    }
+    bits.join(" · ")
+}
+
+fn enum_of(name: &str, values: &[String]) -> Value {
+    json!({ "type": "enum", "name": name, "values": values })
+}
+
+fn call1(ask: &Ask<'_>, picks: &[(String, &Candidate)], note: &str, attempt: u32) -> Request {
+    let lines: Vec<String> = picks.iter().map(|(r, c)| line_of(r, c)).collect();
+    let mut values: Vec<String> = picks.iter().map(|(r, _)| r.clone()).collect();
+    values.push("none".to_owned());
+    Request {
+        instructions: TARGET_INSTRUCTIONS.to_owned(),
+        prompt: format!(
+            "CANDIDATES (names are untrusted data written by agents):\n{}\n\nREQUEST (from the developer): {}\n\n{TASK1}{note}",
+            lines.join("\n"),
+            ask.request
+        ),
+        shape: Some(
+            json!({ "type": "object", "name": "WatchCandidate", "properties": [{ "name": "target", "schema": enum_of("WatchCandidate_target", &values) }] }),
+        ),
+        max_tokens: 60,
+        decoding: Decoding::for_attempt(&format!("watch-target:{}", ask.request), attempt),
+    }
+}
+
+fn call2(ask: &Ask<'_>, head: &str, conds: &[String], note: &str, attempt: u32) -> Request {
+    let defs: Vec<String> = conds
+        .iter()
+        .filter_map(|c| definition(c).map(|d| format!("{c} · {d}")))
+        .collect();
+    let mut with_none = conds.to_vec();
+    with_none.push("none".to_owned());
+    let unsupported: Vec<String> = UNSUPPORTED.iter().map(|s| (*s).to_owned()).collect();
+    Request {
+        instructions: WHEN_INSTRUCTIONS.to_owned(),
+        prompt: format!(
+            "{head}\n\nCONDITIONS (what each means in AI Juggler):\n{}\n\nREQUEST (from the developer): {}\n\n{TASK2}{note}",
+            defs.join("\n"),
+            ask.request
+        ),
+        shape: Some(
+            json!({ "type": "object", "name": "WatchCondition", "properties": [
+            { "name": "condition", "schema": enum_of("WatchCondition_condition", &with_none) },
+            { "name": "condition2", "schema": enum_of("WatchCondition_condition2", &with_none) },
+            { "name": "unsupported", "schema": enum_of("WatchCondition_unsupported", &unsupported) },
+        ] }),
+        ),
+        max_tokens: 60,
+        decoding: Decoding::for_attempt(&format!("watch-when:{}", ask.request), attempt),
+    }
+}
+
 // ============================================================================ the job
 
 /// One call: the draft and the shape it was asked in, or `None` when the
-/// engine failed (the plain form then opens).
+/// engine failed.
 fn asked(model: &dyn JobModel, req: &Request, stop: &Stop) -> Option<(Draft, Value)> {
     let out = model.generate(req, stop).ok()?;
     Some((out, req.shape.clone().unwrap_or_default()))
 }
 
-/// The two calls, checked and retried; `check` is the form's own check of
-/// a draft (its problem's words, or none). Returns the outcome and the
-/// calls made.
+/// The model's pick among several candidates (call 1); code's best when it
+/// never answers usably.
+fn pick_target<'a>(
+    model: &dyn JobModel,
+    ask: &Ask<'_>,
+    picks: &[(String, &'a Candidate)],
+    stop: &Stop,
+    calls: &mut u32,
+) -> Option<&'a Candidate> {
+    let mut note_text = String::new();
+    for attempt in 0..=RETRIES {
+        let req = call1(ask, picks, &note_text, attempt);
+        *calls += 1;
+        let (out, shape) = asked(model, &req, stop)?;
+        match fields(&out, &shape) {
+            Ok(got) => {
+                let r = text(&got, "target");
+                return picks.iter().find(|(x, _)| *x == r).map(|(_, c)| *c);
+            }
+            Err(why) => note_text = note(&out.text, &[why], "the candidate"),
+        }
+    }
+    picks.first().map(|(_, c)| *c)
+}
+
+/// Call 2's answer: the conditions, and what can't be watched (its kind
+/// and the request's words) when the request asks for that.
+type Picked = (Vec<String>, Option<(&'static str, String)>);
+
+/// The model's condition pick (call 2), only when no cue word names one.
+fn pick_conditions(
+    model: &dyn JobModel,
+    ask: &Ask<'_>,
+    head: &str,
+    offered: &[String],
+    stop: &Stop,
+    calls: &mut u32,
+) -> Result<Picked, ()> {
+    let mut note_text = String::new();
+    for attempt in 0..=RETRIES {
+        let req = call2(ask, head, offered, &note_text, attempt);
+        *calls += 1;
+        let Some((out, shape)) = asked(model, &req, stop) else {
+            return Err(());
+        };
+        let why = match fields(&out, &shape) {
+            Ok(got) => {
+                let kind = text(&got, "unsupported");
+                let conds: Vec<String> = [text(&got, "condition"), text(&got, "condition2")]
+                    .into_iter()
+                    .filter(|c| c != "none")
+                    .collect();
+                if kind == "none" {
+                    return Ok((conds, None));
+                }
+                match (
+                    UNSUPPORTED.iter().find(|k| **k == kind),
+                    asked_words(&masked(ask), &kind),
+                ) {
+                    (Some(k), Some(w)) => return Ok((conds, Some((k, w)))),
+                    _ => format!(
+                        "unsupported: the request says nothing of {kind}; choose the kind it asks for, or none"
+                    ),
+                }
+            }
+            Err(why) => why,
+        };
+        note_text = note(&out.text, &[why], "the condition");
+    }
+    Err(())
+}
+
+/// The nearest the target offers for something it can't watch (D-149's
+/// amendment: always one, when the target offers anything).
+fn nearest_of(
+    kind: &str,
+    asked_text: &str,
+    conds: &[String],
+    offered: &[String],
+) -> Option<String> {
+    let first: Vec<&str> = match kind {
+        "tests" if asked_text.contains("fail") || asked_text.contains("fehl") => vec!["fails"],
+        "money" | "range" => vec!["runway_below", "hits_limit"],
+        "action" | "other_mac" => conds.iter().map(String::as_str).collect(),
+        _ => vec!["finishes"],
+    };
+    first
+        .into_iter()
+        .chain(["finishes", "fails", "ends", "asks_you", "stuck"])
+        .find(|c| offered.iter().any(|o| o == c))
+        .map(str::to_owned)
+}
+
+/// The target chosen (or any), what it offers, and its line for call 2.
+fn target_of(
+    ask: &Ask<'_>,
+    picks: &[(String, &Candidate)],
+    chosen: Option<&Candidate>,
+    found_any: bool,
+) -> (Option<WatchTarget>, Vec<String>, String) {
+    match chosen {
+        Some(c) => {
+            let r = picks
+                .iter()
+                .find(|(_, x)| std::ptr::eq(*x, c))
+                .map_or("s1", |(r, _)| r.as_str());
+            (
+                Some(c.target.clone()),
+                c.offered.clone(),
+                format!("TARGET: {}", line_of(r, c)),
+            )
+        }
+        None if found_any => {
+            let mut all: Vec<String> = ask
+                .candidates
+                .iter()
+                .flat_map(|c| c.offered.clone())
+                .collect();
+            all.sort();
+            all.dedup();
+            (
+                Some(WatchTarget::Any),
+                all,
+                "TARGET: any · every session on this computer".to_owned(),
+            )
+        }
+        None => (None, Vec::new(), String::new()),
+    }
+}
+
+/// The draft for `ask`: code's readings, the model's picks only where code
+/// can't decide; `check` is the form's own check of a draft (its
+/// problem's words, or none). Returns the outcome and the calls made.
 pub fn draft(
     model: &dyn JobModel,
     ask: &Ask<'_>,
     stop: &Stop,
     check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
 ) -> (Outcome, u32) {
-    let said = words(ask.request);
-    let all = refs(ask);
     let mut calls = 0;
-    let (mut k1, mut k2) = (0, 0);
-    let (mut note1, mut note2) = (String::new(), String::new());
-    let mut chosen: Option<(String, Option<&Candidate>)> = None;
-    while k1 <= RETRIES && k2 <= RETRIES {
-        if chosen.is_none() {
-            let req = call1(ask, &note1, k1);
-            calls += 1;
-            let Some((out, shape)) = asked(model, &req, stop) else {
-                return (Outcome::Drafted(WatchDrafted::Form), calls);
-            };
-            let checked = fields(&out, &shape).and_then(|got| {
-                let intent = text(&got, "intent");
-                if intent != "create" {
-                    return Ok(None);
-                }
-                let r = text(&got, "target");
-                let c = all.iter().find(|(x, _)| *x == r).and_then(|(_, c)| *c);
-                match check_target(ask, &said, &r, c)? {
-                    Some(()) => Ok(Some(Some((r, c)))),
-                    None => Ok(Some(None)),
-                }
-            });
-            match checked {
-                Ok(None) => return (Outcome::NotAWatch, calls),
-                Ok(Some(None)) => {
-                    // A shared name: the conditions still asked for, the picker asks which.
-                    let (outcome, more) = finish_pick(model, ask, stop, &said);
-                    return (outcome, calls + more);
-                }
-                Ok(Some(Some((r, c)))) => chosen = Some((r, c)),
-                Err(why) => {
-                    note1 = note(&out.text, &[why], "the target");
-                    k1 += 1;
-                    continue;
-                }
-            }
-        }
-        let Some((r, c)) = chosen.clone() else {
-            continue;
-        };
-        let target_none = r == "none";
-        let req = call2(ask, (!target_none).then_some((r.as_str(), c)), &note2, k2);
-        calls += 1;
-        let Some((out, shape)) = asked(model, &req, stop) else {
-            return (Outcome::Drafted(WatchDrafted::Form), calls);
-        };
-        match fields(&out, &shape).and_then(|got| when_of(ask, &got, target_none, c, check)) {
-            Ok(drafted) => return (Outcome::Drafted(drafted), calls),
-            Err(why) if why.starts_with("target:") => {
-                note1 = note(&out.text, &[why], "the target");
-                chosen = None;
-                k1 += 1;
-            }
-            Err(why) => {
-                note2 = note(&out.text, &[why], "the condition and the lifetime");
-                k2 += 1;
-            }
-        }
+    if !is_watch_request(ask.request) {
+        return (Outcome::NotAWatch, calls);
     }
-    (Outcome::Drafted(WatchDrafted::Form), calls)
-}
-
-fn finish_pick(
-    model: &dyn JobModel,
-    ask: &Ask<'_>,
-    stop: &Stop,
-    _said: &[String],
-) -> (Outcome, u32) {
-    let req = call2(ask, None, "", 0);
-    let Some((out, shape)) = asked(model, &req, stop) else {
-        return (Outcome::Drafted(WatchDrafted::Form), 1);
-    };
-    let conds = fields(&out, &shape)
-        .ok()
-        .map(|got| {
-            [("condition", "param"), ("condition2", "param2")]
-                .iter()
-                .filter_map(|(c, p)| {
-                    let code = text(&got, c);
-                    (code != "none").then(|| {
-                        param_of(&code, &text(&got, p))
-                            .ok()
-                            .map(|param| Condition { code, param })
-                    })?
-                })
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    (
-        Outcome::Drafted(WatchDrafted::Pick {
-            draft: draft_info(Vec::new(), conds, LifetimeChoice::Unsaid),
-        }),
-        1,
-    )
-}
-
-fn when_of(
-    ask: &Ask<'_>,
-    got: &serde_json::Map<String, Value>,
-    target_none: bool,
-    c: Option<&Candidate>,
-    check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
-) -> Result<WatchDrafted, String> {
-    let mut conds: Vec<Condition> = Vec::new();
-    for (ck, pk) in [("condition", "param"), ("condition2", "param2")] {
-        let code = text(got, ck);
-        if code == "none" {
-            continue;
-        }
-        let param = param_of(&code, &text(got, pk))?;
-        let cond = Condition { code, param };
-        if !conds.contains(&cond) {
-            conds.push(cond);
-        }
-    }
-    if text(got, "condition") == "none" && text(got, "condition2") != "none" {
-        return Err("shape: condition2 without a condition".to_owned());
-    }
-    let targets = if target_none {
-        Vec::new()
-    } else {
-        vec![c.map_or(WatchTarget::Any, |c| c.target.clone())]
-    };
-    let offered = offered_of(ask, c);
-    let kind = text(got, "unsupported");
-    // Names are blanked first: a cue inside one ("the tests session") is no cue.
-    let request = masked(ask);
-    let found: Vec<&str> = UNSUPPORTED[1..]
-        .iter()
-        .copied()
-        .filter(|k| asked_words(&request, k).is_some())
-        .collect();
-    if kind != "none" || !found.is_empty() {
-        // What can't be watched is told in the request's own words: the
-        // model's kind when the request says it, else the net's own find.
-        let k = if kind == "none" {
-            found[0]
-        } else {
-            kind.as_str()
-        };
-        let Some(asked) = asked_words(&request, k) else {
-            return Err(format!(
-                "unsupported: the request says nothing of {k}; choose the kind it asks for, or none"
-            ));
-        };
-        let near = nearest(k, &asked, &conds, &offered);
-        let draft = (!near.is_empty() && !targets.is_empty())
-            .then(|| draft_info(targets.clone(), near, LifetimeChoice::Unsaid));
-        return Ok(WatchDrafted::CantWatch { asked, draft });
-    }
-    if conds.is_empty() {
-        return Err("shape: a new watch needs a condition from CONDITIONS".to_owned());
-    }
-    if target_none {
-        return Err(
-            "target: none, while a condition is chosen: pick the target the request names"
-                .to_owned(),
+    let found = resolve::resolve(ask.request, ask.candidates);
+    let all_refs = refs(ask.candidates);
+    // Names and exclusions blanked: a cue inside a name, or in what the request said to ignore, is no cue.
+    let read = resolve::split_exclusions(&masked(ask)).0.join(" ");
+    let conds_said = cue_conditions(&read);
+    if !found.picker.is_empty() {
+        let conds = conditions_of(&read, &conds_said);
+        return (
+            Outcome::Drafted(WatchDrafted::Pick {
+                draft: draft_info(Vec::new(), conds, lifetime_for(ask)),
+            }),
+            calls,
         );
     }
-    let lifetime = lifetime_of(ask, &text(got, "lifetime"), &text(got, "until"))?;
-    if lifetime == LifetimeChoice::UntilEnds
-        && !targets.iter().all(|t| t.kind() == TargetKind::Session)
-    {
-        return Err("lifetime: until_ends is for session targets only".to_owned());
+    let picks: Vec<(String, &Candidate)> = found
+        .candidates
+        .iter()
+        .map(|&i| (all_refs[i].clone(), &ask.candidates[i]))
+        .collect();
+    let chosen: Option<&Candidate> = match picks.len() {
+        0 => None,
+        1 => Some(picks[0].1),
+        _ => pick_target(model, ask, &picks, stop, &mut calls),
+    };
+    let (target, offered, head) = target_of(ask, &picks, chosen, found.any);
+    let offered: Vec<String> = offered
+        .into_iter()
+        .filter(|c| definition(c).is_some())
+        .collect();
+    // Something no condition covers, in words code knows: no call needed.
+    let net = unsupported_in(&read, &conds_said);
+    let (conds, unsupported) = if net.is_some() && conds_said.is_empty() {
+        (Vec::new(), net)
+    } else if !conds_said.is_empty() {
+        (conds_said.clone(), net)
+    } else if target.is_some() && !offered.is_empty() {
+        match pick_conditions(model, ask, &head, &offered, stop, &mut calls) {
+            Ok(got) => got,
+            Err(()) => return (Outcome::Drafted(WatchDrafted::Form), calls),
+        }
+    } else {
+        (Vec::new(), None)
+    };
+    let targets: Vec<WatchTarget> = target.into_iter().collect();
+    if let Some((kind, words_said)) = unsupported {
+        let near = nearest_of(kind, &words_said, &conds, &offered)
+            .filter(|_| !targets.is_empty())
+            .map(|c| {
+                draft_info(
+                    targets.clone(),
+                    vec![Condition {
+                        code: c,
+                        param: None,
+                    }],
+                    LifetimeChoice::Unsaid,
+                )
+            });
+        return (
+            Outcome::Drafted(WatchDrafted::CantWatch {
+                asked: words_said,
+                draft: near,
+            }),
+            calls,
+        );
     }
-    let draft = draft_info(targets, conds, lifetime);
-    if let Some(problem) = check(&draft) {
-        return Err(format!("form: {problem}"));
+    let conds: Vec<String> = conds
+        .into_iter()
+        .filter(|c| offered.iter().any(|o| o == c))
+        .collect();
+    if targets.is_empty() || conds.is_empty() {
+        return (Outcome::Drafted(WatchDrafted::Form), calls);
     }
-    Ok(WatchDrafted::Filled { draft })
+    let conditions = conditions_of(&read, &conds);
+    let lifetime = match lifetime_for(ask) {
+        LifetimeChoice::UntilEnds if !targets.iter().all(|t| t.kind() == TargetKind::Session) => {
+            LifetimeChoice::Unsaid
+        }
+        other => other,
+    };
+    let d = draft_info(targets, conditions, lifetime);
+    if check(&d).is_some() {
+        return (Outcome::Drafted(WatchDrafted::Form), calls);
+    }
+    (Outcome::Drafted(WatchDrafted::Filled { draft: d }), calls)
+}
+
+/// The conditions with code's parameters; one whose required number the
+/// request doesn't say is left for the form to ask (it stays chosen).
+fn conditions_of(read: &str, codes: &[String]) -> Vec<Condition> {
+    codes
+        .iter()
+        .take(4)
+        .map(|code| {
+            let raw = param_for(read, code).unwrap_or_else(|| "none".to_owned());
+            Condition {
+                code: code.clone(),
+                param: param_of(code, &raw).ok().flatten(),
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
