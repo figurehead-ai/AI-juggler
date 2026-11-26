@@ -448,3 +448,13 @@ Every check starts with an allowlist that may only shrink.
 **Handover note**: Item 16 is the architecture standard (no tool-specific words outside the adapter): the UI reads a neutral turn-end kind from the note; add a lint test that turn-words.ts names no tool code.
 **Quality gates**: verify-static; a failing-before test per fixed item; the screens touched walked once by Sonnet and checked by Opus.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E2025/manifest.md`, one row per item.
+
+### AJ-E2026 Durable commits on macOS: SQLite's full fsync at checkpoints, and on the critical write paths | Status: TODO (0.5.2) | Priority P1 | Effort S | Depends: —
+**Found** (the coordinating session, 2026-11-26, from a durability lesson elsewhere): on macOS a plain `fsync` doesn't flush the drive's cache; only `F_FULLFSYNC` does. Our storage (`juggler-core/src/storage/mod.rs`) opens WAL with `synchronous=NORMAL` and never sets `fullfsync` or `checkpoint_fullfsync`, which the bundled SQLite leaves OFF, so a power loss can lose or corrupt checkpointed data.
+**UI**: no
+**Requirements**:
+1. `PRAGMA checkpoint_fullfsync=ON` on every connection (cheap: checkpoints only).
+2. The critical write paths (move journals and manifests, backups, the memory store's forget) commit durably: `fullfsync=ON` for those transactions, or a full-fsync checkpoint right after; the commit cost measured and recorded.
+3. The move engine's own file writes (handover backups, journals) call `sync_all()` (F_FULLFSYNC on Apple) before reporting success.
+4. A test asserts the pragmas; a note in the storage docs.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E2026/manifest.md`.
