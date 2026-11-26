@@ -1,4 +1,4 @@
-<!-- captures: 2df2b9a6ba04 -->
+<!-- captures: 30c7cff2b5cf -->
 # 99-related-list: the one related list and the one session row (0.4, E31, AJ-E3103)
 
 Design critique (D-57, AJ-E2814). First critique of this family, written from its captures (`ui/tests/visual/related-list-gallery.spec.ts`).
@@ -65,3 +65,11 @@ Nothing broken (checked both themes).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: The top Needs you row follows Needs you's order (F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-26, AJ-E3713, Opus, both themes)
+
+Re-captured on the host; every changed capture opened (contact sheets, four to a sheet) beside its last capture and the approved story-feed mock (`AIJuggler-design-refs/story-feed/`). Captures: home-feed-finished (dark, light).
+
+**What changed (AJ-E3713).** Home's feed below the pinned needs is the story feed now: the tabs All · Needs you · Sessions · Tasks · Pools · Switches & limits · This Mac (the chosen one the accent's soft fill), the state chips Running / Finished / Failed in their soft tints with today's counts, Showing: Every app at that row's end, and posts in place of log rows: a tone card each with the App's own icon (or AI Juggler's mark), the calm line "**Claude Code CLI** · Work Max · 10 min", the story with its thing as an accent-soft chip, a quiet gesture bar (↑ ↓ + … Mark reviewed · ↗ Open). Nothing else on these screens moved. Finished on: the finished posts by day (This morning, Yesterday, Thu Oct 29, Sun Oct 25), each with its gesture bar.
+
+Scores unchanged but for: line 5 (Mock-up) 4: the feed follows the approved story mock (68-home-feed's 0.5.2 section lists the deviations); line 19 (Rich-mode colour) **4**: the feed's filters are choices, the chosen tab a soft accent fill, the state chips their own hues with a ✓ when on, the Showing picker's options with their icons; nothing chosen by a ring.

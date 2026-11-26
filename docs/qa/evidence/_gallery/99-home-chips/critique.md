@@ -1,4 +1,4 @@
-<!-- captures: a6d0cee2ddb5 -->
+<!-- captures: 11705e7b4215 -->
 <!-- captures: pending -->
 # 99-home-chips: Home's chips
 
@@ -75,3 +75,11 @@ Lowest: 4 (line 14 was 3: F60 fixed).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-26, AJ-E3713, Opus, both themes)
+
+Re-captured on the host; every changed capture opened (contact sheets, four to a sheet) beside its last capture and the approved story-feed mock (`AIJuggler-design-refs/story-feed/`). Captures: home and narrowed at 1024, 1280 and 1440 (dark, light), feed-menu and marked-all at 1440 dark (All, then Finished on: "Mark all 3 reviewed" in the ⋯, then its toast).
+
+**What changed (AJ-E3713).** Home's feed below the pinned needs is the story feed now: the tabs All · Needs you · Sessions · Tasks · Pools · Switches & limits · This Mac (the chosen one the accent's soft fill), the state chips Running / Finished / Failed in their soft tints with today's counts, Showing: Every app at that row's end, and posts in place of log rows: a tone card each with the App's own icon (or AI Juggler's mark), the calm line "**Claude Code CLI** · Work Max · 10 min", the story with its thing as an accent-soft chip, a quiet gesture bar (↑ ↓ + … Mark reviewed · ↗ Open). Nothing else on these screens moved. The chips are the story feed's tabs and state chips; narrowed shows Needs you chosen (the soft accent fill), the rail unchanged by any chip (the spec checks).
+
+Scores unchanged but for: line 5 (Mock-up) 4: the feed follows the approved story mock (68-home-feed's 0.5.2 section lists the deviations); line 19 (Rich-mode colour) **4**: the feed's filters are choices, the chosen tab a soft accent fill, the state chips their own hues with a ✓ when on, the Showing picker's options with their icons; nothing chosen by a ring.

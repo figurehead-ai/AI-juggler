@@ -1,4 +1,4 @@
-<!-- captures: cb6b6fce58ee -->
+<!-- captures: 0c2bc5a4049a -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -46,3 +46,37 @@ Lowest: 4 (line 12 was 3: F56 fixed).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-26, AJ-E3713, Opus side-by-side, both themes)
+
+Re-captured on the host (`home-feed-gallery.spec.ts`, every state), plus a new state, **story-1280** (dark, light): the approved story-feed mock's own data at the mock's 1280×1560, Less like this pressed on the switch post, the pool post followed, the first post's More like this hovered. Opened at full size beside `AIJuggler-design-refs/story-feed/mock-story-feed-{dark,light}.png`: story-1280 both themes; every other changed capture opened in contact sheets (four to a sheet), busy-1280 and flood-1280 dark also full size.
+
+**What changed.** The feed's log rows are posts now: a surface card each (tone on the canvas, no border, no shadow), the author's picture at 40 px (the App's own icon read at run time, or AI Juggler's mark on its tile), a calm line "**Claude app** · work-max · 9 min", the story in 14 px with the things it names as accent-soft chips ("You answered [Login refactor] — it's moving again."), an attachment where the facts carry one (a switch's before → after with each App's icon, the agent's reply quoted with "Codex CLI's last reply", an Account's room as a meter "61% used · 5-hour window · resets 3:00 PM"), follow-ups threaded under the post ("↳ 2 min later · [Login refactor] finished in 18 min."), and the gesture bar (↑ ↓ + 💬 … ↗ Open; the tip "More like this" under the icon). The filters are the mock's: the tabs All · Needs you · Sessions · Tasks · Pools · Switches & limits · This Mac (the chosen one the accent's soft fill), then the state chips Running / Finished / Failed in their soft tints with today's counts and Showing: Every app at the row's end; a ⋯ keeps Include my actions and Mark all read. Days read Today, This morning, Yesterday. Under the last post: the j k / l / m keys. Rollups say who did it ("Claude Code CLI finished 3 sessions") and list their things in place.
+
+**Side by side with the mock.** Matches: the post anatomy, the calm line, chips, the switch's before → after, the quote block, the thread's rule and "↳ 2 min later", the gesture bar's icons and right-aligned Open, the why panel ("You'll see fewer switch posts. You chose Less like this for switch posts in web-app. Undo · Manage in What Bot remembers"), "+ Following" in the accent, the tabs and state chips, This morning. **Deviations, reasoned:** (1) Remind me is not drawn: the watches offer no reminder condition yet (D-127 hides it; the manifest's R3). (2) The first post's diff stat and three-session summary are left out: the feed keeps no git line yet (AJ-E3708). (3) No card shadow (PAT-SURF-2; tone separates). (4) The switch says "carries on in … AI Juggler copied it over" (F9: a switch copies, never "moved"), and App names are "Codex CLI", "Claude Code CLI" (D-100). (5) The usage attachment is one measured reading as a meter, not the mock's six bars (only one reading is kept), and no run-out estimate. (6) The pinned need and Home's head are Home's existing ones (AJ-E3701), not the mock's simplified card. (7) "Manage in What Bot remembers" names where memories really are (the mock's "Settings › AI › Memory" doesn't exist). (8) "Mark reviewed" stays on a finished session's post (the A key's action).
+
+**Weak.** "Finished 0" beside posts from yesterday reads odd at a glance (the counts are today's; the tooltip says so). The story repeats the App's word after the calm line ("Claude Code CLI · Work Max / Claude Code CLI finished …"), as the mock does.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | What happened, told as stories, at a glance; what needs you stays pinned above. |
+| 2 | Prominence | 4 | Needs first; then posts newest first, a "more" lifted within its day, a quiet "less" folded to one line. |
+| 3 | Default | 4 | All, every state, every app. |
+| 4 | Mode | 4 | Calm: tone cards, faint gestures, one accent for chips and the chosen tab. |
+| 5 | Mock-up | 4 | The approved story mock, deviations above. |
+| 6 | Areas | 4 | Two columns 1024–1440, stacked under 860 px; posts fill the column. |
+| 7 | Colour | 4 | Accent for chips, the chosen tab and a lit gesture; state chips their soft tints; amber only on a meter under half and the needs. |
+| 8 | Type | 4 | Author 13 px semibold ink, its line muted; story 14 px; thread and attachments 13 px. |
+| 9 | Actions | 4 | One filled button (the pinned need's); every post Open, its gestures quiet. |
+| 10 | Serious | n/a | Nothing destructive; a lean has Undo. |
+| 11 | Doors | 5 | Every chip opens its thing (the pool chip its pool); Open; Following opens its watches. |
+| 12 | Words | 4 | Stories from facts only, never "Resolved: …"; weak: "Finished 0" beside yesterday's posts. |
+| 13 | States | 4 | Paged as before; empty; a filter with nothing says so with Show all; the away digest. |
+| 14 | Consistency | 4 | The rail's icon path for authors; the menus' and tips' look. |
+| 15 | Accessibility | 4 | role=feed of articles; gestures named (their tips presentational); tabs and states are pressed buttons; axe clean on every capture. |
+| 16 | Hand walk | 3 | Not walked in Dev this round (the captures and the vitest flows only). |
+| 17 | System prompts | 4 | Follow primes Notifications first (PAT-OSP); nothing else asks. |
+| 18 | Usability | 4 | The six answers match (manifest), but for Remind me. |
+| 19 | Rich-mode colour | 4 | The filters are choices: the chosen tab a soft accent fill, the state chips their hues with a ✓ when on, the Showing picker's options lead with their icons; no ring for chosen. |
+
+Lowest: 3 (line 16: no hand walk in Dev yet).
