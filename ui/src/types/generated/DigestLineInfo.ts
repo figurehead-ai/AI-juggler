@@ -93,4 +93,10 @@ quote_kind: string | null,
 /**
  * Its newest activity in the window.
  */
-at_ms: number, };
+at_ms: number, 
+/**
+ * D-149's map step: the turn's feed line as the model picked it from
+ * the agent's own checked words, rendered by code (in place of its
+ * last words); none on the rollup's lines.
+ */
+picked?: string | null, };

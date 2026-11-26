@@ -57,6 +57,8 @@ describe("AJ-E3712 — the digest's words", () => {
     [line("ui", { state: "working" }), "ui · working"],
     [line("svc", { state: "working", restarted: true }), "svc · working · restarted after a crash"],
     [line("db", { state: "idle", tests: "not_run", caveat: "not_run" }), "db · idle · tests not run"],
+    // D-149's map step: the model's pick of the agent's own words, in place of its last words.
+    [line("sync", { state: "finished", turns: 1, picked: "Added a flush after the final batch, 14 passed", quote: "Done.", quote_kind: "last" }), "sync · finished · 1 turn · Added a flush after the final batch, 14 passed"],
   ])("%#: says the facts it holds", (one, words) => {
     expect(said(one)).toBe(words);
   });

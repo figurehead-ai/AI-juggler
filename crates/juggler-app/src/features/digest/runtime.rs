@@ -223,16 +223,18 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
     }
 }
 
-/// Why the rollup writes this digest: the AI digest's flag (D-131), and
-/// with it on, no model writer in this build. The router's answer for
-/// the job is the Models screen's; this never starts an engine.
+/// Why the rollup writes this digest alone: the AI digest's flag, else
+/// its verdict (D-149). Asking the router starts no engine.
 fn why_rollup() -> Why {
     if crate::features::flags::is_on(&crate::features::ai::jobs::DIGEST_ON) {
-        Why::NoWriter
+        Why::Verdict
     } else {
         Why::FlagOff
     }
 }
+
+/// How long the map step may take for one digest.
+const MAP_WAIT: std::time::Duration = std::time::Duration::from_secs(60);
 
 /// The facts of the agents that changed, and how many open agents didn't.
 pub fn gather(
@@ -311,7 +313,7 @@ pub fn make_with(
         return false;
     }
     let (agents, quiet) = gather(state, events);
-    let digest = rollup(
+    let mut digest = rollup(
         Window {
             start_ms: due.start_ms,
             end_ms: due.end_ms,
@@ -322,6 +324,23 @@ pub fn make_with(
     if digest.lines.is_empty() {
         return false;
     }
+    // D-149: when the router serves the digest job, its calm lines are the
+    // model's picks; the order and counts stay the rollup's.
+    let live = crate::features::ai::run::LiveJob {
+        service: crate::features::ai::service::shared(),
+        state,
+        job: crate::features::ai::dto::AiJob::Digest,
+    };
+    let why = if live.served() {
+        let stop = crate::features::ai::engine::Stop::at(std::time::Instant::now() + MAP_WAIT);
+        if super::lines::map(&live, &agents, &mut digest, &stop) > 0 {
+            Why::Mapped
+        } else {
+            why_rollup()
+        }
+    } else {
+        why_rollup()
+    };
     let now = crate::commands::now_millis();
     let stored = state.storage.lock().is_ok_and(|storage| {
         store::remember(
@@ -329,7 +348,7 @@ pub fn make_with(
             writer,
             &crate::features::ai::memory::RedactionSecrets,
             &digest,
-            why_rollup(),
+            why,
             now,
         )
         .inspect_err(|error| tracing::warn!("the digest wasn't kept: {error}"))

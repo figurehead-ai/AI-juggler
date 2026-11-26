@@ -18,6 +18,7 @@ pub mod conversations;
 pub mod dto;
 pub mod items;
 pub mod page;
+pub mod pick;
 
 #[cfg(test)]
 mod tests;

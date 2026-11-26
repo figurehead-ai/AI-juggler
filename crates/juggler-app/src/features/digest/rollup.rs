@@ -176,6 +176,12 @@ pub struct DigestLineInfo {
     /// Its newest activity in the window.
     #[ts(type = "number")]
     pub at_ms: i64,
+    /// D-149's map step: the turn's feed line as the model picked it from
+    /// the agent's own checked words, rendered by code (in place of its
+    /// last words); none on the rollup's lines.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub picked: Option<String>,
 }
 
 /// A digest: every changed agent's line, in order, and the quiet count.
@@ -480,6 +486,7 @@ pub fn line_of(agent: &AgentFacts) -> Option<DigestLineInfo> {
         quote,
         quote_kind,
         at_ms,
+        picked: None,
     })
 }
 

@@ -24,6 +24,7 @@
 //! (A's excerpt) join when AJ-E3705 and AJ-E3708 record them; the rollup
 //! already takes them and leaves out what isn't known.
 
+pub mod lines;
 pub mod rollup;
 pub mod runtime;
 pub mod scheduler;
