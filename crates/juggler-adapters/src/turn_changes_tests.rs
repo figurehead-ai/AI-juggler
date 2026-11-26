@@ -8,7 +8,7 @@
 use juggler_adapter::subagents::LinesChanged;
 use serde_json::json;
 
-use super::{TurnChanges, edit_lines, turn_changes};
+use super::{FileChange, TurnChanges, edit_lines, turn_changes};
 
 const T0: &str = "2026-11-26T10:00:00.000Z";
 const T1: &str = "2026-11-26T10:01:00.000Z";
@@ -194,6 +194,47 @@ fn a_call_that_cant_count_shows_the_files_only() {
         turn.lines, None,
         "a sum leaving the notebook out would claim less"
     );
+    // AJ-E3820: each file keeps its own: the readme counts, the notebook
+    // can't.
+    assert_eq!(
+        turn.per_file,
+        [
+            FileChange {
+                name: "lab/data.ipynb".into(),
+                lines: None
+            },
+            FileChange {
+                name: "lab/README.md".into(),
+                lines: lines(1, 1)
+            },
+        ]
+    );
+}
+
+/// AJ-E3820: a turn's per-file lines sum each file's calls, first
+/// changed first.
+#[test]
+fn each_file_keeps_its_own_lines() {
+    let turn = read(
+        &[
+            asked(T0, "two files"),
+            call(T0, "a", "Edit", json!({"file_path": "/w/shop/src/calc.py", "old_string": "1", "new_string": "2"})),
+            call(T0, "b", "Edit", json!({"file_path": "/w/shop/src/tax.py", "old_string": "x", "new_string": "y\nz"})),
+            call(T0, "c", "Edit", json!({"file_path": "/w/shop/src/calc.py", "old_string": "3", "new_string": "4\n5"})),
+        ],
+        None,
+    )
+    .unwrap();
+    let per: Vec<(&str, Option<LinesChanged>)> = turn
+        .per_file
+        .iter()
+        .map(|file| (file.name.as_str(), file.lines))
+        .collect();
+    assert_eq!(
+        per,
+        [("src/calc.py", lines(3, 2)), ("src/tax.py", lines(2, 1))]
+    );
+    assert_eq!(turn.lines, lines(5, 3));
 }
 
 #[test]

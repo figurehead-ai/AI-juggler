@@ -67,6 +67,20 @@ pub struct TurnChanges {
     /// The lines added and removed; `None` when a call doesn't say (files
     /// only).
     pub lines: Option<LinesChanged>,
+    /// AJ-E3820 (the turn review): each file's own share, in the order
+    /// first changed, at most [`NAMES_MAX`]; a file's lines `None` when one
+    /// of its calls doesn't say.
+    pub per_file: Vec<FileChange>,
+}
+
+/// One file a turn changed, and its lines.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FileChange {
+    /// Its name, as [`TurnChanges::names`] gives it (a path's last two
+    /// parts).
+    pub name: String,
+    /// The lines its calls added and removed; `None` when one doesn't say.
+    pub lines: Option<LinesChanged>,
 }
 
 /// What the turn that ended by `until` (epoch ms; the file's end when
@@ -337,11 +351,25 @@ impl Tally {
         let lines = done.iter().try_fold(LinesChanged::default(), |sum, call| {
             Some(add(sum, call.lines?))
         });
+        let per_file = paths
+            .iter()
+            .take(NAMES_MAX)
+            .map(|path| FileChange {
+                name: crate::tool_summary::tail_of_path(path),
+                lines: done
+                    .iter()
+                    .filter(|call| call.path == *path)
+                    .try_fold(LinesChanged::default(), |sum, call| {
+                        Some(add(sum, call.lines?))
+                    }),
+            })
+            .collect();
         Some(TurnChanges {
             start: self.start,
             files: u32::try_from(paths.len()).unwrap_or(u32::MAX),
             names,
             lines,
+            per_file,
         })
     }
 }
