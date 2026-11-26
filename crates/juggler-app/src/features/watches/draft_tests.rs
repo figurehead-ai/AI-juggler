@@ -107,10 +107,10 @@ fn the_prompts_are_the_ones_the_harness_runs() {
         read("v7/prompts/watch3.md").contains(TARGET_INSTRUCTIONS),
         "call 1's instructions drifted from the harness"
     );
-    let v11 = read("v11/prompts/watch7.md");
+    let v13 = read("v13/prompts/watch9.md");
     assert!(
-        v11.contains(TARGET_INSTRUCTIONS.trim_end())
-            && v11.contains(cover::LABEL_INSTRUCTIONS.trim_end())
+        v13.contains(TARGET_INSTRUCTIONS.trim_end())
+            && v13.contains(cover::LABEL_INSTRUCTIONS.trim_end())
     );
 }
 
@@ -495,10 +495,10 @@ fn assert_told_back(request: &str, out: Outcome, fake: &Fake) -> WatchDraftInfo 
 /// decides).
 fn assert_only_labelled(request: &str, fake: &Fake) {
     assert!(
-        fake.seen
-            .borrow()
-            .iter()
-            .all(|r| r.shape.as_ref().is_some_and(|s| s["name"] == "WatchSpans")),
+        fake.seen.borrow().iter().all(|r| r
+            .shape
+            .as_ref()
+            .is_some_and(|s| s["name"] == "WatchWordSlots")),
         "{request}: decided by code; the model only labels"
     );
 }
@@ -734,6 +734,16 @@ fn v9s_misses_draft_as_said() {
         ),
     ];
     let c = v9_candidates();
+    // v13: "say when" asks.
+    let out = run_on(
+        &c,
+        "Let me know, say, when billing-sync finishes.",
+        &Fake::new(&["FAIL"]),
+    );
+    assert_eq!(
+        filled(&out).map(|d| d.targets.clone()),
+        Some(vec![WatchTarget::Session("S-bs".into())])
+    );
     // v12: a scope-neutral context clause is filler.
     let out = run_on(
         &c,
@@ -763,7 +773,6 @@ fn v9s_misses_draft_as_said() {
         "I want to know about every new session, leave out OpenCode",
         "warn me when cache keys uses more than 1.5 million tokens today",
         "out of every session I have open, let me know when the Pattern export one asks me something",
-        "Let me know, say, when billing-sync finishes.",
     ] {
         let fake = Fake::new(&["FAIL"]);
         assert_told_back(request, run_on(&c, request, &fake), &fake);

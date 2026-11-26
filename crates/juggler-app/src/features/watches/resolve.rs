@@ -84,7 +84,9 @@ pub(super) fn spaced(name: &str) -> Vec<String> {
 /// The seam gyrus's `seed` takes over: `name` said whole in `said`.
 #[must_use]
 pub fn full_match(said: &[String], name: &str) -> bool {
-    holds(said, &words(name)) || holds(said, &spaced(name))
+    // "the checkout-api session" names "Checkout API" too (v12's W04).
+    let apart: Vec<String> = said.iter().flat_map(|w| spaced(w)).collect();
+    holds(said, &words(name)) || holds(said, &spaced(name)) || holds(&apart, &spaced(name))
 }
 
 /// The request's words with every exclusion clause taken out, and the

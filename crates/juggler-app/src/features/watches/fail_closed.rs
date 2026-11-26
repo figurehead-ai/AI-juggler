@@ -181,9 +181,15 @@ pub fn refused(ask: &Ask<'_>) -> Option<WatchDrafted> {
 fn meaning_at(w: &[String]) -> Option<usize> {
     (0..w.len()).find(|&i| {
         let next = w.get(i + 1).map_or("", String::as_str);
+        let prev = if i > 0 { w[i - 1].as_str() } else { "" };
         (MEANING.contains(&w[i].as_str())
             && !(w[i] == "but" && ["only", "just"].contains(&next))
-            && !(w[i] == "but" && w[i + 1..(i + 9).min(w.len())].iter().any(|x| x == "quiet")))
+            // "every account is fine, but …" (v12's W35): a contrast, no scope.
+            && !(w[i] == "but" && ["fine", "okay", "ok"].contains(&prev))
+            && !(w[i] == "but"
+                && w[i + 1..(i + 9).min(w.len())]
+                    .iter()
+                    .any(|x| ["quiet", "night", "silent", "nachts"].contains(&x.as_str()))))
             || MEANING_PHRASES.iter().any(|p| {
                 let p = words(p);
                 w.len() >= i + p.len() && w[i..i + p.len()] == p[..]
@@ -242,13 +248,19 @@ fn not_scope(w: &[String], q: usize) -> bool {
             && ["ask", "asks", "asked", "fragt", "frage"].contains(&w[q - k].as_str())
             && (k == 1 || ["me", "you", "mich", "dich"].contains(&w[q - 1].as_str()))
     });
+    // "Alle Konten sind mir egal", "every account is fine" (v12's W59,
+    // W35): the broad word is what doesn't matter.
+    let shrugged = w[q + 1..(q + 6).min(w.len())]
+        .iter()
+        .any(|x| ["egal", "fine", "okay"].contains(&x.as_str()));
     ["time", "mal"].contains(&next)
+        || shrugged
         || (["anything", "something", "etwas"].contains(&w[q].as_str()) && asks)
 }
 
 /// "of all my sessions", "out of all", "von allen": a selection, not a scope.
 fn selection(w: &[String], q: usize) -> bool {
-    q > 0 && ["of", "among", "from", "von", "unter", "bei"].contains(&w[q - 1].as_str())
+    q > 0 && ["of", "among", "from", "von", "unter", "bei", "across"].contains(&w[q - 1].as_str())
 }
 
 /// "anything in pier", "any session of the shop project": the quantifier

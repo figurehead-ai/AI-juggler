@@ -43,7 +43,7 @@ impl JobModel for Harness {
         let step = match shape["name"].as_str() {
             Some("WatchCandidate") => "target",
             Some("WatchCondition") => "when",
-            Some("WatchSpans") => "label",
+            Some("WatchSpans" | "WatchWordSlots") => "label",
             _ => "other",
         };
         say(&json!({

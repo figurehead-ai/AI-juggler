@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use super::*;
+use crate::features::ai::engine::Stop;
 use crate::features::ai::scripted::Scripted;
 use crate::features::watches::draft::{Candidate, Outcome, draft};
 use crate::features::watches::model::{Param, TargetKind, WatchTarget};
@@ -243,51 +244,47 @@ fn v10s_supported_misses_draft_as_said() {
     assert_said(&v10_candidates(), &rows);
 }
 
-/// The model labels; whatever it says, a request with words code can't
-/// place is never drafted, and a label's span names what is told back.
+/// Labels word by word (v13): only the words code couldn't place; never
+/// a request drafted from a number, a liar's target or a wrong length.
 #[test]
 fn the_labels_never_make_a_request_supported() {
     let request = "Ping me if billing-sync has made 8 failed retries in a row";
-    // A liar: every word filler, then every word a condition.
+    // Code places all but "made", "8", "retries", "row": four slots.
     for lie in [
-        r#"{"spans":[{"text":"Ping me if billing-sync has made 8 failed retries in a row","slot":"filler","number":0,"unit":"none"}]}"#,
-        r#"{"spans":[{"text":"Ping me if","slot":"filler","number":0,"unit":"none"},{"text":"billing-sync","slot":"target","number":0,"unit":"none"},{"text":"has made 8 failed retries in a row","slot":"condition","number":8,"unit":"other"}]}"#,
+        r#"{"slots":["filler","filler","filler","filler"]}"#,
+        r#"{"slots":["target","target","target","target"]}"#,
+        r#"{"slots":["filler","condition_param","condition","filler"]}"#,
     ] {
         let fake = Scripted::new(&[lie]);
         let (asked, d) = told_back(request, run(request, &fake));
-        assert_eq!(d.conditions[0].code, "fails");
+        assert_eq!(d.conditions[0].code, "fails", "{lie}");
         assert!(!asked.is_empty());
+        let seen = fake.seen.borrow();
+        assert_eq!(seen[0].shape, Some(label_shape(4)), "exactly four slots");
+        assert!(
+            seen[0]
+                .prompt
+                .contains("LABEL (4 words, in this order): 6 made · 7 8 · 9 retries · 12 row")
+        );
     }
-    // An honest labeller: its other span is what is told back.
-    let fake = Scripted::new(&[
-        r#"{"spans":[{"text":"Ping me if","slot":"filler","number":0,"unit":"none"},{"text":"billing-sync","slot":"target","number":0,"unit":"none"},{"text":"has made 8 failed retries in a row","slot":"other","number":8,"unit":"other"}]}"#,
-    ]);
+    let fake = Scripted::new(&[r#"{"slots":["other","other","other","other"]}"#]);
     let (asked, d) = told_back(request, run(request, &fake));
-    assert_eq!(asked, "has made 8 failed retries in a row");
+    assert_eq!(asked, "made 8 failed retries in a row");
     assert_eq!(d.targets, vec![WatchTarget::Session("S-bill".into())]);
-    // Spans that don't repeat the request: asked again, then code's own.
-    let fake = Scripted::new(&[
-        r#"{"spans":[{"text":"Ping me when billing sync fails","slot":"filler","number":0,"unit":"none"}]}"#,
-    ]);
+    // A wrong length: refused, asked again, then code's own; never padded.
+    let fake = Scripted::new(&[r#"{"slots":["filler","filler","filler"]}"#]);
     let (asked, _) = told_back(request, run(request, &fake));
     assert_eq!(fake.calls(), 3, "the first try and two retries");
     assert_eq!(asked, "made 8 failed retries in a row");
-    let seen = fake.seen.borrow();
-    assert!(
-        seen[1].prompt.contains("word for word"),
-        "the retry says why"
-    );
-    assert_eq!(seen[0].shape, Some(label_shape()));
+    assert!(fake.seen.borrow()[1].prompt.contains("3 given for 4 words"));
 }
 
-/// An exclusion's span: what it names is neither the nearest's target nor
+/// An exclusion label: what it names is neither the nearest's target nor
 /// its condition's source.
 #[test]
 fn an_exclusion_label_keeps_what_it_names_out_of_the_nearest() {
     let request = "Tell me when the payment flow fails, leaving out the checkout-api one";
-    let fake = Scripted::new(&[
-        r#"{"spans":[{"text":"Tell me when","slot":"filler","number":0,"unit":"none"},{"text":"the payment flow","slot":"target","number":0,"unit":"none"},{"text":"fails","slot":"condition","number":0,"unit":"none"},{"text":"leaving out the checkout-api one","slot":"exclusion","number":0,"unit":"none"}]}"#,
-    ]);
+    let fake = Scripted::new(&[r#"{"slots":["exclusion"]}"#]);
     let (asked, d) = told_back(request, run(request, &fake));
     assert_eq!(asked, "leaving out the checkout-api one");
     assert!(d.targets.is_empty(), "the form asks: {:?}", d.targets);
@@ -531,85 +528,394 @@ fn v11s_misses_draft_as_said() {
     assert!(d.targets.is_empty());
 }
 
-/// v12: labels code verifies may draft (a name said in part with its
-/// kind); a liar never drafts what can't be watched.
+/// v12/v13: labels code verifies may draft (a name said in part with its
+/// kind; a small word the second guard passes); a liar never drafts what
+/// can't be watched.
 #[test]
 fn verified_labels_draft_and_liars_never_do() {
-    let span = |t: &str, slot: &str| {
-        format!(r#"{{"text":"{t}","slot":"{slot}","number":0,"unit":"none"}}"#)
-    };
-    let labels = |spans: &[String]| -> &'static str {
-        Box::leak(format!(r#"{{"spans":[{}]}}"#, spans.join(",")).into_boxed_str())
-    };
-    // Honest: "the Image session" is Image resizer, said in part with its kind.
-    let request = "Tell me when the Image session fails";
-    let fake = Scripted::new(&[labels(&[
-        span("Tell me when", "filler"),
-        span("the Image session", "target"),
-        span("fails", "condition"),
-    ])]);
-    match run11(request, &fake) {
+    // "the Image session" is Image resizer, said in part with its kind.
+    let fake = Scripted::new(&[r#"{"slots":["target"]}"#]);
+    match run11("Tell me when the Image session fails", &fake) {
         Outcome::Drafted(WatchDrafted::Filled { draft }) => {
             assert_eq!(draft.targets, vec![WatchTarget::Session("s-img".into())]);
             assert_eq!(draft.conditions[0].code, "fails");
         }
         other => unreachable!("{other:?}"),
     }
-    // A liar's target that names the exclusion, or an "unless" clause as
-    // filler: the guard, before any label.
-    for (request, lie) in [
-        (
-            "Tell me when the Flag parsing session fails, nicht von der Wetterstation",
-            labels(&[
-                span("Tell me when the Flag parsing session fails,", "filler"),
-                span("nicht von der Wetterstation", "target"),
-            ]),
-        ),
-        (
-            "Tell me when the Image resizer finishes unless it ran for under an hour",
-            labels(&[
-                span("Tell me when", "filler"),
-                span("the Image resizer", "target"),
-                span("finishes", "condition"),
-                span("unless it ran for under an hour", "filler"),
-            ]),
-        ),
+    // A filler word code sees nothing in ("really"): code drafts.
+    let fake = Scripted::new(&[r#"{"slots":["filler"]}"#]);
+    match run11("Tell me when the Image resizer fails, really", &fake) {
+        Outcome::Drafted(WatchDrafted::Filled { draft }) => {
+            assert_eq!(draft.targets, vec![WatchTarget::Session("s-img".into())]);
+        }
+        other => unreachable!("{other:?}"),
+    }
+    // A liar's target over the exclusion, or an "unless" clause as filler:
+    // the guard, before any label.
+    for request in [
+        "Tell me when the Flag parsing session fails, nicht von der Wetterstation",
+        "Tell me when the Image resizer finishes unless it ran for under an hour",
     ] {
-        let fake = Scripted::new(&[lie]);
+        let fake = Scripted::new(&[r#"{"slots":["filler","filler","filler","filler"]}"#]);
         told_back(request, run11(request, &fake));
         assert_eq!(fake.calls(), 0, "{request}: the guard asks no label");
     }
-    // A liar hiding words in filler, or a part name with no kind: never
-    // drafted, told back after the retries.
+    // The second guard: a content word, a code-work word, a count, a time,
+    // a name part labelled filler; a part name with no kind as the target;
+    // a count as the condition. Each told back after one call.
     for (request, lie) in [
         (
             "Tell me when the Image resizer fails on the main branch",
-            labels(&[
-                span("Tell me when", "filler"),
-                span("the Image resizer", "target"),
-                span("fails", "condition"),
-                span("on the main branch", "filler"),
-            ]),
+            r#"{"slots":["filler","filler"]}"#,
+        ),
+        ("Tell me when the tests fail", r#"{"slots":["filler"]}"#),
+        ("Tell me when the tests fail", r#"{"slots":["target"]}"#),
+        (
+            "Tell me when the Image resizer fails twice",
+            r#"{"slots":["filler"]}"#,
         ),
         (
-            "Tell me when the tests fail",
-            labels(&[
-                span("Tell me when", "filler"),
-                span("the tests", "target"),
-                span("fail", "condition"),
-            ]),
+            "Tell me when the Image resizer fails on weekends",
+            r#"{"slots":["filler"]}"#,
         ),
         (
             "Tell me when the Image resizer fails 3 times",
-            labels(&[
-                span("Tell me when", "filler"),
-                span("the Image resizer", "target"),
-                span("fails 3 times", "condition"),
-            ]),
+            r#"{"slots":["condition","condition"]}"#,
         ),
+        ("Tell me when the Image fails", r#"{"slots":["filler"]}"#),
     ] {
         let fake = Scripted::new(&[lie]);
         told_back(request, run11(request, &fake));
-        assert_eq!(fake.calls(), 3, "{request}: asked again, then code's own");
+        assert_eq!(fake.calls(), 1, "{request}");
     }
+}
+
+/// A labeller that calls every word it is asked about filler (a model
+/// that sees nothing in them): the second guard decides.
+struct Filler;
+
+impl crate::features::ai::run::JobModel for Filler {
+    fn generate(
+        &self,
+        request: &crate::features::ai::engine::Request,
+        _stop: &Stop,
+    ) -> Result<crate::features::ai::engine::Draft, crate::features::ai::run::AiFailure> {
+        let n: usize = request
+            .prompt
+            .split("LABEL (")
+            .nth(1)
+            .and_then(|x| x.split(' ').next())
+            .and_then(|x| x.parse().ok())
+            .unwrap_or(0);
+        Ok(crate::features::ai::engine::Draft {
+            text: json_slots(n),
+            finish: crate::features::ai::engine::Finish::Stop,
+            usage: crate::features::ai::engine::Usage::default(),
+        })
+    }
+}
+
+fn json_slots(n: usize) -> String {
+    format!(r#"{{"slots":[{}]}}"#, vec![r#""filler""#; n].join(","))
+}
+
+/// v12's names (its misses are quoted in `v12-results/summary.md`), in a
+/// made-up context.
+fn v12_candidates() -> Vec<Candidate> {
+    let app = |id: &str, name: &str| {
+        owner(
+            WatchTarget::App(id.into()),
+            name,
+            &[
+                "finishes",
+                "fails",
+                "asks_you",
+                "ends",
+                "restarted",
+                "leaves_processes",
+                "starts",
+            ],
+        )
+    };
+    let acct = |id: &str, name: &str| {
+        owner(
+            WatchTarget::Account(id.into()),
+            name,
+            &["hits_limit", "runway_below", "runway_resets"],
+        )
+    };
+    let mut project = OFFER.to_vec();
+    project.push("starts");
+    vec![
+        sess("s-chk", "Checkout API", "checkout-api"),
+        sess("s-rex", "Rechnungsexport", "billing-export"),
+        sess("s-onb", "Onboarding flow", "signup-web"),
+        sess("s-lin", "Lint cleanup", "tidy-kit"),
+        sess("s-ren", "Render queue", "pixel-forge"),
+        sess("s-suc", "Suchindex", "finder-app"),
+        app("app-ccd", "Claude Code CLI · Depot"),
+        app("app-cur", "Cursor"),
+        app("app-oc", "OpenCode"),
+        owner(
+            WatchTarget::Project("p-chk".into()),
+            "checkout-api",
+            &project,
+        ),
+        owner(
+            WatchTarget::Project("p-ren".into()),
+            "pixel-forge",
+            &project,
+        ),
+        owner(WatchTarget::Project("p-ber".into()), "report-lab", &project),
+        acct("acct-depot", "Depot Pro"),
+        acct("acct-garage", "Garage"),
+    ]
+}
+
+/// v12's exact misses, each drafted as gold: by code, or with a labeller
+/// that calls its unknown small words filler (the second guard passing).
+#[test]
+fn v12s_misses_draft_as_said() {
+    let s = |id: &str| WatchTarget::Session(id.into());
+    let a = |id: &str| WatchTarget::App(id.into());
+    let acct = |id: &str| WatchTarget::Account(id.into());
+    let p = |id: &str| WatchTarget::Project(id.into());
+    let (u, once, always) = (
+        LifetimeChoice::Unsaid,
+        LifetimeChoice::Once,
+        LifetimeChoice::Always,
+    );
+    let rows: Vec<Said> = vec![
+        (
+            "Bei allen Apps egal, aber wenn OpenCode abstürzt, will ich es wissen",
+            a("app-oc"),
+            "fails",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Meld dich, wenn die Render-queue-Sitzung 45 Minuten still ist",
+            s("s-ren"),
+            "idle_for",
+            Some(Param::Minutes(45)),
+            u,
+            false,
+        ),
+        (
+            "Tell me when the checkout-api session fails, even during quiet hours",
+            s("s-chk"),
+            "fails",
+            None,
+            u,
+            true,
+        ),
+        (
+            "I don't care about the rest of my apps, just alert me when Cursor needs an approval",
+            a("app-cur"),
+            "asks_you",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Bis ich es wieder lösche: warne mich, wenn das Depot-Pro-Konto sein Limit erreicht",
+            acct("acct-depot"),
+            "hits_limit",
+            None,
+            always,
+            false,
+        ),
+        (
+            "Tell me when the Render queue session finishes, but keep it silent at night",
+            s("s-ren"),
+            "finishes",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Buzz me when a Claude Code CLI · Depot session ends and leaves processes running behind",
+            a("app-ccd"),
+            "leaves_processes",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Benachrichtige mich, wenn Depot Pro wieder Luft hat",
+            acct("acct-depot"),
+            "runway_resets",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Heute noch benachrichtigen, sobald der Suchindex eine Rückfrage an mich hat",
+            s("s-suc"),
+            "asks_you",
+            None,
+            LifetimeChoice::Today,
+            false,
+        ),
+        (
+            "One heads-up is enough: tell me the first time the Render queue session needs my input",
+            s("s-ren"),
+            "asks_you",
+            None,
+            once,
+            false,
+        ),
+        (
+            "Sag Bescheid, wenn die Rechnungsexport-Sitzung durch ist",
+            s("s-rex"),
+            "finishes",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Wake me up when the Garage account hits its limit, quiet hours don't matter",
+            acct("acct-garage"),
+            "hits_limit",
+            None,
+            u,
+            true,
+        ),
+        (
+            "Across all projects, the one I care about is pixel-forge: tell me when a new session starts there",
+            p("p-ren"),
+            "starts",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Permanent watch on the Garage account: say when it has room again",
+            acct("acct-garage"),
+            "runway_resets",
+            None,
+            always,
+            false,
+        ),
+        (
+            "Every account is fine, but ping me when Depot Pro runs below 15 percent",
+            acct("acct-depot"),
+            "runway_below",
+            Some(Param::Percent(15)),
+            u,
+            false,
+        ),
+        (
+            "Gib mir Bescheid, wenn die Onboarding-flow-Sitzung nach 10 Minuten immer noch hängt",
+            s("s-onb"),
+            "stuck",
+            Some(Param::Minutes(10)),
+            u,
+            false,
+        ),
+        (
+            "Der Suchindex-Agent will meine Freigabe – sag mir das",
+            s("s-suc"),
+            "asks_you",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Sag mir, wenn irgendeine Sitzung zu Ende ist",
+            WatchTarget::Any,
+            "ends",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Von allen meinen Sitzungen interessiert mich nur der Suchindex: sag Bescheid, wenn er fertig ist",
+            s("s-suc"),
+            "finishes",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Shout if the Render queue session goes quiet for 20 minutes",
+            s("s-ren"),
+            "idle_for",
+            Some(Param::Minutes(20)),
+            u,
+            false,
+        ),
+        (
+            "Melde dich, wenn Cursor neu gestartet wurde, auch nachts in der Ruhezeit",
+            a("app-cur"),
+            "restarted",
+            None,
+            u,
+            true,
+        ),
+        (
+            "Sag mir, wenn der Suchindex fertig ist, aber in der Ruhezeit bitte nicht",
+            s("s-suc"),
+            "finishes",
+            None,
+            u,
+            false,
+        ),
+        (
+            "Keep telling me whenever the checkout-api session fails, until I delete the watch",
+            s("s-chk"),
+            "fails",
+            None,
+            always,
+            false,
+        ),
+        (
+            "Einmalig bitte: Bescheid, wenn die Rechnungsexport-Sitzung abstürzt",
+            s("s-rex"),
+            "fails",
+            None,
+            once,
+            false,
+        ),
+        (
+            "Alle Konten sind mir egal, nur beim Garage-Konto: sag mir, wenn wieder Platz ist",
+            acct("acct-garage"),
+            "runway_resets",
+            None,
+            u,
+            false,
+        ),
+    ];
+    let c = v12_candidates();
+    for (request, target, code, param, lifetime, quiet) in rows {
+        let ask = Ask {
+            request,
+            candidates: &c,
+            midnight_ms: 0,
+            now_ms: 1_000,
+        };
+        let stop = Stop::at(Instant::now() + Duration::from_secs(5));
+        let d = match draft(&Filler, &ask, &stop, &|_| None).0 {
+            Outcome::Drafted(WatchDrafted::Filled { draft }) => draft,
+            other => unreachable!("{request}: {other:?}"),
+        };
+        assert_eq!(d.targets, vec![target], "{request}");
+        assert_eq!(d.conditions.len(), 1, "{request}: {:?}", d.conditions);
+        assert_eq!(d.conditions[0].code, code, "{request}");
+        assert_eq!(d.conditions[0].param, param, "{request}");
+        assert_eq!(d.lifetime, lifetime, "{request}");
+        assert_eq!(d.even_in_quiet_hours, quiet, "{request}");
+    }
+    // A clause of words code can't place, side by side, is a qualifier the
+    // second guard keeps: told back, even from a labeller calling it filler.
+    let request = "Im ganzen Team läuft viel, aber im Projekt report-lab: melde jede neue Sitzung";
+    let ask = Ask {
+        request,
+        candidates: &c,
+        midnight_ms: 0,
+        now_ms: 1_000,
+    };
+    let stop = Stop::at(Instant::now() + Duration::from_secs(5));
+    told_back(request, draft(&Filler, &ask, &stop, &|_| None).0);
 }
