@@ -1,0 +1,4015 @@
+[
+ {
+  "id": "V11-W07",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Ping me if the Flag parsing session sits idle for 45 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-pine"
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 45
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W12",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Egal was sonst läuft, informiere mich, wenn in pilzfinder eine neue Sitzung startet",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-pilz"
+   },
+   "conditions": [
+    {
+     "type": "starts"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W19",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Von allen meinen Sitzungen: sag mir nur Bescheid, wenn die Sensordaten-Sitzung fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-wetter"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W24",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Whatever else is running, let me know when the Axis labels session ends",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-tide"
+   },
+   "conditions": [
+    {
+     "type": "ends"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W28",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Nur einmal: melde dich, wenn die Fahrplan-Import-Sitzung fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bahn"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "V11-W40",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Permanently watch for new sessions starting in quiz-engine",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-quiz"
+   },
+   "conditions": [
+    {
+     "type": "starts"
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "V11-W56",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Sag mir, wenn die Terminvergabe-Sitzung fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-dach"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W38",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Keep telling me whenever any session in sage-billing fails, permanently",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-sage"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "V11-W43",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Tell me about any new session that starts anywhere",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any"
+   },
+   "conditions": [
+    {
+     "type": "starts"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W49",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Ich möchte wissen, wenn in lagerhaus eine Sitzung endet",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-lager"
+   },
+   "conditions": [
+    {
+     "type": "ends"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W50",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Across everything I run, I only care when the Timezone fix session finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-orbit"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W04",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Tell me when Cursor crashes and gets started again",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "restarted"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W30",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Notify me when a sage-billing session ends and leaves processes running",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-sage"
+   },
+   "conditions": [
+    {
+     "type": "leaves_processes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "V11-W55",
+  "origin": "v11 miss as quoted in v11-results/summary.md; made-up context",
+  "request": "Ich will wissen, wann Sitzungen fertig sind, nicht von Cursor",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N12-01",
+  "origin": "made-up (v12 selftest)",
+  "request": "Tell me when any session fails that isn't the Image resizer",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N12-02",
+  "origin": "made-up (v12 selftest)",
+  "request": "Let me know when the Timezone fix session finishes, though never on weekends",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N12-03",
+  "origin": "made-up (v12 selftest)",
+  "request": "Sag mir, wenn eine Sitzung hängt, aber keine von Cursor",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "stuck"
+  }
+ },
+ {
+  "id": "N12-04",
+  "origin": "made-up (v12 selftest)",
+  "request": "Gib mir Bescheid, wenn Sensordaten fehlschlägt, es sei denn, es ist ein Timeout",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N12-05",
+  "origin": "made-up (v12 selftest)",
+  "request": "Ping me when sessions finish, other than the Axis labels one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N12-06",
+  "origin": "made-up (v12 selftest)",
+  "request": "Alert me if the Image resizer fails without retrying",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N12-07",
+  "origin": "made-up (v12 selftest)",
+  "request": "Tell me when the Flag parsing session doesn't finish within an hour",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N12-08",
+  "origin": "made-up (v12 selftest)",
+  "request": "Melde dich, wenn eine Sitzung fertig ist, außer Terminvergabe",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "N12-09",
+  "origin": "made-up (v12 selftest)",
+  "request": "Tell me when the Image resizer session blows up",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-img"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N12-10",
+  "origin": "made-up (v12 selftest)",
+  "request": "Sag mir Bescheid, wenn die Terminvergabe-Sitzung hängen bleibt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-dach"
+   },
+   "conditions": [
+    {
+     "type": "stuck"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N12-11",
+  "origin": "made-up (v12 selftest)",
+  "request": "Let me know when the Axis labels session is waiting on me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-tide"
+   },
+   "conditions": [
+    {
+     "type": "asks_you"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N12-12",
+  "origin": "made-up (v12 selftest)",
+  "request": "Whatever else is going on, tell me when Cursor hits its usage limit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N12-13",
+  "origin": "made-up (v12 selftest)",
+  "request": "Notify me when the work account runs below 10 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acc-w"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 10
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N12-14",
+  "origin": "made-up (v12 selftest)",
+  "request": "Ping me if the Timezone fix session fails 2 times in a row",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N12-15",
+  "origin": "made-up (v12 selftest)",
+  "request": "Tell me when the Image resizer fails, apart from the Flag parsing one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "N12-16",
+  "origin": "made-up (v12 selftest)",
+  "request": "Wake me even at night if Bestandsabgleich crashes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pine",
+     "name": "Flag parsing",
+     "app": "Codex",
+     "project": "cli"
+    },
+    {
+     "id": "s-wetter",
+     "name": "Sensordaten",
+     "app": "Codex",
+     "project": "wetter"
+    },
+    {
+     "id": "s-tide",
+     "name": "Axis labels",
+     "app": "Claude Code",
+     "project": "charts"
+    },
+    {
+     "id": "s-bahn",
+     "name": "Fahrplan-Import",
+     "app": "Codex",
+     "project": "bahn"
+    },
+    {
+     "id": "s-dach",
+     "name": "Terminvergabe",
+     "app": "Claude Code",
+     "project": "praxis"
+    },
+    {
+     "id": "s-orbit",
+     "name": "Timezone fix",
+     "app": "Codex",
+     "project": "orbit"
+    },
+    {
+     "id": "s-img",
+     "name": "Image resizer",
+     "app": "Cursor",
+     "project": "media"
+    },
+    {
+     "id": "s-quiz1",
+     "name": "question bank",
+     "app": "Codex",
+     "project": "quiz-engine"
+    },
+    {
+     "id": "s-sage1",
+     "name": "invoice export",
+     "app": "Codex",
+     "project": "sage-billing"
+    },
+    {
+     "id": "s-lager1",
+     "name": "Bestandsabgleich",
+     "app": "Claude Code",
+     "project": "lagerhaus"
+    },
+    {
+     "id": "s-pilz1",
+     "name": "Pilzbilder",
+     "app": "Codex",
+     "project": "pilzfinder"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-pilz",
+     "name": "pilzfinder"
+    },
+    {
+     "id": "p-quiz",
+     "name": "quiz-engine"
+    },
+    {
+     "id": "p-sage",
+     "name": "sage-billing"
+    },
+    {
+     "id": "p-lager",
+     "name": "lagerhaus"
+    },
+    {
+     "id": "p-cli",
+     "name": "cli"
+    },
+    {
+     "id": "p-media",
+     "name": "media"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-w",
+     "name": "Work plan",
+     "aliases": [
+      "the work account"
+     ]
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lager1"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null,
+   "even_in_quiet_hours": true
+  }
+ }
+]
