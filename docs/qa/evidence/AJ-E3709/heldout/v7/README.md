@@ -24,3 +24,5 @@ Written by the blind writer (Claude Opus 5.5 session) on 2026-11-26. Written bli
 ## Notes
 
 All names are fictional. Many turns are multi-clause: a main outcome beside side details, reverted or abandoned work, questions, and tests passed, failed, not run or unknown.
+
+**Gold corrections (Opus, 2026-11-26, before any run):** V7-W30 and V7-W59 ("…hit the usage limit on <account>") were marked unsupported; AI Juggler's watches support `hits_limit` (ADR-0036's condition table, `features/watches`), so their gold is a supported `hits_limit` watch on the named account, lifetime today. "All except X" (no exclusion in ADR-0036's set) and "runs too long" with no number (no such condition; nearest `stuck`) stay unsupported.
