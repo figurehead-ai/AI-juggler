@@ -184,7 +184,9 @@ test("AJ-E2910: no chip changes the rail; Mark all and its toast; at 1440", asyn
     await chips.nth(i).click();
     expect(await rail.innerText(), `the rail after chip ${i + 1}`).toBe(before);
   }
-  // D-118: "Mark all N reviewed" is in the Finished chip's ⋯ menu (feed-review-all).
+  // D-118: "Mark all N reviewed" is in the ⋯ menu with Finished on (feed-review-all),
+  // on All (AJ-E3713: the loop above left the last tab chosen).
+  await page.getByTestId("feed-chip-all").click();
   await page.getByTestId("feed-state-finished").click();
   await page.getByTestId("feed-more").click();
   // 0.5.1 F60: the menu as it opens, every line with its icon.
