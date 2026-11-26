@@ -19,3 +19,12 @@ R3 (v9, 2026-11-26, Apple, Sonnet run, Opus to verify): FAIL on one bar: unsuppo
 v10 (2026-11-26, the coordinator's calls on v9): harness `../AJ-E3709/harness/v10/` (4c17f060f, `selftest_v10.py` 31/31, runbook `v10-runbook.md`): lifetimes said in words (always, once, today; unsaid stays the ADR default), a named entity wins over a broad word only as its clause's subject or object and never beside a meaning-changer, a minutes value only with a time unit, the longer of two nested names. The app carries the same rules in `watches::draft`, `fail_closed` and `resolve`, with a regression test for each v9 miss (`v9s_misses_draft_as_said`). R3: PENDING the v10 round on `heldout/v10/watch-v10.json`.
 
 R3 (v10, 2026-11-26, Apple, Sonnet run, Opus to verify): FAIL on all three bars: unsupported claimed 3 (R10-W03 exclusion became the target, R10-W40 "unless" dropped, R10-W60 retry count dropped; bar 0); 85.7 % exact with the ADR default (36 of 42; strict 76.2 %) vs bar 90 %; nearest offered 72.2 % (13 of 18; bar 90 %); median 1.1 s per item, p95 3.4 s; see `../AJ-E3709/v10-results/summary.md`. Verdict stays `not_yet`.
+
+v11 (2026-11-26, the coordinator's design after v10's FAIL: 3 unsupported claimed, nearest 72 %): **full coverage, failing closed by construction.**
+- Code claims a request only when it places every word (`watches::draft::cover`). Otherwise the model labels spans with a guided schema, and code reads the labels only for what to tell back and the nearest target, so the model never makes a request supported.
+- The nearest option always comes with an unsupported answer, and it is never widened or the thing left out.
+- v7's call 2 (the model picking a condition) is removed.
+- Harness `../AJ-E3709/harness/v11/` runs the app's own drafting through `examples/watch_round.rs`; `selftest_v11.py` covers every fixture of v5 to v11 with three labellers. Runbook: `v11-runbook.md`.
+- Blind set `heldout/v11/watch-v11.json`, written by a Sonnet writer that never saw prompts or code.
+
+R3: PENDING the v11 round.
