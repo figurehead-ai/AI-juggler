@@ -91,7 +91,20 @@ pub fn full_match(said: &[String], name: &str) -> bool {
 /// clauses themselves.
 #[must_use]
 pub fn split_exclusions(request: &str) -> (Vec<String>, Vec<Vec<String>>) {
-    let w = words(request);
+    // A clause ends at its punctuation: "except aspen, tell me if it fails"
+    // excludes aspen, and the rest is what to watch.
+    let mut kept = Vec::new();
+    let mut spans = Vec::new();
+    for clause in request.split([',', ';', '.', '!', '?']) {
+        let (k, s) = split_clause(clause);
+        kept.extend(k);
+        spans.extend(s);
+    }
+    (kept, spans)
+}
+
+fn split_clause(clause: &str) -> (Vec<String>, Vec<Vec<String>>) {
+    let w = words(clause);
     let mut kept = Vec::new();
     let mut spans = Vec::new();
     let mut i = 0;

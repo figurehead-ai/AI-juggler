@@ -706,6 +706,7 @@ pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
         "until i remove it",
         "always",
         "immer wenn",
+        "immer",
         "jedes mal",
         "ab jetzt",
     ];
@@ -1032,6 +1033,9 @@ pub fn draft(
     // Names and exclusions blanked: a cue inside a name, or in what the request said to ignore, is no cue.
     let read = resolve::split_exclusions(&masked(ask)).0.join(" ");
     let conds_said = cue_conditions(&read);
+    if let Some(out) = never_widen_first(ask, &found, &conds_said) {
+        return (Outcome::Drafted(out), calls);
+    }
     if !found.picker.is_empty() {
         let conds = conditions_of(&read, &conds_said);
         return (
@@ -1106,11 +1110,187 @@ pub fn draft(
         }
         other => other,
     };
+    // Never widen, whatever the path: a request that excludes something
+    // never gets a watch on any session, a project, an App or a pool.
+    let (_, spans) = resolve::split_exclusions(ask.request);
+    if !spans.is_empty()
+        && targets
+            .iter()
+            .any(|t| t.kind() != TargetKind::Session && t.kind() != TargetKind::Account)
+    {
+        return (
+            Outcome::Drafted(excluded_answer(ask, &spans, &conds)),
+            calls,
+        );
+    }
     let d = draft_info(targets, conditions, lifetime);
     if check(&d).is_some() {
         return (Outcome::Drafted(WatchDrafted::Form), calls);
     }
     (Outcome::Drafted(WatchDrafted::Filled { draft: d }), calls)
+}
+
+/// Harness v8's two unsupported shapes, decided before any pick: an
+/// exclusion over everything ("all sessions … except X": a watch can't
+/// exclude, so it is never widened to every session) and a threshold no
+/// condition takes ("more than 50k tokens", a cost, files changed). Each
+/// is said back in the request's words with the nearest option.
+fn never_widen_first(
+    ask: &Ask<'_>,
+    found: &resolve::Resolved,
+    conds: &[String],
+) -> Option<WatchDrafted> {
+    let (_, spans) = resolve::split_exclusions(ask.request);
+    let everything = words(ask.request)
+        .iter()
+        .any(|w| EVERYTHING.contains(&w.as_str()));
+    let kept_named = found
+        .candidates
+        .iter()
+        .any(|&i| ask.candidates[i].target.kind() == TargetKind::Session);
+    if !spans.is_empty() && !found.excluded.is_empty() && (everything || !kept_named) {
+        return Some(excluded_answer(ask, &spans, conds));
+    }
+    let (asked_text, nearest) = threshold(&masked(ask))?;
+    let target = (found.candidates.len() == 1).then(|| &ask.candidates[found.candidates[0]]);
+    let offered: Vec<String> = target.map_or_else(
+        || {
+            ask.candidates
+                .iter()
+                .flat_map(|c| c.offered.clone())
+                .collect()
+        },
+        |c| c.offered.clone(),
+    );
+    let near = nearest
+        .iter()
+        .copied()
+        .chain(["finishes", "fails", "ends"])
+        .find(|c| offered.iter().any(|o| o == c))?;
+    let targets: Vec<WatchTarget> = target.map(|c| c.target.clone()).into_iter().collect();
+    Some(WatchDrafted::CantWatch {
+        asked: asked_text,
+        draft: Some(draft_info(
+            targets,
+            vec![Condition {
+                code: near.to_owned(),
+                param: None,
+            }],
+            LifetimeChoice::Unsaid,
+        )),
+    })
+}
+
+const EVERYTHING: &[&str] = &[
+    "all",
+    "every",
+    "each",
+    "any",
+    "anything",
+    "everything",
+    "alle",
+    "jede",
+    "jeder",
+    "jedes",
+    "irgendeine",
+    "sämtliche",
+];
+
+/// What can't be watched for an exclusion: the clause said back, the
+/// nearest condition with no target (the form asks which; never widened).
+fn excluded_answer(ask: &Ask<'_>, spans: &[Vec<String>], conds: &[String]) -> WatchDrafted {
+    let w = words(ask.request);
+    let first = spans.first().cloned().unwrap_or_default();
+    let lead = (0..w.len())
+        .find(|&i| w[i..].starts_with(&first))
+        .and_then(|i| i.checked_sub(1))
+        .map(|i| w[i].clone());
+    let lead2 = (0..w.len())
+        .find(|&i| w[i..].starts_with(&first))
+        .and_then(|i| i.checked_sub(2))
+        .map(|i| w[i].clone());
+    let head = match (lead2.as_deref(), lead.as_deref()) {
+        (Some(a @ ("but" | "other" | "apart")), Some(b)) => format!("{a} {b}"),
+        (_, Some(b)) => b.to_owned(),
+        _ => String::new(),
+    };
+    let asked = format!("{head} {}", first.join(" ")).trim().to_owned();
+    let near = conds.first().map_or("finishes", String::as_str).to_owned();
+    WatchDrafted::CantWatch {
+        asked,
+        draft: Some(draft_info(
+            Vec::new(),
+            vec![Condition {
+                code: near,
+                param: None,
+            }],
+            LifetimeChoice::Unsaid,
+        )),
+    }
+}
+
+/// A number with a unit no condition takes: the request's words, and the
+/// nearest conditions (tokens or calls: a usage limit; money: room left,
+/// then a limit; files, lines or commits: it finishes).
+fn threshold(text: &str) -> Option<(String, &'static [&'static str])> {
+    const LIMITS: &[&str] = &["hits_limit", "runway_below"];
+    const MONEY: &[&str] = &["runway_below", "hits_limit"];
+    const WORK: &[&str] = &["finishes", "ends"];
+    let w = words(text);
+    let comparators = [
+        "more", "over", "above", "exceeds", "beyond", "past", "less", "fewer", "under", "mehr",
+        "über", "weniger", "than", "als",
+    ];
+    for (i, x) in w.iter().enumerate() {
+        let money = x.starts_with(['$', '€', '£'])
+            || text.contains(&format!("${x}"))
+            || text.contains(&format!("€{x}"));
+        let digits = x.trim_start_matches(['$', '€', '£']);
+        if !digits.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        let unit = w.get(i + 1).map_or("", String::as_str);
+        let near: Option<&'static [&'static str]> = if money
+            || ["dollars", "dollar", "usd", "eur", "euro", "euros", "bucks"].contains(&unit)
+        {
+            Some(MONEY)
+        } else if [
+            "tokens", "token", "requests", "calls", "messages", "anfragen",
+        ]
+        .contains(&unit)
+        {
+            Some(LIMITS)
+        } else if ["files", "file", "lines", "commits", "dateien", "zeilen"].contains(&unit) {
+            Some(WORK)
+        } else {
+            None
+        };
+        if let Some(near) = near {
+            let mut start = i;
+            while start > 0 && comparators.contains(&w[start - 1].as_str()) {
+                start -= 1;
+            }
+            let end = if money
+                && !["dollars", "dollar", "usd", "eur", "euro", "euros", "bucks"].contains(&unit)
+            {
+                i + 1
+            } else {
+                i + 2
+            };
+            let shown: Vec<String> = w[start..end.min(w.len())]
+                .iter()
+                .map(|s| {
+                    if s == x && money && !s.starts_with('$') {
+                        format!("${s}")
+                    } else {
+                        s.clone()
+                    }
+                })
+                .collect();
+            return Some((shown.join(" "), near));
+        }
+    }
+    None
 }
 
 /// The conditions with code's parameters; one whose required number the

@@ -361,3 +361,101 @@ fn the_words_code_reads() {
         Some("20")
     );
 }
+
+/// v7's five "unsupported claimed" rows (in fresh words of their shapes)
+/// and the thresholds: each is told back with the nearest option, never
+/// drafted as a watch, and decided by code with no call.
+#[test]
+fn v7s_unsupported_claimed_rows_are_told_back_with_the_nearest() {
+    let rows: [(&str, &str); 7] = [
+        (
+            "Tell me when all sessions finish, except the Link check one.",
+            "finishes",
+        ), // W05
+        (
+            "For every project except aspen, tell me if it fails.",
+            "fails",
+        ), // W19
+        (
+            "Tell me once if anything fails, but not the Link check one.",
+            "fails",
+        ), // W32
+        (
+            "Tell me when the cedar-api session uses more than 50k tokens.",
+            "hits_limit",
+        ), // W43
+        (
+            "Gib mir Bescheid, wenn alle Sitzungen fertig sind, außer Link check.",
+            "finishes",
+        ), // W51
+        (
+            "Let me know if cedar-api costs more than $20.",
+            "hits_limit",
+        ),
+        (
+            "Tell me when cedar-api has more than 30 files changed.",
+            "finishes",
+        ),
+    ];
+    for (request, near) in rows {
+        let fake = Fake::new(&["FAIL"]);
+        match run_with(request, &fake) {
+            Outcome::Drafted(WatchDrafted::CantWatch { asked, draft }) => {
+                assert!(!asked.is_empty(), "{request}");
+                let d = draft.unwrap_or_else(|| unreachable!("{request}: no nearest"));
+                assert_eq!(codes(&d), [near], "{request}");
+                assert!(
+                    d.targets.iter().all(|t| t.kind() == TargetKind::Session),
+                    "{request}: never widened"
+                );
+            }
+            other => unreachable!("{request}: {other:?}"),
+        }
+        assert_eq!(fake.calls(), 0, "{request}: decided by code");
+    }
+}
+
+/// Never widen: whatever the model answers, a request that excludes
+/// something never gets a watch on any session, a project, an App or a
+/// pool.
+#[test]
+fn a_request_that_excludes_something_is_never_widened() {
+    for request in [
+        "Ping me when any session asks me something, except aspen-board.",
+        "Tell me when everything in birch-docs finishes but not the Link check one.",
+        "Sag mir, wenn irgendeine Sitzung fehlschlägt, außer cedar-api.",
+        "Alert me if anything at all gets stuck, other than aspen-board.",
+    ] {
+        let fake = Fake::new(&[
+            r#"{"target":"none"}"#,
+            r#"{"condition":"fails","condition2":"none","unsupported":"none"}"#,
+        ]);
+        let out = run_with(request, &fake);
+        if let Some(d) = filled(&out) {
+            assert!(
+                d.targets
+                    .iter()
+                    .all(|t| t.kind() == TargetKind::Session || t.kind() == TargetKind::Account),
+                "{request}: widened to {:?}",
+                d.targets
+            );
+        }
+        if let Outcome::Drafted(WatchDrafted::CantWatch { draft, .. }) = &out {
+            assert!(draft.is_some(), "{request}: the nearest is offered");
+        }
+    }
+    // An ignore beside a named session still drafts that session.
+    let out = run_with(
+        "Tell me when cedar-api asks something, and ignore aspen-board entirely.",
+        &Fake::new(&["FAIL"]),
+    );
+    assert_eq!(
+        filled(&out).map(|d| d.targets.clone()),
+        Some(vec![WatchTarget::Session("S-cedar".into())])
+    );
+    let out = run_with("Always tell me if anything fails.", &Fake::new(&["FAIL"]));
+    assert_eq!(
+        filled(&out).map(|d| d.lifetime),
+        Some(LifetimeChoice::Always)
+    );
+}
