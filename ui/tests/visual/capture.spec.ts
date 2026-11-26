@@ -4405,8 +4405,17 @@ const PANE_IDS: Record<string, string> = {
   Advanced: "advanced",
 };
 
-const shot44 = (page: import("@playwright/test").Page, name: string, vp: { name: string }, theme: string) =>
-  page.screenshot({ path: resolve(GALLERY, `44-settings/${name}-${vp.name}-${theme}.png`), fullPage: true });
+/** 0.5.2 G4: the cloud card sits below Cleanup on Advanced, and a full
+ * page doesn't scroll the pane: its section is brought to the top first,
+ * so each capture shows its state (signed out, consent, paid-locked
+ * offline and the rest), not Cleanup. `last`: a part low in the card that
+ * the state is about, brought to the pane's foot (the paid row under the
+ * offline line at 680 high). */
+const shot44 = async (page: import("@playwright/test").Page, name: string, vp: { name: string }, theme: string, last?: string) => {
+  await page.getByTestId("account-cloud").evaluate((card) => (card.closest("section") ?? card).scrollIntoView({ block: "start" }));
+  if (last) await page.getByTestId(last).evaluate((part) => part.scrollIntoView({ block: "end" }));
+  await page.screenshot({ path: resolve(GALLERY, `44-settings/${name}-${vp.name}-${theme}.png`), fullPage: true });
+};
 
 for (const theme of THEMES) {
   for (const vp of ACCOUNTS_VP) {
@@ -4442,7 +4451,7 @@ for (const theme of THEMES) {
       });
       await expect(page.getByTestId("cloud-upgrade")).toBeVisible();
       await expect(page.getByTestId("cloud-offline")).toBeVisible();
-      await shot44(page, "paid-locked-offline", vp, theme);
+      await shot44(page, "paid-locked-offline", vp, theme, "cloud-upgrade");
       await page.getByTestId("cloud-unlink").click();
       await expect(page.getByTestId("cloud-unlink-confirm")).toBeVisible();
       await page.screenshot({ path: resolve(GALLERY, `44-settings/unlink-confirm-${vp.name}-${theme}.png`) });

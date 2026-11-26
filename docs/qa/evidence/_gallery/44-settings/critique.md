@@ -1,4 +1,4 @@
-<!-- captures: 06f0f648de2a -->
+<!-- captures: 27f43a7c8474 -->
 # 44-settings: Settings › Advanced, the Figurehead & Cloud card from signed out to pairing code, linking, connected and unlink
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -38,3 +38,19 @@ Re-captured on the host from a clean export of HEAD (the shared tree held anothe
 | 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
 
 The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+## 0.5.2 G4 (2026-11-26, the captures' framing, Opus)
+
+Re-captured on the host from a clean export of HEAD with the capture fixed. The finding (G4): consent and paid-locked-offline (8 images) showed Advanced › Cleanup, not their states; signed-out had the same fault. The cause was the capture: a full-page shot doesn't scroll Settings' pane, and Figurehead & Cloud sits below Cleanup. `shot44` now brings the Figurehead & Cloud section to the pane's top first, and for paid-locked-offline brings the paid row (Transcript vault, Upgrade) to the pane's foot, so the offline line and the paid row are both in frame at 680 high. All 28 changed captures opened at full size, both themes, 1024 and 1280.
+
+**What each shows now.** Signed out: the account intro, the Mac's name, Connect account (filled) and Use a pairing code. Pairing code: the code box under them. Linking: the code QVM3-GABM in its box, "Waiting for approval…", Open the page again and Cancel. Consent: "Turn on Cloud for this Mac", Cloud backup on, Sync usage stats off with where to turn it on, Turn on selected (filled) and Not now. Connected: Cloud backup's card, the account and plan, the name, the features, Open dashboard and Unlink this Mac…. Paid-locked offline: the amber offline line ("showing what Figurehead said at…"), the features, Transcript vault with its Paid chip and Upgrade. Unlinked: the notice as a tone card with Dismiss (G3), then the signed-out card.
+
+**Weak.** Where the Cloud section is near the pane's end (linking at 1024) the scroll moves the whole page a few pixels, so "Settings" sits partly under the header. At 1024 the paid row's description is under the fold (the row, its chip and Upgrade show).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 5 | Mock-up | 4 | Each state as its spec draws it, now in frame. |
+| 13 | States | 4 | Every state captured as itself (before: three showed Cleanup). |
+| 19 | Rich-mode colour | 4 | Unchanged: the kit's switches and chips, on in the accent. |
+
+The other lines are as the 0.5.2 AJ-E1558 section scored them (lowest 4).
