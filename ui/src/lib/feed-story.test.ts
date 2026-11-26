@@ -123,6 +123,16 @@ describe("AJ-E3713 R3 — ranking reads the leans", () => {
     expect(pinned[0]!.cards.map((card) => card.head.id)).toEqual(["w:2", "l:9", "w:3"]);
   });
 
+  it("reads the lean of the post a thread shows (its first item), as its gesture bar leans", () => {
+    const thread = cardsOf([
+      feedItem({ id: "fin", at_ms: NOW - MIN, kind: "finished", category: "finished", level: 1, coalesce: "s:a", subject: "A" }),
+      feedItem({ id: "ans", at_ms: NOW - 5 * MIN, kind: "answered", category: "needs", level: 0, coalesce: "s:a", subject: "A", facts: { need: "asks" } }),
+    ]);
+    const lessNeeds: FeedLeanInfo = { key: "feed:need:x", lean: "less", group: "need", folder: null, project: null, about: null, at_ms: NOW };
+    expect(rank(thread, [lessNeeds])[0]!.folded).toHaveLength(1);
+    expect(rank(thread, [{ ...lessNeeds, group: "finish" }])[0]!.folded).toHaveLength(0);
+  });
+
   it("never folds or moves something that broke or needs the reader", () => {
     const failed = { ...switched("w:4", NOW - MIN), kind: "switch_failed", level: 2 };
     const ranked = rank(cardsOf([failed]), [{ ...less, group: groupOf("switch_failed") }]);

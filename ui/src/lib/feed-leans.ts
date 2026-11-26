@@ -21,7 +21,7 @@
 import { useSyncExternalStore } from "react";
 import { call, liveBackend as hasBackend } from "./ipc/transport";
 import { groupOf, GROUPS } from "./feed-chips";
-import type { FeedCard } from "./feed-rollup";
+import { threadOf, type FeedCard } from "./feed-rollup";
 import type { FeedItemInfo } from "./ipc/feed";
 import type { FeedLeanAsk } from "../types/generated/FeedLeanAsk";
 import type { FeedLeanInfo } from "../types/generated/FeedLeanInfo";
@@ -132,6 +132,12 @@ export function scopeOf(item: FeedItemInfo): { group: string; folder: string | n
   return { group: groupOf(item.kind), folder: folder ?? null, project: item.facts.project_id ?? item.target.project_id ?? null };
 }
 
+/** The item a card's post is about (its gesture bar leans by it): a
+ * thread's first item, or a rollup's newest. */
+function postOf(card: FeedCard): FeedItemInfo {
+  return card.rolled ? card.head : threadOf(card.things[0]!).post;
+}
+
 /** How specific a lean is (a lean on the App and project wins). */
 function specificity(one: FeedLeanInfo): number {
   return (one.folder ? 2 : 0) + (one.project ? 1 : 0);
@@ -201,7 +207,7 @@ export function rank(cards: readonly FeedCard[], kept: readonly FeedLeanInfo[], 
   if (kept.length === 0) return sections;
   const tier = (card: FeedCard) => {
     if (pinned.has(card.key) || card.level >= URGENT) return 1;
-    const one = leanFor(card.head, kept);
+    const one = leanFor(postOf(card), kept);
     return one?.lean === "more" ? 0 : one?.lean === "less" ? 2 : 1;
   };
   return sections.map((section) => {
