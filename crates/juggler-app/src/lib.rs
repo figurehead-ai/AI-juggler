@@ -1194,7 +1194,7 @@ pub fn run() {
                 &cloud_backup_state.data_dir,
                 juggler_core::model::Timestamp::now().millis(),
             );
-            cloud_backup::spawn_schedule(cloud_backup_state);
+            // AJ-E2027: its hourly check is a schedule (`schedule::upkeep`).
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
             usage_stats::start(stats_state, launched.elapsed());

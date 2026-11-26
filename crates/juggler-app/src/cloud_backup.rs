@@ -422,14 +422,3 @@ pub async fn cloud_backup_prepare_restore(
     })
     .await
 }
-
-/// Starts the scheduled-backup tick (hourly; does nothing while Cloud
-/// backup is off).
-pub fn spawn_schedule(state: Arc<AppState>) {
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(3_600));
-            let _ = cloud_backup_tick(&state, &crate::edition::current().vault_keychain());
-        }
-    });
-}
