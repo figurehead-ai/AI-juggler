@@ -196,11 +196,14 @@ pub fn assemble(state: &Arc<AppState>, ask: &Ask<'_>) -> WorldContext {
             continue;
         };
         names.insert(why_it.node, resolved.name.clone());
+        // Topics are separate chats: another topic's questions stay there,
+        // and the last exchanges already went as the history.
         if resolved.plain == Plain::Earlier
-            && ask
-                .recent
-                .iter()
-                .any(|(q, _)| super::resolve::quoted(q) == resolved.name)
+            && (resolved.topic.as_deref() != ask.topic
+                || ask
+                    .recent
+                    .iter()
+                    .any(|(q, _)| super::resolve::quoted(q) == resolved.name))
         {
             continue;
         }

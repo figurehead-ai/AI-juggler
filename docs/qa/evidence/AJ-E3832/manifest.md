@@ -51,7 +51,14 @@ maintenance (2 min after the first paint, hourly, never while an AI job starts o
 writes a hold, ≤ 2,000 a pass, one `memory.maintained` event with counts only; dangling memory nodes
 forgotten). Tests gyrus `tests/dream.rs` (5), `ai::world::tests::the_upkeep_pass_links_prunes_dreams_and_logs_counts_only`;
 one idle-pass batch p95 3.4 ms at 1M links (budget 200).
-R6: PENDING — the real-engine check on the reference Mac (the coordinating session's run).
+R6: PASS — the real engine on this Mac (Apple's on-device model, version 27.0.1, helper rebuilt from today's source), through Bot's real routing (`features::bot::real_model_tests`, run twice, both tests passing both times, answers identical):
+- "what is the payments agent doing?" → "“api” is waiting on you in “Work”" [1] (the user's own name found through the graph's alias);
+- "which app is web running in?" → "“web” is working in “Work”" [1] (a session's App through its link; the reader fix 05175de97);
+- "what did I ask you to remember about api?" → "You called “api” “the payments agent” (1)." [1] (G9: the memory is a numbered record the answer cites; it was "I don't know" before);
+- AJ-E3829's five, the same run: "what are my sessions" → "“api” is waiting on you “web” is working" [1, 2]; "what needs me" → "“api” is asking for your response right now." [1] ("response", "reply", "answer", "input" are the asks-you state's words: `check::tests::asking_for_a_reply_is_the_asks_you_state_only`); "which model are you" → "I am a foundation model running on Apple's on-device model, version 27.0.1."; the nonsense question → a plain general reply; 3+5 general.
+- G9's fix: commit 69630a5e5 plus the R6 commit (memories first among the records, worded as what the user told Bot; other topics' questions stay out of a topic's context). Tests `bot::answer::tests::a_memory_is_a_record_an_answer_can_cite` (the fake engine's grounded memory answer is shown and cites the memory; an invented memory claim and an act beside a memory are refused; a turn keeps only the memory's random id), vitest `bot-memory-chip.test.tsx`.
+- The a11y gate on the breakdown: `ui/tests/visual/bot-breakdown-gallery.spec.ts` (in `scripts/a11y_gate.sh`): axe 0 critical or serious on all 12 captures, Enter opens and Escape closes each indicator. The Opus critique in both themes, stamped: `docs/qa/evidence/_gallery/99-bot-breakdown/critique.md` (lowest 4; line 19, rich-mode colour, 4). Fixed in that round: the breakdown ran past the window in the docked panel (it opens leftwards now); the linked lines truncate each part in its own room; a memory record says when it was said.
+- The 27-canary forget test reads 0 (R4).
 
 ## Usability answers (PAT-USE), as built (the context breakdown)
 
@@ -64,7 +71,7 @@ R6: PENDING — the real-engine check on the reference Mac (the coordinating ses
 
 Settings › AI › Memory: unchanged (forgetting a memory now also removes what the world model linked to it).
 
-Left: R6; the a11y gate and an Opus critique of the breakdown in both themes with captures (the coordinating session's walk).
+Left: nothing.
 
 ## Verdicts
 
@@ -75,4 +82,4 @@ Left: R6; the a11y gate and an Opus critique of the breakdown in both themes wit
 | R3 | PASS | 2026-11-26 |
 | R4 | PASS | 2026-11-26 |
 | R5 | PASS | 2026-11-26 |
-| R6 | PENDING | 2026-11-26 |
+| R6 | PASS | 2026-11-26 |

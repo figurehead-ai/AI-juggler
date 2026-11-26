@@ -369,7 +369,9 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
         if found.unknown == Some(BotUnknown::NothingFound) {
             found.unknown = None;
         }
-        found.rows.extend(asked.memories.iter().cloned());
+        // The memories first: the question is about them.
+        let rows = std::mem::take(&mut found.rows);
+        found.rows = asked.memories.iter().cloned().chain(rows).collect();
         grounded(model, asked, found, &mut answer);
         return answer;
     }

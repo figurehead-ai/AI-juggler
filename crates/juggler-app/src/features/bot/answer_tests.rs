@@ -389,7 +389,7 @@ fn with_no_records_an_honest_none_stands_and_a_claim_does_not() {
 fn memory_number(prompt: &str) -> Option<u32> {
     prompt
         .lines()
-        .find(|l| l.contains(". memory:"))
+        .find(|l| l.contains(". what the user told you"))
         .and_then(|l| l.split('.').next())
         .and_then(|n| n.trim().parse().ok())
 }

@@ -174,7 +174,11 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
         "ended" | "beendet" => &[BotState::Ended, BotState::Finished],
         "failed" | "error" | "fehler" | "fehlgeschlagen" => &[BotState::Failed],
         "stuck" | "hängt" | "festgefahren" | "fest" => &[BotState::Stuck],
-        "asks" | "asking" | "fragt" => &[BotState::AsksYou],
+        // Asking the user for something is the one state that wants a reply
+        // (Apple's model on R6: "“api” is asking for your response").
+        "asks" | "asking" | "fragt" | "response" | "reply" | "answer" | "input" | "antwort" => {
+            &[BotState::AsksYou]
+        }
         "waiting" | "waits" | "wartet" => {
             &[BotState::AsksYou, BotState::Blocked, BotState::InReview]
         }
@@ -879,6 +883,16 @@ mod tests {
                 &[]
             ),
             Ok(())
+        );
+    }
+
+    #[test]
+    fn asking_for_a_reply_is_the_asks_you_state_only() {
+        let text = "\u{201c}api\u{201d} is asking for your response right now.";
+        assert_eq!(one(text, &[row("api", BotState::AsksYou, None)]), Ok(()));
+        assert_eq!(
+            one(text, &[row("api", BotState::Working, None)]),
+            Err(Refused::State("asking".into()))
         );
     }
 

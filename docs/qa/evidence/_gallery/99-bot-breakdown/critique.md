@@ -1,0 +1,57 @@
+<!-- captures: aa5dd9c5d014 -->
+<!-- captures: pending -->
+# 99-bot-breakdown: Bot's context and memory breakdown, and a memory as a record
+
+Design critique (D-57, Opus, 2026-11-26) of AJ-E3832's breakdown (AJ-E3825 R9 rebuilt on the world model) and G9's memory record, against the reference screens: Bot's panel (the bot gallery), the calm kit (`AIJuggler-design-refs/calm-ui`) and the menus' popover surface (77-menus). Captured by `ui/tests/visual/bot-breakdown-gallery.spec.ts` (`AIJ_BREAKDOWN_OUT`), in both themes at 1280×860 and 1024×860; axe has 0 critical or serious findings on each; each indicator opens with Enter and closes with Escape (the spec).
+
+## Checklist
+
+| Check | Finding |
+|---|---|
+| Grid | The breakdown is one column of label and value rows, then the linked lines, then "Used of the window" under a divider; the memory record is a Bot row like the others (mark, name, where-words, time on the right). |
+| Hierarchy | Part labels muted, values in ink; each linked line its name in ink, then "· why" faint; the record's name in ink, "What Bot remembers · your name for api" muted. |
+| Spacing | The breakdown's rhythm; the linked lines a little tighter than the part rows, as a sub-list. |
+| Icons | The memory record carries the bookmark (as What Bot remembers and the alias pill do). |
+| Shared controls | The usage bar's own indicator buttons; the popover surface the menus use (tone and soft shadow, no bright border). |
+| Disabled reasons | None here. |
+| Plain words | "Linked from your work", "named in your question", "your own name for it", "connected to api", "matches your words", "and 1 more", "What Bot remembers · your name for api", "you said, 2 d ago". No internal term (node, graph, seed, walk). |
+| Type sizes | 12 px throughout (the bar's label size). |
+| Both themes | Checked; the popover on the overlay tone in light, surface-2 in dark; the faint why-words readable in both (axe colour-contrast clean). |
+| 1280 and 1024 | Both. Before this round the breakdown opened rightwards from its indicator and ran past the window in the docked panel (its right half cut off at 1280); it now opens leftwards when it would. |
+
+## Good
+
+- The breakdown answers "what did Bot look at?" in the one place that already listed what was sent: the world model's part has a size like every other part, and the lines under it say what and why in a few words.
+- A memory Bot answered from is a record of its own: cited like a session, marked with the bookmark, and opening What Bot remembers on that memory.
+- The linked list is bounded (six, then "and N more"), so a busy question doesn't grow the popover.
+
+## Weak
+
+- A memory's name in the linked list keeps its quotation marks (“the payments agent”), which the session names don't have; consistent with how Bot quotes the user's words in answers, but it reads a little heavier.
+- The memory record's where-words wrap to two lines at 1024 ("What Bot remembers · your / name for api").
+
+## Scores
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | See what went to the model and why; open the memory an answer rested on. |
+| 2 | Prominence | 4 | Hidden until asked (an indicator), as the bar's other numbers. |
+| 3 | Default | 5 | Nothing to choose. |
+| 4 | Mode | 5 | Calm: muted numbers, one popover surface. |
+| 5 | Mock-up | 4 | No mock of its own; follows AJ-E3825's breakdown and the bot gallery. |
+| 6 | Areas | 5 | Parts, linked lines, total; the record among the rows. |
+| 7 | Colour | 4 | No accent but the focused indicator's ring and the Manage link; the memory record in the rows' tones. |
+| 8 | Type | 4 | One size; ink, muted and faint for value, label and why. |
+| 9 | Actions | 4 | Manage what Bot remembers and Settings › AI in the memory breakdown; the record opens its memory. |
+| 10 | Serious | n/a | Nothing destructive here. |
+| 11 | Doors | 5 | The record opens What Bot remembers on that memory; the links open their pages. |
+| 12 | Words | 4 | Plain; "and 1 more" could name what. |
+| 13 | States | 4 | Warming up or nothing linked: the part reads 0 and no list (not captured: an empty list is the AJ-E3825 capture). |
+| 14 | Consistency | 4 | The bar's popover pattern; the memory row as Bot's rows; quotation marks on memory names (above). |
+| 15 | Accessibility | 4 | axe clean on all 12; Enter opens and Escape closes each indicator; the record's link names the memory and where it is. |
+| 16 | Hand walk | 4 | Driven by the spec in a built app with fixture data; not walked by hand in Dev. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | AJ-E3832's six answers hold (the task file): the part is named, the list says why, nothing unsent is listed, no internal terms. |
+| 19 | Rich-mode colour | 4 | Not a create, edit or settings surface; its colour is the calm bar's: values in ink, why-words faint, the record's bookmark on the rows' tile tone, the accent only on focus and the Manage link. |
+
+Lowest: 4 (lines 2, 5, 7, 8, 9, 12, 13, 14, 15, 16, 18, 19). Fixed in this round: the breakdown ran past the window's right edge in the docked panel (it opens leftwards now); the linked lines' names and reasons truncated each other (each truncates in its own room); the memory record showed no time (it says "you said, 2 d ago").

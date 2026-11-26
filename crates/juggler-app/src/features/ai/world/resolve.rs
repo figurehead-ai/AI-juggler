@@ -71,6 +71,8 @@ pub struct Resolved {
     /// For a memory: the record's kind and subject key (the breakdown
     /// counts by kind, once per subject).
     pub record: Option<(Kind, String)>,
+    /// For an earlier question: its topic (another topic's stays there).
+    pub topic: Option<String>,
 }
 
 /// "2 days ago", composed by code (ADR-0037 §3).
@@ -133,6 +135,7 @@ fn named(plain: Plain, name: &str, line: String) -> Resolved {
         name: name.to_owned(),
         line,
         record: None,
+        topic: None,
     }
 }
 
@@ -196,11 +199,12 @@ pub fn resolve(
                 plain: Plain::Earlier,
                 name: quoted(&turn.question),
                 line: format!(
-                    "earlier in this topic you asked {} ({})",
+                    "earlier you asked {} ({})",
                     quoted(&turn.question),
                     age_words(world.now_ms, turn.at_ms)
                 ),
                 record: None,
+                topic: Some(turn.topic),
             })
         }
         "fact" | "rule" | "question" => label
@@ -245,5 +249,6 @@ fn memory_line(storage: &Storage, now_ms: i64, subject_id: &str) -> Option<Resol
         name: quoted(&record.text),
         line,
         record: Some((record.kind, record.subject_key.clone())),
+        topic: None,
     })
 }

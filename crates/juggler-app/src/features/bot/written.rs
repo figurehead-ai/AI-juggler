@@ -157,16 +157,16 @@ fn memory_line(n: usize, row: &BotRowInfo) -> String {
     let key = row.memory_key.as_deref().unwrap_or("note:");
     match row.about.as_deref() {
         Some(about) if key.starts_with("alias:") => format!(
-            "{n}. memory: the user's own name for \u{201c}{}\u{201d} is \u{201c}{}\u{201d} (the user told you to call it that)",
+            "{n}. what the user told you: their own name for \u{201c}{}\u{201d} is \u{201c}{}\u{201d}",
             neutral(about),
             neutral(&row.title)
         ),
         Some(_) if key.starts_with("focus:") => format!(
-            "{n}. memory: what matters most to the user is \u{201c}{}\u{201d} (the user told you)",
+            "{n}. what the user told you: what matters most to them is \u{201c}{}\u{201d}",
             neutral(&row.title)
         ),
         _ => format!(
-            "{n}. memory: the user asked you to remember \u{201c}{}\u{201d}",
+            "{n}. what the user told you to remember: \u{201c}{}\u{201d}",
             neutral(&row.title)
         ),
     }

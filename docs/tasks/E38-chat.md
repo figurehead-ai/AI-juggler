@@ -587,7 +587,7 @@
 3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
 
-### AJ-E3832 Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | Status: TODO (0.5.2) | Priority P0 | Effort XL | Depends: ADR-0037, ADR-0038
+### AJ-E3832 Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | Status: DONE (0.5.2) | Priority P0 | Effort XL | Depends: ADR-0037, ADR-0038
 **Found**: the maintainer (2026-11-25) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; ADR-0038 accepted 2026-11-26 (D-150).
 **UI**: yes (Settings › AI › Memory; Bot's context and memory breakdown, AJ-E3825 R9, rebuilt on it in step 4)
 **Usability reasoning** (Opus, written first for Settings › AI › Memory and the breakdown, PAT-USE): what someone wants to know about what Bot remembers about their work, why, and how to make it forget, in plain words.

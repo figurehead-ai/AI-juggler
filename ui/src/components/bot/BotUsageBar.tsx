@@ -13,21 +13,33 @@
  * Numbers are the engine's own counts where it gave one; an estimate is
  * labelled "≈ … est.".
  */
-import { useEffect, useState, type JSX, type ReactNode } from "react";
+import { useEffect, useRef, useState, type JSX, type ReactNode } from "react";
 import { botTopicUsage, type BotTopicUsageInfo } from "../../lib/ipc/bot";
 import { useBot } from "../../lib/bot-store";
 import { useBotNav } from "./bot-nav";
 import { CONTEXT_PART_WORDS, MEMORY_KIND_WORDS, countWords, windowWords } from "../../lib/bot-engine-words";
 
+/** A breakdown's width. */
+const BREAKDOWN_WIDTH = 288;
+
 function Indicator({ label, testId, children }: { label: string; testId: string; children: ReactNode }): JSX.Element {
   const [open, setOpen] = useState(false);
+  // AJ-E3832 R6: a breakdown that would run past the window's right edge
+  // (the docked panel) opens leftwards from its indicator instead.
+  const [leftwards, setLeftwards] = useState(false);
+  const anchor = useRef<HTMLSpanElement>(null);
+  const show = (next: boolean) => {
+    const box = anchor.current?.getBoundingClientRect();
+    if (next && box) setLeftwards(box.left + BREAKDOWN_WIDTH > window.innerWidth - 8);
+    setOpen(next);
+  };
   return (
-    <span className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
-      <button type="button" className="rounded-md px-1 text-label text-muted tabular-nums outline-none hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-accent/60" aria-expanded={open} onClick={() => setOpen((o) => !o)} onKeyDown={(event) => event.key === "Escape" && setOpen(false)} data-testid={testId}>
+    <span ref={anchor} className="relative" onMouseEnter={() => show(true)} onMouseLeave={() => show(false)}>
+      <button type="button" className="rounded-md px-1 text-label text-muted tabular-nums outline-none hover:text-ink-2 focus-visible:ring-2 focus-visible:ring-accent/60" aria-expanded={open} onClick={() => show(!open)} onKeyDown={(event) => event.key === "Escape" && show(false)} data-testid={testId}>
         {label}
       </button>
       {open && (
-        <fieldset aria-label={label} className="absolute bottom-[calc(100%+6px)] left-0 z-20 flex w-[248px] flex-col gap-1 rounded-xl bg-surface p-3 text-label text-ink-2 shadow-[0_18px_48px_-12px_rgba(0,0,0,.45),0_2px_6px_rgba(0,0,0,.2)] inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2" data-testid={`${testId}-breakdown`}>
+        <fieldset aria-label={label} className={`absolute bottom-[calc(100%+6px)] ${leftwards ? "right-0" : "left-0"} z-20 flex w-[288px] flex-col gap-1 rounded-xl bg-surface p-3 text-label text-ink-2 shadow-[0_18px_48px_-12px_rgba(0,0,0,.45),0_2px_6px_rgba(0,0,0,.2)] inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2`} data-testid={`${testId}-breakdown`}>
           {children}
         </fieldset>
       )}
@@ -79,9 +91,9 @@ export function BotUsageBar({ onMemories }: { onMemories: () => void }): JSX.Ele
         {latest.world.length > 0 && (
           <span className="mt-1 flex flex-col gap-0.5" data-testid="bot-context-linked">
             {latest.world.slice(0, LINKED_SHOWN).map((item) => (
-              <span key={`${item.kind}:${item.name}`} className="flex min-w-0 gap-1">
-                <span className="truncate text-ink-2">{item.name}</span>
-                <span className="shrink-0 text-faint">· {item.why}</span>
+              <span key={`${item.kind}:${item.name}`} className="flex min-w-0 gap-1" title={`${item.name} · ${item.why}`}>
+                <span className="max-w-[55%] shrink-0 truncate text-ink-2">{item.name}</span>
+                <span className="min-w-0 truncate text-faint">· {item.why}</span>
               </span>
             ))}
             {latest.world.length > LINKED_SHOWN && <span className="text-faint">and {latest.world.length - LINKED_SHOWN} more</span>}

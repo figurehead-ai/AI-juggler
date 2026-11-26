@@ -36,6 +36,8 @@ function StateCell({ row, now }: { row: BotRowInfo; now: number }): JSX.Element 
       </span>
     );
   }
+  // AJ-E3832 G9: a memory says when the user said it.
+  if (row.kind === "memory") return <span className="text-meta whitespace-nowrap text-muted">{stateSub(row, now)}</span>;
   if (!row.state) return null;
   const level = stateLevel(row.state);
   const dot = DOT[row.state];
