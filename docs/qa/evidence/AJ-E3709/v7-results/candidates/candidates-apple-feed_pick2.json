@@ -1,0 +1,79 @@
+{
+ "family": "apple",
+ "job": "feed_pick2",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V7T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T07",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T07",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T34",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T34",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T44",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T44",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns7"
+  },
+  {
+   "id": "V7T44",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns7"
+  }
+ ]
+}
