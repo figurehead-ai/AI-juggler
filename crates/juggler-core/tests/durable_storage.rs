@@ -4,7 +4,11 @@
 //! `Storage::make_durable` forces a checkpoint after the writes that must
 //! not be lost. Its cost is measured and printed (the manifest records it).
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::pedantic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    reason = "a test: a failed step fails the test"
+)]
 
 use juggler_core::storage::{Storage, open_hardened};
 
