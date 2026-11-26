@@ -2,7 +2,7 @@
  * AJ-E2027 R6 — Settings › Advanced › Scheduled work: the app's own
  * schedules, read-only, in plain words.
  */
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ScheduledWorkSection, whenOf } from "./ScheduledWorkSection";
 import type { ScheduleInfo } from "../../types/generated/ScheduleInfo";
@@ -46,5 +46,21 @@ describe("AJ-E2027 R6 — Settings › Advanced › Scheduled work", () => {
     expect(rows[1]!.textContent).toContain("When this computer is quiet");
     expect(rows[0]!.querySelector("button")).toBeNull();
     expect(whenOf({ ...backup, paused: true }, NOW)).toContain("Paused");
+  });
+
+  it("a read that fails says so with Retry, never that nothing is scheduled", async () => {
+    window.__AIJ_SCHEDULES__ = { app: [], calls: [], off: true };
+    render(<ScheduledWorkSection />);
+    expect(await screen.findByText("Couldn't load the scheduled work.")).toBeTruthy();
+    expect(screen.queryByText("Nothing is scheduled.")).toBeNull();
+    window.__AIJ_SCHEDULES__ = { app: [app("b", "Check whether a cloud backup is due", "cloud_backup", { kind: "every", interval_ms: HOUR, anchor_ms: 0 })], calls: [] };
+    fireEvent.click(screen.getByTestId("loading-retry"));
+    expect(await screen.findAllByTestId("scheduled-row")).toHaveLength(1);
+  });
+
+  it("an empty answer says nothing is scheduled", async () => {
+    window.__AIJ_SCHEDULES__ = { app: [], calls: [] };
+    render(<ScheduledWorkSection />);
+    expect(await screen.findByText("Nothing is scheduled.")).toBeTruthy();
   });
 });

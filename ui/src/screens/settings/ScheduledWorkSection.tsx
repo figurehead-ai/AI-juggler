@@ -7,14 +7,17 @@
  * link), and change there.
  */
 import { useEffect, useState, type JSX } from "react";
+import { LoadingState } from "../../components/LoadingState";
 import { IconClockFace, IconMoon } from "../../components/watches/watch-icons";
 import { schedulesPage, type ScheduleInfo } from "../../lib/ipc/schedules";
+import { useRetriedRead } from "../../lib/loading";
 import { clock, whenWords } from "../../lib/time-words";
 import { openWatches } from "../../lib/watches-open";
 import { PaneSection, SettingRow } from "./parts";
 
 const SCHEDULED = {
   title: "Scheduled work",
+  what: "the scheduled work",
   footer: "What AI Juggler does on its own, and when. Nothing runs while it's closed; what fell due then runs once when it opens.",
   yours: "Your reminders are on the Watches page.",
   open: "Open reminders",
@@ -36,17 +39,25 @@ export function whenOf(info: ScheduleInfo, now: number): string {
 
 export function ScheduledWorkSection(): JSX.Element {
   const [rows, setRows] = useState<ScheduleInfo[] | null>(null);
+  const { state, slow, setFailed, round, retry } = useRetriedRead(rows, SCHEDULED.what);
   useEffect(() => {
     let on = true;
     void schedulesPage("app", { cursor: null, limit: 50 }).then(
       // A watch's timer is the watch's own: it lives on the Watches page.
-      (page) => on && setRows(page.items.filter((s) => s.ended_ms === null && s.handler !== "watch.deadline")),
-      () => on && setRows([]),
+      (page) => {
+        if (!on) return;
+        setFailed(undefined);
+        setRows(page.items.filter((s) => s.ended_ms === null && s.handler !== "watch.deadline"));
+      },
+      // A read that failed says so, with Retry: never "Nothing is scheduled".
+      (cause: unknown) => on && setFailed(cause),
     );
     return () => {
       on = false;
     };
-  }, []);
+    // `round` is a Retry: it reads again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round, setFailed]);
   const [now] = useState(() => Date.now());
   return (
     <PaneSection
@@ -61,12 +72,22 @@ export function ScheduledWorkSection(): JSX.Element {
         </>
       }
     >
-      {rows === null ? (
-        <li className="h-[52px] animate-pulse rounded-[10px] bg-skeleton/60" aria-hidden="true" />
-      ) : rows.length === 0 ? (
-        <li className="px-3 py-3 text-meta text-muted">{SCHEDULED.none}</li>
-      ) : (
+      {state === "ready" && rows ? (
         rows.map((info) => <SettingRow key={info.id} icon={info.trigger.kind === "when_idle" ? IconMoon : IconClockFace} on={!info.paused} title={info.title} description={whenOf(info, now)} testId="scheduled-row" />)
+      ) : (
+        // The section's rows sit in a list: its other states take one item.
+        <li>
+          <LoadingState
+            state={state}
+            slow={slow}
+            what={SCHEDULED.what}
+            skeleton={<div className="h-[52px] rounded-[10px] bg-skeleton/60 motion-safe:animate-pulse" aria-hidden="true" />}
+            empty={<p className="px-3 py-3 text-meta text-muted">{SCHEDULED.none}</p>}
+            onRetry={retry}
+          >
+            {null}
+          </LoadingState>
+        </li>
       )}
     </PaneSection>
   );
