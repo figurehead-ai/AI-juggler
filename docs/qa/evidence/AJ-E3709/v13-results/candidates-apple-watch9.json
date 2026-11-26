@@ -1,0 +1,223 @@
+{
+ "family": "apple",
+ "job": "watch9",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R13-W02",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: zählt für mich nur Cursor",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W03",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: bis ich es entferne",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W05",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W06",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W08",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: run fails",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W10",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: commit lands in quill-docs",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W11",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: einziges Mal: melde dich",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W14",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W19",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: yo",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W20",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: andere ist mir egal",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W23",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: welche Session",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W27",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: da ist",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W28",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: wants something from me",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W29",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: nichts tut",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W32",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: yes, even overnight",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W33",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W34",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: weird in ledger-sync",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W39",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Even if it's quiet hours",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W41",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: selbst",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W43",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: nicht mehr",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W44",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: forget about it",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W45",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: don't care about individual sessions",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W46",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W48",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Suchindex 15 Minuten",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W49",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Hilfe brauchen oder eine Frage haben",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W55",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch13"
+  },
+  {
+   "id": "R13-W56",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: abschmiert",
+   "stage": "shown",
+   "corpus": "watch13"
+  }
+ ]
+}

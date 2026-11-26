@@ -1,0 +1,2054 @@
+{
+ "meta": {
+  "harness": "v13",
+  "prompt_version": 13,
+  "harness_today": "2026-11-26",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"hello\":true,\"protocol\":3,\"guided\":true,\"extensions\":[\"fields\",\"sampling\"],\"os\":\"Version 27.0.1 (Build 26A434)\",\"available\":\"available\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch9"
+  ],
+  "prompt_sha256": {
+   "watch9": "9557b8cef4ebd98cfa569170eb07b6fb33adfabc374fcde030d71e4fe9df40ae"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch13",
+    "file": "watch-v13.json",
+    "sha256": "b071477ca69b8f53cdd1de0044205e75b827d3b3f19f596a12660fec224e30c8",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 26,
+  "wall_s": 18.2,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   5.7,
+   7.5,
+   7.9
+  ],
+  "load_avg_end": [
+   5.0,
+   7.3,
+   7.8
+  ],
+  "helper_cpu_s": 0.45,
+  "cpu_deltas": [
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 1.39
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.28
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.44
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.36
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 133.8,
+   "peak": 145.1,
+   "after": 144.5
+  },
+  "started": "2026-11-26 17:55:06"
+ },
+ "results": [
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W01",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\", \"lifetime\"]}",
+     "finish": "stop",
+     "latency_ms": 1384,
+     "gen_ms": 1384.2369318008423,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “insgesamt länger als zwei Stunden braucht”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "insgesamt länger als zwei Stunden braucht",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W02",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"target\"]}",
+     "finish": "stop",
+     "latency_ms": 627,
+     "gen_ms": 627.1270513534546,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “zählt für mich nur Cursor”. Nearest: (the form asks) · starts · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "starts",
+    "via": "model labels",
+    "asked": "zählt für mich nur Cursor",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W03",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"lifetime\"]}",
+     "finish": "stop",
+     "latency_ms": 636,
+     "gen_ms": 636.0360383987427,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “bis ich es entferne”. Nearest: session Rechnungsexport · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "bis ich es entferne",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W04",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nicht, wenn er scheitert”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "nicht, wenn er scheitert",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W05",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session PDF export · finishes · once",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "cs2",
+       "ref": "s2",
+       "name": "PDF export"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W06",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W07",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Ratenbegrenzer · fails · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "ds3",
+       "ref": "s3",
+       "name": "Ratenbegrenzer"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W08",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 576,
+     "gen_ms": 575.5650997161865,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “run fails”. Nearest: session Rate limiter · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "run fails",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W09",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "any any session · idle_for 45 · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "idle_for",
+       "param": 45
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W10",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\", \"lifetime\"]}",
+     "finish": "stop",
+     "latency_ms": 633,
+     "gen_ms": 633.2889795303345,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “commit lands in quill-docs”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "commit lands in quill-docs",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W11",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"condition_param\"]}",
+     "finish": "stop",
+     "latency_ms": 648,
+     "gen_ms": 647.4120616912842,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “einziges Mal: melde dich”. Nearest: session Login-Umbau · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "model labels",
+    "asked": "einziges Mal: melde dich",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W12",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Search index rebuild · stuck 15 · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "cs1",
+       "ref": "s1",
+       "name": "Search index rebuild"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 15
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W13",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “without leaving processes behind”. Nearest: (the form asks) · ends · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "ends",
+    "via": "code",
+    "asked": "without leaving processes behind",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W14",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W15",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Map tiles · fails · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "cs4",
+       "ref": "s4",
+       "name": "Map tiles"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W16",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\"]}",
+     "finish": "stop",
+     "latency_ms": 625,
+     "gen_ms": 624.8500347137451,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “third”. Nearest: session Billing export · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "model labels",
+    "asked": "third",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W17",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "account Cabin · hits_limit · always",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "cc2",
+       "ref": "acct2",
+       "name": "Cabin"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "hits_limit",
+       "param": null
+      }
+     ],
+     "lifetime": "always",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W18",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “except the flaky tests one”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "except the flaky tests one",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W19",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\"]}",
+     "finish": "stop",
+     "latency_ms": 560,
+     "gen_ms": 559.8660707473755,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “yo”. Nearest: session Dark mode toggle · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "yo",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W20",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 626,
+     "gen_ms": 626.0470151901245,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “andere ist mir egal”. Nearest: session Changelog · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "andere ist mir egal",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W21",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Map tiles · asks_you · today · even during quiet hours",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "cs4",
+       "ref": "s4",
+       "name": "Map tiles"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W22",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “außer dem Testlauf”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "außer dem Testlauf",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W23",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\", \"condition_param\", \"lifetime\"]}",
+     "finish": "stop",
+     "latency_ms": 743,
+     "gen_ms": 742.4279451370239,
+     "out_tokens": 25,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “welche Session”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "welche Session",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W24",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “isn't waiting on me”. Nearest: (the form asks) · idle_for · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "idle_for",
+    "via": "code",
+    "asked": "isn't waiting on me",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W25",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "account Loft · runway_resets · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "ac2",
+       "ref": "acct2",
+       "name": "Loft"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_resets",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W26",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W27",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 638,
+     "gen_ms": 637.8339529037476,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “da ist”. Nearest: account Dachboden · runway_resets · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "runway_resets",
+    "via": "model labels",
+    "asked": "da ist",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W28",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"other\"]}",
+     "finish": "stop",
+     "latency_ms": 684,
+     "gen_ms": 683.5110187530518,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “wants something from me”. Nearest: session Release notes · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "wants something from me",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W29",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"exclusion\", \"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 608,
+     "gen_ms": 608.2459688186646,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nichts tut”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "nichts tut",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W30",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"condition\", \"condition_param\", \"lifetime\", \"filler\"]}",
+     "finish": "stop",
+     "latency_ms": 733,
+     "gen_ms": 732.8510284423828,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “mehr als vier Sessions gleichzeitig laufen”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "mehr als vier Sessions gleichzeitig laufen",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W31",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "account Attic Team · runway_below 25 · today",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "cc1",
+       "ref": "acct1",
+       "name": "Attic Team"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 25
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W32",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 568,
+     "gen_ms": 567.6010847091675,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “yes, even overnight”. Nearest: account Hangar Max · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "model labels",
+    "asked": "yes, even overnight",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W33",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W34",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 624,
+     "gen_ms": 624.1400241851807,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “weird in ledger-sync”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "weird in ledger-sync",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W35",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\", \"condition_param\"]}",
+     "finish": "stop",
+     "latency_ms": 641,
+     "gen_ms": 640.7350301742554,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “jeder zehnten fertigen Session”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "jeder zehnten fertigen Session",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W36",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"condition_param\", \"lifetime\", \"target\"]}",
+     "finish": "stop",
+     "latency_ms": 749,
+     "gen_ms": 749.0230798721313,
+     "out_tokens": 25,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “more than five sessions are running at once”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "more than five sessions are running at once",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W37",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Billing export · finishes · always",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "as1",
+       "ref": "s1",
+       "name": "Billing export"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "always",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W38",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nicht die Kartenkacheln”. Nearest: (the form asks) · stuck · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "stuck",
+    "via": "code",
+    "asked": "nicht die Kartenkacheln",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W39",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"quiet_hours\"]}",
+     "finish": "stop",
+     "latency_ms": 658,
+     "gen_ms": 658.053994178772,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Even if it's quiet hours”. Nearest: session Auth migration · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "Even if it's quiet hours",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W40",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Auth migration · asks_you · once",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "as3",
+       "ref": "s3",
+       "name": "Auth migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W41",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\"]}",
+     "finish": "stop",
+     "latency_ms": 572,
+     "gen_ms": 571.990966796875,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “selbst”. Nearest: account Werkstatt Pro · hits_limit · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "hits_limit",
+    "via": "model labels",
+    "asked": "selbst",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W42",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W43",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nicht mehr”. Nearest: (the form asks) · ends · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "ends",
+    "via": "code",
+    "asked": "nicht mehr",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W44",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"exclusion\"]}",
+     "finish": "stop",
+     "latency_ms": 591,
+     "gen_ms": 590.831995010376,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “forget about it”. Nearest: session Flaky tests · ends · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "ends",
+    "via": "model labels",
+    "asked": "forget about it",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W45",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “don't care about individual sessions”. Nearest: (the form asks) · starts · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "starts",
+    "via": "code",
+    "asked": "don't care about individual sessions",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W46",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W47",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\", \"condition\", \"condition_param\", \"lifetime\", \"quiet_hours\"]}",
+     "finish": "stop",
+     "latency_ms": 775,
+     "gen_ms": 774.9040126800537,
+     "out_tokens": 25,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “zum dritten Mal hintereinander fehlschlägt”. Nearest: (the form asks) · fails · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "fails",
+    "via": "model labels",
+    "asked": "zum dritten Mal hintereinander fehlschlägt",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W48",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"target\"]}",
+     "finish": "stop",
+     "latency_ms": 578,
+     "gen_ms": 577.4290561676025,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Suchindex 15 Minuten”. Nearest: (the form asks) · stuck · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "stuck",
+    "via": "model labels",
+    "asked": "Suchindex 15 Minuten",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W49",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"target\"]}",
+     "finish": "stop",
+     "latency_ms": 651,
+     "gen_ms": 651.2219905853271,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “Hilfe brauchen oder eine Frage haben”. Nearest: session Willkommensmails · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "model labels",
+    "asked": "Hilfe brauchen oder eine Frage haben",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W50",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “but not if it fails”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "but not if it fails",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W51",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “ohne Prozesse zurückzulassen”. Nearest: (the form asks) · ends · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "ends",
+    "via": "code",
+    "asked": "ohne Prozesse zurückzulassen",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W52",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “apart from plain approvals”. Nearest: (the form asks) · asks_you · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "apart from plain approvals",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W53",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “nicht bis heute Abend fertig werden”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "nicht bis heute Abend fertig werden",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W54",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “NOT finish by tonight”. Nearest: (the form asks) · finishes · today.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "NOT finish by tonight",
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W55",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W56",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\"]}",
+     "finish": "stop",
+     "latency_ms": 599,
+     "gen_ms": 599.3540287017822,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “abschmiert”. Nearest: session Kartenkacheln · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "abschmiert",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W57",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "session Rechnungsexport · fails · today · even during quiet hours",
+    "model_text": [],
+    "notes": [],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "bs1",
+       "ref": "s1",
+       "name": "Rechnungsexport"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "cover: claimed"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W58",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W59",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "label",
+     "attempt": 0,
+     "text": "{\"slots\": [\"condition\", \"condition_param\"]}",
+     "finish": "stop",
+     "latency_ms": 638,
+     "gen_ms": 637.5709772109985,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": null,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “takes longer than two hours in total”. Nearest: session Search index rebuild · finishes · once.",
+    "model_text": [],
+    "notes": [],
+    "nearest": "finishes",
+    "via": "model labels",
+    "asked": "takes longer than two hours in total",
+    "decided": [
+     "cover: leftover",
+     "labels: model (1 call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch13",
+   "job": "watch9",
+   "setting": "main",
+   "id": "R13-W60",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": [],
+    "decided": [
+     "cover: leftover"
+    ]
+   }
+  }
+ ]
+}

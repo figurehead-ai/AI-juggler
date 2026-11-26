@@ -591,6 +591,12 @@
 2. Two calls: the target first, then the condition; retries sample (not greedy).
 3. Re-measured with the fixed code on fresh blind sets (60 requests, English and German, harness v6, a Sonnet eval round, Opus verifying every verdict that matters); ships at ≥ 90 % exact, each watch added only by the user's click; below 90 % reported to the coordinator before shipping.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3830/manifest.md`.
+**Rounds so far (2026-11-26), pending the maintainer's choice**: harnesses v6 to v13 ran on Apple's on-device model, the only model on this Mac.
+- The hard bar held from v9 on: 0 unsupported claimed in v9, v11, v12 and v13 (v10 claimed 3).
+- Exact on fresh blind sets stayed below 90 %: v11 65.8 %, v12 31.6 %, v13 31.6 %. The later sets asked for more paraphrase and German variety.
+- v13 nearest offered 81.8 %; latency median 634.5 ms, p95 775 ms.
+
+The cause analysis is in `docs/qa/evidence/AJ-E3709/v13-results/summary.md`. With drafts fail-closed by construction, exact on fresh wording is bounded by code's verified vocabulary. Apple's model labels unknown words by meaning, not as filler, and code can't verify those labels. Watches stay `not_yet`, and the Watches form is unchanged.
 
 ### AJ-E3831 Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | Status: TODO (0.5.2, D-149) | Priority P1 | Effort M | Depends: AJ-E3709
 **Found**: v5 round 3: feed lines preferred 43 %, digests 33 % over the plain text (safe, not better).
