@@ -369,17 +369,8 @@ pub fn with_aliases(
                 .iter()
                 .find(|r| r.id == id)
                 .map(|r| r.title.clone()),
-            "project" => world
-                .sessions
-                .iter()
-                .chain(&world.tasks)
-                .find(|r| r.project_id.as_deref() == Some(id))
-                .and_then(|r| r.project.clone()),
-            "pool" => world
-                .tasks
-                .iter()
-                .find(|r| r.pool_id.as_deref() == Some(id))
-                .and_then(|r| r.pool.clone()),
+            "project" => world.project_name(id),
+            "pool" => world.pool_name(id),
             _ => None,
         };
         let Some(name) = name else {

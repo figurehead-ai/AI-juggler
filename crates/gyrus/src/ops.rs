@@ -271,10 +271,6 @@ fn keyword(conn: &Connection, query: &str, k: usize) -> Result<Vec<(NodeId, f64)
 /// # Errors
 ///
 /// SQLite errors of the keyword or vector search.
-#[expect(
-    clippy::too_many_lines,
-    reason = "each source of seeds a short loop, in the order they rank"
-)]
 pub fn seed(
     conn: &Connection,
     snap: &Snapshot,
@@ -319,55 +315,40 @@ pub fn seed(
             }
         }
     }
-    for (key, relevance) in q.given {
-        if let Some(id) = snap.id_of(key).filter(|id| fits(*id)) {
-            add(
-                &mut out,
-                Seed {
-                    node: id,
-                    relevance: relevance.clamp(0.0, 1.0),
-                    via: Via::Given,
-                },
-            );
-        }
-    }
-    for (key, relevance) in q.matched {
-        if let Some(id) = snap.id_of(key).filter(|id| fits(*id)) {
-            add(
-                &mut out,
-                Seed {
-                    node: id,
-                    relevance: relevance.clamp(0.0, 1.0),
-                    via: Via::Keyword,
-                },
-            );
+    for (seeds, via) in [(q.given, Via::Given), (q.matched, Via::Keyword)] {
+        for (key, relevance) in seeds {
+            if let Some(id) = snap.id_of(key).filter(|id| fits(*id)) {
+                let relevance = relevance.clamp(0.0, 1.0);
+                add(
+                    &mut out,
+                    Seed {
+                        node: id,
+                        relevance,
+                        via,
+                    },
+                );
+            }
         }
     }
     let k = q.k.max(1);
     let mut fused: HashMap<NodeId, (f64, Via)> = HashMap::new();
     if let Some(query) = informative(conn, q.text)? {
         let hits = keyword(conn, &query, k * 2)?;
-        for (rank, (id, _)) in hits
-            .iter()
-            .filter(|(id, _)| fits(*id))
-            .take(k * 2)
-            .enumerate()
-        {
-            let e = fused.entry(*id).or_insert((0.0, Via::Keyword));
-            e.0 += 1.0 / (RRF_K + 1.0 + f64::from(u32::try_from(rank).unwrap_or(u32::MAX)));
-        }
+        fuse(
+            &mut fused,
+            hits.iter().map(|(id, _)| *id).filter(|id| fits(*id)),
+            k * 2,
+            Via::Keyword,
+        );
     }
     if let Some(vector) = q.vector {
         let near = nearest(conn, vector, k * 4)?;
-        for (rank, (id, _)) in near
-            .iter()
-            .filter(|(id, _)| fits(*id))
-            .take(k * 2)
-            .enumerate()
-        {
-            let e = fused.entry(*id).or_insert((0.0, Via::Vector));
-            e.0 += 1.0 / (RRF_K + 1.0 + f64::from(u32::try_from(rank).unwrap_or(u32::MAX)));
-        }
+        fuse(
+            &mut fused,
+            near.iter().map(|(id, _)| *id).filter(|id| fits(*id)),
+            k * 2,
+            Via::Vector,
+        );
     }
     let top = fused.values().map(|(s, _)| *s).fold(0.0, f64::max);
     let mut fused: Vec<(NodeId, f64, Via)> =
@@ -386,6 +367,20 @@ pub fn seed(
     }
     out.truncate(k);
     Ok(out)
+}
+
+/// Reciprocal-rank fusion: each of the first `n` ids adds 1 ÷ (60 + its
+/// rank) to its score.
+fn fuse(
+    fused: &mut HashMap<NodeId, (f64, Via)>,
+    ranked: impl Iterator<Item = NodeId>,
+    n: usize,
+    via: Via,
+) {
+    for (rank, id) in ranked.take(n).enumerate() {
+        let e = fused.entry(id).or_insert((0.0, via));
+        e.0 += 1.0 / (RRF_K + 1.0 + f64::from(u32::try_from(rank).unwrap_or(u32::MAX)));
+    }
 }
 
 #[expect(clippy::cast_possible_truncation, reason = "scores are 0..=1")]

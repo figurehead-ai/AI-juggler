@@ -22,8 +22,18 @@ const MIN: i64 = 60_000;
 
 fn state() -> (tempfile::TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap();
-    let state = crate::test_support::bare_state(dir.path().to_path_buf());
-    (dir, state)
+    let data = dir.path().to_path_buf();
+    (dir, crate::test_support::bare_state(data))
+}
+
+/// What "Remember …" keeps when written before the world model existed
+/// (the plain store path, no node).
+fn remember_plain(state: &Arc<AppState>, world: &World, words: &str, turn: &str) {
+    let storage = state.storage.lock().unwrap();
+    let writer = juggler_core::storage::memory::Writers::for_tests().memory;
+    crate::features::bot::memory::remember_in(&storage, &writer, world, words, turn)
+        .unwrap()
+        .unwrap();
 }
 
 fn session(id: &str, title: &str, state: BotState, project: &str) -> BotRowInfo {
@@ -184,28 +194,8 @@ fn records_are_linked_as_memory_nodes_and_nothing_moves() {
     let (_dir, state) = state();
     let world = world();
     // Written before the world model existed: plain remember.
-    {
-        let storage = state.storage.lock().unwrap();
-        let writer = juggler_core::storage::memory::Writers::for_tests().memory;
-        crate::features::bot::memory::remember_in(
-            &storage,
-            &writer,
-            &world,
-            "call agent11 the api agent",
-            "t1",
-        )
-        .unwrap()
-        .unwrap();
-        crate::features::bot::memory::remember_in(
-            &storage,
-            &writer,
-            &world,
-            "the release goes out on fridays",
-            "t2",
-        )
-        .unwrap()
-        .unwrap();
-    }
+    remember_plain(&state, &world, "call agent11 the api agent", "t1");
+    remember_plain(&state, &world, "the release goes out on fridays", "t2");
     let before: i64 = {
         let storage = state.storage.lock().unwrap();
         storage
@@ -257,21 +247,26 @@ fn records_are_linked_as_memory_nodes_and_nothing_moves() {
     assert!(keys.contains(&"session:s-api".to_owned()), "{keys:?}");
 }
 
+/// "call web the shop agent", through Bot's remember flow: the record.
+fn name_web(state: &Arc<AppState>, world: &World) -> juggler_core::storage::memory::Record {
+    crate::features::bot::memory::remember(state, world, "call web the shop agent", "t1")
+        .unwrap()
+        .unwrap();
+    let storage = state.storage.lock().unwrap();
+    storage
+        .memory()
+        .current("alias:session:s-web")
+        .unwrap()
+        .unwrap()
+}
+
 /// A record written now commits with its node (Bot's remember flow).
 #[test]
 fn bots_remember_flow_links_the_record_in_the_same_write() {
     let (_dir, state) = state();
-    let world = world();
-    crate::features::bot::memory::remember(&state, &world, "call web the shop agent", "t1")
-        .unwrap()
-        .unwrap();
+    let alias = name_web(&state, &world());
     let storage = state.storage.lock().unwrap();
     let snap = state.world.ready(&state, &storage).unwrap();
-    let alias = storage
-        .memory()
-        .current("alias:session:s-web")
-        .unwrap()
-        .unwrap();
     assert!(snap.id_of(&memory_key(&alias.subject_id)).is_some());
     assert!(snap.id_of("session:s-web").is_some());
 }
@@ -281,9 +276,7 @@ fn bots_remember_flow_links_the_record_in_the_same_write() {
 fn nodes_resolve_to_live_lines() {
     let (_dir, state) = state();
     let mut world = world();
-    crate::features::bot::memory::remember(&state, &world, "call web the shop agent", "t1")
-        .unwrap()
-        .unwrap();
+    let alias = name_web(&state, &world);
     let storage = state.storage.lock().unwrap();
     let line = resolve::resolve(&storage, &world, "session:s-web", None).unwrap();
     assert!(line.line.contains("asks you"), "{}", line.line);
@@ -294,11 +287,6 @@ fn nodes_resolve_to_live_lines() {
     assert!(resolve::resolve(&storage, &world, "session:gone", None).is_none());
     let account = resolve::resolve(&storage, &world, "account:acc-1", None).unwrap();
     assert!(account.line.contains("62% used"), "{}", account.line);
-    let alias = storage
-        .memory()
-        .current("alias:session:s-web")
-        .unwrap()
-        .unwrap();
     let memory = resolve::resolve(&storage, &world, &memory_key(&alias.subject_id), None).unwrap();
     assert!(
         memory
@@ -339,6 +327,20 @@ fn turn(state: &Arc<AppState>, question: &str) -> juggler_core::storage::memory:
         .unwrap()
 }
 
+/// ADR-0038 §5's example asked of `world`, the look-up having found agent11.
+fn agent11(state: &Arc<AppState>, world: &World) -> super::assemble::WorldContext {
+    super::assemble::assemble(
+        state,
+        &super::assemble::Ask {
+            question: "tell the api agent to double-validate their work",
+            world,
+            rows: &[world.sessions[1].clone()],
+            topic: None,
+            recent: &[],
+        },
+    )
+}
+
 /// ADR-0038 §5's example: "tell agent11 to double-validate their work"
 /// finds the session the words name (by the user's own name for it), walks
 /// to its project and App by the kinds' rules, reads their state now, and
@@ -351,17 +353,7 @@ fn the_world_section_seeds_walks_and_reads_live_state() {
     crate::features::bot::memory::remember(&state, &world, "call agent11 the api agent", "t1")
         .unwrap()
         .unwrap();
-    let rows = vec![world.sessions[1].clone()];
-    let ctx = super::assemble::assemble(
-        &state,
-        &super::assemble::Ask {
-            question: "tell the api agent to double-validate their work",
-            world: &world,
-            rows: &rows,
-            topic: None,
-            recent: &[],
-        },
-    );
+    let ctx = agent11(&state, &world);
     assert!(!ctx.warming);
     let items: Vec<(String, String, String)> = ctx
         .items
@@ -400,16 +392,7 @@ fn the_world_section_seeds_walks_and_reads_live_state() {
     // remembered).
     let mut later = world.clone();
     later.sessions[1].state = Some(BotState::Stuck);
-    let ctx = super::assemble::assemble(
-        &state,
-        &super::assemble::Ask {
-            question: "tell the api agent to double-validate their work",
-            world: &later,
-            rows: &[later.sessions[1].clone()],
-            topic: None,
-            recent: &[],
-        },
-    );
+    let ctx = agent11(&state, &later);
     assert!(
         ctx.text.contains("agent11\u{201d}, looks stuck now"),
         "{}",
@@ -643,19 +626,12 @@ fn forget_leaves_none_of_27_canaries_anywhere() {
 fn the_upkeep_pass_links_prunes_dreams_and_logs_counts_only() {
     let (_dir, state) = state();
     let world = world();
-    {
-        let storage = state.storage.lock().unwrap();
-        let writer = juggler_core::storage::memory::Writers::for_tests().memory;
-        crate::features::bot::memory::remember_in(
-            &storage,
-            &writer,
-            &world,
-            "the qzupkeep release goes out on fridays",
-            "t1",
-        )
-        .unwrap()
-        .unwrap();
-    }
+    remember_plain(
+        &state,
+        &world,
+        "the qzupkeep release goes out on fridays",
+        "t1",
+    );
     // A memory node with no record (its record cleared another way), and
     // an idle low note the idle pass archives.
     {

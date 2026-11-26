@@ -154,28 +154,22 @@ pub fn resolve(
         "account" => {
             find(BotRowKind::Account).map(|r| named(Plain::Account, &r.title, row_line(r)))
         }
-        "project" => world
-            .sessions
-            .iter()
-            .chain(&world.tasks)
-            .find(|r| r.project_id.as_deref() == Some(id))
-            .and_then(|r| r.project.clone())
-            .map(|name| {
-                let running = world
-                    .sessions
-                    .iter()
-                    .filter(|r| r.project_id.as_deref() == Some(id))
-                    .filter(|r| r.state == Some(crate::features::bot::dto::BotState::Working))
-                    .count();
-                named(
-                    Plain::Project,
-                    &name,
-                    format!(
-                        "project {}, {running} of its sessions working now",
-                        quoted(&name)
-                    ),
-                )
-            }),
+        "project" => world.project_name(id).map(|name| {
+            let running = world
+                .sessions
+                .iter()
+                .filter(|r| r.project_id.as_deref() == Some(id))
+                .filter(|r| r.state == Some(crate::features::bot::dto::BotState::Working))
+                .count();
+            named(
+                Plain::Project,
+                &name,
+                format!(
+                    "project {}, {running} of its sessions working now",
+                    quoted(&name)
+                ),
+            )
+        }),
         "app" => world
             .sessions
             .iter()
@@ -183,10 +177,7 @@ pub fn resolve(
             .and_then(|r| r.app_label.clone())
             .map(|name| named(Plain::App, &name, format!("App {}", quoted(&name)))),
         "pool" => world
-            .tasks
-            .iter()
-            .find(|r| r.pool_id.as_deref() == Some(id))
-            .and_then(|r| r.pool.clone())
+            .pool_name(id)
             .map(|name| named(Plain::Pool, &name, format!("pool {}", quoted(&name)))),
         "memory" => memory_line(storage, world.now_ms, id),
         "turn" => {

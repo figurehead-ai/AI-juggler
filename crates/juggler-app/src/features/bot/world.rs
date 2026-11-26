@@ -41,6 +41,25 @@ pub const NAME_MAX: usize = 300;
 const TASKS_READ: u32 = 400;
 
 impl World {
+    /// A project's name, from any row in it.
+    #[must_use]
+    pub fn project_name(&self, id: &str) -> Option<String> {
+        self.sessions
+            .iter()
+            .chain(&self.tasks)
+            .find(|r| r.project_id.as_deref() == Some(id))
+            .and_then(|r| r.project.clone())
+    }
+
+    /// A pool's name, from any task in it.
+    #[must_use]
+    pub fn pool_name(&self, id: &str) -> Option<String> {
+        self.tasks
+            .iter()
+            .find(|r| r.pool_id.as_deref() == Some(id))
+            .and_then(|r| r.pool.clone())
+    }
+
     /// Every row, by kind and id.
     #[must_use]
     pub fn find(&self, kind: BotRowKind, id: &str) -> Option<&BotRowInfo> {

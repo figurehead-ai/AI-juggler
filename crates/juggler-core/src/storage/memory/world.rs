@@ -153,10 +153,16 @@ pub(super) fn forget_in(
     for turn in turns {
         keys.push(turn_key(&turn?));
     }
+    forget_keys(tx, &keys).map(Some)
+}
+
+/// gyrus's forget of these keys, in the caller's transaction.
+fn forget_keys(
+    tx: &Connection,
+    keys: &[String],
+) -> Result<(gyrus::Pending, gyrus::Erased), MemoryError> {
     let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
-    gyrus::store::forget_in(tx, &refs)
-        .map(Some)
-        .map_err(gyrus_error)
+    gyrus::store::forget_in(tx, &refs).map_err(gyrus_error)
 }
 
 /// Every node whose key starts with one of `prefixes`, forgotten in the
@@ -177,10 +183,7 @@ pub(super) fn forget_prefixed_in(
             keys.push(key?);
         }
     }
-    let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
-    gyrus::store::forget_in(tx, &refs)
-        .map(Some)
-        .map_err(gyrus_error)
+    forget_keys(tx, &keys).map(Some)
 }
 
 /// Empties every gyrus table (a copy that holds no memory). No-op without
@@ -299,8 +302,7 @@ impl MemoryStore<'_> {
         let pending = {
             let _hold = SecureHold::on(self.conn)?;
             let tx = write_transaction(self.conn)?;
-            let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
-            let (pending, _) = gyrus::store::forget_in(&tx, &refs).map_err(gyrus_error)?;
+            let (pending, _) = forget_keys(&tx, &keys)?;
             tx.commit()?;
             pending
         };

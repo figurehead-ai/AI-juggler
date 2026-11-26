@@ -13,7 +13,7 @@ workspace = true
 [dependencies]
 # ADR-0038: Bot's world model, the generic graph engine (no new crate in
 # the lock: it depends only on rusqlite, serde_json and thiserror).
-gyrus = { path = "../gyrus" }
+gyrus = { version = "0.1.0", path = "../gyrus" }
 zeroize = { workspace = true }
 rusqlite = { workspace = true, features = ["bundled", "backup"] }
 serde = { workspace = true, features = ["derive"] }
