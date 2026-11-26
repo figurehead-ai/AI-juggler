@@ -97,4 +97,11 @@ pub struct ReviewAiInfo {
     pub risk: Option<String>,
     /// Its reason, in the agent's words, checked.
     pub risk_reason: Option<String>,
+    /// The source the lines were checked against: the agent's reply after
+    /// the guard, cut to [`SOURCE_MAX`] characters (one tap shows it,
+    /// ADR-0033's Beta).
+    pub source: String,
 }
+
+/// The most of the agent's reply a review's source shows.
+pub const SOURCE_MAX: usize = 1_500;

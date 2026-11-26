@@ -71,7 +71,7 @@ pub(crate) fn sees_turn_ends(state: &AppState, tool: &str, desktop: bool) -> boo
 
 /// The tools whose turns are reviewed (R5, the router's query): their
 /// command-line Apps tell each turn's end and their transcripts are read.
-/// Display names, in the registry's order.
+/// Tool ids, in the registry's order.
 #[must_use]
 pub fn covered_tools(state: &AppState) -> Vec<String> {
     state
@@ -79,8 +79,7 @@ pub fn covered_tools(state: &AppState) -> Vec<String> {
         .ids()
         .into_iter()
         .filter(|id| sees_turn_ends(state, id.as_str(), false))
-        .filter_map(|id| state.registry.get(&id))
-        .map(|adapter| adapter.spec().display_name)
+        .map(|id| id.as_str().to_owned())
         .collect()
 }
 

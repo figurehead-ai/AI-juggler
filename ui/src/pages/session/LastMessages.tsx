@@ -23,6 +23,9 @@ import { Turn } from "./ConversationTurn";
 import { sessionSource, useConversation, type FeedSource } from "./useConversation";
 import { useStickToBottom } from "./useStickToBottom";
 import { NewMessagesPill } from "./NewMessagesPill";
+import { TurnReview } from "../../components/TurnReview";
+import { useAiJob } from "../../lib/ai-availability";
+import type { ReviewAsk } from "../../lib/ipc/turn-review";
 import { appWords, picksInSidebar, speakerName, type SessionModel } from "./model";
 
 /** Why there's nothing to show, in words. */
@@ -42,6 +45,22 @@ const BANNER: Record<string, string> = {
   compressed: "It ended and its transcript was stored compressed. This is what was read.",
   earlier: "Couldn't load earlier messages.",
 };
+
+/** AJ-E3820 R3, R5: the last turn's review, as it asks for it: an
+ * assistant turn that has ended, of a command-line App whose tool the
+ * review job covers (the AI query says which). */
+function reviewAskOf(model: SessionModel, last: TurnInfo | undefined, covers: readonly string[] | undefined): ReviewAsk | null {
+  if (!last || last.speaker !== "assistant" || last.at_ms === null || model.conversationId === null) return null;
+  const desktop = model.desktop || Boolean(model.startedIn) || model.owner?.startsWith("app:") || model.places.some((place) => place.kind === "desktop");
+  if ((model.live && model.state.working) || desktop || !covers?.includes(model.tool)) return null;
+  return {
+    session_id: model.sessionId,
+    account_id: model.profileId,
+    conversation_id: model.conversationId,
+    until_ms: last.at_ms,
+    ended: model.state.tone === "danger" ? "failed" : null,
+  };
+}
 
 /** Meta text: 7:1 or better on every surface, both themes. */
 const META = "text-meta text-muted";
@@ -153,7 +172,9 @@ function Body({ chat, model, speaker, onShowEarlier, onRetry, asker }: { chat: F
     if (further && !chat.loadingEarlier) onShowEarlier();
   }, [further, chat.loadingEarlier, onShowEarlier]);
 
+  const covers = useAiJob("review")?.covers;
   if (turns.length === 0) return <Empty chat={chat} further={further} onRetry={onRetry} />;
+  const reviewAsk = asker ? null : reviewAskOf(model, last, covers);
   const asksAt = model.state.asks && last?.speaker === "assistant" ? turns.length - 1 : -1;
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
@@ -190,6 +211,11 @@ function Body({ chat, model, speaker, onShowEarlier, onRetry, asker }: { chat: F
               />
             ))}
           </ol>
+          {reviewAsk && (
+            <div className="-mt-3 pl-9" data-testid="last-messages-review">
+              <TurnReview key={`${last?.id}:${last?.revision}`} ask={reviewAsk} quote={false} />
+            </div>
+          )}
         </div>
       </div>
       {pill && <NewMessagesPill onClick={toBottom} testId="last-messages-new" />}

@@ -16,4 +16,10 @@ risk: string | null,
 /**
  * Its reason, in the agent's words, checked.
  */
-risk_reason: string | null, };
+risk_reason: string | null, 
+/**
+ * The source the lines were checked against: the agent's reply after
+ * the guard, cut to [`SOURCE_MAX`] characters (one tap shows it,
+ * ADR-0033's Beta).
+ */
+source: string, };

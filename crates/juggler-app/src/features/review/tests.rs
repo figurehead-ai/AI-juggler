@@ -293,7 +293,7 @@ fn a_faithful_line_in_the_agents_words_is_kept() {
     assert_eq!(written.notes[0].0, "export/dunnock.py");
     assert_eq!(written.risk, None, "the same as the facts': nothing to add");
     let mut r = base();
-    written.apply(&mut r, "Apple’s on-device model");
+    written.apply(&mut r, "Apple’s on-device model", REPLY);
     assert!(r.changed[0].about.is_some());
     assert_eq!(r.ai.as_ref().unwrap().model, "Apple’s on-device model");
 }
@@ -305,7 +305,6 @@ fn a_note_on_a_reverted_file_is_refused() {
     let r = base();
     let request = lines::request(&r, REPLY, false, "", 0);
     let shape = request.shape.unwrap().to_string();
-    assert!(shape.contains("export/dunnock.py"));
     assert!(
         !shape.contains("export/quoting.py"),
         "a reverted file is not offered"
@@ -358,12 +357,13 @@ fn a_risk_below_the_facts_is_refused_and_a_raised_one_is_kept() {
     let low = r#"{"notes":[],"risk_reason":"none","risk":"low"}"#;
     let why = lines::decide(low, &base(), &said, &[]).unwrap_err();
     assert!(why.contains("lower than the facts allow"), "{why}");
-    let high = r#"{"notes":[],"risk_reason":"downstream readers depend on the old quoting","risk":"high"}"#;
+    let high =
+        r#"{"notes":[],"risk_reason":"switched the dunnock export to stream rows","risk":"high"}"#;
     let written = lines::decide(high, &base(), &said, &[]).unwrap();
     assert_eq!(written.risk, Some(Risk::High));
     assert_eq!(
         written.risk_reason.as_deref(),
-        Some("downstream readers depend on the old quoting")
+        Some("switched the dunnock export to stream rows")
     );
 }
 
@@ -391,7 +391,18 @@ fn a_failing_engine_keeps_the_code_only_review() {
     let model = Scripted::new(&["FAIL"]);
     let (written, attempts) = write(&model, &base(), REPLY, &[], false, &stop());
     assert!(written.is_none());
-    assert!(attempts.is_empty());
+    assert_eq!(
+        attempts.len(),
+        1,
+        "one attempt: an engine failure is not regenerated"
+    );
+    assert!(
+        attempts[0]
+            .refused
+            .as_deref()
+            .unwrap()
+            .starts_with("engine")
+    );
 }
 
 /// The instructions are harness v5's review prompt as measured, but for
@@ -436,7 +447,7 @@ fn only_a_turn_whose_end_is_seen_is_reviewed() {
             std::sync::Arc::new(juggler_adapters::GrokBuildAdapter::new()),
         ],
     );
-    assert_eq!(super::read::covered_tools(&state), ["Claude Code", "Codex"]);
+    assert_eq!(super::read::covered_tools(&state), ["claude-code", "codex"]);
     assert!(super::read::sees_turn_ends(&state, "claude-code", false));
     assert!(
         !super::read::sees_turn_ends(&state, "claude-code", true),
@@ -459,4 +470,15 @@ fn only_a_turn_whose_end_is_seen_is_reviewed() {
         )
         .unwrap();
     assert_eq!(super::read::read(&state, &ask).review.state, "off");
+}
+
+/// A reason that only repeats what the review shows (the tests, the
+/// question, a note) is left out, not refused: the notes stay.
+#[test]
+fn a_reason_repeating_a_shown_fact_is_left_out() {
+    let said = super::facts::said(REPLY);
+    let draft = r#"{"notes":[{"path":"export/dunnock.py","says":"switched the dunnock export to stream rows"}],"risk_reason":"The integration suite is still unrun","risk":"medium"}"#;
+    let written = lines::decide(draft, &base(), &said, &[]).unwrap();
+    assert_eq!(written.notes.len(), 1);
+    assert_eq!(written.risk_reason, None);
 }

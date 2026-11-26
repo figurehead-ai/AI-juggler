@@ -22,11 +22,14 @@ import { useState, type JSX } from "react";
 import { HomeFeedDigest } from "./HomeFeedDigest";
 import { POST, PostAttachment, PostAvatar, PostThread, Story } from "./HomeFeedParts";
 import { GestureBar, WhyPanel } from "./HomeFeedGestures";
+import { TurnReview } from "./TurnReview";
 import { exactWhen, feedWhen, rollupSentence, said, sentence } from "../lib/feed-words";
 import { attachmentOf, changesOf, postAuthor, story, type Attachment, type PostAuthor, type StoryPart } from "../lib/feed-story";
 import { stateOf, threadOf, type FeedCard, type FeedThing } from "../lib/feed-rollup";
 import type { RailItem } from "../lib/rail-items";
 import type { FeedItemInfo } from "../lib/ipc/feed";
+import type { ReviewAsk } from "../lib/ipc/turn-review";
+import { useAiJob } from "../lib/ai-availability";
 
 /** What a post's controls do (Home's handlers). */
 export interface CardActions {
@@ -89,6 +92,28 @@ function Review({ sessionId, subject, onReview }: { sessionId: string; subject: 
       Mark reviewed<span className="sr-only"> {subject}</span>
     </button>
   );
+}
+
+/** The kinds that end a turn a review can be about (AJ-E3820). */
+const TURN_ENDS = new Set(["finished", "failed", "crashed", "ended", "stopped"]);
+
+/** AJ-E3820 R3, R5: the post's turn, as its review asks for it, when the
+ * review covers it: a turn's end of a command-line App whose tool the
+ * review job covers (the AI query says which), with its session or
+ * conversation. */
+function reviewAskOf(card: FeedCard, post: FeedItemInfo, covers: readonly string[] | undefined): ReviewAsk | null {
+  const provider = post.author.provider;
+  if (card.rolled || !TURN_ENDS.has(post.kind) || !provider || post.author.desktop || !covers?.includes(provider)) return null;
+  const { session_id, account_id, conversation_id } = post.target;
+  if (!session_id && !(account_id && conversation_id)) return null;
+  return { session_id, account_id, conversation_id, until_ms: post.at_ms, ended: post.kind };
+}
+
+/** The post's turn review, when the review covers it (the AI query's
+ * `covers`). */
+function PostReview({ card, post }: { card: FeedCard; post: FeedItemInfo }): JSX.Element | null {
+  const ask = reviewAskOf(card, post, useAiJob("review")?.covers);
+  return ask ? <TurnReview ask={ask} quote /> : null;
 }
 
 /** A rollup's things: three, then Show all in place. */
@@ -177,6 +202,7 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned 
           <Story parts={parts} onOpen={open} onPool={() => void actions.open(poolOf(post))} />
         </p>
         {attachment && <PostAttachment attachment={attachment} />}
+        <PostReview card={card} post={post} />
         {card.rolled && <Rolled card={card} now={now} actions={actions} />}
         {thread && thread.follow.length > 0 && (
           <PostThread

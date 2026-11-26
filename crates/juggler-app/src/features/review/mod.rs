@@ -23,4 +23,6 @@ pub mod lines;
 pub mod read;
 
 #[cfg(test)]
+mod real_model_tests;
+#[cfg(test)]
 mod tests;

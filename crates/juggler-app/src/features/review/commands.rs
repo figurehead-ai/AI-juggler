@@ -101,7 +101,7 @@ pub fn review_turn_ai_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReview
         }
     };
     if let Some((written, model)) = done {
-        written.apply(&mut review, &model);
+        written.apply(&mut review, &model, &read.reply);
     }
     review
 }

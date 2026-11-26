@@ -41,8 +41,8 @@ why: AiJobWhy | null,
  */
 pick: string | null, 
 /**
- * AJ-E3820 R5: the tools a job covers when it covers only some, by
- * name: the turn review only a turn whose end AI Juggler sees (a
+ * AJ-E3820 R5: the tools a job covers when it covers only some (tool
+ * ids): the turn review only a turn whose end AI Juggler sees (a
  * command-line App whose tool reports each turn's end and whose
  * transcripts it reads). Empty: every tool.
  */

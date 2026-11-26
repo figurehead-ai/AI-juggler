@@ -62,8 +62,9 @@ pub struct Written {
 
 impl Written {
     /// Puts the lines on the review: each file's `about`, and the model's
-    /// risk and reason, named by `model`.
-    pub fn apply(self, review: &mut TurnReviewInfo, model: &str) {
+    /// risk and reason, named by `model`, with the `source` they were
+    /// checked against.
+    pub fn apply(self, review: &mut TurnReviewInfo, model: &str, source: &str) {
         for (name, about) in self.notes {
             if let Some(file) = review.changed.iter_mut().find(|f| f.name == name) {
                 file.about = Some(about);
@@ -73,8 +74,18 @@ impl Written {
             model: model.to_owned(),
             risk: self.risk.map(|r| r.key().to_owned()),
             risk_reason: self.risk_reason,
+            source: cut(source, super::dto::SOURCE_MAX),
         });
     }
+}
+
+/// `text` cut to `max` characters, with "…" when cut.
+fn cut(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_owned();
+    }
+    let kept: String = text.chars().take(max - 1).collect();
+    format!("{}…", kept.trim_end())
 }
 
 /// The files the model may describe: the changed ones, none when an undo
@@ -189,16 +200,25 @@ pub fn request(
 #[must_use]
 pub fn shape(files: &[String]) -> Value {
     let mut properties = Vec::new();
+    // Apple's engine fails on an enum of one value and on an array of at
+    // most one: one file is a string (checked against files_changed as
+    // every path is), and the list holds at least two (a second note on
+    // the same file is refused).
+    let path = if files.len() == 1 {
+        json!({"type": "string"})
+    } else {
+        json!({"type": "enum", "name": "Note_path", "values": files})
+    };
     if !files.is_empty() {
         properties.push(json!({
             "name": "notes",
             "description": "A short description per changed file, from the MESSAGE; leave a file out when the MESSAGE says nothing about it.",
             "schema": {
-                "type": "array", "min": 0, "max": files.len().min(NOTES_MAX),
+                "type": "array", "min": 0, "max": files.len().clamp(2, NOTES_MAX),
                 "items": {
                     "type": "object", "name": "Note",
                     "properties": [
-                        {"name": "path", "description": "One of the changed files, as listed in FACTS.", "schema": {"type": "enum", "name": "Note_path", "values": files}},
+                        {"name": "path", "description": "One of the changed files, as listed in FACTS.", "schema": path},
                         {"name": "says", "description": "What the MESSAGE says about that file's change, in its words. At most 90 characters.", "schema": {"type": "string", "min": 1, "max": SAYS_MAX}}
                     ]
                 }
@@ -324,11 +344,23 @@ pub fn decide(
             review.risk_why.join(", ")
         ));
     }
+    // A reason that only repeats what the review already shows (its
+    // question, tests, failures, undo, or a note) adds nothing: left out,
+    // not refused.
+    let shown: Vec<&str> = review
+        .question
+        .iter()
+        .chain(&review.tests_words)
+        .chain(&review.reverted_words)
+        .chain(&review.failures)
+        .map(String::as_str)
+        .chain(notes.iter().map(|(_, says)| says.as_str()))
+        .collect();
     let reason = got
         .get("risk_reason")
         .and_then(Value::as_str)
         .map(str::trim)
-        .filter(|r| !is_none(r));
+        .filter(|r| !is_none(r) && !repeats(r, &shown));
     if let Some(reason) = reason {
         if reason.chars().count() > SAYS_MAX {
             return Err(format!("risk_reason is longer than {SAYS_MAX} characters"));
@@ -341,6 +373,27 @@ pub fn decide(
         risk: risk.filter(|r| *r > floor),
         risk_reason: reason.map(str::to_owned),
     })
+}
+
+/// Lower-cased words, for [`repeats`].
+fn plain_words(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Whether `line` says again what one of `shown` says: at least three
+/// quarters of its words are that sentence's.
+fn repeats(line: &str, shown: &[&str]) -> bool {
+    let words = plain_words(line);
+    !words.is_empty()
+        && shown.iter().any(|fact| {
+            let fact = plain_words(fact);
+            let held = words.iter().filter(|w| fact.contains(w)).count();
+            held * 4 >= words.len() * 3
+        })
 }
 
 /// What a regeneration is told: the reason and the refused draft.
@@ -377,8 +430,16 @@ pub fn write(
     let mut note = String::new();
     for attempt in 0..=RETRIES {
         let req = request(review, reply, failed, &note, attempt);
-        let Ok(draft) = model.generate(&req, stop) else {
-            return (None, attempts);
+        let draft = match model.generate(&req, stop) {
+            Ok(draft) => draft,
+            Err(failure) => {
+                // The engine failed: the code-only review, no regeneration.
+                attempts.push(Attempt {
+                    draft: String::new(),
+                    refused: Some(format!("engine: {failure:?}")),
+                });
+                return (None, attempts);
+            }
         };
         let why = if draft.finish == Finish::Length {
             "shape: cut at the token limit".to_owned()

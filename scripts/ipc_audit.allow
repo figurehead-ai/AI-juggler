@@ -297,6 +297,3 @@ name usage_source_health  # features/quota: the usage feed's health (AJ-E607)
 unbounded bot_topic_usage  # bounded: totals and the latest answer's five context parts and four memory kinds (AJ-E3825)
 unbounded review_turn  # bounded: one turn's review, at most 50 files (turn_changes::NAMES_MAX), 3 failure sentences and 2 questions (AJ-E3820)
 unbounded review_turn_ai  # bounded: the same review, with at most 5 model notes (AJ-E3820)
-uncalled review_wrong  # 2026-11-26: the turn review's UI (AJ-E3820) calls it in its next commit
-uncalled review_turn  # 2026-11-26: the turn review's UI (AJ-E3820) calls it in its next commit
-uncalled review_turn_ai  # 2026-11-26: the turn review's UI (AJ-E3820) calls it in its next commit
