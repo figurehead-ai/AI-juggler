@@ -61,6 +61,8 @@ RICH = frozenset(
         "99-keep-alive", "99-new-session", "99-settings-keyboard", "99-settings-search", "98-pool-setup",
         # AJ-E3826: Settings › AI › Models (models-gallery.spec.ts).
         "99-ai-models",
+        # AJ-E2027: the Reminders list and Settings › Advanced › Scheduled work.
+        "99-reminders",
     }
 )
 

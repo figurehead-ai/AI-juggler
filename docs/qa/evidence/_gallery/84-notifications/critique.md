@@ -1,4 +1,4 @@
-<!-- captures: 2a3629435650 -->
+<!-- captures: 8fc73fe5693d -->
 # 84-notifications: Settings › Notifications, which alerts reach macOS, quiet hours and the digest's accounts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -35,3 +35,19 @@ Re-captured on the host from a clean export of HEAD (the shared tree held anothe
 | 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
 
 The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+## 0.5.2 AJ-E2027 (2026-11-26, Opus): Watches and reminders
+
+Re-captured on the host from a clean export of HEAD (`notifications.spec.ts`); the four captures changed only in the last row (6,809–6,825 pixels, box 670×51 at its foot), each opened, the dark one cropped at full size.
+
+**What changed.** The watches kind is now "Watches and reminders", its line "A watch you set was met, or a reminder came due. Quiet hours hold a watch unless it is set to tell you even then; a reminder comes at the time you picked." A reminder is told through the same kind, so the one switch turns both off, and the words say so.
+
+**Judged.** The line wraps to two lines in the 1280 frame (the other rows take one); it stays in the hint's role and colour, and the switch stays centred on the row. The eye icon still fits watches; a reminder has no separate kind to need its own.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 12 | Words | 4 | Plain, and says the one difference (quiet hours) instead of hiding it. |
+| 13 | States | 4 | On and off as before, both themes. |
+| 19 | Rich-mode colour | 4 | Unchanged: every row its icon chip, on in the accent's soft step, the switch's fill. |
+
+The other lines are as the 0.5.1 section scored them (lowest 4).

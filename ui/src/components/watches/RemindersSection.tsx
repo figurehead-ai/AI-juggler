@@ -36,7 +36,7 @@ const REMINDERS = {
   resume: "Resume",
   remove: "Remove",
   about: (name: string) => `About ${name}`,
-  in: (ms: number, now: number) => (ms <= now ? "Due now" : `In ${span(now, ms)}`),
+  in: (ms: number, now: number) => (ms - now < 60_000 ? "Due now" : `In ${span(now, ms)}`),
   once: "Once, then done",
   paused: "Paused",
   wasDue: "Its time passed; told when you resume",

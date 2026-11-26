@@ -1,4 +1,4 @@
-<!-- captures: 056312f902de -->
+<!-- captures: bd366787b7ea -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -100,3 +100,20 @@ Re-captured on the host from a clean export of HEAD (`home-feed-gallery.spec.ts`
 | 18 | Usability | 4 | Answer 2 now matches in full (the manifest). |
 
 The other lines are as this release's AJ-E3713 section scored them (lowest 3: line 16, no hand walk in Dev).
+
+## 0.5.2 AJ-E2027 (2026-11-26, Opus): Remind me shown
+
+Re-captured on the host from a clean export of HEAD (`home-feed-gallery.spec.ts`), every state, both themes; the 28 captures that changed diffed against the last ones (scripts/visual_sweep_diff.mjs: 84–1,911 pixels each, all in one 44 px column of the gesture bars) and opened, story-1280 cropped at full size.
+
+**What changed.** A post about something (its session, pool, project, Account or App) now has Remind me in its gesture bar, an alarm-clock glyph between Less like this and Follow, because the one scheduler answers (D-127: it was built and hidden until reminders were possible). Its menu is unchanged (In 30 minutes, In 1 hour, In 3 hours, Tomorrow at 9 AM), and picking one primes Notifications first (PAT-OSP). Nothing else moved: the bar keeps its spacing and the glyph is the same faint tone as its neighbours until hovered.
+
+**Judged.** Dark and light: the glyph reads at the same weight as ↑ ↓ + and the speech bubble, with no new colour (a gesture bar is calm; the accent comes only on hover and in the menu). Its tooltip and accessible name say "Remind me".
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 12 | Words | 4 | "Remind me"; the toast says "Reminder set for 4:00 PM. About api." with Reminders as its way there. |
+| 17 | System prompts | 4 | Remind me and Follow both prime Notifications at the click; nothing asks when a reminder comes due. |
+| 18 | Usability | 4 | Answer 2 now matches for Remind me too (AJ-E2027's six answers). |
+| 19 | Rich-mode colour | n/a (calm) | A monitoring feed; its menu is the shared RowMenu. |
+
+The other lines are as the G8 section scored them (lowest 3: line 16, no hand walk in Dev).
