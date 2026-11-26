@@ -45,6 +45,10 @@ pub enum Refused {
     Acting,
     /// It repeats words the guard removed.
     Echo,
+    /// G11 (D-130, D-149 amendment 2): a cause, benefit or outcome ("so",
+    /// "because", "faster", "ensures") no cited record says: support is
+    /// required, not only the absence of a contradiction.
+    Claim(String),
 }
 
 impl Refused {
@@ -63,6 +67,7 @@ impl Refused {
             Self::Negation => "negation",
             Self::Acting => "acting",
             Self::Echo => "echo",
+            Self::Claim(_) => "claim",
         }
     }
 }
@@ -270,6 +275,59 @@ const UNHELD: &[&str] = &[
     "grün",
     "rot",
 ];
+
+/// G11: words that claim a cause, a benefit or an outcome. Shown only when
+/// a cited record's own words say it (its name, project, App, quote).
+const CLAIMED: &[&str] = &[
+    "so",
+    "because",
+    "since",
+    "therefore",
+    "thus",
+    "hence",
+    "due",
+    "caused",
+    "causes",
+    "causing",
+    "means",
+    "thanks",
+    "improves",
+    "improved",
+    "ensures",
+    "prevents",
+    "enables",
+    "allows",
+    "faster",
+    "slower",
+    "quicker",
+    "reliable",
+    "better",
+    "worse",
+    "cleaner",
+    "safer",
+    "saves",
+    "reduces",
+    "weil",
+    "deshalb",
+    "daher",
+    "wegen",
+    "dadurch",
+    "damit",
+    "sodass",
+    "schneller",
+    "langsamer",
+    "besser",
+];
+
+/// A state no record holds as said (M1), or a cause, benefit or outcome no
+/// cited record's own words say (G11).
+fn unheld_or_claimed(word: &str, name_words: &[String]) -> Option<Refused> {
+    if UNHELD.contains(&word) {
+        return Some(Refused::State(word.to_owned()));
+    }
+    (CLAIMED.contains(&word) && !name_words.iter().any(|n| n == word))
+        .then(|| Refused::Claim(word.to_owned()))
+}
 
 /// Words that say a time the rows don't carry as words.
 const TIME: &[&str] = &[
@@ -799,8 +857,8 @@ fn check_part(
         if word.chars().all(|c| c.is_ascii_digit()) || number_word(word).is_some() {
             continue;
         }
-        if UNHELD.contains(&word.as_str()) {
-            return Err(Refused::State(word.clone()));
+        if let Some(refused) = unheld_or_claimed(word, &name_words) {
+            return Err(refused);
         }
         if TIME.contains(&word.as_str()) {
             if question_words.contains(word) {
@@ -859,6 +917,44 @@ mod tests {
 
     fn one(text: &str, rows: &[BotRowInfo]) -> Result<(), Refused> {
         check(&[part(text, &[1])], rows, "what is going on in shop?", &[])
+    }
+
+    /// G11: a cause, benefit or outcome traces to a cited record's own
+    /// words, or the answer is refused.
+    #[test]
+    fn a_claimed_cause_or_benefit_needs_a_record_that_says_it() {
+        let rows = [
+            row("web", BotState::AsksYou, None),
+            row("Make the export faster", BotState::Finished, None),
+        ];
+        assert_eq!(
+            check(
+                &[part("“web” is waiting on you, so it is waiting.", &[1])],
+                &rows,
+                "what is web doing?",
+                &[]
+            ),
+            Err(Refused::Claim("so".into()))
+        );
+        assert_eq!(
+            check(
+                &[part("“web” is waiting on you because it asks.", &[1])],
+                &rows,
+                "why is web waiting?",
+                &[]
+            ),
+            Err(Refused::Claim("because".into()))
+        );
+        assert_eq!(
+            check(
+                &[part("“Make the export faster” finished.", &[2])],
+                &rows,
+                "what finished?",
+                &[]
+            ),
+            Ok(()),
+            "the record's own name says it"
+        );
     }
 
     #[test]
