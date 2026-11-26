@@ -3866,3 +3866,11 @@ With an AI ready, a question with no AI Juggler records in it ("what is 3+5") ge
 - **A fixed set of operations** (seed, expand, matches, as_of, rank, touch, dream, forget, explain) with p95 budgets and a benchmark at 10k, 100k and 1M links in CI; tiers (immediate plus ADR-0037's short, mid, long); forget extends ADR-0037 §1.5 (secure_delete, FTS rebuild, WAL truncate, then the in-memory removal).
 - **The crate** is generic (`crates/gyrus`, its own README, tests, bench; a lint forbids any juggler-* dependency); AI Juggler's kind pack is `features/ai/world/`. It goes public as its own repository only after it works inside Bot (the maintainer's step).
 - Supersedes ADR-0037's "no graph store" line; extends ADR-0037, not replaces it. Built under AJ-E3832.
+
+### D-149 amendment — watches and the feed line keep being fixed in 0.5.2 (2026-11-26)
+
+- **Ruling** (the coordinating session, 2026-11-26, on the v6 round's results: watches 63.5 % exact vs 90 %, the feed line 34 % pooled vs 60 %): option (b), keep fixing both in 0.5.2, as many rounds as it takes; no deferral to 0.6 and no relaxed bar (D-149's bars are the maintainer's; the standing rule fixes in the same version until it ships).
+- **Watches:** code builds the target candidates (the user's own names and aliases and entity matches; negation and exclusion handled by code first); the model picks one candidate id or none; one resolver (gyrus's `seed` once it lands). The condition a guided enum with one-line definitions, code pre-selecting on cue words; idle and stuck merged only if they are the same state. The no-draft cases each diagnosed; unsupported requests always get the nearest option.
+- **Feed line:** code pre-ranks the turn's checked clauses (outcome and decision first; file diffs and side details last or excluded); the model picks from the top 3 only; re-judged blind with the pooled method.
+- **Digest:** Beta (64 % pooled); G7 (a reverted turn keeps the plain words) fixed in 0.5.2.
+- Each round on a fresh blind set (v7 onwards), judged once.
