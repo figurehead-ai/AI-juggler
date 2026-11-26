@@ -345,12 +345,20 @@ for (const theme of THEMES) {
       test(`settings sessions — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Settings");
-        await await settingsPane(page, "Sessions");
+        await settingsPane(page, "Sessions");
         await page.getByTestId("settings-terminal-toggle").click();
         await expect(page.getByLabel("Scrollback")).toBeVisible();
+        // 0.5.2 G5: the open pane is taller than the window, and an
+        // element's capture shows only what its scroller shows (the rest
+        // came out as an empty band, rows cut mid-line): the window grows
+        // to hold the whole pane first (its width, so its layout, kept).
+        const pane = page.getByTestId("settings-sessions");
+        const tall = await pane.evaluate((card) => card.getBoundingClientRect().height);
+        await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, Math.ceil(tall) + 400) });
+        await pane.evaluate((card) => card.scrollIntoView({ block: "start" }));
         await page.mouse.move(0, 0);
         await settle(page);
-        await expect.soft(page.getByTestId("settings-sessions")).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
+        await expect.soft(pane).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
       });
 
       // AJ-E1504: the ? sheet and the folded inspector.
