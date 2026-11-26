@@ -460,3 +460,4 @@ MoveProgressInfo.total                             # a move's total bytes (or st
 AiEngineStatusInfo.started_ms                     # ms epoch, < 2^53 until year 287396 (AJ-E3825)
 AiEngineStatusInfo.answered_ms                    # ms epoch, < 2^53 until year 287396 (AJ-E3825)
 BotDetails.ms                                     # one answer's duration in ms, bounded by its deadline (12 s; AJ-E3825)
+ReviewAsk.until_ms                                 # ms epoch, < 2^53 until year 287396 (AJ-E3820)

@@ -267,7 +267,17 @@ fn answer_now(state: &AppState, probe: Probe) -> AppResult<(Vec<AiJobInfo>, bool
     let picks = picks(state)?;
     let beta = |job: Job| switches.get(&job).copied().unwrap_or(false);
     let snapshot = crate::features::remote_config::current();
-    Ok(service().answer(&snapshot, &beta, &picks, &state.data_dir, probe))
+    let (mut jobs, changed) = service().answer(&snapshot, &beta, &picks, &state.data_dir, probe);
+    with_covers(state, &mut jobs);
+    Ok((jobs, changed))
+}
+
+/// AJ-E3820 R5: the query says which turns the review covers (only those
+/// whose end AI Juggler sees), so no surface promises one it can't write.
+fn with_covers(state: &AppState, jobs: &mut [AiJobInfo]) {
+    for info in jobs.iter_mut().filter(|info| info.job == AiJob::Review) {
+        info.covers = crate::features::review::read::covered_tools(state);
+    }
 }
 
 /// This Mac's facts as the recommendation reads them, probing the

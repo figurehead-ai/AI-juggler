@@ -168,7 +168,7 @@ function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" 
  * (AJ-E3820); the feed line and watches on their plain path by their
  * verdicts. */
 export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
-  const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null });
+  const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null, covers: [] });
   return [
     { ...base("feed", "no_engine") },
     { ...base("review", "off"), why: "not_built", ...over.review },

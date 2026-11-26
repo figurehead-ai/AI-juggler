@@ -39,4 +39,11 @@ why: AiJobWhy | null,
  * The user's own model for the job (AJ-E3812), when they picked one
  * rather than Automatic; it wins whenever it can run.
  */
-pick: string | null, };
+pick: string | null, 
+/**
+ * AJ-E3820 R5: the tools a job covers when it covers only some, by
+ * name: the turn review only a turn whose end AI Juggler sees (a
+ * command-line App whose tool reports each turn's end and whose
+ * transcripts it reads). Empty: every tool.
+ */
+covers: Array<string>, };

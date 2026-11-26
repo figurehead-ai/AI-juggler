@@ -264,6 +264,8 @@ read_routes! {
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     // D-118: Home's activity feed, one keyset page.
     "feed_page" => async_result features::feed::commands::feed_page(state; request: crate::paging::PageRequest, filters: features::feed::dto::FeedFiltersInfo);
+    // AJ-E3820: a turn's code-only review (the model's lines are the app's).
+    "review_turn" => async_result features::review::commands::review_turn(state; ask: features::review::dto::ReviewAsk);
     // AJ-E3814: the watches, read only (create, edit, pause and remove are
     // the user's clicks in the app).
     "watches_list" => async_result features::watches::commands::watches_list(state; request: crate::paging::PageRequest, which: Option<features::watches::commands::WatchListWhich>, lang: Option<features::watches::words::Lang>);

@@ -238,7 +238,8 @@ const ROLE_LABELS: &[&str] = &[
     "feed",
     "zusammenfassung",
 ];
-const CAVEAT: &[&str] = &[
+/// A caveat's words (shared with the turn review, AJ-E3820).
+pub(crate) const CAVEAT: &[&str] = &[
     "not run",
     "not tested",
     "untested",
@@ -259,7 +260,8 @@ const CAVEAT: &[&str] = &[
     "teilweise",
     "blockiert",
 ];
-const FAILURE: &[&str] = &[
+/// A failure's words (shared with the turn review, AJ-E3820).
+pub(crate) const FAILURE: &[&str] = &[
     "fail",
     "error",
     "crash",
@@ -326,7 +328,8 @@ fn starts_with_phrase(words: &[String], phrases: &[&str]) -> bool {
     })
 }
 
-fn holds_phrase(text_lower: &str, phrases: &[&str]) -> bool {
+/// Whether `text_lower` holds one of `phrases`, each starting a word.
+pub(crate) fn holds_phrase(text_lower: &str, phrases: &[&str]) -> bool {
     phrases.iter().any(|p| {
         text_lower.match_indices(p).any(|(i, _)| {
             let before = text_lower[..i].chars().next_back();

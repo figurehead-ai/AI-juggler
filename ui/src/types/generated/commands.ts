@@ -201,6 +201,7 @@ import type { ResetQueueInfo } from "./ResetQueueInfo";
 import type { RestorePlanInfo } from "./RestorePlanInfo";
 import type { RestoreResultInfo } from "./RestoreResultInfo";
 import type { RetentionPreviewInfo } from "./RetentionPreviewInfo";
+import type { ReviewAsk } from "./ReviewAsk";
 import type { ReviewedAllInfo } from "./ReviewedAllInfo";
 import type { RulePreviewInfo } from "./RulePreviewInfo";
 import type { RulesDiffInfo } from "./RulesDiffInfo";
@@ -264,6 +265,7 @@ import type { ToolSpecInfo } from "./ToolSpecInfo";
 import type { ToolUpdateInfo } from "./ToolUpdateInfo";
 import type { TranscriptHitInfo } from "./TranscriptHitInfo";
 import type { TurnOnInfo } from "./TurnOnInfo";
+import type { TurnReviewInfo } from "./TurnReviewInfo";
 import type { UninstallPrepInfo } from "./UninstallPrepInfo";
 import type { UpdateStatusInfo } from "./UpdateStatusInfo";
 import type { UsageCostCutsInfo } from "./UsageCostCutsInfo";
@@ -1103,6 +1105,12 @@ export interface Commands {
   retention_preview: { args: { accountId: string }; result: RetentionPreviewInfo };
   /** Write history::retention_set */
   retention_set: { args: { accountId: string; days?: number | null }; result: void };
+  /** Read features::review::commands::review_turn */
+  review_turn: { args: { ask: ReviewAsk }; result: TurnReviewInfo };
+  /** Read features::review::commands::review_turn_ai */
+  review_turn_ai: { args: { ask: ReviewAsk }; result: TurnReviewInfo };
+  /** Write features::review::commands::review_wrong */
+  review_wrong: { args: { turn: string; lines: string; wrong?: boolean | null }; result: void };
   /** Write features::runtime::commands::runtime_answer */
   runtime_answer: { args: { sessionId: string; askId: string; answer: AnswerInput }; result: void };
   /** Read features::runtime::commands::runtime_asks */
