@@ -1,0 +1,3877 @@
+[
+ {
+  "id": "M-v7-W05",
+  "origin": "",
+  "request": "tell me when all sessions finish, except the retry logic one",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "M-v7-W19",
+  "origin": "",
+  "request": "for every project except otter-billing, tell me if it fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "M-v7-W32",
+  "origin": "",
+  "request": "Tell me once if anything fails, but not the retry logic one.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  }
+ },
+ {
+  "id": "M-v7-W43",
+  "origin": "",
+  "request": "tell me when the webhook retries session uses more than 50k tokens",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "hits_limit"
+  }
+ },
+ {
+  "id": "M-v7-W51",
+  "origin": "",
+  "request": "Gib mir Bescheid, wenn alle Sitzungen fertig sind, außer retry logic.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  }
+ },
+ {
+  "id": "M-v8-W27",
+  "origin": "",
+  "request": "Watch all my sessions for getting stuck 30 minutes, skipping the glossary hub.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "stuck"
+  }
+ },
+ {
+  "id": "M-v8-W54",
+  "origin": "",
+  "request": "Let me know if everything but form-kit asks me a question.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "asks"
+  }
+ },
+ {
+  "id": "M-v8-W60",
+  "origin": "",
+  "request": "Ping me when the token count of any session passes one million.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "hits_limit"
+  }
+ },
+ {
+  "id": "K-01",
+  "origin": "",
+  "request": "Of all my sessions, tell me when checkout-api fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-ca"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "K-02",
+  "origin": "",
+  "request": "I'm comparing the beta tracker with the glossary hub, but only alert me if the beta tracker asks me something.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-bt"
+   },
+   "conditions": [
+    {
+     "type": "asks"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "K-03",
+  "origin": "",
+  "request": "Tell me when the kiosk firmware session fails; it was split off from the pier board one.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-kf"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "K-04",
+  "origin": "",
+  "request": "Once the coupon engine is done, the reminder mails can start, so ping me just once when the coupon engine finishes.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-ce"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "K-05",
+  "origin": "",
+  "request": "Tell me once checkout-api finishes.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-ca"
+   },
+   "conditions": [
+    {
+     "type": "finishes"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "K-06",
+  "origin": "",
+  "request": "Ping me if anything in pier fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-ret",
+     "name": "retry logic",
+     "app": "Codex",
+     "project": "hooks"
+    },
+    {
+     "id": "S-web",
+     "name": "webhook retries",
+     "app": "Claude Code",
+     "project": "hooks"
+    },
+    {
+     "id": "S-gl",
+     "name": "glossary hub",
+     "app": "Codex",
+     "project": "docs"
+    },
+    {
+     "id": "S-fk",
+     "name": "form-kit",
+     "app": "Claude Code",
+     "project": "ui"
+    },
+    {
+     "id": "S-ca",
+     "name": "checkout-api",
+     "app": "Codex",
+     "project": "shop"
+    },
+    {
+     "id": "S-bt",
+     "name": "beta tracker",
+     "app": "Codex",
+     "project": "beta-tracker"
+    },
+    {
+     "id": "S-kf",
+     "name": "kiosk firmware",
+     "app": "Claude Code",
+     "project": "pier"
+    },
+    {
+     "id": "S-pb",
+     "name": "pier board",
+     "app": "Codex",
+     "project": "pier"
+    },
+    {
+     "id": "S-ce",
+     "name": "coupon engine",
+     "app": "Codex",
+     "project": "coupon-engine"
+    }
+   ],
+   "apps": [
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "codex",
+     "name": "Codex"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-hooks",
+     "name": "hooks"
+    },
+    {
+     "id": "p-docs",
+     "name": "docs"
+    },
+    {
+     "id": "p-ui",
+     "name": "ui"
+    },
+    {
+     "id": "p-shop",
+     "name": "shop"
+    },
+    {
+     "id": "p-bt",
+     "name": "beta-tracker"
+    },
+    {
+     "id": "p-pier",
+     "name": "pier"
+    },
+    {
+     "id": "p-ce",
+     "name": "coupon-engine"
+    },
+    {
+     "id": "p-ob",
+     "name": "otter-billing"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-pier"
+   },
+   "conditions": [
+    {
+     "type": "fails"
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W01",
+  "origin": "",
+  "request": "Melde dich, wenn Karten mischen etwas fragt, dauerhaft",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-km"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "N-W03",
+  "origin": "",
+  "request": "page me during quiet hours too when Harbor Team goes below 15 percent, permanently",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acc-h"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": "until_removed",
+   "even_in_quiet_hours": true
+  }
+ },
+ {
+  "id": "N-W32",
+  "origin": "",
+  "request": "warn me when Harbor Team drops below 30% runway, and keep that on permanently",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acc-h"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 30
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "N-W30",
+  "origin": "",
+  "request": "Wenn Cursor sein Limit erreicht, gib mir einmal Bescheid",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "cur"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "N-W40",
+  "origin": "",
+  "request": "Tell me just this once when billing-sync finishes.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-bs"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "N-W56",
+  "origin": "",
+  "request": "Tell me the next time billing-sync fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-bs"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "N-W58",
+  "origin": "",
+  "request": "Sag mir nur beim nächsten Mal Bescheid, wenn billing-sync fertig ist.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-bs"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  }
+ },
+ {
+  "id": "N-W28",
+  "origin": "",
+  "request": "out of every session I have open, let me know when the Pattern export one asks me something",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-pe"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W02",
+  "origin": "",
+  "request": "Bei all meinen Projekten: melde mir bitte, wenn gartenplaner scheitert, für heute",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-gp"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59"
+  }
+ },
+ {
+  "id": "N-W41",
+  "origin": "",
+  "request": "whatever else is going on, I need to know the moment Till rounding finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-tr"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W18",
+  "origin": "",
+  "request": "Tell me when all monorepo-ci sessions fail.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-mc"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W21",
+  "origin": "",
+  "request": "Tell me when billing-sync fails, but hold it until quiet hours are over.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-bs"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W24",
+  "origin": "",
+  "request": "Let me know, say, when billing-sync finishes.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-bs"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W55",
+  "origin": "",
+  "request": "Ping me if any OpenCode session fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "oc"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W36",
+  "origin": "",
+  "request": "Let me know any time Claude Code CLI · Studio hits a limit.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "studio"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed"
+  }
+ },
+ {
+  "id": "N-W37",
+  "origin": "",
+  "request": "Tell me if anything goes wrong with Chapter index.",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "S-ci"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": null
+  }
+ },
+ {
+  "id": "N-W17",
+  "origin": "",
+  "request": "I want to know about every new session, leave out OpenCode",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "starts"
+  }
+ },
+ {
+  "id": "N-W47",
+  "origin": "",
+  "request": "warn me when cache keys uses more than 1.5 million tokens today",
+  "context": {
+   "sessions": [
+    {
+     "id": "S-km",
+     "name": "Karten mischen",
+     "app": "Codex",
+     "project": "karten"
+    },
+    {
+     "id": "S-gp",
+     "name": "gartenplaner",
+     "app": "Claude Code",
+     "project": "garten"
+    },
+    {
+     "id": "S-pe",
+     "name": "Pattern export",
+     "app": "Codex",
+     "project": "pattern"
+    },
+    {
+     "id": "S-ci",
+     "name": "Chapter index",
+     "app": "Codex",
+     "project": "book"
+    },
+    {
+     "id": "S-tr",
+     "name": "Till rounding",
+     "app": "Codex",
+     "project": "till"
+    },
+    {
+     "id": "S-bs",
+     "name": "billing-sync",
+     "app": "Codex",
+     "project": "billing"
+    },
+    {
+     "id": "S-ck",
+     "name": "cache keys",
+     "app": "Codex",
+     "project": "cache"
+    }
+   ],
+   "apps": [
+    {
+     "id": "codex",
+     "name": "Codex"
+    },
+    {
+     "id": "claude",
+     "name": "Claude Code"
+    },
+    {
+     "id": "oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "studio",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-k",
+     "name": "karten"
+    },
+    {
+     "id": "p-g",
+     "name": "garten"
+    },
+    {
+     "id": "p-p",
+     "name": "pattern"
+    },
+    {
+     "id": "p-b",
+     "name": "book"
+    },
+    {
+     "id": "p-t",
+     "name": "till"
+    },
+    {
+     "id": "p-bi",
+     "name": "billing"
+    },
+    {
+     "id": "p-mc",
+     "name": "monorepo-ci"
+    },
+    {
+     "id": "p-ca",
+     "name": "cache"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acc-h",
+     "name": "Harbor Team"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "hits_limit"
+  }
+ }
+]
