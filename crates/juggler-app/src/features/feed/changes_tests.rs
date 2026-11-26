@@ -1,4 +1,9 @@
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    reason = "a test: a failed step fails the test"
+)]
 
 //! AJ-E3713 R6a: a post's diff stat comes from its session's own
 //! transcript, through an adapter that reads its tool's work; a tool

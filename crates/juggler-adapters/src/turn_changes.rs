@@ -329,7 +329,7 @@ impl Tally {
         }
         let mut names: Vec<String> = Vec::new();
         for path in &paths {
-            let name = tail_of_path(path);
+            let name = crate::tool_summary::tail_of_path(path);
             if !names.contains(&name) && names.len() < NAMES_MAX {
                 names.push(name);
             }
@@ -500,16 +500,6 @@ fn patch_files(patch: &str) -> Vec<(String, Option<LinesChanged>)> {
         }
     }
     files
-}
-
-/// A path's last two parts (`src/calc.py`).
-fn tail_of_path(path: &str) -> String {
-    let parts: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
-    match parts.as_slice() {
-        [] => path.to_owned(),
-        [only] => (*only).to_owned(),
-        [.., parent, name] => format!("{parent}/{name}"),
-    }
 }
 
 #[cfg(test)]

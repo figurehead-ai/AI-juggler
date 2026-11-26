@@ -1,4 +1,9 @@
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    reason = "a test: a failed step fails the test"
+)]
 
 use juggler_adapter::subagents::LinesChanged;
 use serde_json::json;
