@@ -277,7 +277,7 @@
 **Research basis**: D-132 point 1; D-130; D-118; ADR-0033 and ADR-0034; ADR-0036.
 **Handover note**: Build the non-AI rollup first; it is the fallback and the baseline the model must beat in blind pairs (60 %, D-130). The model phrases; code supplies the truth. No model is downloaded to build this.
 
-### AJ-E3713 Home's feed tells the story: posts with a gesture bar, threads instead of rows, a feed that learns from more and less | Status: TODO (0.5.2: mock first, the maintainer approves the mock before it is built) | Priority P0 | Effort L | Depends: AJ-E3701, AJ-E3831, ADR-0037
+### AJ-E3713 Home's feed tells the story: posts with a gesture bar, threads instead of rows, a feed that learns from more and less | Status: TODO (0.5.2: mock approved by the maintainer, 2026-11-26: "The Feed gui mockups look good") | Priority P0 | Effort L | Depends: AJ-E3701, AJ-E3831, ADR-0037
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): Home's feed reads like a log list; it was meant to read like Twitter, an intelligent AI telling the story of what's happening, posts with a gesture bar. Also a bug: the ChatGPT · Codex row's bold title centred and wrapped mid-row.
 **UI**: yes
 **Usability reasoning** (Opus, before the mock):
@@ -288,7 +288,7 @@
 (5) Remind me and Follow make watches through the existing Watches flow (no OS prompt beyond Notifications, AJ-E1547's gate).
 (6) Watch for: a story claiming what didn't happen (stories from facts only; the AI story only when D-149's feed job passes), more/less with no visible effect, threads hiding a new need, a long post pushing Needs you away, ranking that buries something urgent.
 **Requirements**:
-1. Mock first (both themes, 1280 wide) in `~/Dev/AIJuggler-design-refs/story-feed/`, approved by the maintainer before building.
+1. Mock first (both themes, 1280 wide) in `~/Dev/AIJuggler-design-refs/story-feed/` (`mock-story-feed.html`, `-dark.png`, `-light.png`): APPROVED by the maintainer 2026-11-26; the build follows it.
 2. Posts as above; threads group follow-ups of the same session or task.
 3. The gesture bar on every post (calm icons, labels on hover): More like this / Less like this (stored as `preference` memory through ADR-0037's write gate, scoped to the kind of event, the app, the project; ranking and what gets posted read them; "Why am I seeing this?" shows the preference), Remind me (a one-time reminder watch with a time picker), Follow (watch this session or project), Ask Bot (Bot opened with the post as context), Open (go to the session).
 4. The story text from D-149's feed job ("pick, don't write") when it passes; until then story templates; no AI: still a story.
