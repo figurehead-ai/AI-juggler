@@ -190,6 +190,8 @@ pub struct AppState {
     pub folder_accounts: crate::features::subscriptions::LastRead,
     /// ADR-0037 §1.1: the memory store's writers, taken at start.
     pub memory_writers: crate::features::ai::memory::MemoryWriters,
+    /// ADR-0038 (AJ-E3832): Bot's world model, its index built lazily.
+    pub world: crate::features::ai::world::WorldModel,
     /// AJ-E3814: the watches at run time (the engine on the observation
     /// bus, and what fired for the notification path).
     pub watches: crate::features::watches::Watches,
@@ -534,6 +536,7 @@ impl AppState {
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
             memory_writers: crate::features::ai::memory::MemoryWriters::taken_at_start(),
+            world: crate::features::ai::world::WorldModel::new(),
             watches: crate::features::watches::Watches::default(),
             digests: crate::features::digest::Digests::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),

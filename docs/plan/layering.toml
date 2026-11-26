@@ -50,6 +50,7 @@ juggler-link = []
 # (crates/juggler-local-ai, its own workspace); depends on nothing of ours.
 juggler-local-ai-protocol = []
 juggler-app = [
+  "gyrus",
   "juggler-account",
   "juggler-agentbridge",
   "juggler-adapter",

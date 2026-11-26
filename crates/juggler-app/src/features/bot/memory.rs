@@ -240,9 +240,10 @@ pub fn remember(
     turn: &str,
 ) -> AppResult<Option<BotMemoryInfo>> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    let graph = state.world.graph();
     state
         .memory_writers
-        .with_memory(|writer| remember_in(&storage, writer, world, words, turn))
+        .with_memory(|writer| remember_linked_in(&storage, writer, world, words, turn, graph))
         .ok_or_else(|| AppError::Validation {
             subject: "memory",
             message: "unavailable".to_owned(),
@@ -261,12 +262,64 @@ pub fn remember_in(
     words: &str,
     turn: &str,
 ) -> AppResult<Option<BotMemoryInfo>> {
+    remember_linked_in(storage, writer, world, words, turn, None)
+}
+
+/// [`remember_in`], the record's node and links in Bot's world model
+/// written in the same transaction (ADR-0038 §1) when `graph` is given and
+/// its tables are there: a `memory` node, its alias the user's own name for
+/// the record, `about` each entity it names.
+///
+/// # Errors
+///
+/// As [`remember`].
+pub fn remember_linked_in(
+    storage: &juggler_core::storage::Storage,
+    writer: &juggler_core::storage::memory::KindWriter,
+    world: &World,
+    words: &str,
+    turn: &str,
+    graph: Option<&gyrus::Graph>,
+) -> AppResult<Option<BotMemoryInfo>> {
     if RedactionSecrets.finds_secret(words) {
         return Ok(None);
     }
     let record = record_for(world, words, turn, world.now_ms);
     let store = storage.memory();
-    match store.remember(writer, &RedactionSecrets, &record, world.now_ms) {
+    let linked = graph.filter(|_| storage.world().installed());
+    let written = match linked {
+        Some(graph) => {
+            let alias = (record.kind == Kind::Preference
+                && record.subject_key.starts_with("alias:"))
+            .then(|| record.text.as_str().to_owned());
+            let link = |w: &juggler_core::storage::memory::Remembered| {
+                crate::features::ai::world::link::record_batch(
+                    &crate::features::ai::world::link::MemoryFacts {
+                        subject_id: &w.subject_id,
+                        kind: record.kind,
+                        tier: record.tier,
+                        priority: record.priority.as_i64(),
+                        authority: record.authority,
+                        untrusted: record.text.is_untrusted(),
+                        as_of_ms: record.as_of_ms,
+                        alias: alias.as_deref(),
+                        entities: &record.entities,
+                    },
+                )
+                .unwrap_or_default()
+            };
+            store.remember_linked(
+                writer,
+                &RedactionSecrets,
+                &record,
+                graph,
+                &link,
+                world.now_ms,
+            )
+        }
+        None => store.remember(writer, &RedactionSecrets, &record, world.now_ms),
+    };
+    match written {
         Ok(_) => {}
         Err(MemoryError::Refused(
             Refusal::Secret | Refusal::TextBounds | Refusal::PreferenceShape,

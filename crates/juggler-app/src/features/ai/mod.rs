@@ -18,6 +18,7 @@ pub mod run;
 #[cfg(test)]
 pub mod scripted;
 pub mod service;
+pub mod world;
 
 #[cfg(test)]
 mod router_tests;
