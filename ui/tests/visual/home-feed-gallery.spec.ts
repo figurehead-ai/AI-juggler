@@ -375,10 +375,10 @@ test.describe("the story mock's data", () => {
       // The thread under the first post; the pool post followed.
       await expect(posts.nth(0).getByTestId("feed-followup")).toHaveText(/^↳ 2 min later · Login refactor finished/);
       await expect(posts.nth(3).getByTestId("feed-follow")).toHaveText("Following");
-      // Bot's AI is ready here (Ask Bot shows); the watches offer no
-      // reminder yet, so Remind me stays hidden (D-127).
+      // Bot's AI is ready here (Ask Bot shows); the scheduler answers, so
+      // a post about something offers Remind me (AJ-E2027).
       await expect(posts.nth(0).getByTestId("feed-ask-bot")).toBeVisible();
-      await expect(page.getByTestId("feed-remind")).toHaveCount(0);
+      await expect(posts.nth(0).getByTestId("feed-remind")).toBeVisible();
       // Less like this on the switch: kept, its why open, the post in place.
       await posts.nth(1).getByTestId("feed-less-like").click();
       await expect(posts.nth(1).getByTestId("feed-why")).toContainText("You'll see fewer switch posts.");
