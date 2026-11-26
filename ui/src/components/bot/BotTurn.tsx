@@ -7,6 +7,7 @@
  * records it cites; one it couldn't check is "I don't know" with the
  * records it checked, never the records alone as an answer.
  */
+import { BotWatchDraft } from "./BotWatchDraft";
 import { useState, type JSX, type SVGProps } from "react";
 import { BotRows } from "./BotRows";
 import { BotWrittenCard } from "./BotWritten";
@@ -178,6 +179,7 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
   if (turn.outcome === "remembered" || turn.outcome === "refused") return <BotMemoryEcho turn={turn} />;
   if (turn.outcome === "dont_know") return <Unknown turn={turn} now={now} find={find} onWatch={onWatch} />;
   if (turn.outcome === "failed") return <BotFailedAnswer turn={turn} />;
+  if (turn.outcome === "watch_draft") return <BotWatchDraft turn={turn} />;
   if (turn.outcome === "general") {
     return (
       <div className="flex flex-col gap-2">

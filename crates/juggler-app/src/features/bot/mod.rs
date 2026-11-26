@@ -16,6 +16,7 @@ pub mod memory;
 pub mod model;
 pub mod question;
 pub mod search;
+pub mod watch_draft;
 pub mod world;
 pub mod written;
 

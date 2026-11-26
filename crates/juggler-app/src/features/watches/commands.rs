@@ -24,7 +24,7 @@ use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
 /// A watch as the user makes it: the lifetime as chosen, not yet fixed.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, ts_rs::TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct WatchDraftInfo {

@@ -407,6 +407,47 @@ pub fn start_on(service: &Service, state: &AppState, job: AiJob) -> AiEngineStat
     status_of(service, state, routed.as_ref().map_err(|e| *e))
 }
 
+/// A job's model as the job sees it: one generation (D-149's jobs: the
+/// feed line's pick, the digest's lines, Bot's watch drafts). [`LiveJob`]
+/// goes through the router's started engine; the tests use fakes.
+pub trait JobModel {
+    /// One generation, the engine started first when it isn't running.
+    ///
+    /// # Errors
+    ///
+    /// The [`AiFailure`] (the job then keeps its plain path).
+    fn generate(&self, request: &Request, stop: &Stop) -> Result<Draft, AiFailure>;
+}
+
+/// `job` on `service`'s routed engine.
+pub struct LiveJob<'a> {
+    /// The AI service.
+    pub service: &'a Service,
+    /// The app.
+    pub state: &'a AppState,
+    /// The job.
+    pub job: AiJob,
+}
+
+impl LiveJob<'_> {
+    /// The router serves the job now (its flag, its verdict and Beta, an
+    /// engine that can run it).
+    #[must_use]
+    pub fn served(&self) -> bool {
+        route_on(self.service, self.state, self.job.job()).is_ok()
+    }
+}
+
+impl JobModel for LiveJob<'_> {
+    fn generate(&self, request: &Request, stop: &Stop) -> Result<Draft, AiFailure> {
+        let made = generate_on(self.service, self.state, self.job, request, stop)?;
+        let tokens_in = AiCount::counted_or_estimated(made.draft.usage.input, &request.prompt);
+        let tokens_out = AiCount::counted_or_estimated(made.draft.usage.output, &made.draft.text);
+        note_usage(self.state, tokens_in, tokens_out);
+        Ok(made.draft)
+    }
+}
+
 /// One generation for `job`, through its started engine.
 #[derive(Debug, Clone)]
 pub struct Generated {

@@ -12,6 +12,7 @@ import type { BotShortcut } from "./BotShortcut";
 import type { BotTally } from "./BotTally";
 import type { BotUnknown } from "./BotUnknown";
 import type { BotWritten } from "./BotWritten";
+import type { WatchDrafted } from "./WatchDrafted";
 
 /**
  * One turn of the conversation.
@@ -101,4 +102,9 @@ failure?: AiFailure | null,
 /**
  * AJ-E3825: the answer's details line.
  */
-details?: BotDetails | null, };
+details?: BotDetails | null, 
+/**
+ * AJ-E3830: the Watches form to open, filled in (only on the turn
+ * just asked: the form opens once; a past turn keeps its line).
+ */
+watch_draft?: WatchDrafted | null, };

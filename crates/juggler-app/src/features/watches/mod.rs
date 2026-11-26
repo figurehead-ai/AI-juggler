@@ -42,6 +42,7 @@
 pub mod catalogue;
 pub mod commands;
 pub mod conditions;
+pub mod draft;
 pub mod echo;
 pub mod engine;
 pub mod model;

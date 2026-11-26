@@ -174,5 +174,6 @@ pub fn turn_info(
         general,
         failure: meta.failure,
         details: meta.details,
+        watch_draft: None,
     }
 }

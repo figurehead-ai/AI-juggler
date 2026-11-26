@@ -125,6 +125,9 @@ pub fn bot_ask_with(
         .is_some_and(|words| RedactionSecrets.finds_secret(&words));
     let question = RedactionSecrets.mask(&question);
     let world = gather(state)?;
+    if let Some(drafted) = super::watch_draft::drafted(state, &world, &question) {
+        return watch_turn(state, &world, &question, drafted);
+    }
     let (read_as, used) = super::memory::with_aliases(state, &world, &question);
     let reading = read(&read_as);
     let scope = input.scope.clone();
@@ -265,6 +268,40 @@ pub fn bot_topic_usage_impl(state: &Arc<AppState>) -> AppResult<BotTopicUsageInf
 
 /// "Remember …": the turn kept, then the memory written from it (so a
 /// forget clears the message it came from), then its echo noted.
+/// AJ-E3830: the turn that opens the Watches form filled in (nothing is
+/// added: the user's click in the form adds the watch).
+fn watch_turn(
+    state: &Arc<AppState>,
+    world: &World,
+    question: &str,
+    drafted: crate::features::watches::draft::WatchDrafted,
+) -> AppResult<BotTurnInfo> {
+    let shown = super::watch_draft::shown(&drafted);
+    let meta = Meta {
+        lang: read(question).lang,
+        ..Meta::default()
+    };
+    let kept = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        storage
+            .chat()
+            .append(&NewTurn {
+                at_ms: world.now_ms,
+                question,
+                outcome: BotOutcome::WatchDraft.code(),
+                shown: Some(&shown),
+                cites: "[]",
+                entities: &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
+                has_agent_words: false,
+            })
+            .map_err(memory_error)?
+    };
+    let mut info = turn_info(&kept, None, &|_| None);
+    info.live = true;
+    super::watch_draft::attach(&mut info, drafted);
+    Ok(info)
+}
+
 fn remember_turn(
     state: &Arc<AppState>,
     world: &World,

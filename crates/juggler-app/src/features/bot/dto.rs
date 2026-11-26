@@ -220,6 +220,8 @@ pub enum BotOutcome {
     Refused,
     /// A watch set from a confirm card.
     WatchSet,
+    /// AJ-E3830: Bot filled the Watches form (the user adds the watch).
+    WatchDraft,
     /// D-148: the model's own short answer to a question with no records
     /// in it, labelled general (never from the records).
     General,
@@ -240,6 +242,7 @@ impl BotOutcome {
             Self::Remembered => "remembered",
             Self::Refused => "refused",
             Self::WatchSet => "watch_set",
+            Self::WatchDraft => "watch_draft",
             Self::General => "general",
             Self::Failed => "failed",
         }
@@ -256,6 +259,7 @@ impl BotOutcome {
             "remembered" => Self::Remembered,
             "refused" => Self::Refused,
             "watch_set" => Self::WatchSet,
+            "watch_draft" => Self::WatchDraft,
             "general" => Self::General,
             "failed" => Self::Failed,
             _ => Self::Rows,
@@ -523,6 +527,11 @@ pub struct BotTurnInfo {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub details: Option<BotDetails>,
+    /// AJ-E3830: the Watches form to open, filled in (only on the turn
+    /// just asked: the form opens once; a past turn keeps its line).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub watch_draft: Option<crate::features::watches::draft::WatchDrafted>,
 }
 
 /// The languages the words cover.
