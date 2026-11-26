@@ -209,12 +209,18 @@ pub fn prefer_in(
         message: "not_a_lean".to_owned(),
     })?;
     let store = storage.memory();
-    match store.remember(writer, &RedactionSecrets, &record, now_ms) {
-        Ok(_) => {}
-        Err(MemoryError::Refused(
-            Refusal::Secret | Refusal::TextBounds | Refusal::PreferenceShape,
-        )) => return Ok(None),
-        Err(other) => return Err(memory_error(other)),
+    // The gate's refusals (a key or password in a name, too long, not a
+    // setting) keep nothing and say so with `None`.
+    if let Err(error) = store.remember(writer, &RedactionSecrets, &record, now_ms) {
+        let kept_nothing = matches!(
+            error,
+            MemoryError::Refused(Refusal::Secret | Refusal::TextBounds | Refusal::PreferenceShape)
+        );
+        return if kept_nothing {
+            Ok(None)
+        } else {
+            Err(memory_error(error))
+        };
     }
     Ok(store
         .current(&record.subject_key)
