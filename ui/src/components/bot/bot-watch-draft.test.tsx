@@ -5,7 +5,7 @@
  * request's words; a turn read back keeps its line and its way back.
  */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BotTurn } from "./BotTurn";
 import { onWatchesIntent, takeWatchesIntent } from "../../lib/watches-open";
 import type { BotTurnInfo } from "../../types/generated/BotTurnInfo";
@@ -58,5 +58,20 @@ describe("Bot fills the Watches form", () => {
   it("in German", () => {
     render(<BotTurn turn={turn({ lang: "de", watch_draft: { kind: "form" } })} now={NOW} latest />);
     expect(screen.getByTestId("bot-watch-draft").textContent).toContain("Formular");
+  });
+});
+
+describe("the drafted watch in plain words", () => {
+  it("shows the preview's words, target included, before the user adds it", async () => {
+    const ipc = await import("../../lib/ipc/watches");
+    const spy = vi.spyOn(ipc, "watchesPreview").mockResolvedValue({ words: "Tell you when “api” finishes. Once.", problem: null });
+    render(<BotTurn turn={turn({ live: false, watch_draft: { kind: "filled", draft: DRAFT } })} now={NOW} latest />);
+    expect((await screen.findByTestId("bot-watch-draft-words")).textContent).toBe("Tell you when “api” finishes. Once.");
+    spy.mockRestore();
+  });
+
+  it("shows nothing for a draft with no target (the form asks which)", () => {
+    render(<BotTurn turn={turn({ live: false, watch_draft: { kind: "pick", draft: { ...DRAFT, targets: [] } } })} now={NOW} latest />);
+    expect(screen.queryByTestId("bot-watch-draft-words")).toBeNull();
   });
 });

@@ -9,6 +9,7 @@
  */
 import { useEffect, useRef, type JSX } from "react";
 import { IconEye } from "./bot-icons";
+import { BotWatchDraftWords } from "./BotWatchDraftWords";
 import { openWatches, type WatchesIntent } from "../../lib/watches-open";
 import { BotReminderDraft } from "./BotReminderDraft";
 import type { BotTurnInfo } from "../../types/generated/BotTurnInfo";
@@ -70,6 +71,7 @@ export function BotWatchDraft({ turn }: { turn: BotTurnInfo }): JSX.Element {
         <IconEye width={16} height={16} aria-hidden="true" className="shrink-0 text-accent-hi" />
         {lineOf(drafted, turn.lang)}
       </p>
+      <BotWatchDraftWords drafted={drafted} />
       <button
         type="button"
         className="inline-flex h-7 items-center rounded-lg bg-surface-2 px-2.5 text-meta font-medium text-ink inset-ring-1 inset-ring-hairline outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60"
