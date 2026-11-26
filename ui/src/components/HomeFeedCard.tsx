@@ -59,9 +59,12 @@ function poolOf(item: FeedItemInfo): FeedItemInfo {
   return { ...item, target: { ...item.target, session_id: null, conversation_id: null, pool_id: pool } };
 }
 
-/** A sentence's parts (`feed-words`) as a story's: the value a chip. */
-function asStory(parts: ReturnType<typeof sentence>): StoryPart[] {
-  return parts.map((part) => (part.strong ? { text: part.text, strong: true } : { text: part.text }));
+/** A rollup's sentence (`feed-words`) as a story's, its author first
+ * when it starts with a verb ("Claude Code CLI finished 3 sessions"). */
+function asStory(parts: ReturnType<typeof sentence>, author: PostAuthor): StoryPart[] {
+  const told: StoryPart[] = parts.map((part) => (part.strong ? { text: part.text, strong: true } : { text: part.text }));
+  const first = told[0]?.text ?? "";
+  return /^[a-z]/.test(first) ? [{ text: `${author.name} ` }, ...told] : told;
 }
 
 /** The calm line: the author in bold, its profile, when (the exact
@@ -136,7 +139,7 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned 
   const thread = card.rolled ? null : threadOf(card.things[0]!);
   const post = thread?.post ?? item;
   const author = postAuthor(post);
-  const parts = card.rolled ? asStory(rollupSentence(item.kind, card.things.length, item)) : story(post);
+  const parts = card.rolled ? asStory(rollupSentence(item.kind, card.things.length, item), author) : story(post);
   const attachment = card.rolled ? null : attachmentOf(post);
   const open = () => void actions.open(item);
   const finished = !card.rolled && item.kind === "finished" ? item.target.session_id : null;

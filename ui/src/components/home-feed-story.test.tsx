@@ -87,6 +87,15 @@ describe("AJ-E3713 R2 — posts", () => {
   });
 });
 
+describe("AJ-E3713 R4 — a rollup's story names who did it", () => {
+  it("\"Claude app finished 2 sessions in web-app\", never a sentence starting with its verb", async () => {
+    seed([0, 1].map((n) => done(`r${n}`, NOW - (n + 1) * MIN, { rollup: "v:finished:acc-work:p-web:L1", rollup_window_ms: 7_200_000, scope: "f:acc-work" })));
+    feed();
+    const card = await screen.findByTestId("feed-card");
+    expect(within(card).getByTestId("feed-sentence").textContent).toBe("Claude app finished 2 sessions in web-app");
+  });
+});
+
 describe("AJ-E3713 R3 — More / Less like this", () => {
   it("Less like this is kept, says why with Undo, and the next posts like it fold", async () => {
     seed([sw("w1", NOW - MIN), done("a", NOW - 5 * MIN), sw("w2", NOW - 10 * MIN)]);
