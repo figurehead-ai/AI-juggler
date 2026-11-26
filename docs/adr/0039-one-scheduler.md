@@ -1,6 +1,6 @@
 # ADR-0039: One scheduler: durable, typed, visible triggers for everything time-based
 
-**Status:** PROPOSED (2026-11-26). For the maintainer's review before anything is built.
+**Status:** Accepted (2026-11-26, the maintainer), with §10 (a): `jiff` as a direct dependency (D-151).
 **Date:** 2026-11-26
 **Deciders:** the maintainer (the scope and the trigger kinds); Opus (design)
 **Asked for by:** the maintainer, 2026-11-26, on Home feed's "Remind me": "Make sure you build for future, a scheduled and periodic triggers and that kind of capability will be needed generally for all kinds of reasons, so make sure you build something that can serve many purposes."
@@ -128,7 +128,7 @@ Every run, skip, miss, retry and failure is appended to ADR-0037's append-only l
 - **(b)** A platform seam over libc's `localtime_r`/`mktime` (`tm_isdst = -1`). That would be juggler-platform's third audited `unsafe` call, needing a D-number like D-146.
 - **(c)** Parse the system's TZif files ourselves: no `unsafe`, but a parser to maintain, and a different seam on Windows.
 
-**My recommendation is (a):** correctness across DST is exactly the part not to hand-write, and it changes nothing in Cargo.lock.
+**Decided: (a)** (the maintainer, 2026-11-26, D-151): correctness across DST is exactly the part not to hand-write, and it changes nothing in Cargo.lock. Built with `--offline`; Cargo.lock must not change.
 
 **DST rules:**
 - A wall time that doesn't exist (the spring gap) runs at the first valid time after it.

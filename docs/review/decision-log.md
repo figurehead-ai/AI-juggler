@@ -3874,3 +3874,11 @@ With an AI ready, a question with no AI Juggler records in it ("what is 3+5") ge
 - **Feed line:** code pre-ranks the turn's checked clauses (outcome and decision first; file diffs and side details last or excluded); the model picks from the top 3 only; re-judged blind with the pooled method.
 - **Digest:** Beta (64 % pooled); G7 (a reverted turn keeps the plain words) fixed in 0.5.2.
 - Each round on a fresh blind set (v7 onwards), judged once.
+
+### D-151 — One scheduler for everything time-based (ADR-0039), with `jiff` for local time — ACCEPTED (2026-11-26, the maintainer)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-26): ADR-0039 accepted, with §10 (a). Asked for on the feed's "Remind me": "Make sure you build for future, a scheduled and periodic triggers and that kind of capability will be needed generally for all kinds of reasons."
+- **What it decides:** one `features/schedule/` service for every durable or wall-clock trigger (At, Every anchored to the wall clock, Calendar as an RRULE subset, AfterEvent with `unless`, WhenIdle; windows, jitter, lifetimes); schedules in SQLite with a persisted next due and a missed-run policy, recomputed on launch, wake and clock or time-zone change; only registered typed handlers run, agent text never creates one; one user list (edit, pause, delete, Pause all) built for other tools' schedules later; every run in ADR-0037's log; reminders through the bell and notifications, Notifications primed at creation; nothing outside the running app. `ticks.rs`'s sub-minute observation loops stay ticks.
+- **Local time: `jiff` 0.2.38** as a direct dependency of juggler-app (already in Cargo.lock through `serde_with`; Cargo.lock unchanged, built `--offline`). Why: DST-correct future wall times are exactly what not to hand-write; the alternatives were a third audited `unsafe` (libc `mktime`) or our own TZif parser.
+- **The maintainer's standing note (2026-11-26):** library and technical-level calls are the builders' to make on quality, performance and reliability, with the reasoning recorded; only product or scope questions go to the maintainer.
+- Built in 0.5.2 under ADR-0039's Order of work; RemindAt (the feed and Bot) first.
