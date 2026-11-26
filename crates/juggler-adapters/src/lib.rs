@@ -129,6 +129,7 @@ pub mod transcript;
 pub mod transcript_follow;
 pub mod transcript_tail;
 mod transcript_watcher;
+pub mod turn_changes;
 pub mod zcode;
 pub mod zcode_appserver;
 pub mod zcode_environment;
