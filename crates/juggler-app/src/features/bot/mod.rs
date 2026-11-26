@@ -23,4 +23,6 @@ pub mod written;
 #[cfg(test)]
 pub(crate) mod fake;
 #[cfg(test)]
+mod real_model_tests;
+#[cfg(test)]
 mod tests;

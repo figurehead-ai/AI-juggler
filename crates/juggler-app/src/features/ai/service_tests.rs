@@ -61,13 +61,16 @@ fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     );
     assert!(changed, "the first answer is news");
     assert_eq!(jobs.len(), 5, "every routed job, attention aside");
-    for job in [AiJob::Feed, AiJob::Digest, AiJob::Watches] {
+    for job in [AiJob::Feed, AiJob::Watches] {
         assert_eq!(
             state_of(&jobs, job).0,
             AiJobState::NoEngine,
             "{job:?}: on, and the plain path by its not_yet verdict (D-149)"
         );
     }
+    // D-149's v6 round: the digest passed its blind checks (64 %), so it is
+    // a Beta waiting for its switch, like Bot.
+    assert_eq!(state_of(&jobs, AiJob::Digest).0, AiJobState::BetaOff);
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,
         AiJobState::Off,

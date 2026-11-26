@@ -216,7 +216,10 @@ fn the_built_in_list_is_apple_only_through_the_same_reader() {
     assert_eq!(built_in[0].verdict(Job::Review), Verdict::Beta);
     assert_eq!(built_in[0].verdict(Job::Bot), Verdict::Beta);
     assert_eq!(built_in[0].verdict(Job::Attention), Verdict::Ships);
-    for job in [Job::Feed, Job::Digest, Job::Watches] {
+    // D-149's v6 round (2026-11-26): the digest passed its blind checks
+    // (64 %, Beta); the feed line and watches didn't.
+    assert_eq!(built_in[0].verdict(Job::Digest), Verdict::Beta);
+    for job in [Job::Feed, Job::Watches] {
         assert_eq!(built_in[0].verdict(job), Verdict::NotYet, "{job:?}");
     }
     let raw: Value = serde_json::from_str(include_str!("builtin.json")).unwrap();
