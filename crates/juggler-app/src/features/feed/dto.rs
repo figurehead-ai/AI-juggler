@@ -90,6 +90,30 @@ pub struct FeedFactsInfo {
     pub line: Option<String>,
     /// AJ-E3817: a watch's alert: what happened ("finished").
     pub told: Option<String>,
+    /// AJ-E3713 R6a: what the turn changed, from its own edit and write
+    /// calls in the session's transcript (never git); none when it changed
+    /// no file or its tool's transcript isn't read.
+    #[ts(optional = nullable)]
+    pub changes: Option<FeedChangesInfo>,
+}
+
+/// AJ-E3713 R6a: the files a turn changed and, when every call says, the
+/// lines it added and removed (the post's diff stat).
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct FeedChangesInfo {
+    /// The turn, as a key (its file and where it starts, hashed): two
+    /// items telling one turn count it once.
+    pub turn: String,
+    /// The files it changed, each once.
+    pub files: u32,
+    /// Their names (a path's last two parts), first changed first; at
+    /// most 50.
+    pub names: Vec<String>,
+    /// Lines added; `None` when a call doesn't say (files only).
+    pub added: Option<u32>,
+    /// Lines removed; see `added`.
+    pub removed: Option<u32>,
 }
 
 /// One item of the feed, newest first.

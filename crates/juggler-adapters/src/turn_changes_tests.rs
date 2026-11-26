@@ -227,6 +227,11 @@ fn only_the_last_turn_by_its_time_counts_and_a_failed_call_changed_nothing() {
     let at = juggler_core::time::timestamp_ms(T2).unwrap();
     let turn = read(&transcript, Some(at)).unwrap();
     assert_eq!(turn.names, ["w/two.rs"]);
+    let second = transcript[..2]
+        .iter()
+        .map(|line| line.len() as u64 + 1)
+        .sum::<u64>();
+    assert_eq!(turn.start, second, "where the second turn's ask starts");
     assert_eq!(turn.lines, lines(2, 1));
 }
 

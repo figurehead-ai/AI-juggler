@@ -39,8 +39,13 @@ pub fn feed_page_impl(
     // The conversation index first, with no storage lock held: it takes
     // its own.
     let more = super::conversations::read(state, before, &ask, limit)?;
-    let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    page::page_for(&storage, request, &ask, more)
+    let mut page = {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        page::page_for(&storage, request, &ask, more)?
+    };
+    // AJ-E3713 R6a: each turn's diff stat, with no storage lock held.
+    super::changes::attach(state, &mut page.items);
+    Ok(page)
 }
 
 /// One page of the activity feed (see [`feed_page_impl`]).

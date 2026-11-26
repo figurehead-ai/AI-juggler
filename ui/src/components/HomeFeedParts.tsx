@@ -3,7 +3,8 @@
  * (`AIJuggler-design-refs/story-feed`): the author's picture (the App's
  * own icon, read at run time as the rail's and Your apps' are, or AI
  * Juggler's mark on its own tile), the story with its things as chips,
- * what it shows beside the words, and its thread.
+ * what it shows beside the words (a diff stat among them, R6a), and its
+ * thread.
  *
  * The chip is one unbroken, left-aligned box (0.5.1 Nightly: the ChatGPT ·
  * Codex row's bold title, a button, wrapped inside itself and centred
@@ -14,7 +15,7 @@ import { AppIconTile } from "./AppIcon";
 import { IconJuggler } from "./icons";
 import { appOfTool } from "../lib/app-of";
 import { clock } from "../lib/time-words";
-import { followUp, laterWords, type Attachment, type PostAuthor, type StoryPart } from "../lib/feed-story";
+import { followUp, laterWords, type Attachment, type Changes, type PostAuthor, type StoryPart } from "../lib/feed-story";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 
 /** The post's look: a surface on the canvas (no border, no shadow,
@@ -86,9 +87,55 @@ function UsageMeter({ left, window, resetsAt }: { left: number; window: string |
   );
 }
 
+/** AJ-E3713 R6a: the diff stat, as the approved mock draws it: "14
+ * files +412 −96" and a calm bar of the two (green added, red removed,
+ * PAT-COLOR), the files' names on hover. A tool whose calls don't count
+ * lines shows the files only, with their names. */
+function DiffStat({ changes }: { changes: Changes }): JSX.Element {
+  const files = `${changes.files} ${changes.files === 1 ? "file" : "files"}`;
+  const list = changes.names.join(", ");
+  const { added, removed } = changes;
+  if (added === null || removed === null) {
+    return (
+      <div className="flex min-w-0 items-baseline gap-3.5" title={list} data-testid="feed-changes" data-files-only="yes">
+        <span className="shrink-0">{files}</span>
+        <span className="min-w-0 truncate text-faint">{list}</span>
+      </div>
+    );
+  }
+  const all = added + removed;
+  const share = all > 0 ? Math.round((added / all) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3.5 tabular-nums" title={list} data-testid="feed-changes">
+      <span className="shrink-0">{files}</span>
+      <span className="shrink-0 font-semibold text-success">
+        +{added}
+        <span className="sr-only"> {added === 1 ? "line" : "lines"} added</span>
+      </span>
+      <span className="shrink-0 font-semibold text-danger">
+        −{removed}
+        <span className="sr-only"> {removed === 1 ? "line" : "lines"} removed</span>
+      </span>
+      {all > 0 && (
+        <span aria-hidden="true" className="flex h-1.5 min-w-8 flex-1 overflow-hidden rounded-full bg-surface-3">
+          <span className="h-full bg-success-strong" style={{ width: `${share}%` }} />
+          <span className="h-full bg-danger-strong" style={{ width: `${100 - share}%` }} />
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** What a post shows beside its words. */
 export function PostAttachment({ attachment }: { attachment: Attachment }): JSX.Element {
   const look = "mb-2 mt-0.5 rounded-[10px] bg-surface-2 px-3 py-2.5 text-meta text-ink-2";
+  if (attachment.kind === "changes") {
+    return (
+      <div className={look}>
+        <DiffStat changes={attachment} />
+      </div>
+    );
+  }
   if (attachment.kind === "switch") {
     return (
       <div className={look + " flex flex-wrap items-center gap-2.5"} data-testid="feed-switch">

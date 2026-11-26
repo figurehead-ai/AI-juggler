@@ -10,7 +10,7 @@ import { feedItem } from "../preview/feed";
 import { cardsOf, threadOf } from "./feed-rollup";
 import { leanFor, rank, whyWords, type FeedLeanInfo } from "./feed-leans";
 import { groupOf, inState, inTab, TABS } from "./feed-chips";
-import { attachmentOf, followUp, postAuthor, setStorySource, story, storyText, templateStory } from "./feed-story";
+import { attachmentOf, changesOf, followUp, postAuthor, setStorySource, story, storyText, templateStory } from "./feed-story";
 import type { FeedItemInfo } from "./ipc/feed";
 
 const NOW = new Date(2026, 10, 26, 15, 0).getTime();
@@ -170,5 +170,37 @@ describe("AJ-E3713 R5 — the tabs and state chips", () => {
   it("each state chip keeps what it says", () => {
     expect(kinds.filter((kind) => inState(kind, "finished"))).toEqual(["finished", "task_done"]);
     expect(kinds.filter((kind) => inState(kind, "failed"))).toEqual(["failed", "task_blocked"]);
+  });
+});
+
+describe("AJ-E3713 R6a — the diff stat, from each turn's own edit and write calls", () => {
+  const turn = (id: string, turnKey: string, changes: Partial<NonNullable<FeedItemInfo["facts"]["changes"]>>) =>
+    feedItem({ ...finished({ id }), facts: { project: "web-app", project_id: "p-web", changes: { turn: turnKey, files: 1, names: ["src/calc.py"], added: 3, removed: 1, ...changes } } });
+
+  it("a finished turn's post carries its files and lines; a post with no changes carries none", () => {
+    expect(attachmentOf(turn("l:1", "t1", {}))).toEqual({ kind: "changes", files: 1, names: ["src/calc.py"], added: 3, removed: 1 });
+    expect(attachmentOf(finished())).toBeNull();
+  });
+
+  it("sums a post's turns, each turn once and each file once by name", () => {
+    const first = turn("l:1", "t1", { files: 2, names: ["src/calc.py", "tests/test_calc.py"], added: 10, removed: 2 });
+    const second = turn("l:2", "t2", { files: 1, names: ["src/calc.py"], added: 4, removed: 4 });
+    const twice = turn("n:9", "t2", { files: 1, names: ["src/calc.py"], added: 4, removed: 4 });
+    expect(changesOf([first, second, twice])).toEqual({ kind: "changes", files: 2, names: ["src/calc.py", "tests/test_calc.py"], added: 14, removed: 6 });
+  });
+
+  it("shows the files only when a turn's calls didn't count lines (never a short sum)", () => {
+    const counted = turn("l:1", "t1", {});
+    const notebook = turn("l:2", "t2", { names: ["lab/data.ipynb"], added: null, removed: null });
+    expect(changesOf([counted, notebook])).toEqual({ kind: "changes", files: 2, names: ["src/calc.py", "lab/data.ipynb"], added: null, removed: null });
+  });
+
+  it("counts files by number when a turn listed only some names", () => {
+    const many = turn("l:1", "t1", { files: 60, names: Array.from({ length: 50 }, (_, at) => `src/f${at}.ts`) });
+    expect(changesOf([many, turn("l:2", "t2", {})])?.files).toBe(61);
+  });
+
+  it("a switch keeps its before → after, a quote its words, over a stat", () => {
+    expect(attachmentOf({ ...switched("w:1", NOW), facts: { ...switched("w:1", NOW).facts, changes: { turn: "t", files: 1, names: ["a"], added: 1, removed: 0 } } })?.kind).toBe("switch");
   });
 });

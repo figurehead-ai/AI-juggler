@@ -55,6 +55,9 @@ const INTERRUPTED: &str = "[Request interrupted by user";
 /// What one turn changed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TurnChanges {
+    /// Where the turn starts in the file (its first line's byte): the
+    /// same turn read for two items is one turn.
+    pub start: u64,
     /// The files it changed, each once.
     pub files: u32,
     /// Their names (the last two parts of each path, as a tool call's
@@ -95,7 +98,7 @@ pub fn turn_changes(path: &Path, until: Option<i64>) -> std::io::Result<Option<T
                 .map_or(bytes.len(), |at| at + 1)
         };
         let mut tally = Tally::new(until);
-        tally.feed(&bytes[from..]);
+        tally.feed(&bytes[from..], start + from as u64);
         if tally.started || start == 0 {
             return Ok(tally.changes());
         }
@@ -120,6 +123,10 @@ struct Tally {
     by_id: HashMap<String, usize>,
     /// A turn's start was read.
     started: bool,
+    /// Where the turn read starts in the file.
+    start: u64,
+    /// Where the line being read starts.
+    at: u64,
     /// A line past `until` was read: the rest is later turns.
     past: bool,
 }
@@ -132,13 +139,20 @@ impl Tally {
             calls: Vec::new(),
             by_id: HashMap::new(),
             started: false,
+            start: 0,
+            at: 0,
             past: false,
         }
     }
 
-    /// Whole lines, `\n`-separated; a malformed one is skipped.
-    fn feed(&mut self, bytes: &[u8]) {
+    /// Whole lines, `\n`-separated, the first at byte `base` of the
+    /// file; a malformed one is skipped.
+    fn feed(&mut self, bytes: &[u8], base: u64) {
+        self.start = base;
+        let mut next = base;
         for line in bytes.split(|b| *b == b'\n') {
+            self.at = next;
+            next += line.len() as u64 + 1;
             if self.past {
                 return;
             }
@@ -166,6 +180,7 @@ impl Tally {
         self.calls.clear();
         self.by_id.clear();
         self.started = true;
+        self.start = self.at;
     }
 
     fn claude_line(&mut self, value: &serde_json::Value) {
@@ -323,6 +338,7 @@ impl Tally {
             Some(add(sum, call.lines?))
         });
         Some(TurnChanges {
+            start: self.start,
             files: u32::try_from(paths.len()).unwrap_or(u32::MAX),
             names,
             lines,

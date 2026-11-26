@@ -25,7 +25,8 @@ const CHATGPT = { kind: "app", name: null, provider: "codex", folder: "acc-codex
 const seed = (items: FeedItemInfo[]) => Reflect.set(window, "__AIJ_FEED__", items);
 const sw = (id: string, at: number, project = "p-web") =>
   feedItem({ id, at_ms: at, kind: "switch", category: "switches", level: 1, coalesce: `w:${id}`, subject: `Switch ${id}`, facts: { project: "web-app", project_id: project, from_label: "Work Max", from_provider: "claude-code", to_label: "Personal", to_provider: "codex", mechanism: "copy", fidelity: "full" }, target: { project_id: project } });
-const done = (id: string, at: number, over: Partial<FeedItemInfo> = {}) =>
+const NO_FACTS_OF_DONE = { project: "web-app", project_id: "p-web" };
+const done = (id: string, at: number, over: Omit<Partial<FeedItemInfo>, "facts"> & { facts?: Partial<FeedItemInfo["facts"]> } = {}) =>
   feedItem({ id, at_ms: at, kind: "finished", category: "finished", level: 1, coalesce: `s:${id}`, subject: `Session ${id}`, author: CLAUDE, facts: { project: "web-app", project_id: "p-web" }, target: { session_id: id, project_id: "p-web" }, ...over });
 
 function feed(open = vi.fn(() => true)) {
@@ -45,6 +46,37 @@ afterEach(() => {
   cleanup();
   Reflect.deleteProperty(window, "__AIJ_FEED__");
   Reflect.deleteProperty(window, "__AIJ_WATCH_VIEW__");
+});
+
+describe("AJ-E3713 R6a — the diff stat on a post", () => {
+  const changes = (turn: string, added: number | null, removed: number | null, names = ["src/calc.py", "tests/test_calc.py"]) => ({ turn, files: names.length, names, added, removed });
+
+  it("draws the files, +added −removed and the bar, as the mock; names on hover", async () => {
+    seed([done("a", NOW - 9 * MIN, { facts: { ...NO_FACTS_OF_DONE, changes: changes("t1", 412, 96) } })]);
+    feed();
+    const stat = await screen.findByTestId("feed-changes");
+    expect(stat.textContent).toBe("2 files+412 lines added−96 lines removed");
+    expect(stat.getAttribute("title")).toBe("src/calc.py, tests/test_calc.py");
+    expect(stat.querySelector(".bg-success-strong")?.getAttribute("style")).toContain("width: 81%");
+    expect(stat.querySelector(".bg-danger-strong")?.getAttribute("style")).toContain("width: 19%");
+  });
+
+  it("a tool whose calls don't count lines shows the files only, with their names", async () => {
+    seed([done("a", NOW - 9 * MIN, { facts: { ...NO_FACTS_OF_DONE, changes: changes("t1", null, null, ["lab/data.ipynb"]) } })]);
+    feed();
+    const stat = await screen.findByTestId("feed-changes");
+    expect(stat.dataset.filesOnly).toBe("yes");
+    expect(stat.textContent).toBe("1 filelab/data.ipynb");
+    expect(stat.textContent).not.toMatch(/[+−]/);
+  });
+
+  it("a rollup of finished sessions sums their turns", async () => {
+    const rolled = (id: string, at: number, turn: string) => done(id, at, { rollup: "v:finished:acc-work:p-web:L1", rollup_window_ms: 7_200_000, facts: { ...NO_FACTS_OF_DONE, changes: changes(turn, 10, 5, [`src/${id}.ts`]) } });
+    seed([rolled("a", NOW - 2 * MIN, "ta"), rolled("b", NOW - 3 * MIN, "tb"), rolled("c", NOW - 4 * MIN, "tc")]);
+    feed();
+    const card = (await screen.findAllByTestId("feed-card")).find((one) => one.dataset.rolled);
+    expect(within(card!).getByTestId("feed-changes").textContent).toBe("3 files+30 lines added−15 lines removed");
+  });
 });
 
 describe("AJ-E3713 R2 — posts", () => {

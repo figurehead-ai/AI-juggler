@@ -3,7 +3,8 @@
  * post is by (an App, by its own icon and name, or AI Juggler for what it
  * did and saw), a 1–3 sentence story from the stored facts with the
  * things it names as chips, what it can show beside the words (a switch's
- * before → after, the agent's own reply, the room an Account has left),
+ * before → after, the agent's own reply, the room an Account has left,
+ * the files and lines a session's turns changed),
  * and its follow-ups as a thread ("↳ 2 min later · finished").
  *
  * Every story is a template over facts (a): it says only what a journal
@@ -226,15 +227,57 @@ export function storyText(parts: readonly StoryPart[]): string {
 export type Attachment =
   | { kind: "switch"; from: { label: string; provider: string | null }; to: { label: string; provider: string | null } }
   | { kind: "quote"; text: string; who: string }
-  | { kind: "usage"; left: number; window: string | null; resetsAt: number | null };
+  | { kind: "usage"; left: number; window: string | null; resetsAt: number | null }
+  | Changes;
 
-/** A post's attachment, when its facts carry one. */
-export function attachmentOf(item: FeedItemInfo): Attachment | null {
+/** AJ-E3713 R6a: the diff stat: the files the turns changed (each once)
+ * and, when every call said, the lines added and removed. From each
+ * turn's own edit and write calls (`facts.changes`), never git. */
+export interface Changes {
+  kind: "changes";
+  files: number;
+  /** Their names, first changed first (the hover's list). */
+  names: string[];
+  /** `null`: a call didn't say (files only). */
+  added: number | null;
+  removed: number | null;
+}
+
+/** The diff stat of `items` (a post and its follow-ups, or a rollup's
+ * things): each turn once (two items can tell one turn), files once by
+ * name when every turn listed them all, lines summed only when every turn
+ * counted them (a sum that leaves a change out would claim less). */
+export function changesOf(items: readonly FeedItemInfo[]): Changes | null {
+  const turns = new Map<string, NonNullable<FeedItemInfo["facts"]["changes"]>>();
+  for (const item of items) {
+    const changes = item.facts.changes;
+    if (changes && changes.files > 0 && !turns.has(changes.turn)) turns.set(changes.turn, changes);
+  }
+  const all = [...turns.values()];
+  if (all.length === 0) return null;
+  const listed = all.every((one) => one.names.length === one.files);
+  const names = [...new Set(all.flatMap((one) => one.names))];
+  const counted = all.every((one) => one.added !== null && one.removed !== null);
+  const sum = (pick: (one: (typeof all)[number]) => number | null) => all.reduce((total, one) => total + (pick(one) ?? 0), 0);
+  return {
+    kind: "changes",
+    files: listed ? names.length : sum((one) => one.files),
+    names,
+    added: counted ? sum((one) => one.added) : null,
+    removed: counted ? sum((one) => one.removed) : null,
+  };
+}
+
+/** A post's attachment, when its facts carry one; `follow` are its
+ * thread's follow-ups (their turns count in its diff stat). */
+export function attachmentOf(item: FeedItemInfo, follow: readonly FeedItemInfo[] = []): Attachment | null {
   const { facts } = item;
   if ((item.kind === "switch" || item.kind === "switch_failed") && facts.from_provider && facts.to_provider) {
     return { kind: "switch", from: { label: appWords(facts.from_provider, facts.from_label), provider: facts.from_provider }, to: { label: appWords(facts.to_provider, facts.to_label), provider: facts.to_provider } };
   }
   if (facts.quote) return { kind: "quote", text: facts.quote, who: item.kind === "message" ? `${item.author.name ?? "The agent"}'s words` : `${actor(item)}'s last reply` };
+  const changes = changesOf([item, ...follow]);
+  if (changes) return changes;
   if ((item.kind === "quota" || item.kind === "credits") && facts.meter !== null) return { kind: "usage", left: facts.meter, window: facts.window, resetsAt: facts.resets_at_ms };
   return null;
 }

@@ -23,7 +23,7 @@ import { HomeFeedDigest } from "./HomeFeedDigest";
 import { POST, PostAttachment, PostAvatar, PostThread, Story } from "./HomeFeedParts";
 import { GestureBar, WhyPanel } from "./HomeFeedGestures";
 import { exactWhen, feedWhen, rollupSentence, said, sentence } from "../lib/feed-words";
-import { attachmentOf, postAuthor, story, type PostAuthor, type StoryPart } from "../lib/feed-story";
+import { attachmentOf, changesOf, postAuthor, story, type Attachment, type PostAuthor, type StoryPart } from "../lib/feed-story";
 import { stateOf, threadOf, type FeedCard, type FeedThing } from "../lib/feed-rollup";
 import type { RailItem } from "../lib/rail-items";
 import type { FeedItemInfo } from "../lib/ipc/feed";
@@ -118,6 +118,13 @@ function Rolled({ card, now, actions }: { card: FeedCard; now: number; actions: 
   );
 }
 
+/** What a card shows beside its words: a rollup its things' diff stat
+ * (AJ-E3713 R6a), a post its own attachment, its follow-ups' turns
+ * counted in. */
+function attachmentOfCard(card: FeedCard, post: FeedItemInfo, follow: readonly FeedItemInfo[] = []): Attachment | null {
+  return card.rolled ? changesOf(card.things.flatMap((thing) => thing.items)) : attachmentOf(post, follow);
+}
+
 export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned }: {
   card: FeedCard;
   pos: number;
@@ -140,7 +147,7 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned 
   const post = thread?.post ?? item;
   const author = postAuthor(post);
   const parts = card.rolled ? asStory(rollupSentence(item.kind, card.things.length, item), author) : story(post);
-  const attachment = card.rolled ? null : attachmentOf(post);
+  const attachment = attachmentOfCard(card, post, thread?.follow);
   const open = () => void actions.open(item);
   const finished = !card.rolled && item.kind === "finished" ? item.target.session_id : null;
   const when = card.rolled ? whenOf(card, now) : feedWhen(post.at_ms, now);
