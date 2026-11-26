@@ -1,0 +1,143 @@
+{
+ "family": "apple",
+ "job": "watch5",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V9-W01",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W02",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: all … gartenplaner",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W03",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W18",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: all … monorepo-ci",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W21",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: but hold it until quiet hours are over",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W24",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "cue net: say",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W25",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: any … Cabin",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W28",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 1)] != [('asks_you', None)]",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W30",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W32",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W36",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: any … Claude Code CLI · Studio",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W37",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: anything … Chapter index",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W40",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W41",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W55",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: any … OpenCode",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W56",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch9"
+  },
+  {
+   "id": "V9-W58",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch9"
+  }
+ ]
+}

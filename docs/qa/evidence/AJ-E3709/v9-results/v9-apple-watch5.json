@@ -1,0 +1,2040 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"hello\":true,\"protocol\":3,\"guided\":true,\"extensions\":[\"fields\",\"sampling\"],\"available\":\"available\",\"os\":\"Version 27.0.1 (Build 26A434)\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch5"
+  ],
+  "prompt_sha256": {
+   "watch5": "e3e729ab85ad6e1b0de4293680169c379780dd23a2c63acbdad20b68f6537d15"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch9",
+    "file": "watch-v9.json",
+    "sha256": "6679fde33f5da70c2f69e3fc47aa6ba082a1136f9a95ff8325ad24878533168f",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 4,
+  "wall_s": 5.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   6.7,
+   4.6,
+   4.8
+  ],
+  "load_avg_end": [
+   8.2,
+   5.0,
+   4.9
+  ],
+  "helper_cpu_s": 0.12,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 0.43
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 0.3
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.11
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.11
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 146.4,
+   "peak": 146.4,
+   "after": 156.3
+  },
+  "started": "2026-11-26 13:20:20"
+ },
+ "results": [
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W01",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Karten mischen” dich etwas fragt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-lern",
+       "ref": "s4",
+       "name": "Karten mischen"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W02",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „all … gartenplaner“. Ich kann dir Bescheid sagen, wenn eine Sitzung fehlschlägt.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "all … gartenplaner",
+    "decided": [
+     "unsupported: a broad quantifier beside a named entity (code)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W03",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Harbor Team” runs below 15 %. Until midnight today. Even during quiet hours.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-harbor",
+       "ref": "acct1",
+       "name": "Harbor Team"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 15
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W04",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “apart from the monorepo-ci project”. I can tell you when a session looks stuck.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "stuck",
+    "via": "code",
+    "asked": "apart from the monorepo-ci project",
+    "decided": [
+     "unsupported: a meaning-changing word ('apart from'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W05",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Chapter index” ends. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-nov",
+       "ref": "s4",
+       "name": "Chapter index"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "ends",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W06",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “deployed”. I can tell you when “checkout-api” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "deployed",
+    "decided": [
+     "target: code",
+     "unsupported: code (the cue net)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W07",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “over 500 lines”. I can tell you when “Webhook retries” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "over 500 lines",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W08",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Kassenabschluss” fertig ist. Einmal.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-bie",
+       "ref": "s2",
+       "name": "Kassenabschluss"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W09",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “not the Batch loader one”. I can tell you when a session ends.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "ends",
+    "via": "code",
+    "asked": "not the Batch loader one",
+    "decided": [
+     "unsupported: a meaning-changing word ('not the  _  one'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W10",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “tests”. I can tell you when “Batch loader” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "tests",
+    "decided": [
+     "target: code",
+     "unsupported: code (the cue net)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W11",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Zuhause” unter 20 % Spielraum fällt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-haus",
+       "ref": "acct2",
+       "name": "Zuhause"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 20
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W12",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „bis auf das Projekt bierkasse“. Ich kann dir Bescheid sagen, wenn eine Sitzung festzuhängen scheint.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "stuck",
+    "via": "code",
+    "asked": "bis auf das Projekt bierkasse",
+    "decided": [
+     "unsupported: a meaning-changing word ('bis auf'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W13",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „000 Tokens“. Ich kann dir Bescheid sagen, wenn “Karten mischen” ein Nutzungslimit erreicht.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "000 Tokens",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W14",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “any session” looks stuck for 25 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 25
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W15",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “more than 40 files”. I can tell you when “Till rounding” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "more than 40 files",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W16",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"condition2\": \"none\", \"condition\": \"finishes\"}",
+     "finish": "stop",
+     "latency_ms": 2012,
+     "gen_ms": 2012.0960474014282,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1354,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Haltestellen laden” fertig ist. Einmal.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-fah",
+       "ref": "s1",
+       "name": "Haltestellen laden"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: the model's pick"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W17",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W18",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “all … monorepo-ci”. I can tell you when a session looks stuck.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "stuck",
+    "via": "code",
+    "asked": "all … monorepo-ci",
+    "decided": [
+     "unsupported: a broad quantifier beside a named entity (code)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W19",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “skipping everything in quilt-shop”. I can tell you when a session finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "skipping everything in quilt-shop",
+    "decided": [
+     "unsupported: a meaning-changing word ('skipping'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W20",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „mehr als 25 Dateien“. Ich kann dir Bescheid sagen, wenn “Beetplan” fertig ist.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "mehr als 25 Dateien",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W21",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “but hold it until quiet hours are over”. I can tell you when a session finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "but hold it until quiet hours are over",
+    "decided": [
+     "unsupported: a meaning-changing word ('but'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W22",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “other than atlas-viewer”. I can tell you when a session fails.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "other than atlas-viewer",
+    "decided": [
+     "unsupported: a meaning-changing word ('other than'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W23",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “200k tokens”. I can tell you when “Batch loader” hits a usage limit.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "200k tokens",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W24",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “say”. I can tell you when “Webhook retries” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "say",
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W25",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “any … Cabin”. I can tell you when a session finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "any … Cabin",
+    "decided": [
+     "unsupported: a broad quantifier beside a named entity (code)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W26",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „nicht das mit dem Beetplan“. Ich kann dir Bescheid sagen, wenn eine Sitzung endet.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "ends",
+    "via": "code",
+    "asked": "nicht das mit dem Beetplan",
+    "decided": [
+     "unsupported: a meaning-changing word ('nicht das'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W27",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “mentions”. I can tell you when “Chapter index” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "mentions",
+    "decided": [
+     "target: code",
+     "unsupported: code (the cue net)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W28",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Pattern export” asks you and waits 1 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-qlt",
+       "ref": "s4",
+       "name": "Pattern export"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": 1
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W29",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Tile cache” fails. Until midnight today. Even during quiet hours.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-atl",
+       "ref": "s3",
+       "name": "Tile cache"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W30",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Cursor” ein Nutzungslimit erreicht. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "app",
+       "id": "app-cur",
+       "ref": "app3",
+       "name": "Cursor"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "hits_limit",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W31",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „außer Beetplan“. Ich kann dir Bescheid sagen, wenn eine Sitzung fehlschlägt.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "außer Beetplan",
+    "decided": [
+     "unsupported: a meaning-changing word ('außer'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W32",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Harbor Team” runs below 30 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-harbor",
+       "ref": "acct1",
+       "name": "Harbor Team"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 30
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W33",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “above 6 commits”. I can tell you when “audio-notes” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "finishes",
+    "via": "code",
+    "asked": "above 6 commits",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W34",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “remind”. I can tell you when a session finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "remind",
+    "decided": [
+     "target: none named",
+     "unsupported: code (the cue net)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W35",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Heart zones” hits a usage limit. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-fit",
+       "ref": "s5",
+       "name": "Heart zones"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "hits_limit",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W36",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “any … Claude Code CLI · Studio”. I can tell you when a session asks you.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "any … Claude Code CLI · Studio",
+    "decided": [
+     "unsupported: a broad quantifier beside a named entity (code)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W37",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “anything … Chapter index”. I can tell you when a session asks you.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "anything … Chapter index",
+    "decided": [
+     "unsupported: a broad quantifier beside a named entity (code)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W38",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “more than 12 euros”. I can tell you when “Payment retries” hits a usage limit.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "more than 12 euros",
+    "decided": [
+     "unsupported: a threshold no condition takes (code, before any call)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W39",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “but not Heart zones”. I can tell you when a session fails.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "but not Heart zones",
+    "decided": [
+     "unsupported: a meaning-changing word ('but'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W40",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Cabin” runs below 25 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-cabin",
+       "ref": "acct2",
+       "name": "Cabin"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 25
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W41",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W42",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “atlas-viewer” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-atl",
+       "ref": "p3",
+       "name": "atlas-viewer"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W43",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “checkout-api” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-chk",
+       "ref": "p1",
+       "name": "checkout-api"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W44",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Config migration” looks stuck for 12 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-lin",
+       "ref": "s6",
+       "name": "Config migration"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 12
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W45",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “pull request”. I can tell you when “lint-rules” finishes.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "pull request",
+    "decided": [
+     "target: code",
+     "unsupported: code (the cue net)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W46",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “besides Cursor”. I can tell you when a session asks you.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "besides Cursor",
+    "decided": [
+     "unsupported: a meaning-changing word ('besides'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W47",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"range\", \"condition\": \"none\", \"condition2\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 930,
+     "gen_ms": 929.5330047607422,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1354,
+     "retry_note": false,
+     "errors": [
+      "unsupported: the request says nothing of a range; choose the kind it asks for, or none"
+     ],
+     "ok": false
+    },
+    {
+     "step": "when",
+     "attempt": 1,
+     "text": "{\"condition\": \"none\", \"unsupported\": \"range\", \"condition2\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 904,
+     "gen_ms": 904.1930437088013,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1354,
+     "retry_note": true,
+     "errors": [
+      "unsupported: the request says nothing of a range; choose the kind it asks for, or none"
+     ],
+     "ok": false
+    },
+    {
+     "step": "when",
+     "attempt": 2,
+     "text": "{\"unsupported\": \"range\", \"condition\": \"none\", \"condition2\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 909,
+     "gen_ms": 908.689022064209,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1354,
+     "retry_note": true,
+     "errors": [
+      "unsupported: the request says nothing of a range; choose the kind it asks for, or none"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ],
+    "decided": [
+     "target: code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W48",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “trail-maps” starts a new session. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-trl",
+       "ref": "p3",
+       "name": "trail-maps"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "starts",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W49",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “without Cabin”. I can tell you when a session runs below … %.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "runway_below",
+    "via": "code",
+    "asked": "without Cabin",
+    "decided": [
+     "unsupported: a meaning-changing word ('without'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W50",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „anderen Mac“. Ich kann dir Bescheid sagen, wenn eine Sitzung fehlschlägt.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "fails",
+    "via": "cue net",
+    "asked": "anderen Mac",
+    "decided": [
+     "target: none named",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W51",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “except the config migration one”. I can tell you when a session fails.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "fails",
+    "via": "code",
+    "asked": "except the config migration one",
+    "decided": [
+     "unsupported: a meaning-changing word ('except'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W52",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “wohnungssuche” seit 30 Minuten festzuhängen scheint. Bis heute Mitternacht. Auch während der Ruhezeit.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-woh",
+       "ref": "p3",
+       "name": "wohnungssuche"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 30
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W53",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Batch loader” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-ing",
+       "ref": "s2",
+       "name": "Batch loader"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W54",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „ohne die von Cursor“. Ich kann dir Bescheid sagen, wenn eine Sitzung dich etwas fragt.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "asks_you",
+    "via": "code",
+    "asked": "ohne die von Cursor",
+    "decided": [
+     "unsupported: a meaning-changing word ('ohne'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W55",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “any … OpenCode”. I can tell you when a session starts a new session.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "starts",
+    "via": "code",
+    "asked": "any … OpenCode",
+    "decided": [
+     "unsupported: a broad quantifier beside a named entity (code)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W56",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Cache keys” fails, or finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "s-mon",
+       "ref": "s6",
+       "name": "Cache keys"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      },
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W57",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “order-sync” ends. Until you remove it.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-ord",
+       "ref": "p1",
+       "name": "order-sync"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "ends",
+       "param": null
+      }
+     ],
+     "lifetime": "always",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W58",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “any session” fehlschlägt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W59",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “excluding Studio”. I can tell you when a session hits a usage limit.",
+    "model_text": [],
+    "notes": [
+     "unsupported (code)"
+    ],
+    "nearest": "hits_limit",
+    "via": "code",
+    "asked": "excluding Studio",
+    "decided": [
+     "unsupported: a meaning-changing word ('excluding'), code"
+    ]
+   }
+  },
+  {
+   "corpus": "watch9",
+   "job": "watch5",
+   "setting": "main",
+   "id": "V9-W60",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Cursor” hits a usage limit. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "app",
+       "id": "app-cur",
+       "ref": "app3",
+       "name": "Cursor"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "hits_limit",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    },
+    "decided": [
+     "target: code",
+     "conditions: code (cue words)"
+    ]
+   }
+  }
+ ]
+}
