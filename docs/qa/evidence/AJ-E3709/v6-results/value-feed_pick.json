@@ -1,0 +1,8 @@
+{
+ "feed_pick": {
+  "ai": 10,
+  "other": 12,
+  "same": 3,
+  "ai_preferred_pct": 45.5
+ }
+}

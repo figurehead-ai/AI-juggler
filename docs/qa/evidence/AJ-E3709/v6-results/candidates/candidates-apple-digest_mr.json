@@ -1,0 +1,16 @@
+{
+ "family": "apple",
+ "job": "digest_mr",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "class": "omission",
+   "detector": "must_surface_missed",
+   "detail": "\"v6d11-a (vole-sync): new diff algorithm dropped as slower, no code changes\"",
+   "stage": "shown",
+   "agent": null,
+   "id": "V6-D11",
+   "corpus": "digest6"
+  }
+ ]
+}

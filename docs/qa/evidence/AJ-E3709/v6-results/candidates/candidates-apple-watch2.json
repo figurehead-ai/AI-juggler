@@ -1,0 +1,577 @@
+{
+ "family": "apple",
+ "job": "watch2",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V6-W02",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W03",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('idle_for', 25)] != [('stuck', 25)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W05",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown list",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W06",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown list",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W07",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W09",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W10",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W11",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W12",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today; gold: a date beyond the draft's shape",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W13",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('idle_for', 60)] != [('stuck', 60)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W15",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('finishes', None)] != [('fails', None), ('finishes', None)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W17",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W18",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-wil')] != ('project', 'p-map'); lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W23",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W24",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W25",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W26",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('session', 'b-run')] != ('project', 'p-run'); lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W28",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W31",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "cue net: at 3am",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W32",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('session', 'b-lot')] != ('app', 'app-ab'); lifetime today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W33",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W34",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W35",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W37",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('idle_for', 40)] != [('stuck', 40)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W38",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W39",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W43",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W44",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today; gold: a date beyond the draft's shape",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W45",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('idle_for', 10)] != [('stuck', 10)]",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W47",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W48",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W49",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W50",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W51",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W52",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('finishes', None)] != [('fails', None), ('finishes', None)]",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W53",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W54",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W55",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W56",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W57",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W58",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W11",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Drag and drop” resolves to s3 from the request's other words, not s5",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W11",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Drag and drop” resolves to s3 from the request's other words, not s5",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W11",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Drag and drop” resolves to s3 from the request's other words, not s5",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W18",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “maple-sync” resolves to p5 from the request's other words, not p4",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W21",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “heron-api” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W21",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “heron-api” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W21",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: p1 “heron-api” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W32",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: “Cancel all watches” resolves to s5 from the request's other words, not s4",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W33",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W33",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Seed data” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W33",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Seed data” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W39",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W39",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s2 “Seed data” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W39",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W41",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s3 “Nightly job” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W41",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Retry policy” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W41",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Map tiles” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W50",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Offline-Abgleich” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W50",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Offline-Abgleich” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W50",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s6 “Argumente lesen” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W56",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Anmeldung” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W56",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s4 “Offline-Abgleich” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  },
+  {
+   "id": "V6-W56",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "wrong_target",
+   "detail": "target: s1 “Anmeldung” is not named in the request",
+   "stage": "caught",
+   "corpus": "watch6"
+  }
+ ]
+}

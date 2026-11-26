@@ -1,0 +1,1790 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"guided\":true,\"extensions\":[\"fields\",\"sampling\"],\"available\":\"available\",\"protocol\":3,\"os\":\"Version 27.0.1 (Build 26A434)\",\"hello\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "feed_pick"
+  ],
+  "prompt_sha256": {
+   "feed_pick": "73c4dceb0e1a7db6afe649df15d593087f456022f1eb75588d98dc24ae0fc03a"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "turns6",
+    "file": "turns-v6.json",
+    "sha256": "bf455532164c644e9b1e4adabd84a3ea49195d5dff6b914089672f8734f74bcd",
+    "items_in_file": 50,
+    "items_run": 50
+   }
+  ],
+  "calls": 37,
+  "wall_s": 42.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   7.7,
+   6.4,
+   6.8
+  ],
+  "load_avg_end": [
+   7.3,
+   6.5,
+   6.8
+  ],
+  "helper_cpu_s": 0.94,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 2.48
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 2.4
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.93
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.68
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 163.1,
+   "peak": 175.3,
+   "after": 175.7
+  },
+  "started": "2026-11-26 08:09:09"
+ },
+ "results": [
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T01",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"added\"}",
+     "finish": "stop",
+     "latency_ms": 1127,
+     "gen_ms": 1127.1460056304932,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1825,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added pagination to the heron-feed timeline endpoint, 18 passed",
+    "model_text": [
+     "Added pagination to the heron-feed timeline endpoint, 18 passed"
+    ],
+    "notes": [],
+    "line": "Added pagination to the heron-feed timeline endpoint, 18 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "added"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T02",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1127,
+     "gen_ms": 1126.7499923706055,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1736,
+     "retry_note": false,
+     "errors": [
+      "composer: caveat kept by the composer: Ich habe die Tests nicht ausgeführt; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1208,
+     "gen_ms": 1207.6389789581299,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1835,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: Ich habe die Tests nicht ausgeführt; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1183,
+     "gen_ms": 1182.4129819869995,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1835,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: Ich habe die Tests nicht ausgeführt; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Der Export im reed-lager nutzt jetzt UTF-8 mit BOM, damit Excel die Umlaute richtig zeigt.\nIch habe die Tests nicht ausgeführt, weil die Datenbank lokal nicht lief.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T03",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The full suite ran: 52 passed, 3 failed, all three in the retry module.\nFailed: FAIL TestRetryBackoff\nFailed: FAIL TestRetryJitter\nFailed: FAIL TestRetryCap",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T04",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "I rewrote the sparrow-mail settings page in React hooks.\nFailed: FAIL Page.test.tsx > saves draft\nFailed: FAIL Page.test.tsx > shows error banner\nFailed: FAIL Page.test.tsx > resets on cancel\nFailed: FAIL Page.test.tsx > keyboard order\nFailed: FAIL Page.test.tsx > theme toggle",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T05",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Should I keep views with the old names?\nQuestion: Should I keep views with the old table names?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T06",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"went\"}",
+     "finish": "stop",
+     "latency_ms": 1019,
+     "gen_ms": 1019.3020105361938,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1777,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept no file; reverted src/search/cache.ts, src/search/index.ts\nWent back to the original code; tests were not run",
+    "model_text": [
+     "Went back to the original code; tests were not run"
+    ],
+    "notes": [],
+    "line": "Went back to the original code; tests were not run",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "went"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T07",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "La page d'accueil de lotus-shop affiche maintenant les trois derniers articles vus.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T08",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"updated\"}",
+     "finish": "stop",
+     "latency_ms": 1152,
+     "gen_ms": 1152.1849632263184,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1878,
+     "retry_note": false,
+     "errors": [
+      "composer: caveat kept by the composer: I ran only the unit tests of the core package | the other packages' tests were not run; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"fact\": \"3\", \"verb\": \"changed\"}",
+     "finish": "stop",
+     "latency_ms": 1260,
+     "gen_ms": 1260.0300312042236,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1982,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: I ran only the unit tests of the core package | the other packages' tests were not run; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"fact\": \"3\", \"verb\": \"changed\"}",
+     "finish": "stop",
+     "latency_ms": 1265,
+     "gen_ms": 1264.280915260315,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1982,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: I ran only the unit tests of the core package | the other packages' tests were not run; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Updated 14 files across the cedar-platform monorepo to the new logger interface.\nI ran only the unit tests of the core package (66 pass); the other packages' tests were not run.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T09",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1077,
+     "gen_ms": 1076.6370296478271,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1732,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit)",
+    "model_text": [
+     "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit)"
+    ],
+    "notes": [],
+    "line": "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit)",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T10",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The merge test keeps failing with a stack overflow in resolve_tree and I ran out of ideas.\nI could not finish the oak-sync conflict resolver.\nFailed: test merge_deep_tree ... FAILED: thread 'main' has overflowed its stack",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T11",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1089,
+     "gen_ms": 1088.4029865264893,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1783,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept no file; reverted src/webhook/verify.ts\nI reverted my change to the mint-pay webhook signature check; tests were not run",
+    "model_text": [
+     "I reverted my change to the mint-pay webhook signature check; tests were not run"
+    ],
+    "notes": [],
+    "line": "I reverted my change to the mint-pay webhook signature check; tests were not run",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T12",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Aggiunto il filtro per data nell'elenco ordini di mela-gestione.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T13",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Which database should the thistle-notes search use, SQLite FTS or an external index?\nQuestion: SQLite FTS or an external index for note search?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T14",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Todo bien con el cambio de moneda en la tienda cobre-web: ejecuté las 31 pruebas y pasan 31.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T15",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"deleted\"}",
+     "finish": "stop",
+     "latency_ms": 1150,
+     "gen_ms": 1149.6429443359375,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1865,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Deleted the old cron script since nothing referenced it, 8 passed",
+    "model_text": [
+     "Deleted the old cron script since nothing referenced it, 8 passed"
+    ],
+    "notes": [],
+    "line": "Deleted the old cron script since nothing referenced it, 8 passed",
+    "pick": {
+     "fact": "3",
+     "kind": "action",
+     "verb": "deleted"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T16",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "I migrated the wren-board auth to the new token format.\nFailed: runner exited with code 134 before running tests",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T17",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1164,
+     "gen_ms": 1163.3659601211548,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1803,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed src/button/theme.css (+65 -10), 44 passed",
+    "model_text": [
+     "Changed src/button/theme.css (+65 -10), 44 passed"
+    ],
+    "notes": [],
+    "line": "Changed src/button/theme.css (+65 -10), 44 passed",
+    "pick": {
+     "fact": "3",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T18",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Zwei Integrationstests schlagen noch fehl, weil der Testserver die Weiterleitung nicht kennt.\nFehlgeschlagen: FAIL oauth.test.ts > redirect after login\nFehlgeschlagen: FAIL oauth.test.ts > state mismatch",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T19",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"renamed\"}",
+     "finish": "stop",
+     "latency_ms": 1135,
+     "gen_ms": 1134.5309019088745,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1835,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Renamed the config key timeout to request_timeout_ms across the pine-gateway docs and code, 9 passed",
+    "model_text": [
+     "Renamed the config key timeout to request_timeout_ms across the pine-gateway docs and code, 9 passed"
+    ],
+    "notes": [],
+    "line": "Renamed the config key `timeout` to `request_timeout_ms` across the pine-gateway docs and code, 9 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "renamed"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T20",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Do you want me to write the migration as online (slow, no downtime) or offline (fast, 10 minutes down)?\nQuestion: Online (slow, no downtime) or offline (fast, 10 minutes down) migration?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T21",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"rewrote\"}",
+     "finish": "stop",
+     "latency_ms": 1106,
+     "gen_ms": 1105.4530143737793,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1813,
+     "retry_note": false,
+     "errors": [
+      "gate step 4: non-answer"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"fact\": \"3\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1157,
+     "gen_ms": 1157.1370363235474,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1878,
+     "retry_note": true,
+     "errors": [
+      "gate step 4: non-answer"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"fact\": \"1\", \"verb\": \"rewrote\"}",
+     "finish": "stop",
+     "latency_ms": 1184,
+     "gen_ms": 1183.358073234558,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1877,
+     "retry_note": true,
+     "errors": [
+      "gate step 4: non-answer"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Rewrote the quill-editor paste handler.\nIt passes the 15 paste tests, but I noticed the clipboard tests in the Firefox suite were skipped, so I cannot say it works there.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T22",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"added\"}",
+     "finish": "stop",
+     "latency_ms": 1196,
+     "gen_ms": 1195.7039833068848,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1837,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added a --dry-run flag to the marsh-deploy CLI; tests were not run",
+    "model_text": [
+     "Added a --dry-run flag to the marsh-deploy CLI; tests were not run"
+    ],
+    "notes": [],
+    "line": "Added a --dry-run flag to the marsh-deploy CLI; tests were not run",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "added"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T23",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"fixed\"}",
+     "finish": "stop",
+     "latency_ms": 1086,
+     "gen_ms": 1085.5050086975098,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1811,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept README.md (+1 -1); reverted render/gpu_path.cpp, render/pipeline.cpp\nFixed a typo in the README; tests were not run",
+    "model_text": [
+     "Fixed a typo in the README; tests were not run"
+    ],
+    "notes": [],
+    "line": "Fixed a typo in the README; tests were not run",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "fixed"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T24",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Le calcul de la TVA dans fougère-facture arrondit maintenant par ligne.\nFailed: FAILED tests/test_tva.py::test_rounding_total - assert 10.01 == 10.00",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T25",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"4\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1159,
+     "gen_ms": 1158.5679054260254,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1807,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed Cargo.lock (+140 -128), 61 passed",
+    "model_text": [
+     "Changed Cargo.lock (+140 -128), 61 passed"
+    ],
+    "notes": [],
+    "line": "Changed Cargo.lock (+140 -128), 61 passed",
+    "pick": {
+     "fact": "4",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T26",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Soll ich die Schwelle bei 2 Zeichen Abstand lassen?\nTests habe ich noch nicht laufen lassen.\nFrage: Soll die Schwelle bei 2 Zeichen Abstand bleiben?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T27",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1172,
+     "gen_ms": 1171.5730428695679,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1801,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed scripts/backfill_created_at.sql (new, +26 -0); tests were not run",
+    "model_text": [
+     "Changed scripts/backfill_created_at.sql (new, +26 -0); tests were not run"
+    ],
+    "notes": [],
+    "line": "Changed scripts/backfill_created_at.sql (new, +26 -0); tests were not run",
+    "pick": {
+     "fact": "3",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T28",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"fixed\"}",
+     "finish": "stop",
+     "latency_ms": 1127,
+     "gen_ms": 1126.4690160751343,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1788,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Fixed the memory leak in the clover-agent poller, 4 passed",
+    "model_text": [
+     "Fixed the memory leak in the clover-agent poller, 4 passed"
+    ],
+    "notes": [],
+    "line": "Fixed the memory leak in the clover-agent poller, 4 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "fixed"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T29",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Migrei o painel do jade-admin para a nova biblioteca de gráficos.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T30",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "I ran into a permission error: the agent cannot write to /Users/someone/Library/shared-cache in this sandbox.\nThe sandy-build cache step could not be completed.\nFailed: EACCES: permission denied, open '/Users/someone/Library/shared-cache/index'",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T31",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"4\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1169,
+     "gen_ms": 1168.6359643936157,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1830,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed web/signup/validate.js (+58 -6), 19 passed",
+    "model_text": [
+     "Changed web/signup/validate.js (+58 -6), 19 passed"
+    ],
+    "notes": [],
+    "line": "Changed web/signup/validate.js (+58 -6), 19 passed",
+    "pick": {
+     "fact": "4",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T32",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1129,
+     "gen_ms": 1129.1300058364868,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1754,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Die Migration der erle-daten auf PostgreSQL 16 ist durch",
+    "model_text": [
+     "Die Migration der erle-daten auf PostgreSQL 16 ist durch"
+    ],
+    "notes": [],
+    "line": "Die Migration der erle-daten auf PostgreSQL 16 ist durch",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T33",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1134,
+     "gen_ms": 1134.1909170150757,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1799,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept tests/tokenizer_test.py (+26 -0); reverted ivy/tokenizer.py\nChanged tests/tokenizer_test.py (+26 -0)",
+    "model_text": [
+     "Changed tests/tokenizer_test.py (+26 -0)"
+    ],
+    "notes": [],
+    "line": "Changed tests/tokenizer_test.py (+26 -0)",
+    "pick": {
+     "fact": "3",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T34",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Should the mulberry-bank statement export hide pending transactions?\nQuestion: Should the statement export hide pending transactions?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T35",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"gelöscht\"}",
+     "finish": "stop",
+     "latency_ms": 1201,
+     "gen_ms": 1200.5640268325806,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1798,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "3 veraltete Routen gelöscht",
+    "model_text": [
+     "3 veraltete Routen gelöscht"
+    ],
+    "notes": [],
+    "line": "3 veraltete Routen gelöscht",
+    "pick": {
+     "fact": "3",
+     "kind": "action",
+     "verb": "gelöscht"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T36",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “Unit tests: 6 pass, 2 fail, because the HTTP-date format is parsed in the wrong timezone.”\nTests: 6 passed, 2 failed (per AI Juggler)\nFailed: --- FAIL: TestRetryAfterHTTPDate\nFailed: --- FAIL: TestRetryAfterHTTPDateGMT",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T37",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"5\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1184,
+     "gen_ms": 1184.1529607772827,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1815,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed static/site.css (+3 -340); tests were not run",
+    "model_text": [
+     "Changed static/site.css (+3 -340); tests were not run"
+    ],
+    "notes": [],
+    "line": "Changed static/site.css (+3 -340); tests were not run",
+    "pick": {
+     "fact": "5",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T38",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1128,
+     "gen_ms": 1127.925992012024,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1779,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed e2e/login.spec.ts (+6 -1), 12 passed",
+    "model_text": [
+     "Changed e2e/login.spec.ts (+6 -1), 12 passed"
+    ],
+    "notes": [],
+    "line": "Changed e2e/login.spec.ts (+6 -1), 12 passed",
+    "pick": {
+     "fact": "3",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T39",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"gesetzt\"}",
+     "finish": "stop",
+     "latency_ms": 1141,
+     "gen_ms": 1141.1340236663818,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1722,
+     "retry_note": false,
+     "errors": [
+      "composer: caveat kept by the composer: Die Konfiguration ist noch nicht ausgerollt und lokal nicht getestet; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"fact\": \"1\", \"verb\": \"gesetzt\"}",
+     "finish": "stop",
+     "latency_ms": 1128,
+     "gen_ms": 1127.5540590286255,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1826,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: Die Konfiguration ist noch nicht ausgerollt und lokal nicht getestet; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"fact\": \"1\", \"verb\": \"gesetzt\"}",
+     "finish": "stop",
+     "latency_ms": 1104,
+     "gen_ms": 1103.8250923156738,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1826,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: Die Konfiguration ist noch nicht ausgerollt und lokal nicht getestet; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Wir haben den Alarm für den Speicherverbrauch im lupine-monitor auf 85 Prozent gesetzt.\nDie Konfiguration ist noch nicht ausgerollt und lokal nicht getestet.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T40",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"bumped\"}",
+     "finish": "stop",
+     "latency_ms": 1062,
+     "gen_ms": 1061.5159273147583,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1755,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Bumped the version to 2.4.0 in the finch-lib package; tests were not run",
+    "model_text": [
+     "Bumped the version to 2.4.0 in the finch-lib package; tests were not run"
+    ],
+    "notes": [],
+    "line": "Bumped the version to 2.4.0 in the finch-lib package; tests were not run",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "bumped"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T41",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "git: kept ci/lint.yml (+3 -1); reverted src/api/types.ts\nI got stuck: the tamarack-ci pipeline fails in the lint step with a rule I cannot reproduce locally.\nFailed: lint: rule no-implicit-any violated in src/api/types.ts:12",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T42",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"3\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1121,
+     "gen_ms": 1120.9789514541626,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1783,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed locales/it.json (new, +42 -0), 9 passed",
+    "model_text": [
+     "Changed locales/it.json (new, +42 -0), 9 passed"
+    ],
+    "notes": [],
+    "line": "Changed locales/it.json (new, +42 -0), 9 passed",
+    "pick": {
+     "fact": "3",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T43",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1064,
+     "gen_ms": 1064.2229318618774,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1766,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed export/stream.js (+39 -18), 7 passed; I did not check large files",
+    "model_text": [
+     "Changed export/stream.js (+39 -18), 7 passed; I did not check large files"
+    ],
+    "notes": [
+     "caveat kept by the composer: I did not check large files"
+    ],
+    "line": "Changed export/stream.js (+39 -18), 7 passed; I did not check large files",
+    "pick": {
+     "fact": "2",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T44",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "git: kept no file; reverted package.json, package-lock.json\nJe n'ai pas pu terminer la migration de roseau-api vers Node 22 : le paquet native-cairo ne compile pas.\nFailed: gyp ERR! build error: native-cairo",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T45",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"implemented\"}",
+     "finish": "stop",
+     "latency_ms": 1169,
+     "gen_ms": 1169.193983078003,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1860,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Implemented soft delete for the basil-recipes API, 48 passed",
+    "model_text": [
+     "Implemented soft delete for the basil-recipes API, 48 passed"
+    ],
+    "notes": [],
+    "line": "Implemented soft delete for the basil-recipes API, 48 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "implemented"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T46",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"4\", \"verb\": \"added\"}",
+     "finish": "stop",
+     "latency_ms": 1132,
+     "gen_ms": 1131.3410997390747,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1803,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added a comment explaining this; tests were not run",
+    "model_text": [
+     "Added a comment explaining this; tests were not run"
+    ],
+    "notes": [],
+    "line": "Added a comment explaining this; tests were not run",
+    "pick": {
+     "fact": "4",
+     "kind": "action",
+     "verb": "added"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T47",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Ich bin mit dem Umbau der Dateiauswahl in der buche-docs fast fertig, aber die Tests sind noch rot: 3 Fehler, 28 grün.\nIch habe die Änderungen noch nicht committet.\nFehlgeschlagen: FAIL picker.spec.js > multi select\nFehlgeschlagen: FAIL picker.spec.js > drag drop\nFehlgeschlagen: FAIL picker.spec.js > keyboard",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T48",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"replaced\"}",
+     "finish": "stop",
+     "latency_ms": 1211,
+     "gen_ms": 1210.2940082550049,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1871,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Replaced the home-grown date parser in the vetch-calendar app with the standard library, 90 passed",
+    "model_text": [
+     "Replaced the home-grown date parser in the vetch-calendar app with the standard library, 90 passed"
+    ],
+    "notes": [],
+    "line": "Replaced the home-grown date parser in the vetch-calendar app with the standard library, 90 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "replaced"
+    }
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T49",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Created a first draft of the dandelion-tools onboarding doc.\nQuestion: Does the tone of the onboarding doc fit the team?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns6",
+   "job": "feed_pick",
+   "setting": "main",
+   "id": "V6T50",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1088,
+     "gen_ms": 1088.2220268249512,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1711,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Changed tests/regression_list.txt (+3 -0); 212 of 600 tests done",
+    "model_text": [
+     "Changed tests/regression_list.txt (+3 -0); 212 of 600 tests done"
+    ],
+    "notes": [
+     "caveat kept by the composer: 212 of 600 tests done"
+    ],
+    "line": "Changed tests/regression_list.txt (+3 -0); 212 of 600 tests done",
+    "pick": {
+     "fact": "1",
+     "kind": "git",
+     "verb": "none"
+    }
+   }
+  }
+ ]
+}

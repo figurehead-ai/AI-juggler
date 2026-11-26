@@ -1,0 +1,152 @@
+[
+ {
+  "pair": "turns6-feed_pick-001",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-002",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-003",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-004",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-005",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-006",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-007",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-008",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-009",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-010",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-011",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-012",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-013",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-014",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-015",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-016",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-017",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-018",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-019",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-020",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-021",
+  "job": "feed_pick",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns6-feed_pick-022",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-023",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-024",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns6-feed_pick-025",
+  "job": "feed_pick",
+  "first": "model",
+  "second": "non-AI"
+ }
+]

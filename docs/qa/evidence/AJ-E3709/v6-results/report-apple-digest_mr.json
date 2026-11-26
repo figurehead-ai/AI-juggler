@@ -1,0 +1,252 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"os\":\"Version 27.0.1 (Build 26A434)\",\"extensions\":[\"fields\",\"sampling\"],\"hello\":true,\"guided\":true,\"protocol\":3,\"available\":\"available\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "digest_mr"
+  ],
+  "prompt_sha256": {
+   "digest_mr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "digest6",
+    "file": "digest-v6.json",
+    "sha256": "0dca2af1eed016aeee53bc59b10e69ab2f82c740f9f6eb85d41a537662c2cc5f",
+    "items_in_file": 30,
+    "items_run": 30
+   }
+  ],
+  "calls": 25,
+  "wall_s": 26.6,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   7.3,
+   6.5,
+   6.8
+  ],
+  "load_avg_end": [
+   7.1,
+   6.5,
+   6.8
+  ],
+  "helper_cpu_s": 0.63,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.67
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 1.63
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.62
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.46
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 164.5,
+   "peak": 175.8,
+   "after": 176.3
+  },
+  "started": "2026-11-26 08:09:52"
+ },
+ "criteria": "D-149 (2026-11-25): watches >= 90 % exact; feed line and digest on only if preferred; D-130's safety bars unchanged",
+ "corpora": {
+  "digest6": {
+   "digest_mr": {
+    "stats": {
+     "items": 30,
+     "decided_by_code": 13,
+     "model_called": 17,
+     "passed_first_attempt": 17,
+     "passed_after_a_retry": 0,
+     "fell_back": 0,
+     "passed_first_pct": 100.0,
+     "passed_with_retries_pct": 100.0,
+     "fallback_pct": 0.0,
+     "attempts_per_item": {
+      "1": 10,
+      "2": 6,
+      "3": 1
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1049,
+      "p95": 1080
+     },
+     "latency_ms_item_total": {
+      "median": 1080,
+      "p95": 2153
+     },
+     "kinds_shown": {
+      "ai": 17,
+      "rollup": 13
+     }
+    },
+    "severity": {
+     "items": 30,
+     "model_shown_items": 25,
+     "ai_items_shown": 25,
+     "digests": 30,
+     "digests_with_ai_items": 17,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "systematic_rule": "an error class in 2 or more windows (ADR-0036 §3.1)",
+     "critical_caught_drafts": 0,
+     "critical_caught_items": 0,
+     "critical_caught_by_detector": {},
+     "omission_items": 1,
+     "omission_denominator": 30,
+     "omission_pct": 3.33,
+     "omission_pct_ai_digests": 5.88,
+     "omission_by_detector": {
+      "must_surface_missed": 1
+     },
+     "quiet_agents_flagged": 0,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "structural_in_drafts": {},
+     "items_on_loud_agents_dropped": 0,
+     "structural_reaching_the_user": 0,
+     "items_passing_without_fallback_pct": 100.0,
+     "gist_overlap_pct": 88.0,
+     "latency_ms_item_total": {
+      "median": 1080,
+      "p95": 2153
+     },
+     "minor": {},
+     "unmapped_items": [],
+     "extra": {
+      "AI items shown": 25,
+      "quiet agents flagged": 0,
+      "items on loud agents dropped (bug count)": 0,
+      "items passing without fallback %": 100.0
+     }
+    },
+    "bar_check": [
+     {
+      "bar": "critical reaching the user, % of shown AI items",
+      "op": "<=",
+      "bar_value": 1.0,
+      "measured": 0.0,
+      "ok": true
+     },
+     {
+      "bar": "systematic critical patterns (2+ windows)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "omissions, % of shown digests",
+      "op": "<=",
+      "bar_value": 10.0,
+      "measured": 3.33,
+      "ok": true
+     },
+     {
+      "bar": "quiet agents flagged notable (attention noise, not critical)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "questions or failures hidden",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "refs, cites or loud-agent words reaching the user",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "items passing without fallback, %",
+      "op": ">=",
+      "bar_value": 80.0,
+      "measured": 100.0,
+      "ok": true
+     },
+     {
+      "bar": "value: AI digest preferred over the rollup, % of decided pairs (D-149: on only if preferred; D-130's value bar)",
+      "op": ">=",
+      "bar_value": 60.0,
+      "measured": null,
+      "ok": null
+     },
+     {
+      "bar": "latency median, ms",
+      "op": "<=",
+      "bar_value": 10000,
+      "measured": 1080,
+      "ok": true
+     },
+     {
+      "bar": "latency p95, ms",
+      "op": "<=",
+      "bar_value": 20000,
+      "measured": 2153,
+      "ok": true
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}
