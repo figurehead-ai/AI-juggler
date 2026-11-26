@@ -1,0 +1,7095 @@
+[
+ {
+  "id": "V9-W01",
+  "request": "Melde dich, wenn Karten mischen etwas fragt, dauerhaft",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lern"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W02",
+  "request": "Bei all meinen Projekten: melde mir bitte, wenn gartenplaner scheitert, für heute",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-gar"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W03",
+  "request": "page me during quiet hours too when Harbor Team goes below 15 percent, permanently",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-harbor"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V9-W04",
+  "request": "alert me when something gets stuck, apart from the monorepo-ci project",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a project you pick gets stuck"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W05",
+  "request": "tell me the second the chapter index session ends",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-nov"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W06",
+  "request": "tell me when the checkout page is deployed to staging",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported",
+   "other"
+  ]
+ },
+ {
+  "id": "V9-W07",
+  "request": "ping me when the webhook retries session adds over 500 lines",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W08",
+  "request": "Von allen meinen Sitzungen interessiert mich nur Kassenabschluss: sag Bescheid, wenn sie fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bie"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W09",
+  "request": "tell me when a session ends, not the Batch loader one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session you pick ends"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W10",
+  "request": "when the integration tests go green, restart the loader",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes or fails"
+  },
+  "tags": [
+   "unsupported",
+   "other"
+  ]
+ },
+ {
+  "id": "V9-W11",
+  "request": "Warne mich, wenn Zuhause unter 20 Prozent fällt, nur heute",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-haus"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 20
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W12",
+  "request": "Warne mich, wenn etwas hängt, bis auf das Projekt bierkasse",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn ein Projekt, das du auswählst, hängt"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W13",
+  "request": "Sag mir, wenn Karten mischen mehr als 300 000 Tokens verbraucht",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn der Platz des Kontos unter einen Prozentwert fällt"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W14",
+  "request": "tell me when anything at all gets stuck for 25 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 25
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W15",
+  "request": "alert me when the till rounding session changes more than 40 files",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W16",
+  "request": "Sag mir Bescheid, wenn die Haltestellen geladen sind",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-fah"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W17",
+  "request": "I want to know about every new session, leave out OpenCode",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when an app you pick starts a session"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W18",
+  "request": "for all my projects, watch monorepo-ci and tell me when it gets stuck for 15 minutes, always",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-mon"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W19",
+  "request": "let me know when things finish, skipping everything in quilt-shop",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session or project you pick finishes"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W20",
+  "request": "Melde dich, wenn Beetplan mehr als 25 Dateien ändert",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn die Sitzung fertig ist"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W21",
+  "request": "tell me when Offline tiles finishes, but hold it until quiet hours are over",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-mob"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V9-W22",
+  "request": "watch for failures in all projects other than atlas-viewer",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a project you pick fails"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W23",
+  "request": "tell me when the batch loader has burned through 200k tokens",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account's room drops below a percentage"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W24",
+  "request": "say something if the webhook retries session has been idle for 40 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ord"
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 40
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W25",
+  "request": "tell me whenever Cabin runs out of room, at any point until I say otherwise",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-cabin"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V9-W26",
+  "request": "Sag Bescheid, wenn eine Sitzung endet, nicht das mit dem Beetplan",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn eine Sitzung, die du auswählst, endet"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W27",
+  "request": "tell me when the chapter index session mentions the word backup",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported",
+   "other"
+  ]
+ },
+ {
+  "id": "V9-W28",
+  "request": "out of every session I have open, let me know when the Pattern export one asks me something",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-qlt"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W29",
+  "request": "wake me if the tile cache session fails, even at 4am",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-atl"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V9-W30",
+  "request": "Wenn Cursor sein Limit erreicht, gib mir einmal Bescheid",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W31",
+  "request": "Sag mir, wenn eine Sitzung fehlschlägt, außer Beetplan",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn eine Sitzung, die du auswählst, fehlschlägt"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W32",
+  "request": "warn me when Harbor Team drops below 30% runway, and keep that on permanently",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-harbor"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 30
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W33",
+  "request": "tell me when audio-notes goes above 6 commits an hour",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session in the project finishes"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W34",
+  "request": "remind me at 9 tomorrow to renew the domain",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported",
+   "other"
+  ]
+ },
+ {
+  "id": "V9-W35",
+  "request": "alert me when the heart zones session hits its usage limit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-fit"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W36",
+  "request": "notify me when any Claude Code CLI · Studio session asks me a question, from now on",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-ccs"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W37",
+  "request": "tell me when the chapter index asks me anything, and keep it silent overnight",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-nov"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V9-W38",
+  "request": "let me know if payment retries spends more than 12 euros",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account's room drops below a percentage"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W39",
+  "request": "let me know when any session fails, but not Heart zones",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session you pick fails"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W40",
+  "request": "among all accounts, tell me if Cabin falls under 25 percent left, just this once",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-cabin"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 25
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W41",
+  "request": "whatever else is going on, I need to know the moment Till rounding finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bak"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W42",
+  "request": "tell me when anything in atlas-viewer asks me something, for the rest of today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-atl"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W43",
+  "request": "of all my sessions, tell me when checkout-api fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-chk"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ },
+ {
+  "id": "V9-W44",
+  "request": "ping me if the config migration gets stuck for 12 minutes, just for today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lin"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 12
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W45",
+  "request": "tell me when my colleague opens a pull request on lint-rules",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session in the project finishes"
+  },
+  "tags": [
+   "unsupported",
+   "other"
+  ]
+ },
+ {
+  "id": "V9-W46",
+  "request": "ping me when anything asks a question, besides Cursor",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when an app you pick asks you"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W47",
+  "request": "warn me when cache keys uses more than 1.5 million tokens today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account's room drops below a percentage"
+  },
+  "tags": [
+   "unsupported",
+   "numeric"
+  ]
+ },
+ {
+  "id": "V9-W48",
+  "request": "tell me when a new session starts in trail-maps, today only",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-trl"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W49",
+  "request": "notify me when accounts run low, without Cabin",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when an account you pick runs low"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W50",
+  "request": "Sag mir, wenn die Datenbank auf dem anderen Mac abstürzt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported",
+   "other"
+  ]
+ },
+ {
+  "id": "V9-W51",
+  "request": "tell me when any session fails, except the config migration one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when a session you pick fails"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W52",
+  "request": "Sag Bescheid, wenn eine Sitzung in wohnungssuche 30 Minuten hängt, auch nachts",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-woh"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 30
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V9-W53",
+  "request": "let me know when the batch loader finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ing"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W54",
+  "request": "Melde mir alle Fragen ohne die von Cursor",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn eine App, die du auswählst, dich etwas fragt"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W55",
+  "request": "any session that starts on OpenCode, let me know, today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-oc"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W56",
+  "request": "once the cache keys session fails or finishes, tell me, one time",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-mon"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    },
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "V9-W57",
+  "request": "tell me when a session in order-sync ends, always",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-ord",
+     "app": "Claude Code CLI · Loft",
+     "project": "order-sync",
+     "title": "Webhook retries"
+    },
+    {
+     "id": "s-bak",
+     "app": "Codex CLI · Loft",
+     "project": "bakery-pos",
+     "title": "Till rounding"
+    },
+    {
+     "id": "s-atl",
+     "app": "Cursor",
+     "project": "atlas-viewer",
+     "title": "Tile cache"
+    },
+    {
+     "id": "s-nov",
+     "app": "Claude app · Cabin",
+     "project": "novel-tools",
+     "title": "Chapter index"
+    },
+    {
+     "id": "s-fit",
+     "app": "OpenCode",
+     "project": "fit-tracker",
+     "title": "Heart zones"
+    },
+    {
+     "id": "s-mon",
+     "app": "Claude Code CLI · Cabin",
+     "project": "monorepo-ci",
+     "title": "Cache keys"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccl",
+     "name": "Claude Code CLI · Loft"
+    },
+    {
+     "id": "app-cxl",
+     "name": "Codex CLI · Loft"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clc",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ord",
+     "name": "order-sync"
+    },
+    {
+     "id": "p-bak",
+     "name": "bakery-pos"
+    },
+    {
+     "id": "p-atl",
+     "name": "atlas-viewer"
+    },
+    {
+     "id": "p-nov",
+     "name": "novel-tools"
+    },
+    {
+     "id": "p-fit",
+     "name": "fit-tracker"
+    },
+    {
+     "id": "p-mon",
+     "name": "monorepo-ci"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-loft",
+     "name": "Loft Pro"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ord"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W58",
+  "request": "Sag mir einmal Bescheid, wenn irgendeine Sitzung fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-fah",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "fahrplan-app",
+     "title": "Haltestellen laden"
+    },
+    {
+     "id": "s-bie",
+     "app": "Codex CLI · Werkstatt",
+     "project": "bierkasse",
+     "title": "Kassenabschluss"
+    },
+    {
+     "id": "s-woh",
+     "app": "Cursor",
+     "project": "wohnungssuche",
+     "title": "Filter speichern"
+    },
+    {
+     "id": "s-lern",
+     "app": "Claude app · Zuhause",
+     "project": "lernkarten",
+     "title": "Karten mischen"
+    },
+    {
+     "id": "s-gar",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "gartenplaner",
+     "title": "Beetplan"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-fah",
+     "name": "fahrplan-app"
+    },
+    {
+     "id": "p-bie",
+     "name": "bierkasse"
+    },
+    {
+     "id": "p-woh",
+     "name": "wohnungssuche"
+    },
+    {
+     "id": "p-ler",
+     "name": "lernkarten"
+    },
+    {
+     "id": "p-gar",
+     "name": "gartenplaner"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-werk",
+     "name": "Werkstatt"
+    },
+    {
+     "id": "acct-haus",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V9-W59",
+  "request": "let me know when anything hits a usage limit, excluding Studio",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when an app or account you pick hits a limit"
+  },
+  "tags": [
+   "unsupported",
+   "exclusion"
+  ]
+ },
+ {
+  "id": "V9-W60",
+  "request": "I run lots of apps, but only Cursor matters: tell me when it hits its limit today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Claude Code CLI · Harbor",
+     "project": "checkout-api",
+     "title": "Payment retries"
+    },
+    {
+     "id": "s-ing",
+     "app": "Codex CLI · Harbor",
+     "project": "ingest-worker",
+     "title": "Batch loader"
+    },
+    {
+     "id": "s-mob",
+     "app": "Cursor",
+     "project": "trail-maps",
+     "title": "Offline tiles"
+    },
+    {
+     "id": "s-qlt",
+     "app": "Claude app · Studio",
+     "project": "quilt-shop",
+     "title": "Pattern export"
+    },
+    {
+     "id": "s-aud",
+     "app": "OpenCode",
+     "project": "audio-notes",
+     "title": "Transcript cleanup"
+    },
+    {
+     "id": "s-lin",
+     "app": "Claude Code CLI · Studio",
+     "project": "lint-rules",
+     "title": "Config migration"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cch",
+     "name": "Claude Code CLI · Harbor"
+    },
+    {
+     "id": "app-cxh",
+     "name": "Codex CLI · Harbor"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cls",
+     "name": "Claude app · Studio"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-chk",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-ing",
+     "name": "ingest-worker"
+    },
+    {
+     "id": "p-trl",
+     "name": "trail-maps"
+    },
+    {
+     "id": "p-qlt",
+     "name": "quilt-shop"
+    },
+    {
+     "id": "p-aud",
+     "name": "audio-notes"
+    },
+    {
+     "id": "p-lnt",
+     "name": "lint-rules"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-harbor",
+     "name": "Harbor Team"
+    },
+    {
+     "id": "acct-studio",
+     "name": "Studio"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "broad_word"
+  ]
+ }
+]
