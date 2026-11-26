@@ -173,6 +173,27 @@ pub fn language(text: &str) -> BotLang {
 
 /// Words that say nothing of the subject (the harness's `STOP`, trimmed
 /// to Bot's records).
+/// AJ-E3832 R6 (Apple's model): words of the question itself, never part of
+/// a record's name: "which app is web running in?" and "what did I ask you
+/// to remember about api?" found nothing while they stayed in the name.
+const QUESTION_WORDS: &[&str] = &[
+    "app",
+    "apps",
+    "running",
+    "runs",
+    "remember",
+    "remembered",
+    "asked",
+    "told",
+    "about",
+    "läuft",
+    "laufen",
+    "erinnern",
+    "gemerkt",
+    "gesagt",
+    "über",
+];
+
 const STOP: &[&str] = &[
     "happen",
     "happened",
@@ -707,37 +728,10 @@ pub fn read(text: &str) -> Reading {
         .chain(ACCOUNT_WORDS.iter().copied())
         .chain(HELP.iter().copied())
         .chain([
-            "tests",
-            "test",
-            "long",
-            "lange",
-            "much",
-            "most",
-            "meisten",
-            "did",
-            "dauer",
-            "duration",
-            "else",
-            "sonst",
-            // AJ-E3832 R6 (Apple's model): words of the question itself, not a
-            // record's name: "which app is web running in", "what did I ask
-            // you to remember about api" found nothing while they stayed.
-            "app",
-            "apps",
-            "running",
-            "runs",
-            "remember",
-            "remembered",
-            "asked",
-            "told",
-            "about",
-            "läuft",
-            "laufen",
-            "erinnern",
-            "gemerkt",
-            "gesagt",
-            "über",
+            "tests", "test", "long", "lange", "much", "most", "meisten", "did", "dauer",
+            "duration", "else", "sonst",
         ])
+        .chain(QUESTION_WORDS.iter().copied())
         .collect();
     reading.subject = words
         .iter()
