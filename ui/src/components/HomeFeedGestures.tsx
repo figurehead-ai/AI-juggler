@@ -19,7 +19,7 @@
  */
 import { useState, type JSX, type ReactNode } from "react";
 import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
-import { useTip } from "./WhyTip";
+import { TipLayer, useTipSpot } from "./WhyTip";
 import { showToast } from "./Toast";
 import { watchesChanged } from "./watches/WatchDoor";
 import { errorText } from "../lib/bridge";
@@ -47,6 +47,9 @@ const PLUS = <Glyph><path d="M12 5v14M5 12h14" /></Glyph>;
 const BUBBLE = <Glyph><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4 3v-3H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" /><path d="M9.5 10.5h.01M14.5 10.5h.01" /></Glyph>;
 const OPEN = <Glyph><path d="M7 17L17 7M9 7h8v8" /></Glyph>;
 
+/** A gesture's tip: under it, its left edge at the icon's. */
+const under = (box: DOMRect) => ({ left: Math.max(8, box.left), top: box.bottom + 6 });
+
 const G = "inline-flex h-7 items-center gap-[5px] rounded-[7px] px-2 text-label outline-none hover:bg-surface-3 hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60";
 
 /** One gesture: its icon, its label in a tip (and its name), and words
@@ -63,7 +66,8 @@ function Gesture({ label, icon, words, on, onClick, testId, lean: leanAttr, expa
   /** The post's row for J/K (Enter opens it). */
   row?: boolean;
 }): JSX.Element {
-  const { ref, show, hide, tip } = useTip<HTMLButtonElement>(label, "feed-gesture-tip", undefined, "presentation");
+  // The mock's tip: small, under the icon, as wide as its words.
+  const { ref, at, show, hide } = useTipSpot<HTMLButtonElement>(under);
   return (
     <>
       <button
@@ -85,7 +89,7 @@ function Gesture({ label, icon, words, on, onClick, testId, lean: leanAttr, expa
         {icon}
         {words && <span>{words}</span>}
       </button>
-      {!words && tip}
+      {!words && at && <TipLayer at={at} testId="feed-gesture-tip" role="presentation">{label}</TipLayer>}
     </>
   );
 }

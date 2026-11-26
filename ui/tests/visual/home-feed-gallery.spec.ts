@@ -17,6 +17,7 @@ import { resolve } from "node:path";
 import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
+import { STATES as BOT } from "../../src/preview/bot";
 import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome, STORY_T0, storyHome } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
@@ -365,7 +366,7 @@ test.describe("the story mock's data", () => {
         feed: story.feed,
         summary: story.summary,
         now: STORY_T0,
-        globals: { __AIJ_QUOTA_DISPLAY__: story.quota, __AIJ_PLACES__: story.places, __AIJ_MESSAGES__: story.messages, __AIJ_NOTICES__: story.notices, __AIJ_WATCH_VIEW__: story.watchView },
+        globals: { __AIJ_QUOTA_DISPLAY__: story.quota, __AIJ_PLACES__: story.places, __AIJ_MESSAGES__: story.messages, __AIJ_NOTICES__: story.notices, __AIJ_WATCH_VIEW__: story.watchView, __AIJ_AI_JOBS__: BOT.empty!.jobs },
       });
       await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
       const posts = page.getByTestId("feed-card");
@@ -373,6 +374,10 @@ test.describe("the story mock's data", () => {
       // The thread under the first post; the pool post followed.
       await expect(posts.nth(0).getByTestId("feed-followup")).toHaveText(/^↳ 2 min later · Login refactor finished/);
       await expect(posts.nth(3).getByTestId("feed-follow")).toHaveText("Following");
+      // Bot's AI is ready here (Ask Bot shows); the watches offer no
+      // reminder yet, so Remind me stays hidden (D-127).
+      await expect(posts.nth(0).getByTestId("feed-ask-bot")).toBeVisible();
+      await expect(page.getByTestId("feed-remind")).toHaveCount(0);
       // Less like this on the switch: kept, its why open, the post in place.
       await posts.nth(1).getByTestId("feed-less-like").click();
       await expect(posts.nth(1).getByTestId("feed-why")).toContainText("You'll see fewer switch posts.");

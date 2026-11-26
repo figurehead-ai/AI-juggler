@@ -68,14 +68,15 @@ function AppSide({ label, provider }: { label: string; provider: string | null }
   );
 }
 
-/** Room used, as a small meter: the strong amber step under a fifth. */
+/** Room used, as a small meter (measured, one reading): the amber step
+ * once under half is left, as the Runway's bar. */
 function UsageMeter({ left, window, resetsAt }: { left: number; window: string | null; resetsAt: number | null }): JSX.Element {
   const used = Math.max(0, Math.min(100, 100 - left));
-  const low = left < 20;
+  const low = left < 50;
   return (
     <div className="flex items-center gap-4" data-testid="feed-usage">
-      <span aria-hidden="true" className="flex h-[34px] w-24 items-end overflow-hidden rounded-sm bg-surface-3">
-        <span className={"block w-full rounded-t-sm " + (low ? "bg-warning" : "bg-accent/55")} style={{ height: `${Math.max(4, used)}%` }} />
+      <span aria-hidden="true" className="block h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-surface-3">
+        <span className={"block h-full rounded-full " + (low ? "bg-warning" : "bg-accent/55")} style={{ width: `${Math.max(3, used)}%` }} />
       </span>
       <span className="flex flex-col">
         <b className={low ? "font-semibold text-warning" : "font-semibold text-ink"}>{used}% used</b>
@@ -87,7 +88,7 @@ function UsageMeter({ left, window, resetsAt }: { left: number; window: string |
 
 /** What a post shows beside its words. */
 export function PostAttachment({ attachment }: { attachment: Attachment }): JSX.Element {
-  const look = "mb-2 mt-0.5 rounded-[10px] bg-surface-2 px-3 py-2.5 text-ink-2";
+  const look = "mb-2 mt-0.5 rounded-[10px] bg-surface-2 px-3 py-2.5 text-meta text-ink-2";
   if (attachment.kind === "switch") {
     return (
       <div className={look + " flex flex-wrap items-center gap-2.5"} data-testid="feed-switch">
@@ -128,7 +129,7 @@ export function PostThread({ from, follow, shownAll, onAll, onOpen, onPool }: {
   const shown = shownAll ? follow : follow.filter((item) => newest.includes(item) || item.level >= 2);
   const hidden = follow.length - shown.length;
   return (
-    <div className="mb-2 ml-0.5 flex flex-col gap-0.5 border-l-2 border-divider py-0.5 pl-3 text-ink-2" data-testid="feed-thread">
+    <div className="mb-2 ml-0.5 flex flex-col gap-0.5 border-l-2 border-divider py-0.5 pl-3 text-meta text-ink-2" data-testid="feed-thread">
       {hidden > 0 && (
         <button type="button" onClick={onAll} className="self-start rounded text-label text-muted outline-none hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-thread-all">
           {hidden} earlier {hidden === 1 ? "update" : "updates"}
