@@ -15,7 +15,7 @@ use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
 
 use super::trigger::{self, CalendarRule, ClockTime};
-use crate::features::watches::draft::{request_times, words};
+use crate::features::watches::draft::{number_words, request_times, words};
 use crate::features::watches::model::WatchTarget;
 
 /// The longest title a draft takes from the request.
@@ -56,33 +56,25 @@ fn minutes_word(w: &str) -> Option<i64> {
     }
 }
 
+/// A number the request says: digits, or the watches' number words.
 fn number(w: &str) -> Option<i64> {
     w.parse::<i64>().ok().or_else(|| {
-        [
-            ("one", 1),
-            ("two", 2),
-            ("three", 3),
-            ("four", 4),
-            ("five", 5),
-            ("ten", 10),
-            ("fifteen", 15),
-            ("twenty", 20),
-            ("thirty", 30),
-            ("forty", 40),
-            ("fifty", 50),
-            ("eins", 1),
-            ("einer", 1),
-            ("zwei", 2),
-            ("drei", 3),
-            ("fünf", 5),
-            ("zehn", 10),
-            ("zwanzig", 20),
-            ("dreißig", 30),
-        ]
-        .iter()
-        .find(|(k, _)| *k == w)
-        .map(|(_, n)| *n)
+        number_words()
+            .iter()
+            .find(|(k, _)| *k == w || (w == "einer" && *k == "eins"))
+            .map(|(_, n)| i64::from(*n))
     })
+}
+
+/// A delay in minutes, in bounds (a minute to 30 days).
+fn bounded(minutes: i64) -> Option<i64> {
+    (1..=60 * 24 * 30).contains(&minutes).then_some(minutes)
+}
+
+/// "20min": digits and the unit in one word.
+fn glued(word: &str) -> Option<i64> {
+    let digits: String = word.chars().take_while(char::is_ascii_digit).collect();
+    bounded(digits.parse::<i64>().ok()? * minutes_word(&word[digits.len()..])?)
 }
 
 /// "in 20 minutes", "in 2 hours", "in half an hour", "in an hour" (and
@@ -99,27 +91,17 @@ pub fn delay_minutes(text: &str) -> Option<i64> {
             ["half", "an", "hour", ..] | ["einer", "halben", "stunde", ..] => return Some(30),
             ["an", "hour", ..] | ["einer", "stunde", ..] => return Some(60),
             [n, unit, ..] => {
-                if let (Some(n), Some(per)) = (number(n), minutes_word(unit))
-                    && (1..=60 * 24 * 30).contains(&(n * per))
+                if let Some(minutes) = number(n)
+                    .zip(minutes_word(unit))
+                    .and_then(|(n, per)| bounded(n * per))
+                    .or_else(|| glued(n))
                 {
-                    return Some(n * per);
-                }
-                // "in 20min": digits and the unit in one word
-                let digits: String = n.chars().take_while(char::is_ascii_digit).collect();
-                if let (Ok(v), Some(per)) =
-                    (digits.parse::<i64>(), minutes_word(&n[digits.len()..]))
-                    && (1..=60 * 24 * 30).contains(&(v * per))
-                {
-                    return Some(v * per);
+                    return Some(minutes);
                 }
             }
             [n] => {
-                let digits: String = n.chars().take_while(char::is_ascii_digit).collect();
-                if let (Ok(v), Some(per)) =
-                    (digits.parse::<i64>(), minutes_word(&n[digits.len()..]))
-                    && (1..=60 * 24 * 30).contains(&(v * per))
-                {
-                    return Some(v * per);
+                if let Some(minutes) = glued(n) {
+                    return Some(minutes);
                 }
             }
             _ => {}

@@ -214,7 +214,9 @@ pub fn is_watch_request(text: &str) -> bool {
     has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]))
 }
 
-fn number_words() -> [(&'static str, u32); 28] {
+/// The number words the requests use (English, German); the reminder
+/// draft reads them too (AJ-E2027).
+pub(crate) fn number_words() -> [(&'static str, u32); 28] {
     [
         ("one", 1),
         ("two", 2),

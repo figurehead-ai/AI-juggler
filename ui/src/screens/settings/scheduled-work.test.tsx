@@ -43,7 +43,7 @@ describe("AJ-E2027 R6 — Settings › Advanced › Scheduled work", () => {
     const rows = await screen.findAllByTestId("scheduled-row");
     expect(rows).toHaveLength(2);
     expect(rows[0]!.textContent).toContain("Every hour");
-    expect(rows[1]!.textContent).toContain("When the Mac is quiet");
+    expect(rows[1]!.textContent).toContain("When this computer is quiet");
     expect(rows[0]!.querySelector("button")).toBeNull();
     expect(whenOf({ ...backup, paused: true }, NOW)).toContain("Paused");
   });

@@ -17,10 +17,10 @@ import type { ScheduleInfo } from "../../types/generated/ScheduleInfo";
 import type { ScheduleListWhich } from "../../types/generated/ScheduleListWhich";
 import type { SchedulesSummary } from "../../types/generated/SchedulesSummary";
 
-export type { RemindRequest, ScheduleInfo, ScheduleListWhich, SchedulesSummary };
+export type { ScheduleInfo, SchedulesSummary };
 
 /** The stand-in's state, for previews and tests. */
-export interface SchedulesSeam {
+interface SchedulesSeam {
   /** The user's schedules. */
   yours?: ScheduleInfo[];
   /** The app's own. */

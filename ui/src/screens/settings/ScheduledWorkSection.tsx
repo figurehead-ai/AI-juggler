@@ -13,13 +13,13 @@ import { clock, whenWords } from "../../lib/time-words";
 import { openWatches } from "../../lib/watches-open";
 import { PaneSection, SettingRow } from "./parts";
 
-export const SCHEDULED = {
+const SCHEDULED = {
   title: "Scheduled work",
   footer: "What AI Juggler does on its own, and when. Nothing runs while it's closed; what fell due then runs once when it opens.",
   yours: "Your reminders are on the Watches page.",
   open: "Open reminders",
   none: "Nothing is scheduled.",
-  idle: "When the Mac is quiet, about hourly",
+  idle: "When this computer is quiet, about hourly",
   every: (minutes: number) => (minutes % 60 === 0 ? (minutes === 60 ? "Every hour" : `Every ${minutes / 60} hours`) : `Every ${minutes} minutes`),
   next: (ms: number, now: number) => `next ${whenWords(ms, now)}`,
   last: (ms: number, outcome: string | null) => (outcome === "ok" || outcome === null ? `last ran ${clock(ms)}` : `last try ${clock(ms)} didn't finish`),

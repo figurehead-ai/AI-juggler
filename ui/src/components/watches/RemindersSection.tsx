@@ -26,7 +26,7 @@ import { IconBin, IconClockFace, IconPause, IconPencil, IconPlay } from "./watch
 const GHOST = "inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 const ICON_BUTTON = "inline-flex size-7 items-center justify-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 
-export const REMINDERS = {
+const REMINDERS = {
   title: "Reminders",
   line: (active: number, paused: number) => [active > 0 ? `${active} set` : null, paused > 0 ? `${paused} paused` : null].filter(Boolean).join(" · ") || "All told",
   pauseAll: "Pause all",

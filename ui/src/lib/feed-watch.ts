@@ -74,7 +74,7 @@ export async function remindAt(target: Exclude<WatchTarget, { kind: "any" }>, na
 }
 
 /** A reminder's words: "Look at “api”". */
-export function remindTitle(name: string): string {
+function remindTitle(name: string): string {
   return `Look at “${name}”`;
 }
 

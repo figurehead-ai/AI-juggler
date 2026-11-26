@@ -20,7 +20,7 @@ import { whenWords } from "../../lib/time-words";
 import { openWatches } from "../../lib/watches-open";
 import type { ReminderDraftInfo } from "../../types/generated/ReminderDraftInfo";
 
-export const REMIND_DRAFT = {
+const REMIND_DRAFT = {
   set: "Set reminder",
   change: "Change time",
   pick: "Pick a time",
