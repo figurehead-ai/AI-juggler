@@ -362,6 +362,7 @@
 | AJ-E3823 | PASS10 | 2026-11-23 | [manifest](AJ-E3823/manifest.md) |
 | AJ-E3824 | PASS8 | 2026-11-24 | [manifest](AJ-E3824/manifest.md) |
 | AJ-E3825 | PASS11 | 2026-11-25 | [manifest](AJ-E3825/manifest.md) |
+| AJ-E3826 | PASS3 | 2026-11-26 | [manifest](AJ-E3826/manifest.md) |
 | AJ-E3830 | (no claims yet) | 2026-11-26 | [manifest](AJ-E3830/manifest.md) |
 | AJ-E3831 | (no claims yet) | 2026-11-26 | [manifest](AJ-E3831/manifest.md) |
 | AJ-E3832 | PASS6 | 2026-11-26 | [manifest](AJ-E3832/manifest.md) |

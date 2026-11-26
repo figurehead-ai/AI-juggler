@@ -539,7 +539,7 @@
 **Quality gates**: `just keep-going verify-static`; unit and integration tests for the routing (rows / none / general / scope / which model / each failure); AJ-E3829's real-model check; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3825/manifest.md`.
 
-### AJ-E3826 Settings › AI › Models says what Bot uses and whether it runs, in plain words | Status: TODO (0.5.2) | Priority P1 | Effort M | Depends: AJ-E3825
+### AJ-E3826 Settings › AI › Models says what Bot uses and whether it runs, in plain words | Status: DONE (0.5.2) | Priority P1 | Effort M | Depends: AJ-E3825
 **Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): the Models page was unclear about what is in use; "Recommended for this Mac" showed with a model already set up.
 **UI**: yes
 **Usability reasoning** (Opus, before building; amended 2026-11-26 before the build with the design it fixes, PAT-USE):
