@@ -16,7 +16,7 @@ import { showToast } from "../Toast";
 import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "../RowMenu";
 import { refreshPaged, usePagedList } from "../../lib/paged";
 import { errorText } from "../../lib/bridge";
-import { clock, whenWords } from "../../lib/time-words";
+import { clock, minutes as span, whenWords } from "../../lib/time-words";
 import { REMIND_CHOICES } from "../../lib/feed-watch";
 import { scheduleRemind, schedulePause, scheduleRemove, schedulesPage, schedulesPauseAll, schedulesSummary, scheduleUpdate, type ScheduleInfo, type SchedulesSummary } from "../../lib/ipc/schedules";
 import { WatchChip, StateCell } from "./WatchParts";
@@ -36,10 +36,11 @@ const REMINDERS = {
   resume: "Resume",
   remove: "Remove",
   about: (name: string) => `About ${name}`,
-  due: (ms: number, now: number) => whenWords(ms, now),
+  in: (ms: number, now: number) => (ms <= now ? "Due now" : `In ${span(now, ms)}`),
   once: "Once, then done",
   paused: "Paused",
-  wasDue: (ms: number) => `Was due ${clock(ms)}; told when you resume`,
+  wasDue: "Its time passed; told when you resume",
+  resumeTo: "Resume to be told",
   told: (ms: number) => `Told ${clock(ms)}`,
   missed: "Not told",
   doneLine: "Done",
@@ -56,8 +57,8 @@ function stateOf(info: ScheduleInfo, now: number): { tone: StateTone; top: strin
     return { tone: told ? "told" : "waiting", top: told ? REMINDERS.told(info.last_run_ms!) : REMINDERS.missed, sub: REMINDERS.doneLine };
   }
   const at = info.next_due_ms ?? (info.trigger.kind === "at" ? info.trigger.at_ms : null);
-  if (info.paused) return { tone: "paused", top: REMINDERS.paused, sub: at !== null && at <= now ? REMINDERS.wasDue(at) : at !== null ? REMINDERS.due(at, now) : "" };
-  return { tone: "waiting", top: at !== null ? REMINDERS.due(at, now) : "", sub: REMINDERS.once };
+  if (info.paused) return { tone: "paused", top: REMINDERS.paused, sub: at !== null && at <= now ? REMINDERS.wasDue : REMINDERS.resumeTo };
+  return { tone: "waiting", top: at !== null ? REMINDERS.in(at, now) : "", sub: REMINDERS.once };
 }
 
 interface RowActions {
@@ -96,7 +97,7 @@ function ReminderRow({ info, book, now, actions }: { info: ScheduleInfo; book: M
   const open = (event: MouseEvent<HTMLElement>) => setMenuAt(menuPoint(event));
   return (
     <li
-      className={"relative grid grid-cols-[44px_minmax(0,1fr)_minmax(150px,200px)_auto] items-center gap-x-3.5 rounded-[10px] px-3 py-3 [&+&]:rounded-none [&+&]:border-t [&+&]:border-divider" + (menuAt ? " bg-selected" : "")}
+      className={"relative grid grid-cols-[44px_minmax(0,1fr)_minmax(150px,200px)_212px] items-center gap-x-3.5 rounded-[10px] px-3 py-3 [&+&]:rounded-none [&+&]:border-t [&+&]:border-divider" + (menuAt ? " bg-selected" : "")}
       data-testid="reminder-row"
       data-schedule-id={info.id}
       data-state={ended ? "ended" : info.paused ? "paused" : "set"}
@@ -113,7 +114,7 @@ function ReminderRow({ info, book, now, actions }: { info: ScheduleInfo; book: M
           {!ours && <WatchChip>{REMINDERS.otherTool(info.source)}</WatchChip>}
           {ours && !ended && info.trigger.kind === "at" && (
             <WatchChip icon={IconClockFace} accent={!info.paused} testId="reminder-when">
-              {clock(info.trigger.at_ms)}
+              {whenWords(info.trigger.at_ms, now)}
             </WatchChip>
           )}
         </p>
