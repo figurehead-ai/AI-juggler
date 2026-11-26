@@ -634,3 +634,83 @@ fn forget_leaves_none_of_27_canaries_anywhere() {
     }
     assert!(hits.is_empty(), "{} hits: {hits:?}", hits.len());
 }
+
+/// ADR-0038 §4 inside ADR-0037 §2.3's maintenance: one pass links the
+/// records written before, prunes a memory node whose record went another
+/// way, runs the idle pass (an idle low note archived, kept), logs one
+/// `memory.maintained` with counts only, and stops when a job arrives.
+#[test]
+fn the_upkeep_pass_links_prunes_dreams_and_logs_counts_only() {
+    let (_dir, state) = state();
+    let world = world();
+    {
+        let storage = state.storage.lock().unwrap();
+        let writer = juggler_core::storage::memory::Writers::for_tests().memory;
+        crate::features::bot::memory::remember_in(
+            &storage,
+            &writer,
+            &world,
+            "the qzupkeep release goes out on fridays",
+            "t1",
+        )
+        .unwrap()
+        .unwrap();
+    }
+    // A memory node with no record (its record cleared another way), and
+    // an idle low note the idle pass archives.
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut b = gyrus::Batch::new();
+        b.node(gyrus::NewNode::new(
+            "memory",
+            "memory:gone-subject",
+            gyrus::Label::none(),
+            NOW,
+        ))
+        .node(gyrus::NewNode {
+            priority: 0,
+            ..gyrus::NewNode::new(
+                "fact",
+                "fact:old",
+                gyrus::Label::Trusted("an old fact".into()),
+                NOW - 200 * 86_400_000,
+            )
+        });
+        state.world.write(&state, &storage, &b, NOW).unwrap();
+    }
+    let passed = super::maintain::pass(&state, &|| false);
+    assert!(passed.linked && !passed.stopped, "{passed:?}");
+    assert_eq!(passed.dangling, 1);
+    assert!(passed.dreamed.archived >= 1, "{passed:?}");
+    let storage = state.storage.lock().unwrap();
+    let snap = state.world.ready(&state, &storage).unwrap();
+    assert!(snap.id_of("memory:gone-subject").is_none());
+    assert!(
+        snap.node(snap.id_of("fact:old").unwrap()).unwrap().archived,
+        "archived, kept"
+    );
+    let note = storage
+        .memory()
+        .current_of_kind(juggler_core::storage::memory::Kind::Note, None, 10)
+        .unwrap();
+    assert!(
+        snap.id_of(&memory_key(&note[0].subject_id)).is_some(),
+        "the record wasn't linked"
+    );
+    let payload: String = storage
+        .raw_conn()
+        .query_row(
+            "SELECT payload FROM ai_log WHERE verb = 'maintained' ORDER BY seq DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        payload.contains("\"archived\"") && !payload.contains("qzupkeep"),
+        "{payload}"
+    );
+    drop(storage);
+    // A job arrives: the pass stops at once.
+    let stopped = super::maintain::pass(&state, &|| true);
+    assert!(stopped.stopped || stopped.writes == 0, "{stopped:?}");
+}

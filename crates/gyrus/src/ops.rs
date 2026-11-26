@@ -6,7 +6,7 @@
 //! | [`seed`] | starting nodes: exact aliases (the user's own names) and the host's own matches first, then keyword (FTS5, stop words left out) and vector (exact cosine) search fused by reciprocal rank; at most K |
 //! | [`expand`] | a best-first walk by the kinds' rules, keeping the **best** K per step (by score, never an arbitrary K), with a node cap and a depth cap |
 //! | [`rank`] | the top K, one node per fact key |
-//! | [`matches`] | a small typed pattern |
+//! | [`matches()`] | a small typed pattern |
 //! | `at` on every read | only what was valid at that time ("as of") |
 //! | [`Graph::touch`](crate::Graph::touch) | uses queued, applied in the next writer hold |
 //! | [`explain`] | why each node was chosen: its seed, path, rule and score |
@@ -777,7 +777,7 @@ pub struct Pattern {
     pub at: Option<i64>,
 }
 
-/// The most candidate bindings [`matches`] tries before it stops (its
+/// The most candidate bindings [`matches()`] tries before it stops (its
 /// bound, whatever the pattern).
 pub const MATCH_STEPS: usize = 200_000;
 

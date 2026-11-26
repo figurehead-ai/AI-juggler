@@ -265,6 +265,50 @@ impl MemoryStore<'_> {
         Ok(uses.len())
     }
 
+    /// Forgets, at most `limit` at a time, the `memory` nodes whose record
+    /// is gone (removed another way: Clear chat history, the history
+    /// bound, a backup's scrub), with forget's own care: `secure_delete`
+    /// on, their keyword buckets rebuilt, the WAL folded; then out of
+    /// `graph`'s index. Returns how many went.
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn forget_dangling_world(
+        &self,
+        graph: &gyrus::Graph,
+        limit: usize,
+    ) -> Result<usize, MemoryError> {
+        if !installed(self.conn)? {
+            return Ok(0);
+        }
+        let keys: Vec<String> = self
+            .conn
+            .prepare_cached(
+                "SELECT n.key FROM gyrus_nodes n
+                 WHERE n.kind = 'memory' AND NOT EXISTS (
+                     SELECT 1 FROM memory_records r
+                     WHERE 'memory:' || r.subject_id = n.key)
+                 LIMIT ?1",
+            )?
+            .query_map([i64::try_from(limit).unwrap_or(i64::MAX)], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        if keys.is_empty() {
+            return Ok(0);
+        }
+        let pending = {
+            let _hold = SecureHold::on(self.conn)?;
+            let tx = write_transaction(self.conn)?;
+            let refs: Vec<&str> = keys.iter().map(String::as_str).collect();
+            let (pending, _) = gyrus::store::forget_in(&tx, &refs).map_err(gyrus_error)?;
+            tx.commit()?;
+            pending
+        };
+        super::secure::fold_wal(self.conn)?;
+        graph.publish(&pending);
+        Ok(keys.len())
+    }
+
     /// The current version of the subject with this random id (a
     /// `memory` node names its record by it).
     ///
@@ -402,6 +446,21 @@ impl<'c> WorldReader<'c> {
         query: &gyrus::ops::SeedQuery<'_>,
     ) -> Result<Vec<gyrus::ops::Seed>, MemoryError> {
         gyrus::ops::seed(self.conn, snap, pack, query).map_err(gyrus_error)
+    }
+
+    /// One bounded batch of the idle pass ([`gyrus::dream::plan`]); the
+    /// caller writes it through [`MemoryStore::write_world`].
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn dream(
+        &self,
+        snap: &gyrus::Snapshot,
+        pack: &gyrus::Pack,
+        opts: &gyrus::dream::DreamOpts,
+    ) -> Result<gyrus::dream::Dreamed, MemoryError> {
+        gyrus::dream::plan(self.conn, snap, pack, opts).map_err(gyrus_error)
     }
 
     /// The labels of these nodes (the few a context shows).

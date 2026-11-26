@@ -84,9 +84,10 @@ one Apple-silicon Mac with the benchmark's synthetic graph (15 node kinds,
 vectors on up to 10,000 nodes). They are not a promise for other machines
 or other graph shapes.
 
-At 1M links (200,000 nodes) the measured p95s were: seed 4.5 ms (budget
-5), expand 0.8 (5), as_of 0.13 (5), rank 0.002 (1), matches 0.07 (5), touch
-0.4 (3), forget 19.3 (20). The full table, the setup and what it took to
+At 1M links (200,000 nodes) the measured p95s were: seed 3.9 ms (budget
+5), expand 0.5 (5), as_of 0.09 (5), rank 0.001 (1), matches 0.05 (5), touch
+0.2 (3), one idle-pass batch 3.4 (200), forget 10.4 (20; up to 19.3 on a
+busier machine). The full table, the setup and what it took to
 stay within budget are in [BUDGETS.md](BUDGETS.md).
 
 ## Limits

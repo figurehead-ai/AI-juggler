@@ -309,6 +309,14 @@ pub enum Op {
         /// The new salience.
         salience: f32,
     },
+    /// Folds a child into its parent (the idle pass's fold: a turn into its
+    /// topic): the child is archived, the parent's `folded` count goes up.
+    Fold {
+        /// The child's key.
+        child: String,
+        /// The parent's key.
+        parent: String,
+    },
     /// Folds `from` into `into`: its links and aliases move to `into`,
     /// then `from` is deleted (securely, as a forget deletes).
     Merge {

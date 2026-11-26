@@ -333,6 +333,16 @@ fn status_of(
     }
 }
 
+/// An AI job is starting or answering right now: ADR-0037 §2.3's
+/// maintenance (the world model's idle pass among it) waits for it.
+#[must_use]
+pub fn busy(service: &Service) -> bool {
+    service
+        .run
+        .lock()
+        .is_ok_and(|run| matches!(run.phase, Phase::Starting | Phase::Answering))
+}
+
 /// `job`'s engine now, starting nothing.
 #[must_use]
 pub fn status_on(service: &Service, state: &AppState, job: AiJob) -> AiEngineStatusInfo {

@@ -29,6 +29,7 @@
 //!
 //! Must not know: its host application, processes, the network or a UI.
 
+pub mod dream;
 pub mod error;
 pub mod graph;
 pub mod index;

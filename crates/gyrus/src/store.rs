@@ -361,6 +361,7 @@ pub fn check(pack: &Pack, batch: &Batch) -> Result<()> {
                 }
             }
             Op::Unlink { .. }
+            | Op::Fold { .. }
             | Op::Close { .. }
             | Op::Archive { .. }
             | Op::Restore { .. }
@@ -783,6 +784,7 @@ fn merge(conn: &Connection, from: NodeId, into: NodeId, out: &mut Pending) -> Re
 ///
 /// [`Error::Refused`] for a write the pack doesn't declare or the bounds
 /// don't allow; SQLite errors.
+#[expect(clippy::too_many_lines, reason = "one arm per write kind, in order")]
 pub fn stage(conn: &Connection, pack: &Pack, batch: &Batch, now: i64) -> Result<Pending> {
     check(pack, batch)?;
     let mut out = Pending::default();
@@ -826,6 +828,20 @@ pub fn stage(conn: &Connection, pack: &Pack, batch: &Batch, now: i64) -> Result<
                 )?
                 .execute(params![id, now])?;
                 nodes.insert(id);
+            }
+            Op::Fold { child, parent } => {
+                let (c, p) = (need(conn, child)?, need(conn, parent)?);
+                conn.prepare_cached(
+                    "UPDATE gyrus_nodes SET archived_at = COALESCE(archived_at, ?2) WHERE id = ?1",
+                )?
+                .execute(params![c, now])?;
+                conn.prepare_cached(
+                    "UPDATE gyrus_nodes SET props = json_set(props, '$.folded',
+                         COALESCE(json_extract(props, '$.folded'), 0) + 1) WHERE id = ?1",
+                )?
+                .execute([p])?;
+                nodes.insert(c);
+                nodes.insert(p);
             }
             Op::Restore { key } => {
                 let id = need(conn, key)?;

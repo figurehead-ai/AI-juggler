@@ -366,6 +366,29 @@ pub fn measure(w: &World, runs: usize) -> Vec<(&'static str, f64, f64)> {
         w.graph.flush_uses(&w.conn, NOW + i as i64).unwrap();
     });
     out.push(("touch", p50, p95));
+    // The idle pass: one batch of at most 200 writes, planned from the
+    // snapshot and written, from its cursor (months later, so most nodes
+    // have something to change).
+    let later = NOW + 90 * 86_400_000;
+    let mut after = 0;
+    let (p50, p95) = time(runs.min(40), |_| {
+        let snap = w.graph.snapshot().unwrap();
+        let planned = gyrus::dream::plan(
+            &w.conn,
+            &snap,
+            w.graph.pack(),
+            &gyrus::dream::DreamOpts {
+                after,
+                ..gyrus::dream::DreamOpts::new(later, 200)
+            },
+        )
+        .unwrap();
+        drop(snap);
+        assert!(planned.batch.ops.len() <= 200);
+        after = planned.next.unwrap_or(0);
+        w.graph.write(&w.conn, &planned.batch, later).unwrap();
+    });
+    out.push(("dream", p50, p95));
     let forgets = runs.min(50);
     let (p50, p95) = time(forgets, |i| {
         let key = format!("{}:{}", kind_name((w.nodes - i) % KINDS), w.nodes - i);

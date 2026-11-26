@@ -5,7 +5,7 @@ Each operation's p50 and p95 in milliseconds, against its p95 budget
 --include-ignored --nocapture --test-threads=1` on 2026-11-26.
 
 **The machine:** one Apple-silicon Mac (30 cores), shared with other work
-during the run (load average 6–10). **The graph:** the benchmark's synthetic
+during the run (load average about 5). **The graph:** the benchmark's synthetic
 one (`benches/workload.rs`): N links over N ÷ 5 nodes of 15 kinds and 24
 link kinds, hubs drawn from a Zipf-like spread, random weights and
 confidences, 3–6 word labels from a 2,000-word vocabulary, aliases on 1 % of
@@ -15,32 +15,40 @@ queries:** `seed` asks two random words plus an alias with a vector; `expand`
 walks from a hub and two other nodes, depth 3, at most 200 nodes; `rank`
 takes the top 50 of a walk; `matches` binds a 3-node pattern anchored on a
 hub; `as_of` is `expand` at a past time; `touch` applies 50 queued uses;
-`forget` removes one labelled node with its links and rebuilds its keyword
+`dream` plans one batch of at most 200 writes (three months on) and
+writes it; `forget` removes one labelled node with its links and rebuilds its keyword
 bucket, then truncates the WAL.
 
 | Links | Nodes | Index built | Operation | p50 | p95 | Budget |
 |---|---|---|---|---|---|---|
-| 10,000 | 2,000 | 4 ms | seed | 0.85 | 1.36 | 5 |
-| | | | expand | 0.05 | 0.08 | 5 |
+| 10,000 | 2,000 | 4 ms | seed | 0.69 | 0.87 | 5 |
+| | | | expand | 0.04 | 0.07 | 5 |
 | | | | as_of | 0.003 | 0.005 | 5 |
 | | | | rank | 0.001 | 0.001 | 1 |
-| | | | matches | 0.002 | 0.006 | 5 |
-| | | | touch | 0.20 | 0.32 | 3 |
-| | | | forget | 1.22 | 1.55 | 20 |
-| 100,000 | 20,000 | 57 ms | seed | 2.57 | 3.14 | 5 |
-| | | | expand | 0.11 | 0.16 | 5 |
-| | | | as_of | 0.013 | 0.035 | 5 |
+| | | | matches | 0.002 | 0.005 | 5 |
+| | | | touch | 0.18 | 0.20 | 3 |
+| | | | dream (one batch) | 0.82 | 0.89 | 200 |
+| | | | forget | 0.99 | 1.19 | 20 |
+| 100,000 | 20,000 | 51 ms | seed | 2.12 | 2.41 | 5 |
+| | | | expand | 0.10 | 0.14 | 5 |
+| | | | as_of | 0.012 | 0.017 | 5 |
 | | | | rank | 0.001 | 0.001 | 1 |
-| | | | matches | 0.020 | 0.032 | 5 |
-| | | | touch | 0.22 | 0.39 | 3 |
-| | | | forget | 2.04 | 2.75 | 20 |
-| 1,000,000 | 200,000 | 1,037 ms | seed | 3.25 | 4.48 | 5 |
-| | | | expand | 0.49 | 0.81 | 5 |
-| | | | as_of | 0.06 | 0.13 | 5 |
-| | | | rank | 0.001 | 0.002 | 1 |
-| | | | matches | 0.037 | 0.069 | 5 |
-| | | | touch | 0.23 | 0.39 | 3 |
-| | | | forget | 11.9 | 19.3 | 20 |
+| | | | matches | 0.018 | 0.029 | 5 |
+| | | | touch | 0.21 | 0.24 | 3 |
+| | | | dream (one batch) | 0.92 | 1.03 | 200 |
+| | | | forget | 1.70 | 3.78 | 20 |
+| 1,000,000 | 200,000 | 887 ms | seed | 2.83 | 3.90 | 5 |
+| | | | expand | 0.38 | 0.49 | 5 |
+| | | | as_of | 0.048 | 0.086 | 5 |
+| | | | rank | 0.001 | 0.001 | 1 |
+| | | | matches | 0.033 | 0.050 | 5 |
+| | | | touch | 0.21 | 0.23 | 3 |
+| | | | dream (one batch) | 3.13 | 3.44 | 200 |
+| | | | forget | 9.22 | 10.36 | 20 |
+
+Earlier runs the same day, with the machine busier (load 6–10), measured
+the 1M-link seed at p95 4.2–4.5 ms and forget at p95 12.6–19.3 ms: forget
+is the budget closest to its limit.
 
 **What it took to stay within budget at 1M links,** and the limits that
 follow:
@@ -59,4 +67,3 @@ follow:
   indexed pays it.
 - The index's build at 1M links took about 1 s (ADR-0038's estimate:
   0.5–1 s), which is why a host builds it lazily, in the background.
-- The dreaming budget (≤ 200 ms per batch) is measured with the idle pass.

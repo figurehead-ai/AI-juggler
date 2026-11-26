@@ -16,6 +16,7 @@
 
 pub mod assemble;
 pub mod link;
+pub mod maintain;
 pub mod pack;
 pub mod resolve;
 
