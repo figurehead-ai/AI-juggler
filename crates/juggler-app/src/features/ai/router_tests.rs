@@ -592,8 +592,8 @@ fn the_jobs_flags_are_declared_and_off_only() {
         .collect();
     assert_eq!(
         on,
-        ["chat"],
-        "D-131's table: Bot (chat) as opt-in Beta; the review waits for AJ-E3820"
+        ["feed", "chat", "digest", "watches"],
+        "D-149: the built jobs are on and their verdicts decide; the review waits for AJ-E3820"
     );
     assert!(
         jobs::by_name("attention").is_none(),

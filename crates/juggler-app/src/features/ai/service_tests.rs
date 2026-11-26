@@ -64,8 +64,8 @@ fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     for job in [AiJob::Feed, AiJob::Digest, AiJob::Watches] {
         assert_eq!(
             state_of(&jobs, job).0,
-            AiJobState::Off,
-            "{job:?}: not yet (D-131)"
+            AiJobState::NoEngine,
+            "{job:?}: on, and the plain path by its not_yet verdict (D-149)"
         );
     }
     assert_eq!(
@@ -159,8 +159,8 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
     );
     assert_eq!(
         state_of(&jobs, AiJob::Feed).0,
-        AiJobState::Off,
-        "an OffOnly flag is never turned on remotely"
+        AiJobState::NoEngine,
+        "D-149: the feed line's flag is on, and its not_yet verdict keeps the plain path"
     );
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,

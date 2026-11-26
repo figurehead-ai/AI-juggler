@@ -1,19 +1,24 @@
 //! ADR-0034 §2 (AJ-E3802): the AI jobs the router serves, each with its
 //! three needs and its own flag (D-130).
 //!
-//! **A job's flag decides whether it exists in this build at all;** a
-//! verdict never turns a job on (ADR-0035 §11.1). Every flag is `OffOnly`:
-//! the remote file may stop a job everywhere, never start one. The
-//! compiled defaults are D-131's accepted table
-//! (`docs/qa/evidence/AJ-E3709/v5-final.md`):
+//! **A job's flag decides whether it exists in this build at all;** every
+//! flag is `OffOnly`: the remote file may stop a job everywhere, never
+//! start one. **Within a job that exists, its verdict decides** (the
+//! `models` section, data): a model serves the job only with a `beta` or
+//! `ships` verdict, and `not_yet` keeps the plain path with its one-line
+//! why on the Models page. D-149 (AJ-E3830, AJ-E3831): the feed line, the
+//! digest and Bot's watch drafts are built, so their flags are on and each
+//! stays plain behind its `not_yet` verdict until a harness v6 round
+//! passes; that round flips it by a recorded verdict, not a code change
+//! (`docs/qa/evidence/AJ-E3709/harness/v6/v6-runbook.md`).
 //!
-//! | Job | Flag default | Why |
+//! | Job | Flag default | Verdict on Apple's model today |
 //! |---|---|---|
-//! | Feed line | off | "not yet": A's excerpt is the plain path and the default |
-//! | Turn review | off | D-131 allows it as opt-in Beta, but nothing writes or shows a review yet: on with AJ-E3820, which builds it (the 0.5 walk's F-02; D-127: no switch with nothing behind it) |
-//! | Bot | on | opt-in Beta |
-//! | Digest | off | "not yet": the code roundup stays |
-//! | Watches from Bot | off | "not yet": the Watches form (code) ships |
+//! | Feed line | on | `not_yet`: A's excerpt; "pick, don't write" is re-measured (D-149) |
+//! | Turn review | off | D-131 allows it as opt-in Beta: on with AJ-E3820, which builds it (D-127: no switch with nothing behind it) |
+//! | Bot | on | `beta`: opt-in Beta |
+//! | Digest | on | `not_yet`: the code roundup; map and reduce is re-measured (D-149) |
+//! | Watches from Bot | on | `not_yet`: the Watches form; Bot fills it at >= 90 % exact (D-149) |
 //!
 //! Attention isn't routed: it is decided by code from the facts (D-117),
 //! with no model in the loop, so it needs no engine. Its verdict in the
@@ -40,11 +45,11 @@ pub struct JobSpec {
     pub flag: &'static Flag,
 }
 
-/// The feed line's flag: off until a model's line is preferred to A's
-/// excerpt (ADR-0033 §6.1).
+/// The feed line's flag: on; its verdict keeps A's excerpt until a
+/// model's line is preferred to it (ADR-0033 §6.1, D-149).
 pub const FEED_ON: Flag = Flag {
     name: "ai_feed_on",
-    default: false,
+    default: true,
     remote: RemoteMode::OffOnly,
 };
 
@@ -64,17 +69,19 @@ pub const BOT_ON: Flag = Flag {
     remote: RemoteMode::OffOnly,
 };
 
-/// The digest's flag: off, the code roundup stays (D-131).
+/// The digest's flag: on; its verdict keeps the code roundup until the
+/// map-and-reduce digest is preferred to it (D-149).
 pub const DIGEST_ON: Flag = Flag {
     name: "ai_digest_on",
-    default: false,
+    default: true,
     remote: RemoteMode::OffOnly,
 };
 
-/// Watches drafted from Bot: off, the Watches form ships (D-131).
+/// Watches drafted from Bot: on; its verdict keeps the plain Watches
+/// form until drafts match at least 90 % of requests (D-149).
 pub const WATCHES_ON: Flag = Flag {
     name: "ai_watches_on",
-    default: false,
+    default: true,
     remote: RemoteMode::OffOnly,
 };
 

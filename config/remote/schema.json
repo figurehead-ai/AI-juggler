@@ -63,13 +63,13 @@
         },
         "ai_digest_on": {
           "switch": {
-            "default": false,
+            "default": true,
             "remote": "off_only"
           }
         },
         "ai_feed_on": {
           "switch": {
-            "default": false,
+            "default": true,
             "remote": "off_only"
           }
         },
@@ -81,7 +81,7 @@
         },
         "ai_watches_on": {
           "switch": {
-            "default": false,
+            "default": true,
             "remote": "off_only"
           }
         },

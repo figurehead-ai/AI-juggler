@@ -8,7 +8,7 @@
       "min_chip": "m1",
       "min_memory_gb": 8,
       "feed": "not_yet",
-      "feed_note": "The plain line reads better for now.",
+      "feed_note": "Not yet: in blind checks the plain line read better (43 %). A way of picking the line is being tested.",
       "review": "beta",
       "review_note": "Preferred over the plain review in 81 % of blind checks.",
       "attention": "ships",
@@ -16,9 +16,9 @@
       "chat": "beta",
       "chat_note": "Preferred over the plain answer in 75 % of blind checks.",
       "digest": "not_yet",
-      "digest_note": "The plain roundup reads better for now.",
+      "digest_note": "Not yet: in blind checks the plain roundup read better (33 %). A digest built line by line is being tested.",
       "watches": "not_yet",
-      "watches_note": "Drafts matched the request 70 % of the time; we want 95 %."
+      "watches_note": "Not yet: drafts matched the request 70 % of the time. Bot fills the Watches form once tests reach 90 %."
     }
   ]
 }
