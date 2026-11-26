@@ -3844,11 +3844,11 @@ Every session and agent brief carries this rule.
 - **Never:** a keychain is never created in a lab (`security create-keychain` can change the user's keychain search list); the lab sign-in request is withdrawn.
 - Sources: the coordinating session's message, 2026-11-24, quoting the maintainer's pick.
 
-## D-148 — Bot answers general questions briefly, marked as general, and says what it is for (2026-11-25)
+### D-148 — Bot answers general questions briefly, marked as general, and says what it is for (2026-11-25)
 
 With an AI ready, a question with no AI Juggler records in it ("what is 3+5") gets a short model answer marked "General answer, not from your records" and one line that Bot is here for your AI apps and sessions. Refusing read as broken on the 0.5.1 Nightly ("nothing matches" for 3+5); a general answer can't pass the records check, so it is its own labelled kind, outside that check. Record answers keep the citation check. "Which model are you" is answered from the engine's own name. Decided by the 0.5.2 builder (Opus) on usability, AJ-E3825.
 
-## D-149 — The four AI jobs still off: "All four, as recommended" (amends D-131) (2026-11-25)
+### D-149 — The four AI jobs still off: "All four, as recommended" (amends D-131) (2026-11-25)
 
 - **Ruling** (the maintainer, through the coordinating session, 2026-11-25, on `docs/qa/0.5.2-ai-jobs-note.md`): "All four, as recommended."
 1. **Turn reviews** ship in 0.5.2 as an opt-in Beta on Apple's model: AJ-E3820 (the review written at a turn's end and where it shows) is built, with the real-model check (AJ-E3829).
@@ -3857,7 +3857,7 @@ With an AI ready, a question with no AI Juggler records in it ("what is 3+5") ge
 4. **Settings › AI › Models** shows each job's real state in plain words (on, Beta, or off and why), never a bare "not yet".
 - **Amends** D-131's "not yet" rows and its 95 % watch bar for confirmed drafts. Built in 0.5.2 under AJ-E3820, AJ-E3830, AJ-E3831 and AJ-E3826.
 
-## D-150 — Bot's world model is our own engine on SQLite, the `gyrus` crate (ADR-0038) — ACCEPTED (2026-11-26, the maintainer)
+### D-150 — Bot's world model is our own engine on SQLite, the `gyrus` crate (ADR-0038) — ACCEPTED (2026-11-26, the maintainer)
 
 - **Ruling** (the maintainer, through the coordinating session, 2026-11-26): ADR-0038 accepted. The world model is a typed graph kept in memory over SQLite, built as its own crate `gyrus` (MIT OR Apache-2.0); AJ-E3832 is built in 0.5.2. This is a feature in a patch release by the maintainer's explicit ask (2026-11-25), overriding the patch-only habit.
 - **The engine:** SQLite (AI Juggler's database, the next migration in its chain) is the record; a typed in-memory index holds the links both ways, per type, sorted by weight, with kind specs and reasoning questions; written through after each commit, rebuilt at start, readers on an atomic copy per committed batch; started lazily after first paint (ADR-0037's keyword retrieval until it is ready). No other graph engine (the research: `docs/research/2026-11-25-graph-memory-research.md`).
