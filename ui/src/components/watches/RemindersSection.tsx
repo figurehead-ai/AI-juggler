@@ -23,7 +23,7 @@ import { WatchChip, StateCell } from "./WatchParts";
 import { optionOf, type StateTone, type TargetOption } from "./watches-view";
 import { IconBin, IconClockFace, IconPause, IconPencil, IconPlay } from "./watch-icons";
 
-const GHOST = "inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
+const GHOST = "inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 const ICON_BUTTON = "inline-flex size-7 items-center justify-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 
 const REMINDERS = {
@@ -97,7 +97,7 @@ function ReminderRow({ info, book, now, actions }: { info: ScheduleInfo; book: M
   const open = (event: MouseEvent<HTMLElement>) => setMenuAt(menuPoint(event));
   return (
     <li
-      className={"relative grid grid-cols-[44px_minmax(0,1fr)_minmax(150px,200px)_212px] items-center gap-x-3.5 rounded-[10px] px-3 py-3 [&+&]:rounded-none [&+&]:border-t [&+&]:border-divider" + (menuAt ? " bg-selected" : "")}
+      className={"relative grid grid-cols-[44px_minmax(0,1fr)_minmax(150px,200px)_236px] items-center gap-x-3.5 rounded-[10px] px-3 py-3 [&+&]:rounded-none [&+&]:border-t [&+&]:border-divider" + (menuAt ? " bg-selected" : "")}
       data-testid="reminder-row"
       data-schedule-id={info.id}
       data-state={ended ? "ended" : info.paused ? "paused" : "set"}
