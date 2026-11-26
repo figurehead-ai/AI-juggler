@@ -158,6 +158,7 @@ pub(crate) fn request() -> Request {
         prompt: "p".to_owned(),
         shape: None,
         max_tokens: 20,
+        decoding: crate::features::ai::engine::Decoding::Tested,
     }
 }
 
@@ -447,6 +448,7 @@ fn the_real_helper_answers_on_this_mac() {
                     prompt: "Say hello.".to_owned(),
                     shape: None,
                     max_tokens: 20,
+                    decoding: crate::features::ai::engine::Decoding::Tested,
                 },
                 &Stop::at(Instant::now() + Duration::from_secs(30)),
             )

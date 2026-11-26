@@ -104,6 +104,49 @@ pub struct Card {
 /// (ADR-0034 §2: guided output is a floor, not a need).
 pub type Shape = serde_json::Value;
 
+/// How a generation decodes (D-149). A first attempt keeps the model's
+/// tested decoding; a job's retry after a failed check samples, so the
+/// rejected draft isn't written again word for word.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Decoding {
+    /// The model's tested decoding (Apple's: greedy; a downloaded
+    /// model's: its entry's sampling).
+    #[default]
+    Tested,
+    /// A seeded sample at this temperature (thousandths).
+    Sampled {
+        /// The temperature × 1000.
+        temperature_milli: u32,
+        /// The seed (the job derives it from what it asks and the attempt).
+        seed: u32,
+    },
+}
+
+impl Decoding {
+    /// The temperature a retry samples at (thousandths): the harness v6
+    /// value its rounds measure (`core6.RETRY_TEMPERATURE`).
+    pub const RETRY_TEMPERATURE_MILLI: u32 = 600;
+
+    /// The sample for retry `n` (1, 2, …) of a request keyed `key`; `Tested`
+    /// for the first attempt (`n` 0).
+    #[must_use]
+    pub fn for_attempt(key: &str, n: u32) -> Self {
+        if n == 0 {
+            return Self::Tested;
+        }
+        // FNV-1a: stable across runs and builds, no dependency.
+        let mut hash: u32 = 0x811c_9dc5;
+        for byte in key.bytes().chain(n.to_le_bytes()) {
+            hash ^= u32::from(byte);
+            hash = hash.wrapping_mul(0x0100_0193);
+        }
+        Self::Sampled {
+            temperature_milli: Self::RETRY_TEMPERATURE_MILLI,
+            seed: hash,
+        }
+    }
+}
+
 /// One generation a job asks of an engine.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Request {
@@ -115,6 +158,8 @@ pub struct Request {
     pub shape: Option<Shape>,
     /// The most output tokens.
     pub max_tokens: u32,
+    /// How it decodes (a retry samples, D-149).
+    pub decoding: Decoding,
 }
 
 /// How a generation ended.

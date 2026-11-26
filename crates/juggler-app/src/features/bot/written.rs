@@ -270,6 +270,7 @@ pub fn request_with(
             prompt,
             shape: Some(shape()),
             max_tokens: 220,
+            decoding: crate::features::ai::engine::Decoding::Tested,
         },
         parts,
     )

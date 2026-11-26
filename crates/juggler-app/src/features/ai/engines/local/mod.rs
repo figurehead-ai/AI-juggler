@@ -61,8 +61,8 @@ use juggler_local_ai_protocol::{
 
 use super::helper::{Health, Helper};
 use crate::features::ai::engine::{
-    AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Started, Stop, Tier,
-    Usage,
+    AiEngine, Card, Decoding, Draft, EngineError, Finish, Readiness, Reason, Request, Started,
+    Stop, Tier, Usage,
 };
 use crate::features::ai::models::store::Installed;
 use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
@@ -301,6 +301,31 @@ pub fn sampling_of(entry: &ModelEntry) -> Sampling {
         top_k: keep(s.top_k, bounds::TOP_K),
         min_p_milli: keep(s.min_p_milli, bounds::MIN_P_MILLI),
         presence_milli: keep(s.presence_milli, bounds::PRESENCE_MILLI),
+        seed: None,
+    }
+}
+
+/// The sampling a request decodes with: the model's tested one, or for a
+/// retry (D-149) the same with its temperature raised to the retry's and
+/// the retry's own seed.
+#[must_use]
+pub fn decoded(tested: Sampling, decoding: Decoding) -> Sampling {
+    match decoding {
+        Decoding::Tested => tested,
+        Decoding::Sampled {
+            temperature_milli,
+            seed,
+        } => Sampling {
+            temperature_milli: Some(
+                tested
+                    .temperature_milli
+                    .unwrap_or(0)
+                    .max(temperature_milli)
+                    .min(u32::try_from(bounds::TEMPERATURE_MILLI.max).unwrap_or(u32::MAX)),
+            ),
+            seed: Some(seed),
+            ..tested
+        },
     }
 }
 
@@ -601,7 +626,7 @@ impl Local {
             instructions: request.instructions.clone(),
             prompt: request.prompt.clone(),
             guide,
-            sampling: sampling_of(entry),
+            sampling: decoded(sampling_of(entry), request.decoding),
             max_tokens: u32::try_from(max_tokens).unwrap_or(1),
             timeout_ms,
         }

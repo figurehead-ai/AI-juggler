@@ -8,7 +8,8 @@
 //   connection, so the App Sandbox with no network entitlement is enough (checked by hand, AJ-E3813);
 // - SystemLanguageModel.default only (the on-device model), never the cloud model;
 // - guided output through DynamicGenerationSchema (the Command Line Tools ship no @Generable macro plugin);
-// - temperature 0, greedy; one retry with the permissive guardrails on a refusal (ADR-0033 §4.1);
+// - temperature 0, greedy; one retry with the permissive guardrails on a refusal (ADR-0033 §4.1); a job's retry after a
+//   failed check may send "sampling" {temperature_milli, seed}: a seeded sample, top-k 40 (D-149, harness v6's values);
 // - utility quality of service; exits when stdin closes, and after 60 s with nothing to do.
 //
 // Protocol 2: one JSON object per line each way.
@@ -148,10 +149,18 @@ func generate(_ request: [String: Any], permissive: Bool) async throws -> (Strin
     let limit = max(1, request["max_tokens"] as? Int ?? 60)
     // Built against both SDKs: FoundationModels 2.x (macOS 27's SDK) calls it `samplingMode:`, 1.x (macOS 26's, which
     // CI's runners build with) `sampling:`. The same greedy sampling either way, and either build runs on macOS 26.
+    // D-149: a job's retry samples, seeded, so a rejected draft isn't written again word for word.
+    let sampled = request["sampling"] as? [String: Any]
+    let heat = Double(min(max(sampled?["temperature_milli"] as? Int ?? 0, 0), 2000)) / 1000
+    let seed = UInt64(max(sampled?["seed"] as? Int ?? 0, 0))
     #if canImport(FoundationModels, _version: 2.0)
-    let options = GenerationOptions(samplingMode: .greedy, temperature: 0, maximumResponseTokens: limit)
+    let options = sampled == nil
+        ? GenerationOptions(samplingMode: .greedy, temperature: 0, maximumResponseTokens: limit)
+        : GenerationOptions(samplingMode: .random(top: 40, seed: seed), temperature: heat, maximumResponseTokens: limit)
     #else
-    let options = GenerationOptions(sampling: .greedy, temperature: 0, maximumResponseTokens: limit)
+    let options = sampled == nil
+        ? GenerationOptions(sampling: .greedy, temperature: 0, maximumResponseTokens: limit)
+        : GenerationOptions(sampling: .random(top: 40, seed: seed), temperature: heat, maximumResponseTokens: limit)
     #endif
     let prompt = request["prompt"] as? String ?? ""
     if let root = request["schema"] as? [String: Any] {

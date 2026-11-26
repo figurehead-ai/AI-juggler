@@ -104,6 +104,7 @@ pub fn request(
         prompt,
         shape: Some(shape()),
         max_tokens: 200,
+        decoding: crate::features::ai::engine::Decoding::Tested,
     }
 }
 

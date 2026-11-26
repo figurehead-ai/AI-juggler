@@ -541,7 +541,7 @@ fn sampler_chain(sampling: Sampling, n_vocab: i32) -> Option<LlamaSampler> {
         LlamaSampler::top_p(milli(sampling.top_p_milli, 1.0), 1),
         LlamaSampler::min_p(milli(sampling.min_p_milli, 0.0), 1),
         LlamaSampler::temp(milli(sampling.temperature_milli, 0.0)),
-        LlamaSampler::dist(SEED),
+        LlamaSampler::dist(sampling.seed.unwrap_or(SEED)),
     ]))
 }
 

@@ -187,6 +187,7 @@ fn request() -> Request {
             "properties": [{ "name": "line", "schema": "string" }]
         })),
         max_tokens: 60,
+        decoding: crate::features::ai::engine::Decoding::Tested,
     }
 }
 

@@ -29,8 +29,8 @@ use juggler_platform::ai::SystemModel;
 use super::helper::{Health, Helper, StartFailure};
 use crate::features::ai::{
     engine::{
-        AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Started, Stop,
-        Tier, Usage,
+        AiEngine, Card, Decoding, Draft, EngineError, Finish, Readiness, Reason, Request, Started,
+        Stop, Tier, Usage,
     },
     models::{Engine as ModelEngine, ModelEntry, recommend::AppleAi},
 };
@@ -522,6 +522,17 @@ impl AiEngine for Apple {
         });
         if let Some(shape) = &request.shape {
             line["schema"] = shape.clone();
+        }
+        // D-149: a retry samples (the helper's greedy decoding otherwise).
+        if let Decoding::Sampled {
+            temperature_milli,
+            seed,
+        } = request.decoding
+        {
+            line["sampling"] = serde_json::json!({
+                "temperature_milli": temperature_milli,
+                "seed": seed,
+            });
         }
         let Some(helper) = slot.as_mut() else {
             return Err(EngineError::Crashed);
