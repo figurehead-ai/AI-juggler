@@ -14,7 +14,7 @@ Watch2 misses: 23 of the 52 differ only on an unsaid lifetime (model wrote "toda
 
 ## 5 worst (watch2, quoted)
 1. V6-W04 "alert me when anything in fern-docs stops moving for 25 minutes": idle_for 25, gold stuck 25.
-2. V6-W13 "tell me if any session is idle for an hour": stuck 60 vs gold idle_for 60... (model idle_for 60, gold stuck 60).
+2. V6-W13 "tell me if any session is idle for an hour": model idle_for 60, gold stuck 60.
 3. V6-W15 "ping me when maple-sync finishes or fails": only finishes, gold fails + finishes.
 4. V6-W18 "tell me when maple-sync asks something, and ignore willow-board entirely": target p-wil (the ignored project), gold p-map.
 5. V6-W26 "tell me when the run-log project has a session that gets stuck for 15 minutes": session b-run, gold project p-run.
