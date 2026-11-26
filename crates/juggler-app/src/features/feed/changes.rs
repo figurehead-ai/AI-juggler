@@ -6,7 +6,7 @@
 //! Only a tool whose adapter reads its transcripts' work
 //! (`reports_activity`: Claude Code, Codex) is read; another tool's posts
 //! carry no stat. A read is kept by the file's stamp, so a page read again
-//! reads only what changed, and a page spends at most [`PAGE_BUDGET`] on
+//! reads only what changed, and a page spends at most `PAGE_BUDGET` (250 ms) on
 //! files it hasn't read (each read is at most 8 MB back from a file's
 //! end, most a 256 KB window).
 
