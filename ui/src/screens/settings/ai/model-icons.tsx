@@ -55,6 +55,31 @@ export const IconOffline = draw(
 
 export const IconRefresh = draw(<path d="M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4" />);
 
+/** AJ-E3826 (M1): a downloaded model, a box that stays on this Mac. */
+export const IconModelBox = draw(
+  <>
+    <path d="M12 3.5 19.5 7.5v9L12 20.5 4.5 16.5v-9Z" />
+    <path d="M4.5 7.5 12 11.5l7.5-4M12 11.5v9" />
+  </>,
+);
+
+/** Automatic: the recommendation picks for you. */
+export const IconAuto = draw(
+  <>
+    <path d="M10 4l1.9 4.6L16.5 10.5l-4.6 1.9L10 17l-1.9-4.6L3.5 10.5l4.6-1.9Z" />
+    <path d="M18 14.5l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8Z" />
+  </>,
+);
+
+/** Today's use: a pulse line. */
+export const IconPulse = draw(<path d="M3 12h4l2.5-6 5 12 2.5-6H21" />);
+
+/** A model's icon by its kind (M1): Apple's chip, a downloaded model's
+ * box. The picker's options and its field carry it. */
+export function modelIcon(model: { built_in: boolean }): Icon {
+  return model.built_in ? IconChip : IconModelBox;
+}
+
 const IconReview = draw(
   <>
     <rect x="4.5" y="3.5" width="15" height="17" rx="2" />
@@ -85,6 +110,11 @@ const JOB_ICONS: Record<ModelJob, Icon> = {
   digest: IconDigest,
   watches: IconEye,
 };
+
+/** A job's icon as a component (the kit's RowChip draws it). */
+export function jobIconOf(job: ModelJob): Icon {
+  return JOB_ICONS[job];
+}
 
 /** A job's icon, decoration only (its name is beside it). */
 export function JobIcon({ job, size = 15 }: { job: ModelJob; size?: number }): JSX.Element {

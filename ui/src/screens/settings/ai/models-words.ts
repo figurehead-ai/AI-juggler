@@ -10,6 +10,7 @@ import type { ModelJob } from "../../../types/generated/ModelJob";
 import type { ModelSpeed } from "../../../types/generated/ModelSpeed";
 import type { ModelVerdict } from "../../../types/generated/ModelVerdict";
 import type { StartRefusal } from "../../../types/generated/StartRefusal";
+import type { AiJobWhy } from "../../../types/generated/AiJobWhy";
 import { MACHINE_WORD, SYSTEM_NAME, THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../../lib/machine-words";
 
 const GB = 1_000_000_000;
@@ -249,35 +250,66 @@ export const APPROVAL = {
   close: "Close",
 };
 
+const NOT_BUILT = "Not built yet";
+
 export const JOBS = {
   title: "Each job uses",
   help: "Automatic follows the recommendation. Pick a model only if you want a different one.",
-  paneTitle: "Jobs",
-  paneLead: "What each AI job does, whether it's on, and which model it uses.",
   beta: "Beta",
   automatic: "Automatic",
   automaticHint: (model: string | null) => (model ? `Uses the recommended model: ${model}` : "Uses the recommended model"),
   pickerLabel: (job: string) => `Model for ${job}`,
   pickerHeading: (job: string) => `Installed and passed for ${job}`,
-  noModelNeeded: "No model needed",
-  notYet: "Not yet",
-  noModel: "No model yet",
-  /** AJ-E1548 #3: one quiet line for the jobs no model passes yet. */
-  moreSoon: "More jobs come as models pass our tests.",
-  descriptions: {
-    review: "Writes a short review when an agent's turn ends",
-    chat: "Writes Bot’s answers from AI Juggler’s records",
-    attention: "Built from the facts, so it needs no model",
-    feed: "Plain lines for now. No model passes yet",
-    digest: "Plain roundup for now. No model passes yet",
-    watches: "The Watches form for now. No model passes yet",
-  } satisfies Record<ModelJob, string>,
-  off: (what: string) => `Off. ${what}`,
+  /** AJ-E3826 (D-149): each row's one line, its state and why. */
   on: "On",
-  onWith: (model: string) => `On · Beta with ${model}`,
-  onPicked: (model: string) => `On · your pick, ${model}`,
+  offLine: "Off",
+  /** Attention hints: code, never a model. */
+  attention: "Built from the facts, so it needs no model",
+  onWith: (model: string) => `Beta with ${model}`,
+  onPicked: (model: string) => `Beta, your pick: ${model}`,
+  onShips: (model: string) => `with ${model}`,
+  gettingReady: (model: string) => `getting ${model} ready`,
   needsModel: "Needs a model: download one above",
+  /** A job switched off by AI Juggler's own update (the remote file). */
+  paused: "Paused for now by an AI Juggler update",
+  /** A job this version doesn't have yet (its flag off by default). */
+  notBuilt: NOT_BUILT,
+  why: {
+    not_built: NOT_BUILT,
+    turned_off: "Apple Intelligence is off",
+    getting_ready: "The model is getting ready",
+    helper_missing: "Part of AI Juggler is missing: reinstall it",
+    unhealthy: "It failed three times in the last hour",
+    not_this_system: `${THIS_MACHINE} can’t run its model`,
+    not_this_computer: `${THIS_MACHINE} can’t run its model`,
+    unknown: "Its state couldn’t be read",
+  } as Partial<Record<AiJobWhy, string>>,
   pickHint: (verdict: string, note: string | null) => (note ? `${verdict} · ${note}` : verdict),
   pickGone: "no longer listed",
   switchLabel: (job: string) => `${job} Beta`,
 };
+
+/** AJ-E3826 — Bot's AI: which model writes Bot's answers, whether it
+ * runs, and today's use (the started engine's status, AJ-E3825). */
+export const BOT_AI = {
+  title: "Bot’s AI",
+  help: "Which AI writes Bot’s answers, and whether it’s running",
+  label: "Bot’s AI",
+  automatic: "Automatic",
+  automaticHint: (model: string | null) => (model ? `Follows the recommendation: ${model}` : "Follows the recommendation"),
+  running: "Running",
+  answering: "Answering…",
+  starting: "Starting…",
+  idle: "Idle",
+  idleHow: "starts when you ask Bot",
+  answered: (ago: string) => `answered ${ago}`,
+  notRunning: "Not running",
+  off: "Off",
+  offHow: "turn on Bot’s AI under Each job uses",
+  today: "Today",
+  noAnswers: "no answers yet",
+  answers: (n: number) => (n === 1 ? "1 answer" : `${n} answers`),
+  tokensIn: (count: string) => `${count} tokens in`,
+  tokensOut: (count: string) => `${count} out`,
+};
+

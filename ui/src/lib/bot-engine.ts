@@ -27,8 +27,9 @@ function subscribe(listen: () => void): () => void {
   return () => listeners.delete(listen);
 }
 
-/** Reads the status again (starts nothing). */
-export async function refreshEngine(): Promise<void> {
+/** Reads the status again (starts nothing); `_why`, what asked for it
+ * (a reader's change key), only so an effect can name what it follows. */
+export async function refreshEngine(_why?: string): Promise<void> {
   try {
     set({ status: await aiEngineStatus("chat") });
   } catch {
@@ -64,5 +65,20 @@ export function useBotEngine(ready: boolean): EngineView {
     const timer = window.setInterval(() => void refreshEngine(), LOOK_MS);
     return () => window.clearInterval(timer);
   }, [ready]);
+  return useSyncExternalStore(subscribe, () => view, () => view);
+}
+
+/** AJ-E3826 — Bot's engine as Settings › AI › Models reads it: looked at
+ * on open, again whenever `key` changes (a new choice of model, a job
+ * switched), and every LOOK_MS while shown. It starts nothing (the
+ * status is a read); one store with Bot's header, so the two agree. */
+export function useEngineStatus(key: string): EngineView {
+  useEffect(() => {
+    void refreshEngine(key);
+  }, [key]);
+  useEffect(() => {
+    const timer = window.setInterval(() => void refreshEngine(), LOOK_MS);
+    return () => window.clearInterval(timer);
+  }, []);
   return useSyncExternalStore(subscribe, () => view, () => view);
 }

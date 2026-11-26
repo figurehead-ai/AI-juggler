@@ -20,15 +20,16 @@ import { FACTS, HONESTY, JOB_NAMES, PAGE, SPEED_WORDS, VERDICT_WORDS, gb } from 
 /** The guide page "How we test models" opens. */
 const HOW_WE_TEST = "ai-models#how-we-test-models";
 
-/** A card's edge: the kit's hairline at three quarters. */
-export const CARD = "rounded-[14px] bg-surface inset-ring-1 inset-ring-hairline/75";
+/** A card: the kit's RowList area, tone on the canvas with no edge
+ * (PAT-SURF-1; its frame only under Increase Contrast). */
+export const CARD = "rounded-card bg-surface inset-ring-1 inset-ring-frame";
 
-const TILE_SIZES = { sm: "size-7 rounded-lg text-[11px]", md: "size-9 rounded-[10px] text-meta", lg: "size-12 rounded-[13px] text-base" } as const;
+const TILE_SIZES = { sm: "size-7 rounded-lg text-label", md: "size-9 rounded-[10px] text-meta", lg: "size-12 rounded-[13px] text-base" } as const;
 const CHIP_SIZES = { sm: 15, md: 19, lg: 24 } as const;
 
 /** A model's tile: Apple's a chip, the rest two letters; `on` tinted. */
 export function ModelTile({ model, size = "md", on = false }: { model: Pick<CatalogModel, "name" | "built_in">; size?: keyof typeof TILE_SIZES; on?: boolean }): JSX.Element {
-  const tone = on ? "bg-[color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface))] text-accent-hi" : "bg-surface-3 text-ink-2";
+  const tone = on ? "bg-accent-soft text-accent-hi" : "bg-surface-3 text-ink-2";
   return (
     <span aria-hidden="true" className={`flex shrink-0 items-center justify-center font-semibold ${TILE_SIZES[size]} ${tone}`}>
       {model.built_in ? <IconChip width={CHIP_SIZES[size]} height={CHIP_SIZES[size]} /> : initials(model.name)}
@@ -63,7 +64,7 @@ function SpeedBars({ speed }: { speed: ModelSpeed }): JSX.Element {
 function Fact({ name, value, note }: { name: string; value: ReactNode; note: string }): JSX.Element {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-3 py-2">
-      <span className="text-[11.5px] tracking-[.02em] text-muted">{name}</span>
+      <span className="text-label tracking-[.02em] text-muted">{name}</span>
       <span className="flex items-center gap-1.5 whitespace-nowrap text-meta font-semibold text-ink">{value}</span>
       <span className="truncate text-label text-muted">{note}</span>
     </div>
@@ -72,7 +73,7 @@ function Fact({ name, value, note }: { name: string; value: ReactNode; note: str
 
 /** The facts strip: what it costs to get, the Mac it needs, how fast. */
 export function ModelFacts({ model, inCard = false }: { model: CatalogModel; inCard?: boolean }): JSX.Element {
-  const look = inCard ? "rounded-xl bg-surface-2" : "rounded-xl bg-surface inset-ring-1 inset-ring-hairline/75";
+  const look = inCard ? "rounded-xl bg-surface-2" : "rounded-xl bg-surface";
   return (
     <div className={`flex divide-x divide-divider ${look}`} data-testid="model-facts">
       <Fact name={FACTS.download} value={model.size_bytes ? gb(model.size_bytes) : FACTS.none} note={model.size_bytes ? FACTS.oneTime : FACTS.builtIn} />

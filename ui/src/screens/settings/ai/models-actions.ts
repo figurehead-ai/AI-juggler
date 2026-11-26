@@ -54,7 +54,7 @@ export interface ModelActions {
 
 /** Turns on each of `model`'s Beta jobs that is off (`only`: of these). */
 async function turnOnBetas(model: CatalogModel, jobs: readonly AiJobInfo[] | null, only?: readonly AiJob[]): Promise<void> {
-  for (const job of betaJobs(model).filter((one) => !only || only.includes(one))) {
+  for (const job of betaJobs(model, jobs).filter((one) => !only || only.includes(one))) {
     if (!jobs?.find((info) => info.job === job)?.beta_on) await aiBetaSet(job, true);
   }
 }

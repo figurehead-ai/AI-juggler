@@ -11,6 +11,7 @@ import { Disclosure } from "../../../components/controls";
 import { Button } from "../../../components/primitives";
 import { Pill } from "../../../components/Pill";
 import { IconUpRight } from "../../../components/icons-places";
+import type { AiJob } from "../../../lib/ipc/ai";
 import type { CatalogModel, ModelsCatalog } from "../../../lib/ipc/models";
 import { trustOpen } from "../../../lib/ipc/trust";
 import { IconDisk, IconDownload, IconLock, IconOffline } from "./model-icons";
@@ -42,16 +43,19 @@ function ModelCard({
   free,
   onDownload,
   busy,
+  absent,
 }: {
   model: CatalogModel;
   tag?: ModelTag;
+  /** The jobs this version doesn't have now. */
+  absent: readonly AiJob[];
   /** This Mac's free disk, bytes. */
   free: number;
   onDownload: (model: CatalogModel) => void;
   /** Another download is running. */
   busy: boolean;
 }): JSX.Element {
-  const { passed, notYet } = jobsOf(model);
+  const { passed, notYet } = jobsOf(model, absent);
   const short = free < model.free_disk_needed_bytes;
   return (
     <article className={`flex flex-col gap-3 px-4 pt-4 pb-3.5 ${CARD}`} aria-labelledby={`model-${model.id}`} data-testid="model-card" data-model={model.id}>
@@ -121,6 +125,7 @@ export function OthersSection({
   shortOfDisk,
   onDownload,
   busy,
+  absent = [],
 }: {
   catalog: ModelsCatalog;
   models: CatalogModel[];
@@ -129,6 +134,8 @@ export function OthersSection({
   shortOfDisk: boolean;
   onDownload: (model: CatalogModel) => void;
   busy: boolean;
+  /** The jobs this version doesn't have now (AJ-E3826). */
+  absent?: readonly AiJob[];
 }): JSX.Element | null {
   if (catalog.listed && models.length === 0) return null;
   let help = OTHERS.help;
@@ -139,7 +146,7 @@ export function OthersSection({
       {catalog.listed ? (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] items-start gap-3.5">
           {models.map((model) => (
-            <ModelCard key={model.id} model={model} tag={tags.get(model.id)} free={catalog.mac?.free_disk_bytes ?? 0} onDownload={onDownload} busy={busy} />
+            <ModelCard key={model.id} model={model} tag={tags.get(model.id)} free={catalog.mac?.free_disk_bytes ?? 0} onDownload={onDownload} busy={busy} absent={absent} />
           ))}
         </div>
       ) : (

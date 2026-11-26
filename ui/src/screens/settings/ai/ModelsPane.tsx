@@ -9,6 +9,11 @@
  * "Set up Bot"): it takes the Recommended card's place, and the AI it
  * names leaves Other tested models, so nothing shows twice.
  *
+ * AJ-E3826: once a model is in use, the page opens on Bot's AI (which
+ * model writes Bot's answers, whether it runs, today's use) and
+ * Recommended for this Mac steps aside: it shows only while no model is
+ * set up, so "In use" never sits beside a model already running.
+ *
  * Lazy and instant: the pane is its own chunk, its reads are shared and
  * kept, so it paints the last answer at once and reads again behind it.
  * Every word comes from `models-words.ts`.
@@ -26,7 +31,8 @@ import { Pane } from "../parts";
 import { IconChevronRight } from "../../../components/icons-controls";
 import { IconChip, IconOffline } from "./model-icons";
 import { useModelActions, type ModelActions } from "./models-actions";
-import { fitRows, nameOf, others, recommended, tags, type ModelTag, type Recommended } from "./models-view";
+import { absentJobs, fitRows, modelInUse, nameOf, others, recommended, tags, type ModelTag, type Recommended } from "./models-view";
+import { BotAiSection } from "./ModelsBotCard";
 import { HonestyLine, HowWeTest } from "./ModelParts";
 import { ApprovalDialog } from "./ModelsApproval";
 import { InstalledSection } from "./ModelsInstalled";
@@ -40,7 +46,7 @@ function MacStrip({ catalog }: { catalog: ModelsCatalog | null }): JSX.Element {
   const offline = catalog !== null && !catalog.listed && !navigator.onLine;
   const dot = <span aria-hidden="true" className="size-[3px] rounded-full bg-faint" />;
   return (
-    <p className="inline-flex shrink-0 flex-wrap items-center gap-2.5 rounded-full bg-surface py-1.5 pr-3 pl-2 text-label whitespace-nowrap text-ink-2 inset-ring-1 inset-ring-hairline/75" data-testid="models-mac">
+    <p className="inline-flex shrink-0 flex-wrap items-center gap-2.5 rounded-full bg-surface py-1.5 pr-3 pl-2 text-label whitespace-nowrap text-ink-2" data-testid="models-mac">
       <IconChip width={14} height={14} aria-hidden="true" />
       <span className="font-semibold text-ink">{PAGE.thisMac}</span>
       {mac ? (
@@ -148,10 +154,13 @@ function viewOf(catalog: ModelsCatalog | null, installed: ModelsInfo | null, job
   const builtIn = catalog?.models.find((model) => model.built_in) ?? null;
   const here = installed?.installed ?? [];
   const named = namedBySetup(catalog, installed, jobs);
+  const inUse = modelInUse(jobs);
   return {
+    inUse,
     pick,
     builtIn,
-    rest: catalog ? others(catalog, installed, named ?? pick?.model.id ?? null) : [],
+    // Recommended's model isn't listed again below it while it shows.
+    rest: catalog ? others(catalog, installed, named ?? (inUse ? null : (pick?.model.id ?? null))) : [],
     tagged: catalog ? tags(catalog) : new Map<string, ModelTag>(),
     free: catalog?.mac?.free_disk_bytes ?? null,
     anyModel: builtIn !== null || here.length > 0,
@@ -178,7 +187,11 @@ export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
             {act.note}
           </Alert>
         )}
-        <RecommendedGroup catalog={catalog} read={catalogRead} installed={installed} pick={view.pick} act={act} />
+        {view.inUse ? (
+          <BotAiSection jobs={jobs} catalog={catalog} installed={installed} onPick={act.pick} />
+        ) : (
+          <RecommendedGroup catalog={catalog} read={catalogRead} installed={installed} pick={view.pick} act={act} />
+        )}
         {catalog && (
           <OthersSection
             catalog={catalog}
@@ -187,6 +200,7 @@ export function ModelsPane({ anchor }: { anchor?: string }): JSX.Element {
             shortOfDisk={view.pick?.action === "no-disk"}
             onDownload={(model) => act.download(model, false)}
             busy={view.busy}
+            absent={absentJobs(jobs)}
           />
         )}
         {installed && (

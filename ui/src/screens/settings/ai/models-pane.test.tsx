@@ -10,6 +10,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { forgetSharedReads } from "../../../lib/shared-read";
+import { resetEngineView } from "../../../lib/bot-engine";
 import { primariesIn } from "../../../components/primitives";
 import { GEMMA, STATES, catalog, seedModels, type ModelsState } from "../../../preview/ai-models";
 import { ModelsPane } from "./ModelsPane";
@@ -19,7 +20,8 @@ const INTERNAL = [/\bpacks?\b/i, /harness/i, /gguf/i, /apple_builtin/i, /not_yet
 afterEach(() => {
   cleanup();
   forgetSharedReads();
-  for (const key of ["__AIJ_AI_CATALOG__", "__AIJ_AI_MODELS__", "__AIJ_AI_JOBS__", "__AIJ_AI_START__", "__AIJ_OPENED__"]) Reflect.deleteProperty(window, key);
+  resetEngineView();
+  for (const key of ["__AIJ_AI_CATALOG__", "__AIJ_AI_MODELS__", "__AIJ_AI_JOBS__", "__AIJ_AI_START__", "__AIJ_AI_ENGINE__", "__AIJ_OPENED__"]) Reflect.deleteProperty(window, key);
 });
 
 async function show(state: ModelsState): Promise<HTMLElement> {
@@ -42,7 +44,8 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     expect(rec.textContent).toContain("Apple's on-device model");
     expect(rec.textContent).toContain("no download, no disk");
     expect(within(rec).getByTestId("models-recommended-action").textContent).toBe("Use it");
-    expect(rec.textContent).toContain("Turns on Turn reviews and Bot’s AI as Beta, on this model.");
+    // AJ-E3826: only the Beta jobs this version has (the turn review isn't built yet).
+    expect(rec.textContent).toContain("Turns on Bot’s AI and Digest as Beta, on this model.");
     expect(screen.getAllByTestId("model-card").map((card) => card.dataset.model)).toEqual(["qwen3-1-7b-q8", "granite-4-1-3b-q4km", "nemotron-3-nano-4b-q4km", "gemma-4-e2b-q4-0"]);
     expect(screen.getByTestId("models-total").textContent).toBe("0 GB");
     expect(document.getElementById("settings-ai-installed")?.textContent).toContain("Nothing downloaded yet");
@@ -51,15 +54,8 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     plain(pane.textContent ?? "");
   });
 
-  it("AJ-E1548 #3 #4 #7: no Attention hints anywhere; Each job uses lists only jobs a model passes, with one quiet line for the rest; the lead says what ships", async () => {
+  it("AJ-E1548 #7: the lead says what ships", async () => {
     const pane = await show(STATES.models!);
-    expect(pane.textContent).not.toContain("Attention hints");
-    expect(screen.queryByTestId("models-job-attention")).toBeNull();
-    const { jobsToday } = await import("./models-view");
-    const today = jobsToday(window.__AIJ_AI_CATALOG__ ?? null);
-    const rows = within(screen.getByTestId("models-jobs")).getAllByRole("listitem");
-    expect(rows).toHaveLength(today.length);
-    if (today.length < 5) expect(screen.getByTestId("models-jobs-more").textContent).toBe("More jobs come as models pass our tests.");
     expect(pane.textContent).not.toContain("Beta reviews");
     const { PAGE } = await import("./models-words");
     expect(PAGE.lead).toMatch(/^The AI that writes Bot's answers\./);
@@ -87,7 +83,7 @@ describe("AJ-E3812 Settings › AI › Models", () => {
   it("Use it turns on the Beta jobs the model passed", async () => {
     await show(STATES.models!);
     fireEvent.click(screen.getByTestId("models-recommended-action"));
-    await waitFor(() => expect(window.__AIJ_AI_JOBS__?.filter((job) => job.beta_on).map((job) => job.job)).toEqual(["review", "chat"]));
+    await waitFor(() => expect(window.__AIJ_AI_JOBS__?.filter((job) => job.beta_on).map((job) => job.job)).toEqual(["chat", "digest"]));
   });
 
   it("a download recommended where Apple's AI can't run: Download names it, its size and what it needs", async () => {
@@ -136,9 +132,10 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     await waitFor(() => expect(screen.getByTestId("models-recommended-action").textContent).toBe("Download Qwen3 1.7B · 1.8 GB"));
   });
 
-  it("one installed: In use, and a second model asks for approval every time", async () => {
+  it("one installed and in use: Bot's AI leads, and a second model asks for approval every time", async () => {
     await show(STATES.approval!);
-    expect(screen.getByTestId("models-recommended").textContent).toContain("In use");
+    expect(screen.queryByTestId("models-recommended")).toBeNull();
+    expect(screen.getByTestId("models-bot").textContent).toContain("Qwen3 1.7B");
     const granite = screen.getAllByTestId("model-card").find((card) => card.dataset.model === "granite-4-1-3b-q4km")!;
     fireEvent.click(within(granite).getByTestId("model-download"));
     const dialog = await screen.findByTestId("models-approval");
@@ -175,7 +172,11 @@ describe("AJ-E3812 Settings › AI › Models", () => {
 
   it("offline: Apple's model still in use, the list unreachable, the installed one working", async () => {
     await show(STATES.offline!);
-    expect(screen.getByTestId("models-recommended").textContent).toContain("In use");
+    expect(screen.queryByTestId("models-recommended")).toBeNull();
+    // Two models can write Bot's answers here: Automatic first, and chosen.
+    const automatic = screen.getByTestId("models-bot-choice-automatic");
+    expect(automatic.dataset.chosen).toBe("true");
+    await waitFor(() => expect(within(automatic).getByTestId("models-bot-state").textContent).toBe("Apple's on-device model · Idle · starts when you ask Bot"));
     expect(screen.getByTestId("models-unread").textContent).toContain("Can't read the list of tested models");
     expect(screen.queryAllByTestId("model-card")).toHaveLength(0);
     expect(screen.getByTestId("models-installed").textContent).toContain("Qwen3 1.7B");
@@ -201,15 +202,18 @@ describe("AJ-E3812 Settings › AI › Models", () => {
     await waitFor(() => expect(window.__AIJ_AI_MODELS__?.installed.map((m) => m.id)).toEqual(["qwen3-1-7b-q8"]));
   });
 
-  it("a job's picker: Automatic first, then only installed models that passed it", async () => {
+  it("a job's picker: Automatic first, then only installed models that passed it, each with its icon (M1)", async () => {
     await show(STATES.installed!);
-    fireEvent.click(screen.getByTestId("models-pick-chat"));
+    fireEvent.click(screen.getByTestId("models-pick-digest"));
     const menu = await screen.findByRole("menu");
-    const lines = within(menu).getAllByRole("menuitemradio").map((item) => item.textContent ?? "");
-    expect(lines[0]).toMatch(/^Automatic/);
-    expect(lines.slice(1).map((line) => line.split("Beta")[0])).toEqual(["Apple's on-device model", "Qwen3 1.7B", "Nemotron 3 Nano 4B"]);
-    await act(async () => fireEvent.click(within(menu).getAllByRole("menuitemradio")[0]!));
-    await waitFor(() => expect(window.__AIJ_AI_JOBS__?.find((job) => job.job === "chat")?.pick).toBeNull());
+    const items = within(menu).getAllByRole("menuitemradio");
+    expect(items[0]!.textContent).toMatch(/^Automatic/);
+    expect(items.slice(1).map((line) => (line.textContent ?? "").split("Beta")[0])).toEqual(["Apple's on-device model"]);
+    for (const item of items) expect(item.querySelector("svg"), `${item.textContent}: its icon`).not.toBeNull();
+    // The chosen one's icon is in the field.
+    expect(screen.getByTestId("models-pick-digest").querySelector("svg:not(:last-child)")).not.toBeNull();
+    await act(async () => fireEvent.click(items[1]!));
+    await waitFor(() => expect(window.__AIJ_AI_JOBS__?.find((job) => job.job === "digest")?.pick).toBe("apple-on-device"));
   });
 
   it("paints the last answer at once when opened again", async () => {

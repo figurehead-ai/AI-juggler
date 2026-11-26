@@ -9,6 +9,7 @@
  * here is fetched.
  */
 import type { AiJobInfo } from "../lib/ipc/ai";
+import type { AiEngineStatusInfo } from "../lib/ipc/ai-engine";
 import type { CatalogModel, ModelsCatalog, ModelsInfo, StartInfo } from "../lib/ipc/models";
 import type { MacInfo } from "../types/generated/MacInfo";
 import type { ModelJobVerdict } from "../types/generated/ModelJobVerdict";
@@ -56,12 +57,13 @@ const APPLE: CatalogModel = model({
   memory: 8,
   speed: null,
   verdicts: [
+    // AJ-E3826: as builtin.json has them (D-149 and its amendments).
     v("feed", "not_yet", "The plain line reads better for now."),
     v("review", "beta", "Preferred over the plain review in 81 % of blind checks."),
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 75 % of blind checks."),
-    v("digest", "not_yet", "The plain roundup reads better for now."),
-    v("watches", "not_yet", "Drafts matched the request 70 % of the time; we want 95 %."),
+    v("digest", "beta", "Preferred over the plain roundup in 64 % of blind checks."),
+    v("watches", "not_yet", "Drafts are being made exact before Bot fills the form."),
   ],
 });
 
@@ -160,17 +162,56 @@ function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" 
   return { installed: list, total_bytes: list.reduce((sum, row) => sum + row.size_bytes, 0), download: null, declined: [] };
 }
 
-/** The AI jobs' answer: review and Bot with their Beta switch, the rest off. */
-export function jobs(over: Partial<Record<"review" | "chat", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
+/** The AI jobs' answer as this version gives it (AJ-E3826, D-149): Bot
+ * and the digest with their Beta switch; the turn review not built yet
+ * (AJ-E3820); the feed line and watches on their plain path by their
+ * verdicts. */
+export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
   const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null });
   return [
-    { ...base("feed", "off") },
-    { ...base("review", "beta_off"), ...over.review },
+    { ...base("feed", "no_engine") },
+    { ...base("review", "off"), why: "not_built", ...over.review },
     { ...base("chat", "beta_off"), ...over.chat },
-    { ...base("digest", "off") },
-    { ...base("watches", "off") },
+    { ...base("digest", "beta_off"), ...over.digest },
+    { ...base("watches", "no_engine") },
   ];
 }
+
+/** Bot's engine as `ai_engine_status` gives it (AJ-E3825), for the
+ * Models card (AJ-E3826). */
+export function engine(over: Partial<AiEngineStatusInfo> = {}): AiEngineStatusInfo {
+  return {
+    state: "off",
+    failure: null,
+    model_id: null,
+    model_name: null,
+    short_name: null,
+    engine: null,
+    version: null,
+    context_tokens: null,
+    started_ms: null,
+    answered_ms: null,
+    today: { answers: 0, tokens_in: { n: 0, estimated: false }, tokens_out: { n: 0, estimated: false } },
+    ...over,
+  };
+}
+
+/** The gallery's clock (`models-gallery.spec.ts`): 2026-11-19 12:00 UTC. */
+const NOW = Date.UTC(2026, 10, 19, 12);
+
+const running = (id: string, name: string, short: string, over: Partial<AiEngineStatusInfo> = {}): AiEngineStatusInfo =>
+  engine({
+    state: "running",
+    model_id: id,
+    model_name: name,
+    short_name: short,
+    engine: id === "apple-on-device" ? "apple_builtin" : "gguf_local",
+    context_tokens: 4096,
+    started_ms: NOW - 40 * 60_000,
+    answered_ms: NOW - 2 * 60_000,
+    today: { answers: 12, tokens_in: { n: 8_140, estimated: false }, tokens_out: { n: 2_310, estimated: true } },
+    ...over,
+  });
 
 const on = (id: string, name: string, pick: string | null = null): Partial<AiJobInfo> => ({ state: "ready", beta: true, beta_on: true, model_id: id, model_name: name, why: pick ? "picked" : "recommended", pick });
 
@@ -178,49 +219,69 @@ export interface ModelsState {
   catalog: ModelsCatalog;
   models: ModelsInfo;
   jobs: AiJobInfo[];
+  /** Bot's engine now (AJ-E3826's card); none: off. */
+  engine?: AiEngineStatusInfo;
   /** The next Download click's answer. */
   start?: StartInfo;
 }
 
 const NEEDS_APPROVAL: StartInfo = { started: false, refusal: "needs_approval", size_bytes: GRANITE.size_bytes, total_after_bytes: (QWEN.size_bytes ?? 0) + (GRANITE.size_bytes ?? 0), needed_bytes: null, free_bytes: null };
 
-/** Each state of the mock-up, by its `?s=` name. */
+/** Each state of the mock-up, by its `?s=` name. AJ-E3826: a model in
+ * use opens on Bot's AI (`inuse`, `failed`, `approval`, `offline`,
+ * `installed`); none in use, Recommended leads. */
+const NONE = { chat: { state: "no_engine" }, digest: { state: "no_engine" } } as const;
 export const STATES: Record<string, ModelsState> = {
   models: { catalog: catalog(MAC_AI, rec({ model_id: APPLE.id, why: "built_in" }), [APPLE, ...DOWNLOADS]), models: NO_MODELS, jobs: jobs() },
-  noapple: { catalog: catalog(MAC_PLAIN, rec({ model_id: QWEN.id, why: "fits" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
+  inuse: {
+    catalog: catalog(MAC_AI, rec({ model_id: APPLE.id, why: "built_in" }), [APPLE, ...DOWNLOADS]),
+    models: NO_MODELS,
+    jobs: jobs({ chat: on(APPLE.id, APPLE.name), digest: on(APPLE.id, APPLE.name) }),
+    engine: running(APPLE.id, APPLE.name, "Apple on-device"),
+  },
+  failed: {
+    catalog: catalog(MAC_AI, rec({ model_id: APPLE.id, why: "built_in" }), [APPLE, ...DOWNLOADS]),
+    models: NO_MODELS,
+    jobs: jobs({ chat: on(APPLE.id, APPLE.name) }),
+    engine: running(APPLE.id, APPLE.name, "Apple on-device", { state: "failed", failure: "timed_out", today: { answers: 3, tokens_in: { n: 2_480, estimated: false }, tokens_out: { n: 640, estimated: true } } }),
+  },
+  noapple: { catalog: catalog(MAC_PLAIN, rec({ model_id: QWEN.id, why: "fits" }), DOWNLOADS), models: NO_MODELS, jobs: jobs(NONE) },
   downloading: {
     catalog: catalog(MAC_PLAIN, rec({ model_id: QWEN.id, why: "fits" }), DOWNLOADS),
     models: { ...NO_MODELS, download: { id: QWEN.id, done_bytes: 0.7 * GB, size_bytes: QWEN.size_bytes ?? 0, state: "running", wait: null, failure: null } },
-    jobs: jobs({ review: { state: "no_engine", beta_on: true }, chat: { state: "no_engine", beta_on: true } }),
+    jobs: jobs({ chat: { state: "no_engine", beta_on: true }, digest: { state: "no_engine" } }),
   },
   approval: {
     catalog: catalog({ ...MAC_PLAIN, free_disk_bytes: 46 * GB }, rec({ model_id: QWEN.id, why: "installed" }), DOWNLOADS),
     models: installed([QWEN, NOV_12, "listed"]),
-    jobs: jobs({ review: on(QWEN.id, QWEN.name), chat: on(QWEN.id, QWEN.name) }),
+    jobs: jobs({ chat: on(QWEN.id, QWEN.name), digest: { state: "no_engine" } }),
+    engine: running(QWEN.id, QWEN.name, "Qwen3 1.7B", { state: "idle", answered_ms: NOW - 3 * 3_600_000, today: { answers: 4, tokens_in: { n: 3_120, estimated: false }, tokens_out: { n: 860, estimated: false } } }),
     start: NEEDS_APPROVAL,
   },
   nodisk: {
     catalog: catalog({ ...MAC_PLAIN, free_disk_bytes: 11.2 * GB }, rec({ nothing: "not_enough_disk", needed_bytes: QWEN.free_disk_needed_bytes }), DOWNLOADS),
     models: NO_MODELS,
-    jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }),
+    jobs: jobs(NONE),
   },
   offline: {
     catalog: catalog(MAC_AI, rec({ model_id: APPLE.id, why: "built_in" }), [APPLE, { ...QWEN, offered: false }], false),
     models: installed([QWEN, NOV_12, "unknown"]),
-    jobs: jobs({ review: on(APPLE.id, APPLE.name), chat: on(APPLE.id, APPLE.name) }),
+    jobs: jobs({ chat: on(APPLE.id, APPLE.name), digest: on(APPLE.id, APPLE.name) }),
+    engine: running(APPLE.id, APPLE.name, "Apple on-device", { state: "idle", answered_ms: null, today: { answers: 0, tokens_in: { n: 0, estimated: false }, tokens_out: { n: 0, estimated: false } } }),
   },
   installed: {
     catalog: catalog({ ...MAC_AI, free_disk_bytes: 207 * GB }, rec({ model_id: APPLE.id, why: "built_in" }), [APPLE, QWEN, GRANITE, GEMMA, { ...NEMOTRON, offered: false }]),
     models: installed([QWEN, NOV_12, "listed"], [NEMOTRON, NOV_14, "withdrawn"]),
-    jobs: jobs({ review: on(APPLE.id, APPLE.name), chat: on(NEMOTRON.id, NEMOTRON.name, NEMOTRON.id) }),
+    jobs: jobs({ chat: on(NEMOTRON.id, NEMOTRON.name, NEMOTRON.id), digest: on(APPLE.id, APPLE.name) }),
+    engine: running(NEMOTRON.id, NEMOTRON.name, "Nemotron 3 Nano 4B"),
   },
-  appleoff: { catalog: catalog(MAC_OFF, rec({ nothing: "turn_on_apple_ai" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
-  noanswer: { catalog: catalog(MAC_NO_ANSWER, rec({ nothing: "apple_ai_unknown" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
-  blocked: { catalog: catalog(MAC_BLOCKED, rec({ nothing: "apple_ai_unknown" }), DOWNLOADS), models: NO_MODELS, jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }) },
+  appleoff: { catalog: catalog(MAC_OFF, rec({ nothing: "turn_on_apple_ai" }), DOWNLOADS), models: NO_MODELS, jobs: jobs(NONE) },
+  noanswer: { catalog: catalog(MAC_NO_ANSWER, rec({ nothing: "apple_ai_unknown" }), DOWNLOADS), models: NO_MODELS, jobs: jobs(NONE) },
+  blocked: { catalog: catalog(MAC_BLOCKED, rec({ nothing: "apple_ai_unknown" }), DOWNLOADS), models: NO_MODELS, jobs: jobs(NONE) },
   nolist: {
     catalog: catalog({ ...MAC_PLAIN, apple_ai: "unavailable" }, rec({ nothing: "nothing_listed" }), [], false),
     models: NO_MODELS,
-    jobs: jobs({ review: { state: "no_engine" }, chat: { state: "no_engine" } }),
+    jobs: jobs(NONE),
   },
 };
 
@@ -229,6 +290,8 @@ export function seedModels(state: ModelsState): void {
   window.__AIJ_AI_CATALOG__ = state.catalog;
   window.__AIJ_AI_MODELS__ = state.models;
   window.__AIJ_AI_JOBS__ = state.jobs;
+  if (state.engine) window.__AIJ_AI_ENGINE__ = state.engine;
+  else delete window.__AIJ_AI_ENGINE__;
   if (state.start) window.__AIJ_AI_START__ = state.start;
   else delete window.__AIJ_AI_START__;
 }

@@ -1,6 +1,7 @@
 /**
- * AJ-E3812 — Recommended for this Mac (AJ-E3811's one pick): the kit's
- * chosen-card look (an accent edge on a tinted surface) holding the
+ * AJ-E3812 — Recommended for this Mac (AJ-E3811's one pick): a tinted
+ * card (the accent's soft step over the surface, no edge and no shadow:
+ * AJ-E3826 M5, M6) holding the
  * view's one filled primary, with a "Why it fits this Mac" checklist
  * beside it built from the facts the pick rests on. Its action says its
  * consequence on the same line: Use it, Download with the size, the
@@ -13,12 +14,12 @@ import { Alert } from "../../../components/Alert";
 import { Disclosure } from "../../../components/controls";
 import { IconCheck } from "../../../components/icons-controls";
 import { IconWarn } from "../../../components/icons-menu";
-import { Button } from "../../../components/primitives";
+import { Button, WARNING_CHIP } from "../../../components/primitives";
 import { Pill } from "../../../components/Pill";
 import type { DownloadInfo, ModelsCatalog } from "../../../lib/ipc/models";
 import { IconDownload, IconRefresh, JobIcon } from "./model-icons";
 import { ModelJobRow, ModelFacts, ModelTile, ModelsSection, Verdict } from "./ModelParts";
-import { betaJobs, jobsOf, verdictOf, type FitRow, type Recommended } from "./models-view";
+import { jobsOf, verdictOf, type FitRow, type Recommended } from "./models-view";
 import { DISK, DOWNLOAD, FAILED_AFTER, FAILURES, JOB_NAMES, NOTHING, RECOMMENDED, WAITS, listWords, memoryWords } from "./models-words";
 
 export interface RecommendedActions {
@@ -32,7 +33,7 @@ export interface RecommendedActions {
 function FitPanel({ rows, needs }: { rows: FitRow[]; needs: boolean }): JSX.Element {
   return (
     <div
-      className="flex flex-col gap-2.5 border-t border-[color-mix(in_srgb,var(--color-accent)_22%,var(--color-divider))] bg-[color-mix(in_srgb,var(--color-surface)_75%,transparent)] px-4 py-4 @min-[640px]:border-t-0 @min-[640px]:border-l"
+      className="flex flex-col gap-2.5 bg-surface/60 px-4 py-4"
       data-testid="models-fit"
     >
       <span className="text-label font-medium tracking-[.07em] text-section-label uppercase">{needs ? RECOMMENDED.needsTitle : RECOMMENDED.fitTitle}</span>
@@ -41,7 +42,7 @@ function FitPanel({ rows, needs }: { rows: FitRow[]; needs: boolean }): JSX.Elem
           <li key={key} className="flex items-start gap-2.5 text-meta leading-snug">
             <span
               aria-hidden="true"
-              className={`mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full ${ok ? "bg-success/20 text-success" : "bg-warning/20 text-warning"}`}
+              className={`mt-px flex size-[18px] shrink-0 items-center justify-center rounded-full ${ok ? "bg-surface-2 text-success" : WARNING_CHIP}`}
             >
               {ok ? <IconCheck width={11} height={11} strokeWidth={3} /> : <IconWarn width={11} height={11} />}
             </span>
@@ -58,12 +59,12 @@ function FitPanel({ rows, needs }: { rows: FitRow[]; needs: boolean }): JSX.Elem
 
 /** The jobs it passed as chips, then the ones not yet behind a fold. */
 function JobsLine({ pick }: { pick: Recommended }): JSX.Element {
-  const { passed, notYet } = jobsOf(pick.model);
+  const { passed, notYet } = jobsOf(pick.model, pick.absent);
   return (
     <div className="flex flex-col gap-2">
       <ul className="flex flex-wrap items-center gap-2" aria-label={RECOMMENDED.title}>
         {passed.map((job) => (
-          <li key={job} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface pr-2.5 pl-2 text-[12.5px] text-ink inset-ring-1 inset-ring-hairline/75">
+          <li key={job} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-surface pr-2.5 pl-2 text-meta text-ink">
             <span className="text-faint">
               <JobIcon job={job} size={14} />
             </span>
@@ -89,7 +90,7 @@ function JobsLine({ pick }: { pick: Recommended }): JSX.Element {
 }
 
 function Consequence({ children }: { children: ReactNode }): JSX.Element {
-  return <span className="text-[12.5px] leading-snug text-muted">{children}</span>;
+  return <span className="text-meta leading-snug text-muted">{children}</span>;
 }
 
 /** Minutes left from the bytes seen since the first step this screen saw. */
@@ -169,7 +170,7 @@ function NoDisk({ pick, catalog, actions }: { pick: Recommended; catalog: Models
 
 /** The card's action, by what the pick needs now. */
 function Action({ pick, catalog, download, actions }: { pick: Recommended; catalog: ModelsCatalog; download: DownloadInfo | null | undefined; actions: RecommendedActions }): JSX.Element {
-  const jobs = listWords(betaJobs(pick.model).map((job) => JOB_NAMES[job]));
+  const jobs = listWords(pick.turnsOn.map((job) => JOB_NAMES[job]));
   if (pick.action === "no-disk") return <NoDisk pick={pick} catalog={catalog} actions={actions} />;
   if (pick.action === "downloading" && download) return <Downloading name={pick.model.name} download={download} onCancel={actions.onCancel} />;
   if (pick.action === "in-use") {
@@ -224,14 +225,14 @@ export function RecommendedCard({
   actions: RecommendedActions;
 }): JSX.Element {
   return (
-    <div className="@container relative overflow-hidden rounded-2xl bg-[color-mix(in_srgb,var(--color-accent)_7%,var(--color-surface))] shadow-card" data-testid="models-recommended">
-      <div className="grid grid-cols-1 @min-[640px]:grid-cols-[minmax(0,1fr)_248px]">
+    <div className="@container relative overflow-hidden rounded-2xl bg-surface" data-testid="models-recommended">
+      <div className="grid grid-cols-1 bg-accent-soft @min-[640px]:grid-cols-[minmax(0,1fr)_248px]">
         <div className="flex min-w-0 flex-col gap-3.5 px-5 pt-5 pb-4.5">
           <div className="flex items-start gap-3.5">
             <ModelTile model={pick.model} size="lg" on />
             <div className="flex min-w-0 flex-1 flex-col gap-0.5">
               <div className="flex flex-wrap items-center gap-2.5">
-                <h4 className="text-[17px] font-semibold text-ink">{pick.model.name}</h4>
+                <h4 className="type-section">{pick.model.name}</h4>
                 {pick.model.built_in && <Pill tone="neutral">{RECOMMENDED.builtIn}</Pill>}
               </div>
               <p className="text-body text-ink-2">{reasonOf(pick, catalog)}</p>
@@ -257,7 +258,7 @@ export function NothingCard({ catalog }: { catalog: ModelsCatalog }): JSX.Elemen
   else if (why === "not_apple_silicon") line = NOTHING.notAppleSilicon;
   else if (why === "not_enough_memory") line = NOTHING.notEnoughMemory(memory);
   return (
-    <div className="flex flex-col gap-1 rounded-2xl bg-surface px-5 py-4.5 inset-ring-1 inset-ring-hairline/75" data-testid="models-nothing">
+    <div className="flex flex-col gap-1 rounded-2xl bg-surface px-5 py-4.5" data-testid="models-nothing">
       <h4 className="text-section font-semibold text-ink">{NOTHING.title}</h4>
       <p className="text-body text-ink-2">{line}</p>
     </div>

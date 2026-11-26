@@ -8,8 +8,6 @@
 #     CheckCard, whose chip is the condition's icon) and Matching (two
 #     words in a step whose head carries the step's mark): sub-choices of a
 #     row that already leads with its icon.
-#   ai/ModelsJobs: ModelPicker, Settings › AI › Models, rebuilt by
-#     AJ-E3826 (the Bot agent's, 0.5.2); its findings are listed for that
-#     task in the audit (section M).
+#   (ai/ModelsJobs left 2026-11-26: AJ-E3826 gave the model picker's
+#     options their icons, M1.)
 ui/src/components/watches/WatchForm.tsx 2
-ui/src/screens/settings/ai/ModelsJobs.tsx 1
