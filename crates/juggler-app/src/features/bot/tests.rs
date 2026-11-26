@@ -599,3 +599,40 @@ fn this_is_wrong_marks_the_answer_undo_clears_it_and_ask_again_asks_once_more() 
     assert!(flagged(&state), "the first stays marked wrong");
     assert!(bot_wrong_impl(&state, "no-such-turn", true).is_err());
 }
+
+/// AJ-E3713: Forget in "What Bot remembers" takes the feed's More or Less
+/// like this (a `feed:` preference from Home's feed) through the same
+/// forget as Bot's own memories; other kinds stay refused.
+#[test]
+fn forget_takes_a_feed_preference_through_the_same_gate() {
+    use crate::features::feed::commands::prefs::{FeedLeanAsk, prefer_in};
+    let (_dir, state) = state();
+    let ask = FeedLeanAsk {
+        lean: "less".to_owned(),
+        group: "switch".to_owned(),
+        folder: None,
+        project: None,
+        about: None,
+    };
+    let kept = {
+        let storage = state.storage.lock().unwrap();
+        state
+            .memory_writers
+            .with_memory(|writer| prefer_in(&storage, writer, &ask, NOW))
+            .expect("a memory writer")
+            .unwrap()
+            .expect("kept")
+    };
+    assert!(kept.key.starts_with("feed:"));
+    super::memory::forget(&state, &kept.key).unwrap();
+    let storage = state.storage.lock().unwrap();
+    assert!(
+        storage.memory().current(&kept.key).unwrap().is_none(),
+        "forgotten"
+    );
+    drop(storage);
+    assert!(
+        super::memory::forget(&state, "watch:w1").is_err(),
+        "a watch is still not a memory here"
+    );
+}

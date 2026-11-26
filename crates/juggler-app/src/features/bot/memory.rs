@@ -387,13 +387,19 @@ pub fn list(state: &Arc<AppState>) -> AppResult<BotMemoriesInfo> {
     })
 }
 
-/// Forgets one memory, every version of it (ADR-0037 §1.5).
+/// The keys "What Bot remembers" may forget: what the user stated to Bot
+/// (an alias, a focus, a note) and the feed's More or Less like this
+/// (`feed:`, AJ-E3713: the user's own preference, kept from Home's feed).
+const FORGETTABLE: &[&str] = &["alias:", "focus:", "note:", "feed:"];
+
+/// Forgets one memory, every version of it (ADR-0037 §1.5), through the
+/// store's one forget.
 ///
 /// # Errors
 ///
 /// Not a memory the user stated; the store's refusal; storage.
 pub fn forget(state: &Arc<AppState>, key: &str) -> AppResult<()> {
-    if !(key.starts_with("alias:") || key.starts_with("focus:") || key.starts_with("note:")) {
+    if !FORGETTABLE.iter().any(|prefix| key.starts_with(prefix)) {
         return Err(AppError::Validation {
             subject: "memory",
             message: "not_a_memory".to_owned(),
