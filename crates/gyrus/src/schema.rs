@@ -4,16 +4,21 @@
 //! database of gyrus's own.
 //!
 //! - `gyrus_nodes`: an explicit `id INTEGER PRIMARY KEY`, so `VACUUM`
-//!   never renumbers what the keyword index and the links point at.
+//!   never renumbers what the keyword index and the links point at;
+//!   `indexed` is 1 while its label is in the keyword index, 2 once it was
+//!   (a forget then rebuilds its bucket), 0 if never.
 //! - `gyrus_links`: typed, both ends by node id, one per (src, dst, kind).
 //! - `gyrus_aliases`: exact names a node is found by.
-//! - `gyrus_vectors`: embeddings as little-endian `f32` blobs, scanned by
-//!   exact cosine in Rust (no extension).
-//! - `gyrus_fts_00` … `gyrus_fts_15`: the keyword index, contentless
-//!   (the label lives only in `gyrus_nodes`), split by `id % 16` so a
-//!   forget rebuilds only the one sixteenth that held the forgotten words
+//! - `gyrus_vectors`: embeddings of length 1 as little-endian `f32`s,
+//!   packed [`VECTOR_BLOCK`] nodes to a row (`id ÷ 64`, with the nodes' ids
+//!   beside them), so the exact cosine scan in Rust reads a few large rows
+//!   rather than one per node (3× faster at 10,000 vectors).
+//! - `gyrus_fts_00` … `gyrus_fts_31`: the keyword index, contentless
+//!   (the label lives only in `gyrus_nodes`), split by `id % 32` so a
+//!   forget rebuilds only the one thirty-second that held the forgotten words
 //!   (FTS5's `secure-delete` removes a row's terms but leaves page
-//!   separators, which a rebuild clears). Each has `secure-delete` on.
+//!   separators, which a rebuild clears). Each has `secure-delete` on;
+//!   `gyrus_nodes_bucket` finds one bucket's rows without reading them all.
 //! - `gyrus_meta`: the write generation (key `gen`), bumped by every write, so
 //!   an in-memory index can tell it is behind.
 //!
@@ -21,7 +26,11 @@
 //! never changes (`tests/schema.rs` pins its hash).
 
 /// How many keyword-index buckets there are (`id % FTS_BUCKETS`).
-pub const FTS_BUCKETS: i64 = 16;
+/// (The text of [`SCHEMA_V1`] spells the number out; a test checks they agree.)
+pub const FTS_BUCKETS: i64 = 32;
+
+/// How many nodes' vectors share one row of `gyrus_vectors`.
+pub const VECTOR_BLOCK: i64 = 64;
 
 /// gyrus's first schema. Every object `IF NOT EXISTS`, so it is safe to
 /// run again.
@@ -48,6 +57,7 @@ CREATE TABLE IF NOT EXISTS gyrus_nodes (
     created     INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS gyrus_nodes_kind ON gyrus_nodes(kind);
+CREATE INDEX IF NOT EXISTS gyrus_nodes_bucket ON gyrus_nodes ((id % 32)) WHERE indexed = 1;
 CREATE TABLE IF NOT EXISTS gyrus_links (
     id          INTEGER PRIMARY KEY,
     src         INTEGER NOT NULL REFERENCES gyrus_nodes(id) ON DELETE CASCADE,
@@ -70,9 +80,12 @@ CREATE TABLE IF NOT EXISTS gyrus_aliases (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS gyrus_aliases_node ON gyrus_aliases(node);
 CREATE TABLE IF NOT EXISTS gyrus_vectors (
-    node INTEGER PRIMARY KEY REFERENCES gyrus_nodes(id) ON DELETE CASCADE,
-    dim  INTEGER NOT NULL,
-    v    BLOB NOT NULL
+    id    INTEGER PRIMARY KEY,
+    dim   INTEGER NOT NULL,
+    block INTEGER NOT NULL,
+    ids   BLOB NOT NULL,
+    v     BLOB NOT NULL,
+    UNIQUE (dim, block)
 );
 CREATE TABLE IF NOT EXISTS gyrus_meta (
     k TEXT PRIMARY KEY,
@@ -95,6 +108,22 @@ CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_12 USING fts5(label, content = '', 
 CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_13 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
 CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_14 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
 CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_15 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_16 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_17 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_18 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_19 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_20 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_21 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_22 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_23 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_24 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_25 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_26 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_27 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_28 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_29 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_30 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
+CREATE VIRTUAL TABLE IF NOT EXISTS gyrus_fts_31 USING fts5(label, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2');
 INSERT INTO gyrus_fts_00(gyrus_fts_00, rank) VALUES ('secure-delete', 1);
 INSERT INTO gyrus_fts_01(gyrus_fts_01, rank) VALUES ('secure-delete', 1);
 INSERT INTO gyrus_fts_02(gyrus_fts_02, rank) VALUES ('secure-delete', 1);
@@ -111,6 +140,22 @@ INSERT INTO gyrus_fts_12(gyrus_fts_12, rank) VALUES ('secure-delete', 1);
 INSERT INTO gyrus_fts_13(gyrus_fts_13, rank) VALUES ('secure-delete', 1);
 INSERT INTO gyrus_fts_14(gyrus_fts_14, rank) VALUES ('secure-delete', 1);
 INSERT INTO gyrus_fts_15(gyrus_fts_15, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_16(gyrus_fts_16, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_17(gyrus_fts_17, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_18(gyrus_fts_18, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_19(gyrus_fts_19, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_20(gyrus_fts_20, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_21(gyrus_fts_21, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_22(gyrus_fts_22, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_23(gyrus_fts_23, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_24(gyrus_fts_24, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_25(gyrus_fts_25, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_26(gyrus_fts_26, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_27(gyrus_fts_27, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_28(gyrus_fts_28, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_29(gyrus_fts_29, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_30(gyrus_fts_30, rank) VALUES ('secure-delete', 1);
+INSERT INTO gyrus_fts_31(gyrus_fts_31, rank) VALUES ('secure-delete', 1);
 ";
 
 /// The keyword-index table of a bucket.

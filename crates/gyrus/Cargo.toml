@@ -25,3 +25,9 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+
+# The budgets of the operations (README, "Budgets"): `cargo bench -p gyrus`
+# prints p50/p95 at 10k, 100k and 1M links; `tests/budgets.rs` is the gate.
+[[bench]]
+name = "budgets"
+harness = false

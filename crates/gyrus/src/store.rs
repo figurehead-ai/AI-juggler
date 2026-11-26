@@ -418,10 +418,135 @@ fn fts_insert(conn: &Connection, id: NodeId, label: &str) -> Result<()> {
     Ok(())
 }
 
-/// A vector as stored: little-endian `f32`s.
+/// A vector as stored: scaled to length 1 (so a cosine is a dot product),
+/// as little-endian `f32`s.
 #[must_use]
 pub fn vector_blob(v: &[f32]) -> Vec<u8> {
-    v.iter().flat_map(|x| x.to_le_bytes()).collect()
+    let norm = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let scale = if norm > 0.0 { 1.0 / norm } else { 0.0 };
+    v.iter().flat_map(|x| (x * scale).to_le_bytes()).collect()
+}
+
+/// One block of vectors: the nodes' ids, and their vectors in the same
+/// order.
+struct Block {
+    row: i64,
+    ids: Vec<NodeId>,
+    v: Vec<u8>,
+}
+
+fn ids_of(blob: &[u8]) -> Vec<NodeId> {
+    blob.as_chunks::<8>()
+        .0
+        .iter()
+        .map(|c| i64::from_le_bytes(*c))
+        .collect()
+}
+
+fn ids_blob(ids: &[NodeId]) -> Vec<u8> {
+    ids.iter().flat_map(|id| id.to_le_bytes()).collect()
+}
+
+/// The blocks (one per vector size) a node's vector would live in.
+fn blocks_of(conn: &Connection, id: NodeId) -> Result<Vec<(i64, Block)>> {
+    let block = id.div_euclid(crate::schema::VECTOR_BLOCK);
+    let mut stmt =
+        conn.prepare_cached("SELECT id, dim, ids, v FROM gyrus_vectors WHERE block = ?1")?;
+    let rows = stmt.query_map([block], |row| {
+        let ids: Vec<u8> = row.get(2)?;
+        Ok((
+            row.get::<_, i64>(1)?,
+            Block {
+                row: row.get(0)?,
+                ids: ids_of(&ids),
+                v: row.get(3)?,
+            },
+        ))
+    })?;
+    Ok(rows.collect::<rusqlite::Result<_>>()?)
+}
+
+fn write_block(conn: &Connection, dim: i64, block: i64, b: &Block) -> Result<()> {
+    if b.ids.is_empty() {
+        conn.prepare_cached("DELETE FROM gyrus_vectors WHERE id = ?1")?
+            .execute([b.row])?;
+    } else {
+        conn.prepare_cached(
+            "INSERT INTO gyrus_vectors (dim, block, ids, v) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT (dim, block) DO UPDATE SET ids = excluded.ids, v = excluded.v",
+        )?
+        .execute(params![dim, block, ids_blob(&b.ids), b.v])?;
+    }
+    Ok(())
+}
+
+/// Removes a node's vector from its block (the block rewritten, or
+/// deleted when it empties; with `secure_delete` on, the old pages are
+/// zeroed).
+///
+/// # Errors
+///
+/// SQLite errors.
+pub fn drop_vector(conn: &Connection, id: NodeId) -> Result<()> {
+    let block = id.div_euclid(crate::schema::VECTOR_BLOCK);
+    for (dim, mut b) in blocks_of(conn, id)? {
+        let Some(at) = b.ids.iter().position(|n| *n == id) else {
+            continue;
+        };
+        let width = usize::try_from(dim).unwrap_or(0) * 4;
+        b.ids.remove(at);
+        b.v.drain(at * width..(at + 1) * width);
+        write_block(conn, dim, block, &b)?;
+    }
+    Ok(())
+}
+
+/// Stores a node's vector (scaled to length 1, in its block), replacing
+/// one it had.
+///
+/// # Errors
+///
+/// SQLite errors.
+pub fn put_vector(conn: &Connection, id: NodeId, v: &[f32]) -> Result<()> {
+    drop_vector(conn, id)?;
+    let dim = i64::try_from(v.len()).unwrap_or(0);
+    let block = id.div_euclid(crate::schema::VECTOR_BLOCK);
+    let mut b = blocks_of(conn, id)?
+        .into_iter()
+        .find(|(d, _)| *d == dim)
+        .map_or(
+            Block {
+                row: 0,
+                ids: Vec::new(),
+                v: Vec::new(),
+            },
+            |(_, b)| b,
+        );
+    b.ids.push(id);
+    b.v.extend(vector_blob(v));
+    write_block(conn, dim, block, &b)
+}
+
+/// A node's stored vector (of length 1).
+///
+/// # Errors
+///
+/// SQLite errors.
+pub fn vector_of(conn: &Connection, id: NodeId) -> Result<Option<Vec<f32>>> {
+    for (dim, b) in blocks_of(conn, id)? {
+        if let Some(at) = b.ids.iter().position(|n| *n == id) {
+            let width = usize::try_from(dim).unwrap_or(0) * 4;
+            return Ok(Some(
+                b.v[at * width..(at + 1) * width]
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .map(|c| f32::from_le_bytes(*c))
+                    .collect(),
+            ));
+        }
+    }
+    Ok(None)
 }
 
 fn upsert(conn: &Connection, pack: &Pack, node: &NewNode, now: i64) -> Result<NodeId> {
@@ -443,7 +568,8 @@ fn upsert(conn: &Connection, pack: &Pack, node: &NewNode, now: i64) -> Result<No
             // Re-stating never demotes: the tier and priority stay at
             // least what they were; a write brings an archived node back.
             conn.prepare_cached(
-                "UPDATE gyrus_nodes SET label = ?2, untrusted = ?3, indexed = ?4, props = ?5,
+                "UPDATE gyrus_nodes SET label = ?2, untrusted = ?3,
+                     indexed = CASE WHEN ?4 THEN 1 WHEN indexed != 0 THEN 2 ELSE 0 END, props = ?5,
                      tier = ?6, priority = ?7, salience = MAX(salience, ?8), confidence = ?9,
                      authority = ?10, valid_from = ?11, valid_to = ?12, as_of = ?13,
                      archived_at = NULL
@@ -516,15 +642,7 @@ fn upsert(conn: &Connection, pack: &Pack, node: &NewNode, now: i64) -> Result<No
         .unwrap_or(0);
     }
     if let Some(v) = &node.vector {
-        conn.prepare_cached(
-            "INSERT INTO gyrus_vectors (node, dim, v) VALUES (?1, ?2, ?3)
-             ON CONFLICT (node) DO UPDATE SET dim = excluded.dim, v = excluded.v",
-        )?
-        .execute(params![
-            id,
-            i64::try_from(v.len()).unwrap_or(0),
-            vector_blob(v)
-        ])?;
+        put_vector(conn, id, v)?;
     }
     Ok(id)
 }
@@ -606,8 +724,7 @@ fn remove_node(conn: &Connection, id: NodeId) -> Result<Vec<LinkId>> {
         .execute([id])?;
     conn.prepare_cached("DELETE FROM gyrus_aliases WHERE node = ?1")?
         .execute([id])?;
-    conn.prepare_cached("DELETE FROM gyrus_vectors WHERE node = ?1")?
-        .execute([id])?;
+    drop_vector(conn, id)?;
     fts_delete(conn, id)?;
     conn.prepare_cached("DELETE FROM gyrus_nodes WHERE id = ?1")?
         .execute([id])?;
@@ -824,13 +941,23 @@ pub fn forget_in(conn: &Connection, keys: &[&str]) -> Result<(Pending, Erased)> 
     let mut erased = Erased::default();
     let mut buckets = BTreeSet::new();
     for key in keys {
-        let Some(id) = id_of(conn, key)? else {
+        let Some((id, indexed)) = conn
+            .prepare_cached("SELECT id, indexed FROM gyrus_nodes WHERE key = ?1")?
+            .query_row([key], |row| {
+                Ok((row.get::<_, NodeId>(0)?, row.get::<_, i64>(1)?))
+            })
+            .optional()?
+        else {
             continue;
         };
         let links = remove_node(conn, id)?;
         erased.nodes += 1;
         erased.links += links.len();
-        buckets.insert(bucket_of(id));
+        // Only a bucket that ever held its words is rebuilt (`indexed` is
+        // 1 while it is in the index, 2 once it was and no longer is).
+        if indexed != 0 {
+            buckets.insert(bucket_of(id));
+        }
         out.unlinked.extend(links);
         out.removed.push(id);
     }

@@ -331,7 +331,7 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     );
     {
         let conn = Connection::open(&db).unwrap();
-        let fts: String = (0..16)
+        let fts: String = (0..32)
             .map(|b| format!("DROP TABLE gyrus_fts_{b:02};"))
             .collect();
         conn.execute_batch(&format!(

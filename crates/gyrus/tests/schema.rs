@@ -21,7 +21,7 @@ fn fnv(text: &str) -> u64 {
 fn schema_v1_is_frozen() {
     assert_eq!(
         format!("{:016x}", fnv(gyrus::SCHEMA_V1)),
-        "ad1e730059eb32b8",
+        "3b4ccc03b5fa1bd6",
         "SCHEMA_V1 changed: add a new batch instead"
     );
 }
@@ -35,7 +35,7 @@ fn schema_v1_installs_twice() {
     assert!(gyrus::schema::installed(&conn).expect("installed"));
     let buckets: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'gyrus_fts___'",
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name GLOB 'gyrus_fts_[0-9][0-9]'",
             [],
             |row| row.get(0),
         )

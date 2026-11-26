@@ -32,6 +32,7 @@
 pub mod error;
 pub mod graph;
 pub mod index;
+pub mod ops;
 pub mod pack;
 pub mod schema;
 pub mod store;

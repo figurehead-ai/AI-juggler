@@ -377,6 +377,21 @@ impl<'c> WorldReader<'c> {
             .query_row("SELECT COUNT(*) FROM gyrus_nodes", [], |row| row.get(0))?)
     }
 
+    /// The starting nodes for a question ([`gyrus::ops::seed`]: the host's
+    /// matches and exact aliases, then keyword search).
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn seed(
+        &self,
+        snap: &gyrus::Snapshot,
+        pack: &gyrus::Pack,
+        query: &gyrus::ops::SeedQuery<'_>,
+    ) -> Result<Vec<gyrus::ops::Seed>, MemoryError> {
+        gyrus::ops::seed(self.conn, snap, pack, query).map_err(gyrus_error)
+    }
+
     /// The labels of these nodes (the few a context shows).
     ///
     /// # Errors
