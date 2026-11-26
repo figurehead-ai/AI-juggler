@@ -22,7 +22,7 @@ use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use super::dto::{AiJob, AiJobInfo};
+use super::dto::{AiJob, AiJobInfo, AiJobWhy};
 use super::engines::Registry;
 use super::jobs::{self, JobSpec};
 use super::models::recommend::{MacFacts, Recommendation, recommend};
@@ -203,8 +203,17 @@ pub fn answer_for(
                 |card| cards.get(card).map(|card| card.model.clone()),
                 |id| offered.iter().find(|m| m.id == id).map(|m| m.name.clone()),
             );
+            // AJ-E3826 (D-149): a job whose flag is off by default isn't
+            // built in this version yet, and Models says so; one stopped
+            // by the remote file is just off.
+            let why = if route == router::Route::Off && !spec.flag.default {
+                Some(AiJobWhy::NotBuilt)
+            } else {
+                info.why
+            };
             Some(AiJobInfo {
                 pick: picks.get(&spec.job).cloned(),
+                why,
                 ..info
             })
         })

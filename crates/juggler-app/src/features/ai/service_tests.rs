@@ -72,9 +72,9 @@ fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     // a Beta waiting for its switch, like Bot.
     assert_eq!(state_of(&jobs, AiJob::Digest).0, AiJobState::BetaOff);
     assert_eq!(
-        state_of(&jobs, AiJob::Review).0,
-        AiJobState::Off,
-        "the review waits for AJ-E3820 (the 0.5 walk's F-02)"
+        state_of(&jobs, AiJob::Review),
+        (AiJobState::Off, false, Some(AiJobWhy::NotBuilt)),
+        "the review waits for AJ-E3820 (the 0.5 walk's F-02), and Models says it isn't built yet (AJ-E3826)"
     );
     assert_eq!(state_of(&jobs, AiJob::Bot).0, AiJobState::BetaOff);
 
@@ -156,9 +156,9 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
     );
     let (jobs, _) = service.answer(&killed, &beta, &BTreeMap::new(), dir.path(), Probe::Now);
     assert_eq!(
-        state_of(&jobs, AiJob::Bot).0,
-        AiJobState::Off,
-        "the kill switch"
+        state_of(&jobs, AiJob::Bot),
+        (AiJobState::Off, false, None),
+        "the kill switch: off, and not called unbuilt (AJ-E3826)"
     );
     assert_eq!(
         state_of(&jobs, AiJob::Feed).0,
