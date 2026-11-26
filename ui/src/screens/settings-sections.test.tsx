@@ -154,8 +154,8 @@ describe("AJ-E2110 — Settings panes", () => {
     const pane = await findByTestId("settings-pane-advanced");
     const sections = pane.querySelectorAll("section[data-settings-section]");
     // ADR-0023: Local cache, after the Data sections; AJ-E2912: Debug
-    // mode, after Diagnostics.
-    expect(sections.length).toBe(8);
+    // mode, after Diagnostics; AJ-E2027: Scheduled work, before it.
+    expect(sections.length).toBe(9);
     for (const section of sections) {
       expect(section.querySelector("h3")?.textContent).toBeTruthy();
       expect(section.lastElementChild?.tagName).toBe("P");

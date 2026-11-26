@@ -58,6 +58,7 @@ export const SETTINGS_INDEX: readonly IndexEntry[] = [
   { pane: "advanced", anchor: "backup", title: "Data: backup & restore", words: "backup restore export import file move to another mac" },
   { pane: "advanced", anchor: "local-cache", title: "Local cache", words: "cache clear size limit disk speed" },
   { pane: "advanced", anchor: "diagnostics", title: "Diagnostics", words: "diagnostics export zip logs report a bug problem" },
+  { pane: "advanced", anchor: "scheduled", title: "Scheduled work", words: "scheduled schedule timer hourly backup tidy maintenance reminders what runs when" },
   { pane: "advanced", anchor: "debug-mode", title: "Debug mode", words: "debug log switches launches steps clear the log" },
   { pane: "advanced", anchor: "account", title: "Figurehead & Cloud", words: "figurehead account cloud backup sign in link device" },
   { pane: "advanced", anchor: "uninstall", title: "Before you uninstall", words: "uninstall remove delete prepare" },
