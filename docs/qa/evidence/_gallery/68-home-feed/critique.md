@@ -1,4 +1,4 @@
-<!-- captures: 0c2bc5a4049a -->
+<!-- captures: 056312f902de -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -80,3 +80,23 @@ Re-captured on the host (`home-feed-gallery.spec.ts`, every state), plus a new s
 | 19 | Rich-mode colour | 4 | The filters are choices: the chosen tab a soft accent fill, the state chips their hues with a ✓ when on, the Showing picker's options lead with their icons; no ring for chosen. |
 
 Lowest: 3 (line 16: no hand walk in Dev yet).
+
+## 0.5.2 G8 (2026-11-26, AJ-E3713 R6a, Opus against the approved story mock)
+
+Re-captured on the host from a clean export of HEAD (`home-feed-gallery.spec.ts`, every state); the ten that changed opened at full size: story-1280 (dark, light) beside `AIJuggler-design-refs/story-feed/mock-story-feed-light.png`, and busy at 1024, 1280, 1440 and stacked 1120, both themes.
+
+**What changed.** A finished turn's post carries the mock's diff stat: the story mock's first post reads "14 files +412 −96" with the bar 81 % green and 19 % red, in the attachment's tone box between the story and its thread; busy's first post "3 files +58 −12". The stat is the turn's own edit and write calls from the session's transcript (Claude Code and Codex, never git); a post whose calls don't count lines shows "2 files" and their names, faint (the gate's Pool lens, Floor menu and rail-splitter baselines show it; busy's files-only post and the rollup's sum are below the fold here, covered by vitest).
+
+**Against the mock.** Matches: the order (files, +added, −removed, then the bar filling the rest), tabular numbers, weights (the counts semibold), the tone box (`surface-2`, no border), the bar's 6 px height on `surface-3`. Colours follow PAT-COLOR: the counts in `success` and `danger` words, the bar in their strong steps; in dark the green and red stay readable and calm against the card. Deviation: the mock's three-session summary sentence isn't drawn (no such fact; the story is the template's "You answered Login refactor — it's moving again"), so the stat sits on the thread's post and counts its follow-up's turn.
+
+**Weak.** In the files-only form the names can run long; they end in "…" and the full list is in the tooltip only.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 5 | Mock-up | 4 | The mock's diff stat, drawn; the summary sentence still not (no fact). |
+| 7 | Colour | 4 | Green added, red removed, words AA, bars the strong steps; nothing else coloured. |
+| 12 | Words | 4 | "14 files", "1 file"; screen readers hear "412 lines added, 96 lines removed". |
+| 13 | States | 4 | Counted, files only, none (a tool whose transcripts aren't read, or no file changed). |
+| 18 | Usability | 4 | Answer 2 now matches in full (the manifest). |
+
+The other lines are as this release's AJ-E3713 section scored them (lowest 3: line 16, no hand walk in Dev).
