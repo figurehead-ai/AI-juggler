@@ -72,10 +72,12 @@ function FigureheadFlow({ fh }: { fh: Figurehead }): JSX.Element {
     <>
       {status?.notice && (
         <div
-          className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 px-3 py-2 text-xs"
+          className="flex flex-wrap items-center gap-2 rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink"
           role="status"
           data-testid="cloud-notice"
         >
+          {/* 0.5.2 G3 (PAT-SURF): a tone card with its level's mark, never a bright outline. */}
+          <span aria-hidden="true" className="level-mark" data-level={1} data-testid="cloud-notice-mark" />
           <span className="flex-1">{status.notice} Everything on this Mac is unchanged.</span>
           <Button size="sm" variant="secondary" onClick={() => void run(figureheadDismissNotice)}>
             Dismiss

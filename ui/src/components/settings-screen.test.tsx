@@ -143,6 +143,9 @@ describe("Settings — Account & Cloud", () => {
     };
     const view = render(<SettingsScreen focusCloud />);
     const notice = await view.findByTestId("cloud-notice");
+    // 0.5.2 G3: a tone card with a level mark, no bright outline (PAT-SURF).
+    expect(notice.className).not.toMatch(/border/);
+    expect(view.getByTestId("cloud-notice-mark")).toBeTruthy();
     expect(notice.textContent).toContain("unlinked");
     expect(notice.textContent).toContain("Everything on this Mac is unchanged");
     await act(async () => {

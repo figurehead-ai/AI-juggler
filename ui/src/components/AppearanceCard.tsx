@@ -19,17 +19,17 @@ import { CardTitle } from "./CardTitle";
 export function ChoiceGroup({ legend, hint, testId, labelledBy, children, end }: { legend: string; hint?: string; testId?: string; labelledBy?: string; children: ReactNode; end?: ReactNode }): JSX.Element {
   const id = `${useId().replace(/:/g, "")}-legend`;
   return (
-    <div role="group" aria-labelledby={id} className="flex flex-col gap-2" data-testid={testId}>
+    <div role="group" aria-labelledby={id} className="@container flex flex-col gap-2" data-testid={testId}>
       <div className="flex items-end justify-between gap-3">
-        <div className="flex flex-col">
+        <div className="flex min-w-0 flex-col">
           <span id={id} className="text-meta font-medium text-ink">
             {legend}
           </span>
           {hint && <span className="text-label text-muted">{hint}</span>}
         </div>
-        {end}
+        {end && <div className="shrink-0 whitespace-nowrap">{end}</div>}
       </div>
-      <div role="radiogroup" aria-labelledby={labelledBy ?? id} className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div role="radiogroup" aria-labelledby={labelledBy ?? id} className="grid grid-cols-1 gap-2 @xl:grid-cols-3">
         {children}
       </div>
     </div>

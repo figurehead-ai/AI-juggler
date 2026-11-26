@@ -1,4 +1,4 @@
-<!-- captures: 4bb6759d3a12 -->
+<!-- captures: e22bc241d333 -->
 # 97-controls: the shared controls and the rail's View
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -84,3 +84,5 @@ Re-captured on the host from a clean export of HEAD (the shared tree held anothe
 | 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
 
 The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+0.5.2 G2 (2026-11-26, Opus): at 1024 wide the choice cards stack one per row (a container query on the group, `@xl:grid-cols-3`), so no radio overlaps a title and no description wraps a word per line; the group's action ("Reset my order") stays on one line. 1280 unchanged. Line 19 (rich-mode colour) still 4.
