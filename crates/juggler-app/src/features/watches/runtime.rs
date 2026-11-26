@@ -54,6 +54,8 @@ type Shared = Bell<Inner>;
 #[derive(Default)]
 pub struct Watches {
     shared: Arc<Shared>,
+    /// G12: one engine step's snapshot and save at a time, in order.
+    saving: std::sync::Mutex<()>,
     thread: OnceLock<()>,
     writer: OnceLock<Option<KindWriter>>,
 }
@@ -378,6 +380,8 @@ fn load(state: &AppState, registry: &Arc<Registry>, now_ms: i64) -> Engine {
         }
         engine.add(watch, now_ms);
     }
+    // G12: each watch's deadlines as they were armed, not again from now.
+    super::durable::restore_all(&storage, &mut engine);
     engine
 }
 
@@ -461,11 +465,21 @@ pub fn with_engine<T>(
         inner.engine.is_some()
     };
     let fresh = (!loaded).then(|| load(state, &registry, now_ms));
-    let mut inner = state.watches.shared.lock().ok()?;
-    if inner.engine.is_none() {
-        inner.engine = fresh;
+    // G12: the step and its save in order; the store's lock only after
+    // the engine's is let go.
+    let _saving = state.watches.saving.lock().ok()?;
+    let (out, snapshot) = {
+        let mut inner = state.watches.shared.lock().ok()?;
+        if inner.engine.is_none() {
+            inner.engine = fresh;
+        }
+        let out = inner.engine.as_mut().map(f);
+        (out, inner.engine.as_ref().map(super::durable::snapshot))
+    };
+    if let Some(snapshot) = snapshot {
+        super::durable::save_all(state, &snapshot, now_ms);
     }
-    inner.engine.as_mut().map(f)
+    out
 }
 
 fn start_thread(state: &Arc<AppState>) {

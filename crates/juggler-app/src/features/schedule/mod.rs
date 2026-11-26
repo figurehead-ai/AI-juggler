@@ -42,6 +42,7 @@ use crate::state::AppState;
 pub fn handlers() -> registry::Registry {
     let mut registry = registry::Registry::default();
     let _ = registry.register(Arc::new(reminder::Reminder));
+    let _ = registry.register(crate::features::watches::durable::handler());
     upkeep::register(&mut registry);
     registry
 }

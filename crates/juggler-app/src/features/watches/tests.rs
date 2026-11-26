@@ -1312,5 +1312,6 @@ fn fifty_watches_hear_an_event_in_under_a_millisecond() {
     );
 }
 
+mod durable_tests;
 mod live_tests;
 mod store_tests;

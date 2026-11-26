@@ -39,7 +39,8 @@ export function ScheduledWorkSection(): JSX.Element {
   useEffect(() => {
     let on = true;
     void schedulesPage("app", { cursor: null, limit: 50 }).then(
-      (page) => on && setRows(page.items.filter((s) => s.ended_ms === null)),
+      // A watch's timer is the watch's own: it lives on the Watches page.
+      (page) => on && setRows(page.items.filter((s) => s.ended_ms === null && s.handler !== "watch.deadline")),
       () => on && setRows([]),
     );
     return () => {

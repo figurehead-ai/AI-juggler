@@ -164,10 +164,14 @@ impl<'c> SchedulesRepo<'c> {
     ///
     /// Storage failures, an id already taken among them.
     pub fn insert(&self, s: &ScheduleRow) -> Result<(), CoreError> {
+        self.write(s, "")
+    }
+
+    fn write(&self, s: &ScheduleRow, on_conflict: &str) -> Result<(), CoreError> {
         self.conn.execute(
             &format!(
                 "INSERT INTO schedules ({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,
-                 ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22)"
+                 ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22) {on_conflict}"
             ),
             params![
                 s.id,
@@ -195,6 +199,26 @@ impl<'c> SchedulesRepo<'c> {
             ],
         )?;
         Ok(())
+    }
+
+    /// Adds a schedule with its own id, or replaces its data, timing and
+    /// title (its history, pause and source kept), in one statement: what
+    /// an owner keeps in step with its own state (a watch's deadlines and
+    /// the engine state they belong to, AJ-E2027 G12).
+    ///
+    /// # Errors
+    ///
+    /// Storage failures.
+    pub fn put(&self, s: &ScheduleRow) -> Result<(), CoreError> {
+        self.write(
+            s,
+            "ON CONFLICT(id) DO UPDATE SET payload = excluded.payload,
+               trigger = excluded.trigger, modifiers = excluded.modifiers,
+               missed_policy = excluded.missed_policy, next_due_ms = excluded.next_due_ms,
+               occurrence_ms = excluded.occurrence_ms, base_ms = excluded.base_ms,
+               armed_ms = excluded.armed_ms, title = excluded.title,
+               updated_ms = excluded.updated_ms, retries = 0, ended_ms = NULL",
+        )
     }
 
     /// One schedule.

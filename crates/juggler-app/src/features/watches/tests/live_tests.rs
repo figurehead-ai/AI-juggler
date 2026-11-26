@@ -18,7 +18,7 @@ use crate::state::AppState;
 
 /// A state with the fake terminal tool, an account, launch settings and
 /// one running session `s1`, and the memory store's tables.
-fn lab(dir: &std::path::Path) -> Arc<AppState> {
+pub(super) fn lab(dir: &std::path::Path) -> Arc<AppState> {
     let mut registry = juggler_adapter::AdapterRegistry::new();
     registry.register(Arc::new(juggler_adapters::fake::FakeHarnessAdapter::new(
         "/bin/true",
@@ -213,7 +213,7 @@ fn without_the_memory_store_the_list_says_unavailable() {
 }
 
 /// Creates `watch` in the store, as the Watches view's click does.
-fn create(state: &AppState, writers: &Writers, w: &Watch) {
+pub(super) fn create(state: &AppState, writers: &Writers, w: &Watch) {
     let storage = state.storage.lock().unwrap();
     let registry = Registry::shipped();
     WatchStore::new(&storage, &registry)
