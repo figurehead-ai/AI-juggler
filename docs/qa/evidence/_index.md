@@ -346,7 +346,7 @@
 | AJ-E3702 | PASS13 | 2026-11-15 | [manifest](AJ-E3702/manifest.md) |
 | AJ-E3709 | FAIL4 PASS12 UNPROVEN5 | 2026-11-16 | [manifest](AJ-E3709/manifest.md) |
 | AJ-E3712 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3712/manifest.md) |
-| AJ-E3713 | FAIL1 PASS7 | 2026-11-26 | [manifest](AJ-E3713/manifest.md) |
+| AJ-E3713 | FAIL1 PASS8 | 2026-11-26 | [manifest](AJ-E3713/manifest.md) |
 | AJ-E3801 | PASS5 | 2026-11-16 | [manifest](AJ-E3801/manifest.md) |
 | AJ-E3804 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3804/manifest.md) |
 | AJ-E3805 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3805/manifest.md) |
@@ -357,6 +357,7 @@
 | AJ-E3813 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3813/manifest.md) |
 | AJ-E3816 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3816/manifest.md) |
 | AJ-E3817 | (no claims yet) | 2026-11-20 | [manifest](AJ-E3817/manifest.md) |
+| AJ-E3820 | PASS5 UNPROVEN1 | 2026-11-26 | [manifest](AJ-E3820/manifest.md) |
 | AJ-E3821 | (no claims yet) | 2026-11-23 | [manifest](AJ-E3821/manifest.md) |
 | AJ-E3822 | PASS4 | 2026-11-23 | [manifest](AJ-E3822/manifest.md) |
 | AJ-E3823 | PASS10 | 2026-11-23 | [manifest](AJ-E3823/manifest.md) |
