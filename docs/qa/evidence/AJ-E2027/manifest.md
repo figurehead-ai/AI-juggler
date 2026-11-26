@@ -43,21 +43,29 @@ its due time as a transient At (`digest/runtime.rs` `publish`, `due_now`). Tests
 R5: PASS (backup), listed (the rest) — commit 0954d3602: Cloud backup's thread is `Every` hour on the
 wall clock, RunOnce (`upkeep::tests::the_backup_check_is_hourly_on_the_wall_clock_not_from_launch`,
 `…does_what_the_thread_did_nothing_while_cloud_backup_is_off`; `tests/cloud_backup.rs` unchanged).
-Listed, not forced (ADR-0039 §11):
+Listed, not forced (ADR-0039 §11; the coordinator accepted both):
 - the cleanup sweep: its cadence is the processes tick's 2 s with a 60 s grace measured on it, and it
   is a kill surface; a one-minute-or-longer `Every` would delay automatic cleanup by up to a minute
   and shift Tier 2's pacing; by §1 it is an observation loop, so it stays a tick;
-- watches' time conditions (IdleFor, after-minutes): their deadlines live in the pure engine's slot
-  state with the each/all `met` flags and memos; making only the deadlines durable would fire an
-  "all" watch on half its state after a restart; it needs the engine's slot state stored as a unit
-  (a design step);
 - the bell: it has no timed re-ring of its own; a snooze ends on the needs tick, which also rereads
   the needs, so an `At` for the end alone would change nothing the user sees.
+G12 (watches' timed conditions, made durable after the coordinator's ruling): PASS — commit
+105087999. Each watch's engine state (slots with their deadlines, memos, last fires; "all of"'s met
+flags; ended targets; cursor) is saved as a unit with its schedule in one row (`durable.rs`, one
+`SchedulesRepo::put` statement), restored on start (`runtime::load`), and the scheduler wakes the
+watches when a deadline is due. Tests: `durable_tests::the_engine_state_comes_back_as_a_unit`,
+`…a_deadline_armed_before_a_restart_fires_once_at_its_time_after_it`,
+`…a_deadline_armed_before_a_sleep_is_handed_over_on_wake_and_fires_once` (the wake's recompute,
+then one hand-over, one fire at the deadline's own time).
 R6: PASS (the list) — commit 70a2a6b3d: Settings › Advanced › Scheduled work, read-only
-(`ScheduledWorkSection.tsx`, `scheduled-work.test.tsx`, Settings' search). Left: the Sonnet walk, the
-gallery re-capture with an Opus critique in both themes and the stamp, the re-rendered baselines
-(68-home-feed shows Remind me now; Settings › Advanced and › Notifications changed), and the real-app
-check (a reminder fires after a restart and after sleep).
+(`ScheduledWorkSection.tsx`, `scheduled-work.test.tsx`, Settings' search). The gallery: commit
+ac3c102e9 (68-home-feed, 84-notifications, 99-reminders re-captured from a clean export of HEAD,
+every changed capture diffed and opened, Opus critiques in both themes, line 19 at 4, stamped). The
+gate baselines are not re-rendered: the visual gate's disk guard refused to start (13 GB free, it
+needs 20), and its trim tool (`scripts/trim_target.py --apply`) reads other processes' environments
+(`ps -E`), which D-37 rules out for me. Likely touched: those with Home's feed behind them (the
+gesture bars' new Remind me glyph) and 84-notifications' gate state. Left for the coordinator: the Sonnet walk and the
+real-app check (a reminder fires after a restart and after sleep).
 
 | Requirement | Verdict | Proof |
 |---|---|---|
@@ -65,7 +73,10 @@ check (a reminder fires after a restart and after sleep).
 | R2 table, service, registry, run controls, log, recompute | PASS | 8ccafb336, `service_tests.rs`, `clock` jump test |
 | R3 reminders: feed, Bot, priming, the list | PASS | 991d8a385, `commands_tests.rs`, `reminders.test.tsx` |
 | R4 WhenIdle maintenance, the digest through At | PASS | af0215bac, upkeep and digest tests |
-| R5 backup migrated; sweep, watch deadlines, bell listed | PASS | 0954d3602, upkeep backup tests; reasons above |
+| R5 backup migrated; sweep and bell listed | PASS | 0954d3602, upkeep backup tests; reasons above |
+| G12 watches' deadlines durable | PASS | 105087999, `durable_tests.rs` |
 | R6 Settings › Advanced's list | PASS | 70a2a6b3d, `scheduled-work.test.tsx` |
-| R6 Sonnet walk, Opus critique, gallery and baselines | UNPROVEN | not run in this build session |
+| R6 gallery, Opus critique, stamps | PASS | ac3c102e9 |
+| R6 Sonnet walk | UNPROVEN | the coordinator's, after this build |
+| R6 gate baselines re-rendered | UNPROVEN | the disk guard refused (13 GB free); see above |
 | R6 real-app check: a reminder after a restart and after sleep | UNPROVEN | the walk's (needs the built app and a sleep) |

@@ -180,7 +180,7 @@
 | AJ-E2024 | PASS5 | 2026-11-18 | [manifest](AJ-E2024/manifest.md) |
 | AJ-E2025 | PASS2 | — | [manifest](AJ-E2025/manifest.md) |
 | AJ-E2026 | PASS4 | 2026-11-26 | [manifest](AJ-E2026/manifest.md) |
-| AJ-E2027 | PASS6 UNPROVEN2 | 2026-11-26 | [manifest](AJ-E2027/manifest.md) |
+| AJ-E2027 | PASS8 UNPROVEN3 | 2026-11-26 | [manifest](AJ-E2027/manifest.md) |
 | AJ-E203 | PASS9 | 2026-10-16 | [manifest](AJ-E203/manifest.md) |
 | AJ-E204 | PASS8 | 2026-10-16 | [manifest](AJ-E204/manifest.md) |
 | AJ-E205 | PASS11 | 2026-10-16 | [manifest](AJ-E205/manifest.md) |
