@@ -204,3 +204,80 @@ for (const theme of ["dark", "light"] as const) {
     });
   }
 }
+
+/**
+ * AJ-E2027 (`99-reminders`): the Reminders list beside the watches (one
+ * set, one paused, one told), and Settings › Advanced › Scheduled work
+ * (the app's own, read-only). Both themes; the list at 1280 and 1024.
+ */
+const REMINDERS_GALLERY = resolve(process.cwd(), "../docs/qa/evidence/_gallery/99-reminders");
+
+function schedule(id: string, title: string, extra: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id,
+    title,
+    handler: "reminder",
+    source: "ai_juggler",
+    trigger: { kind: "at", at_ms: WATCHES_NOW + 3_600_000 },
+    modifiers: { window: null, jitter_ms: 0, lifetime: { kind: "once" } },
+    next_due_ms: WATCHES_NOW + 3_600_000,
+    last_run_ms: null,
+    last_outcome: null,
+    paused: false,
+    ended_ms: null,
+    created_ms: WATCHES_NOW - 600_000,
+    created_by: "user",
+    about: null,
+    ...extra,
+  };
+}
+
+const TOMORROW_9 = (() => {
+  const d = new Date(WATCHES_NOW);
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  return d.getTime();
+})();
+
+const SCHEDULES = {
+  yours: [
+    schedule("s-1", "Look at “api”", { about: { kind: "session", id: "s-api" } }),
+    schedule("s-2", "Check the deploy", { trigger: { kind: "at", at_ms: TOMORROW_9 }, next_due_ms: TOMORROW_9, paused: true, created_by: "bot" }),
+    schedule("s-3", "Look at “web”", { about: { kind: "session", id: "s-web" }, next_due_ms: null, ended_ms: WATCHES_NOW - 1_200_000, last_run_ms: WATCHES_NOW - 1_200_000, last_outcome: "ok" }),
+  ],
+  app: [
+    schedule("s-b", "Check whether a cloud backup is due", { handler: "cloud_backup", created_by: "app", trigger: { kind: "every", interval_ms: 3_600_000, anchor_ms: 0 }, modifiers: { window: null, jitter_ms: 300_000, lifetime: { kind: "always" } }, next_due_ms: WATCHES_NOW + 1_380_000, last_run_ms: WATCHES_NOW - 2_220_000, last_outcome: "ok" }),
+    schedule("s-m", "Tidy what Bot remembers", { handler: "memory.maintain", created_by: "app", trigger: { kind: "when_idle", max_wait_ms: 3_600_000, after_ms: 3_600_000 }, modifiers: { window: null, jitter_ms: 0, lifetime: { kind: "always" } }, last_run_ms: WATCHES_NOW - 3_000_000, last_outcome: "ok" }),
+  ],
+  calls: [],
+};
+
+for (const theme of ["dark", "light"] as const) {
+  for (const width of [1280, 1024]) {
+    test(`reminders list — ${theme} — ${width}`, async ({ page }) => {
+      await open(page, STATES.list!, theme, width, { __AIJ_SCHEDULES__: SCHEDULES });
+      await expect(page.getByTestId("reminder-row")).toHaveCount(3);
+      await wholePage(page, width);
+      const section = page.getByTestId("reminders-section");
+      await section.scrollIntoViewIfNeeded();
+      if (OUT) {
+        mkdirSync(REMINDERS_GALLERY, { recursive: true });
+        await page.screenshot({ path: `${REMINDERS_GALLERY}/list-${width}-${theme}.png` });
+      }
+      if (width === 1280) await axeClean(page, `reminders ${theme}`);
+    });
+  }
+  test(`scheduled work — ${theme}`, async ({ page }) => {
+    await open(page, STATES.list!, theme, 1280, { __AIJ_SCHEDULES__: SCHEDULES });
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "scheduled" } })));
+    const section = page.locator("[data-settings-section=scheduled]");
+    await expect(section.getByTestId("scheduled-row")).toHaveCount(2);
+    await section.scrollIntoViewIfNeeded();
+    await page.mouse.move(0, 0);
+    if (OUT) {
+      mkdirSync(REMINDERS_GALLERY, { recursive: true });
+      await page.screenshot({ path: `${REMINDERS_GALLERY}/scheduled-work-1280-${theme}.png` });
+    }
+    await axeClean(page, `scheduled work ${theme}`);
+  });
+}

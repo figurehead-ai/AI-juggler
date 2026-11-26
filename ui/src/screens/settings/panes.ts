@@ -97,6 +97,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   // section, landing on that row (History's empty search links here).
   search: { pane: "privacy", anchor: "stats?search words every session" },
   diagnostics: { pane: "advanced", anchor: "diagnostics" },
+  // AJ-E2027: what AI Juggler does on its own, and when.
+  scheduled: { pane: "advanced", anchor: "scheduled" },
   uninstall: { pane: "advanced", anchor: "uninstall" },
   privacy: { pane: "privacy" },
   keyboard: { pane: "keyboard" },
