@@ -207,6 +207,7 @@ pub fn resolve(request: &str, all: &[Candidate]) -> Resolved {
     }
     let picker = settle_twins(all, &live, &said, &mut cands);
     session_over_namesake(all, &said, &mut cands);
+    longer_name_wins(all, &mut cands);
     cands.truncate(6);
     Resolved {
         candidates: cands,
@@ -355,5 +356,26 @@ fn session_over_namesake(all: &[Candidate], said: &[String], cands: &mut Vec<usi
         .any(|o| o == holder.name);
     if belongs && spaced(&s.name) == spaced(&holder.name) {
         *cands = vec![session];
+    }
+}
+
+/// Of names said in full where one holds the other ("Pattern export" and
+/// "pattern"), the longer one (v9's W28).
+fn longer_name_wins(all: &[Candidate], cands: &mut Vec<usize>) {
+    let sets: Vec<Vec<String>> = cands.iter().map(|&i| spaced(&all[i].name)).collect();
+    let held = |a: &[String], b: &[String]| a.len() < b.len() && a.iter().all(|x| b.contains(x));
+    let keep: Vec<usize> = cands
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| {
+            !sets
+                .iter()
+                .enumerate()
+                .any(|(j, other)| j != *i && held(&sets[*i], other))
+        })
+        .map(|(_, &c)| c)
+        .collect();
+    if !keep.is_empty() {
+        *cands = keep;
     }
 }

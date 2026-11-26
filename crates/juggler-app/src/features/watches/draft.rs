@@ -153,7 +153,12 @@ fn starts(haystack: &[String], stems: &[&str]) -> Option<usize> {
         .position(|w| stems.iter().any(|s| w.starts_with(s)))
 }
 
-const ASK_TO_TELL: [&str; 22] = [
+const ASK_TO_TELL: [&str; 27] = [
+    "page me",
+    "message me",
+    "need to know",
+    "want to know",
+    "want to hear",
     "let me know",
     "tell me",
     "notify",
@@ -170,14 +175,18 @@ const ASK_TO_TELL: [&str; 22] = [
     "gib mir bescheid",
     "bescheid",
     "benachrichtig",
-    "melde dich",
+    "melde",
     "informier",
     "weck mich",
     "erinner",
     "warne mich",
     "alarmier",
 ];
-const WHEN: [&str; 14] = [
+const WHEN: [&str; 18] = [
+    "any time",
+    "next time",
+    "the moment",
+    "the minute",
     "when",
     "whenever",
     "if",
@@ -211,7 +220,10 @@ pub fn is_watch_request(text: &str) -> bool {
     };
     // A reminder is asked for in its own words ("remind me at 5"): answered
     // with what can't be watched and the nearest (harness v7, as measured).
-    has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]))
+    // "I want to know about every new session": an ask about a condition.
+    let about = has(&["want to know about", "need to know about", "hear about"])
+        && !cue_conditions(text).is_empty();
+    has(&ASK_TO_TELL) && (has(&WHEN) || has(&["remind", "erinner"]) || about)
 }
 
 /// The number words the requests use (English, German); the reminder
@@ -558,8 +570,10 @@ pub fn cue_conditions(text: &str) -> Vec<String> {
                     "absturz",
                     "abgestürzt",
                     "scheiter",
+                    "schief",
                 ],
             ) || is(i, &["breaks", "broke", "broken", "kaputt"])
+                || (is(i, &["wrong"]) && i > 0 && is(i - 1, &["goes", "go", "went"]))
         }),
         ("finishes", &|i| {
             pre(
@@ -641,10 +655,13 @@ pub fn param_for(text: &str, code: &str) -> Option<String> {
     match code {
         "stuck" | "asks_you" | "idle_for" => {}
         "runway_below" => {
+            // "30%" loses its sign to the word split: the text keeps it.
             let w = words(text);
             return w.iter().enumerate().find_map(|(i, x)| {
                 let n: String = x.chars().take_while(char::is_ascii_digit).collect();
                 let pct = x.ends_with('%')
+                    || text.contains(&format!("{n}%"))
+                    || text.contains(&format!("{n} %"))
                     || w.get(i + 1)
                         .is_some_and(|s| ["%", "percent", "prozent"].contains(&s.as_str()));
                 (!n.is_empty() && pct).then_some(n)
@@ -663,10 +680,34 @@ pub fn param_for(text: &str, code: &str) -> Option<String> {
         }
         _ => return None,
     }
-    request_numbers(text)
-        .into_iter()
-        .find(|n| *n >= 1)
-        .map(|n| n.to_string())
+    // v10: a minutes value only with a time unit ("10 minutes", "an
+    // hour"): v9's W28 read "the … one" as one minute.
+    minutes_said(text).map(|n| n.to_string())
+}
+
+/// The minutes a request states with a time unit, hours as minutes.
+fn minutes_said(text: &str) -> Option<u32> {
+    let w = words(text);
+    (1..w.len()).find_map(|i| {
+        let unit = w[i].as_str();
+        let hours = ["h", "hour", "hours", "hrs", "stunde", "stunden"].contains(&unit);
+        let minutes = ["min", "mins", "minute", "minutes", "minuten"].contains(&unit);
+        if !(hours || minutes) {
+            return None;
+        }
+        let half = i >= 2 && w[i - 1] == "an" && w[i - 2] == "half";
+        let n = match w[i - 1].as_str() {
+            "a" | "an" | "eine" | "einer" => 1,
+            x => request_numbers(x).into_iter().next()?,
+        };
+        Some(if half {
+            30
+        } else if hours {
+            n * 60
+        } else {
+            n
+        })
+    })
 }
 
 /// The lifetime the request's words say, by code; unsaid when none.
@@ -705,14 +746,44 @@ pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
     if ends.iter().any(|p| has(p)) {
         return LifetimeChoice::UntilEnds;
     }
+    // v10: lifetimes said in words. Once first ("just this once", "the next
+    // time", "einmal"); a bare "once" is "when" (v8's W13, W24).
+    let once = [
+        "just this once",
+        "just once",
+        "only once",
+        "once only",
+        "one time",
+        "next time",
+        "just the first time",
+        "only the first time",
+        "nur beim nächsten mal",
+        "beim nächsten mal",
+        "nur einmal",
+        "einmal",
+    ];
+    if once.iter().any(|p| has(p)) {
+        return LifetimeChoice::Once;
+    }
     let always = [
         "whenever",
         "every time",
         "each time",
+        "any time",
         "from now on",
         "until i say stop",
         "until i remove it",
         "always",
+        "permanently",
+        "permanent",
+        "keep watching",
+        "keep that on",
+        "keep it on",
+        "for good",
+        "forever",
+        "indefinitely",
+        "dauerhaft",
+        "auf dauer",
         "immer wenn",
         "immer",
         "jedes mal",
@@ -721,25 +792,18 @@ pub fn lifetime_for(ask: &Ask<'_>) -> LifetimeChoice {
     if always.iter().any(|p| has(p)) {
         return LifetimeChoice::Always;
     }
-    if ["today", "tonight", "this evening", "heute"]
-        .iter()
-        .any(|p| has(p))
-    {
-        return LifetimeChoice::Today;
-    }
-    // A bare "once" is "when" (v8's W13, W24); a lifetime only as "just
-    // once", "only once", "one time", "the first time".
-    let once = [
-        "just once",
-        "only once",
-        "once only",
-        "one time",
-        "just the first time",
-        "only the first time",
-        "nur einmal",
+    let today = [
+        "for the rest of today",
+        "for today",
+        "today",
+        "tonight",
+        "this evening",
+        "bis heute abend",
+        "für heute",
+        "heute",
     ];
-    if once.iter().any(|p| has(p)) {
-        return LifetimeChoice::Once;
+    if today.iter().any(|p| has(p)) {
+        return LifetimeChoice::Today;
     }
     LifetimeChoice::Unsaid
 }
@@ -1078,7 +1142,7 @@ fn draft_in(
         return (Outcome::Drafted(out), calls);
     }
     if !found.picker.is_empty() {
-        let conds = conditions_of(&read, &conds_said);
+        let conds = conditions_of(&masked(ask), &conds_said);
         return (
             Outcome::Drafted(WatchDrafted::Pick {
                 draft: draft_info(Vec::new(), conds, lifetime_for(whole)),
@@ -1144,7 +1208,7 @@ fn draft_in(
     if targets.is_empty() || conds.is_empty() {
         return (Outcome::Drafted(WatchDrafted::Form), calls);
     }
-    let conditions = conditions_of(&read, &conds);
+    let conditions = conditions_of(&masked(ask), &conds);
     let lifetime = match lifetime_for(whole) {
         LifetimeChoice::UntilEnds if !targets.iter().all(|t| t.kind() == TargetKind::Session) => {
             LifetimeChoice::Unsaid
@@ -1290,7 +1354,20 @@ pub(super) fn threshold(text: &str) -> Option<(String, &'static [&'static str])>
         if !digits.chars().next().is_some_and(|c| c.is_ascii_digit()) {
             continue;
         }
-        let unit = w.get(i + 1).map_or("", String::as_str);
+        // "1.5 million tokens": the unit after a multiplier (v9's W47).
+        let skip = usize::from(w.get(i + 1).is_some_and(|m| {
+            [
+                "k",
+                "thousand",
+                "million",
+                "millions",
+                "billion",
+                "tausend",
+                "millionen",
+            ]
+            .contains(&m.as_str())
+        }));
+        let unit = w.get(i + 1 + skip).map_or("", String::as_str);
         let near: Option<&'static [&'static str]> = if money
             || ["dollars", "dollar", "usd", "eur", "euro", "euros", "bucks"].contains(&unit)
         {
@@ -1314,9 +1391,9 @@ pub(super) fn threshold(text: &str) -> Option<(String, &'static [&'static str])>
             let end = if money
                 && !["dollars", "dollar", "usd", "eur", "euro", "euros", "bucks"].contains(&unit)
             {
-                i + 1
+                i + 1 + skip
             } else {
-                i + 2
+                i + 2 + skip
             };
             let shown: Vec<String> = w[start..end.min(w.len())]
                 .iter()

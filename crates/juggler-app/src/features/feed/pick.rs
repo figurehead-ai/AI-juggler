@@ -337,7 +337,7 @@ fn holds_phrase(text_lower: &str, phrases: &[&str]) -> bool {
 
 /// The sentences: split after `.`, `!` or `?` when a space or the end
 /// follows (a file name's dot stays), and at line breaks.
-fn sentences(text: &str) -> Vec<String> {
+pub(crate) fn sentences(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut chars = text.chars().peekable();

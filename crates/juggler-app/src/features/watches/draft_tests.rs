@@ -584,3 +584,189 @@ fn what_code_fully_understands_still_drafts() {
         assert_eq!(d.lifetime, lifetime, "{request}");
     }
 }
+
+fn v9_candidates() -> Vec<Candidate> {
+    let app = |id: &str, name: &str| owner(WatchTarget::App(id.into()), name, &SESSION, &[]);
+    vec![
+        session("S-km", "Karten mischen", "karten", "Codex"),
+        session("S-gp", "gartenplaner", "garten", "Claude Code"),
+        session("S-pe", "Pattern export", "pattern", "Codex"),
+        session("S-ci", "Chapter index", "book", "Codex"),
+        session("S-tr", "Till rounding", "till", "Codex"),
+        session("S-bs", "billing-sync", "billing", "Codex"),
+        session("S-ck", "cache keys", "cache", "Codex"),
+        owner(
+            WatchTarget::Project("pattern".into()),
+            "pattern",
+            &SESSION,
+            &[],
+        ),
+        owner(WatchTarget::Project("till".into()), "till", &SESSION, &[]),
+        owner(
+            WatchTarget::Project("monorepo-ci".into()),
+            "monorepo-ci",
+            &SESSION,
+            &[],
+        ),
+        owner(
+            WatchTarget::Account("acc-h".into()),
+            "Harbor Team",
+            &["hits_limit", "runway_below", "runway_resets"],
+            &[],
+        ),
+        app("cursor", "Cursor"),
+        app("opencode", "OpenCode"),
+        app("studio", "Claude Code CLI · Studio"),
+        Candidate {
+            offered: ["finishes", "starts", "fails", "asks_you"]
+                .map(str::to_owned)
+                .to_vec(),
+            ..app("any-apps", "Codex")
+        },
+    ]
+}
+
+/// v10: each v9 miss (V9-W01, W02, W03, W18, W21, W24, W25, W28, W30, W32,
+/// W36, W37, W40, W41, W55, W56, W58; their own requests where v9's
+/// `summary.md` quotes them, else fresh words of their recorded shape),
+/// drafted as gold reads it, by code with no call.
+#[test]
+fn v9s_misses_draft_as_said() {
+    let always = LifetimeChoice::Always;
+    let cases: [(&str, WatchTarget, &str, Option<Param>, LifetimeChoice); 16] = [
+        (
+            "Melde dich, wenn Karten mischen etwas fragt, dauerhaft",
+            WatchTarget::Session("S-km".into()),
+            "asks_you",
+            None,
+            always,
+        ),
+        (
+            "page me during quiet hours too when Harbor Team goes below 15 percent, permanently",
+            WatchTarget::Account("acc-h".into()),
+            "runway_below",
+            Some(Param::Percent(15)),
+            always,
+        ),
+        (
+            "warn me when Harbor Team drops below 30% runway, and keep that on permanently",
+            WatchTarget::Account("acc-h".into()),
+            "runway_below",
+            Some(Param::Percent(30)),
+            always,
+        ),
+        (
+            "Wenn Cursor sein Limit erreicht, gib mir einmal Bescheid",
+            WatchTarget::App("cursor".into()),
+            "hits_limit",
+            None,
+            LifetimeChoice::Once,
+        ),
+        (
+            "Tell me just this once when billing-sync finishes.",
+            WatchTarget::Session("S-bs".into()),
+            "finishes",
+            None,
+            LifetimeChoice::Once,
+        ),
+        (
+            "Tell me the next time billing-sync fails.",
+            WatchTarget::Session("S-bs".into()),
+            "fails",
+            None,
+            LifetimeChoice::Once,
+        ),
+        (
+            "Sag mir nur beim nächsten Mal Bescheid, wenn billing-sync fertig ist.",
+            WatchTarget::Session("S-bs".into()),
+            "finishes",
+            None,
+            LifetimeChoice::Once,
+        ),
+        (
+            "out of every session I have open, let me know when the Pattern export one asks me something",
+            WatchTarget::Session("S-pe".into()),
+            "asks_you",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Bei all meinen Projekten: melde mir bitte, wenn gartenplaner scheitert, für heute",
+            WatchTarget::Session("S-gp".into()),
+            "fails",
+            None,
+            LifetimeChoice::Today,
+        ),
+        (
+            "whatever else is going on, I need to know the moment Till rounding finishes",
+            WatchTarget::Session("S-tr".into()),
+            "finishes",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Tell me when all monorepo-ci sessions fail.",
+            WatchTarget::Project("monorepo-ci".into()),
+            "fails",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Tell me when billing-sync fails, but hold it until quiet hours are over.",
+            WatchTarget::Session("S-bs".into()),
+            "fails",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Let me know, say, when billing-sync finishes.",
+            WatchTarget::Session("S-bs".into()),
+            "finishes",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Ping me if any OpenCode session fails.",
+            WatchTarget::App("opencode".into()),
+            "fails",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+        (
+            "Let me know any time Claude Code CLI · Studio hits a limit.",
+            WatchTarget::App("studio".into()),
+            "hits_limit",
+            None,
+            always,
+        ),
+        (
+            "Tell me if anything goes wrong with Chapter index.",
+            WatchTarget::Session("S-ci".into()),
+            "fails",
+            None,
+            LifetimeChoice::Unsaid,
+        ),
+    ];
+    let c = v9_candidates();
+    for (request, target, code, param, lifetime) in cases {
+        let fake = Fake::new(&["FAIL"]);
+        let out = run_on(&c, request, &fake);
+        let d = filled(&out).unwrap_or_else(|| unreachable!("{request}: {out:?}"));
+        assert_eq!(d.targets, vec![target], "{request}");
+        assert_eq!(codes(d), [code], "{request}");
+        assert_eq!(
+            d.conditions[0].param, param,
+            "{request}: no invented number"
+        );
+        assert_eq!(d.lifetime, lifetime, "{request}");
+        assert_eq!(fake.calls(), 0, "{request}");
+    }
+    // Still fail closed: the two unsupported misses get their nearest.
+    for request in [
+        "I want to know about every new session, leave out OpenCode",
+        "warn me when cache keys uses more than 1.5 million tokens today",
+    ] {
+        let fake = Fake::new(&["FAIL"]);
+        assert_told_back(request, run_on(&c, request, &fake), &fake);
+    }
+}

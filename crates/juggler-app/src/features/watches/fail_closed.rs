@@ -166,6 +166,7 @@ pub fn refused(ask: &Ask<'_>) -> Option<WatchDrafted> {
         && named
         && !selection(&w, q)
         && !within(&read, &w[q])
+        && !entity_wins(ask, &found)
     {
         return Some(WatchDrafted::CantWatch {
             asked: w[q..(q + 5).min(w.len())].join(" "),
@@ -179,7 +180,9 @@ pub fn refused(ask: &Ask<'_>) -> Option<WatchDrafted> {
 fn meaning_at(w: &[String]) -> Option<usize> {
     (0..w.len()).find(|&i| {
         let next = w.get(i + 1).map_or("", String::as_str);
-        (MEANING.contains(&w[i].as_str()) && !(w[i] == "but" && ["only", "just"].contains(&next)))
+        (MEANING.contains(&w[i].as_str())
+            && !(w[i] == "but" && ["only", "just"].contains(&next))
+            && !(w[i] == "but" && w[i + 1..(i + 9).min(w.len())].iter().any(|x| x == "quiet")))
             || MEANING_PHRASES.iter().any(|p| {
                 let p = words(p);
                 w.len() >= i + p.len() && w[i..i + p.len()] == p[..]
@@ -191,9 +194,46 @@ fn meaning_at(w: &[String]) -> Option<usize> {
     })
 }
 
+/// v10: the named entity is the subject or object of the condition's own
+/// clause ("Bei all meinen Projekten: … wenn gartenplaner scheitert";
+/// "any time the billing-sync session asks me"; "anything goes wrong with
+/// Chapter index"; "any OpenCode session fails"): that clause names it and
+/// holds no broad word, or the broad word is "any time", an indefinite
+/// "anything … with" the entity, or stands right before its name.
+fn entity_wins(ask: &Ask<'_>, found: &resolve::Resolved) -> bool {
+    let [one] = found.candidates[..] else {
+        return false;
+    };
+    let name = words(&ask.candidates[one].name);
+    sentences(ask.request)
+        .iter()
+        .flat_map(|s| s.split([',', ':']))
+        .any(|clause| {
+            let w = words(clause);
+            let Some(at) = (0..w.len()).find(|&i| w[i..].starts_with(&name)) else {
+                return false;
+            };
+            if cue_conditions(clause).is_empty() {
+                return false;
+            }
+            let Some(q) = w.iter().position(|x| QUANTIFIERS.contains(&x.as_str())) else {
+                return true;
+            };
+            let any_time = w.get(q + 1).is_some_and(|x| x == "time");
+            let indefinite = ["anything", "something", "etwas"].contains(&w[q].as_str())
+                && at > q
+                && ["with", "about", "in", "on", "for", "mit", "bei"].contains(&w[at - 1].as_str());
+            let right_before = at > q
+                && w[q + 1..at]
+                    .iter()
+                    .all(|x| ["the", "my", "of"].contains(&x.as_str()));
+            any_time || indefinite || right_before
+        })
+}
+
 /// "of all my sessions", "out of all", "von allen": a selection, not a scope.
 fn selection(w: &[String], q: usize) -> bool {
-    q > 0 && ["of", "among", "from", "von", "unter"].contains(&w[q - 1].as_str())
+    q > 0 && ["of", "among", "from", "von", "unter", "bei"].contains(&w[q - 1].as_str())
 }
 
 /// "anything in pier", "any session of the shop project": the quantifier
@@ -269,7 +309,8 @@ pub fn watch_clause(ask: &Ask<'_>) -> Option<String> {
         .trim_end_matches(['.', '!', '?'])
         .trim()
         .to_owned();
-    for sentence in ask.request.split(['.', ';', '!', '?']) {
+    for sentence in sentences(ask.request) {
+        let sentence = sentence.as_str();
         let lower = sentence.to_lowercase();
         let Some(at) = ASKS.iter().filter_map(|a| lower.find(a)).min() else {
             continue;
@@ -284,4 +325,15 @@ pub fn watch_clause(ask: &Ask<'_>) -> Option<String> {
         return (part != whole).then_some(part);
     }
     None
+}
+
+/// The sentences (the feed's split: after `.`, `!` or `?` when a space or
+/// the end follows, so "1.5 million" stays whole), then at `;`.
+fn sentences(text: &str) -> Vec<String> {
+    crate::features::feed::pick::sentences(text)
+        .iter()
+        .flat_map(|s| s.split(';'))
+        .map(|s| s.trim().trim_end_matches(['.', '!', '?']).to_owned())
+        .filter(|s| !s.is_empty())
+        .collect()
 }
