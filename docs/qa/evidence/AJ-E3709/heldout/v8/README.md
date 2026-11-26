@@ -7,3 +7,5 @@
 - **Lifetimes:** gold uses `once`, `today` and `always`. An unsaid lifetime is gold `today`. "today" resolves against 2026-11-18.
 - **Turns:** mostly multi-clause (outcome or decision plus side details, file changes, step counts that are not test counts, reverted work, questions, tests passed, failed or not run).
 - All names are fictional and generic; paths are project-relative.
+
+**Gold lifetimes normalised (Opus, 2026-11-26, before any run):** `today` → `until:2026-11-18T23:59:00Z` and `always` → `until_removed`, the forms v5r3's scorer reads; `once` unchanged. Nothing else edited.
