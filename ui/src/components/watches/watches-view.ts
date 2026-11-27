@@ -15,6 +15,7 @@ import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
 import type { WatchInfo } from "../../types/generated/WatchInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
 import { shortName } from "../../lib/session-titles";
+import { sessionState } from "../../lib/rail-items";
 import { clock, pastDay, pastWhen } from "../../lib/time-words";
 import { ENDED, KIND, ROW } from "./watches-words";
 
@@ -28,8 +29,14 @@ export const MANY_AT = 8;
 export const FIRST_ROWS = 10;
 export const MORE_ROWS = 20;
 
-/** Sessions that count as open now. */
-const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked", "idle"]);
+/** 0.5.2 G34 (RW1: the picker listed idle sessions as "Working"): a
+ * session's state and its word are the rail's, by one rule
+ * (`sessionState`: the live state its hooks report, its need by D-117),
+ * never its stored status alone. Open: any state but ended. */
+function liveState(session: InstanceInfo): { open: boolean; word: string } {
+  const now = sessionState(session);
+  return { open: now.state !== "ended", word: now.word };
+}
 
 /** An App as the Watches view needs it (an `AppModel`): its App id
  * (`cli:<folder>`, `app:<host>:<instance>`), the one every surface uses. */
@@ -86,6 +93,8 @@ export interface TargetOption {
   open: boolean;
   /** When it was last active, for Recent. */
   at: number;
+  /** 0.5.2 G32: its sessions open now (an App, a project, any session). */
+  openSessions?: number;
 }
 
 export function targetKey(target: WatchTarget): string {
@@ -95,8 +104,6 @@ export function targetKey(target: WatchTarget): string {
 export function sameTarget(a: WatchTarget, b: WatchTarget): boolean {
   return targetKey(a) === targetKey(b);
 }
-
-const STATUS_WORDS: Record<string, string> = { running: "Working", waiting_user: "Asks you", stuck: "Looks stuck", starting: "Starting", quota_blocked: "At its limit", idle: "Idle" };
 
 function projectName(sources: TargetSources, id: string | null): string | null {
   return id === null ? null : (sources.projects.find((p) => p.id === id)?.name ?? null);
@@ -109,19 +116,20 @@ export function targetBook(sources: TargetSources): Map<string, TargetOption> {
 
   for (const session of sources.sessions) {
     const target: WatchTarget = { kind: "session", id: session.id };
-    const open = OPEN.has(session.status);
-    const parts = [appOfSession(session, sources.apps)?.name ?? session.account_label, projectName(sources, session.project_id), open ? (STATUS_WORDS[session.status] ?? null) : "Ended"].filter(Boolean);
+    const { open, word } = liveState(session);
+    const parts = [appOfSession(session, sources.apps)?.name ?? session.account_label, projectName(sources, session.project_id), word].filter(Boolean);
     add({ target, key: targetKey(target), kind: "session", name: shortName(session, sources.now), line: parts.join(" · "), tool: session.provider, open, at: session.last_activity_ms ?? session.started_at_ms });
   }
   for (const app of sources.apps) {
     const target: WatchTarget = { kind: "app", id: app.id };
-    const last = Math.max(0, ...sources.sessions.filter((s) => appOfSession(s, sources.apps)?.id === app.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
-    add({ target, key: targetKey(target), kind: "app", name: app.name, line: `${KIND.app} · ${KIND.everySessionInIt}`, tool: app.tool, open: false, at: last });
+    const its = sources.sessions.filter((s) => appOfSession(s, sources.apps)?.id === app.id);
+    const last = Math.max(0, ...its.map((s) => s.last_activity_ms ?? s.started_at_ms));
+    add({ target, key: targetKey(target), kind: "app", name: app.name, line: `${KIND.app} · ${KIND.everySessionInIt}`, tool: app.tool, open: false, at: last, openSessions: its.filter((s) => liveState(s).open).length });
   }
   for (const project of sources.projects) {
     const target: WatchTarget = { kind: "project", id: project.id };
-    const open = sources.sessions.filter((s) => s.project_id === project.id && OPEN.has(s.status)).length;
-    add({ target, key: targetKey(target), kind: "project", name: project.name, line: open > 0 ? `${KIND.project} · ${KIND.openSessions(open)}` : `${KIND.project} · ${KIND.everySessionInIt}`, tool: null, open: false, at: project.last_activity_ms ?? 0 });
+    const open = sources.sessions.filter((s) => s.project_id === project.id && liveState(s).open).length;
+    add({ target, key: targetKey(target), kind: "project", name: project.name, line: open > 0 ? `${KIND.project} · ${KIND.openSessions(open)}` : `${KIND.project} · ${KIND.everySessionInIt}`, tool: null, open: false, at: project.last_activity_ms ?? 0, openSessions: open });
   }
   for (const pool of sources.pools) {
     const target: WatchTarget = { kind: "pool", id: pool.id };
@@ -135,7 +143,7 @@ export function targetBook(sources: TargetSources): Map<string, TargetOption> {
     const last = Math.max(0, ...sources.sessions.filter((s) => s.account_id === account.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
     add({ target, key: targetKey(target), kind: "account", name: account.label, line: signIns > 0 ? `${KIND.account} · ${KIND.appsSignIn(signIns)}` : `${KIND.account} · ${KIND.roomAndLimits}`, tool: null, open: false, at: last });
   }
-  add({ target: { kind: "any" }, key: "any", kind: "any", name: "Any session", line: KIND.any, tool: null, open: false, at: 0 });
+  add({ target: { kind: "any" }, key: "any", kind: "any", name: "Any session", line: KIND.any, tool: null, open: false, at: 0, openSessions: sources.sessions.filter((s) => liveState(s).open).length });
   return book;
 }
 

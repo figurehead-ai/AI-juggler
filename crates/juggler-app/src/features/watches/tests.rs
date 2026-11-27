@@ -1312,6 +1312,36 @@ fn fifty_watches_hear_an_event_in_under_a_millisecond() {
     );
 }
 
+/// 0.5.2 G32 (RW1 H1, H3): "Idle for 5 min" on a project with a session
+/// already idle never fired: a group target's member was armed only by
+/// its next observation, and an idle session sends none. Its open
+/// sessions are armed at the watch's start, as a session target's is;
+/// one that was armed keeps its time; another project's is left alone.
+#[test]
+fn a_group_target_s_open_sessions_count_idle_from_the_start() {
+    let w = watch(
+        "w-1d1e",
+        vec![WatchTarget::Project("proj-1".into())],
+        vec![cond_p("idle_for", Param::Minutes(5))],
+        Lifetime::Once,
+    );
+    let mut engine = engine_with(vec![w.clone()]);
+    assert_eq!(engine.next_wake(), None, "nothing armed without a member");
+    let elsewhere = Subject {
+        project: Some("proj-2".into()),
+        ..subject("other")
+    };
+    engine.arm_open(&w.id, &[subject("docs-1"), elsewhere], T);
+    assert_eq!(engine.next_wake(), Some(T + 5 * MIN));
+    // Armed again later (a second save, a restore): the first time holds.
+    engine.arm_open(&w.id, &[subject("docs-1")], T + 2 * MIN);
+    assert_eq!(engine.next_wake(), Some(T + 5 * MIN));
+    let out = engine.tick(T + 5 * MIN);
+    assert_eq!(out.fires.len(), 1, "{:?}", out.fires);
+    assert_eq!(out.fires[0].session.as_deref(), Some("docs-1"));
+    assert_eq!(out.fires[0].condition, "idle_for");
+}
+
 mod durable_tests;
 mod live_tests;
 mod store_tests;

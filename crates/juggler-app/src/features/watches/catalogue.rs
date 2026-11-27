@@ -100,6 +100,16 @@ pub fn catalogue(
         .collect()
 }
 
+/// 0.5.2 G32: the condition counts from an open session (its rule arms at
+/// the start: `idle_for`), so a group target with no session open can't
+/// meet it.
+#[must_use]
+pub fn counts_from_open(registry: &Registry, code: &str) -> bool {
+    registry
+        .get(code)
+        .is_some_and(|rule| rule.on_start(None, 0) != super::conditions::Verdict::Ignore)
+}
+
 /// Every condition of `watch` is on offer for every target, given what
 /// each target observes (`observed[i]` for `watch.targets[i]`).
 ///

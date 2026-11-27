@@ -202,7 +202,7 @@ fn index_key(target: &WatchTarget) -> IndexKey {
 }
 
 /// The target covers what the observation is about.
-fn covers(target: &WatchTarget, subject: &Subject) -> bool {
+pub(crate) fn covers(target: &WatchTarget, subject: &Subject) -> bool {
     match target {
         WatchTarget::Session(id) => subject.session.as_deref() == Some(id),
         WatchTarget::App(id) => subject.apps.iter().any(|a| a == id),
@@ -301,19 +301,67 @@ impl Engine {
     }
 
     fn start(&self, live: &mut Live, now_ms: i64) {
-        for (t, target) in live.watch.targets.iter().enumerate() {
-            let WatchTarget::Session(session) = target else {
+        let sessions: Vec<(usize, String)> = live
+            .watch
+            .targets
+            .iter()
+            .enumerate()
+            .filter_map(|(t, target)| match target {
+                WatchTarget::Session(session) => Some((t, session.clone())),
+                _ => None,
+            })
+            .collect();
+        for (t, session) in sessions {
+            self.arm_member(live, t, &session, now_ms, true);
+        }
+    }
+
+    /// Arms what counts from the start (`idle_for`) for `session` within
+    /// target `t`; `again`: over a slot already armed, else that keeps its
+    /// time.
+    fn arm_member(&self, live: &mut Live, t: usize, session: &str, now_ms: i64, again: bool) {
+        for (c, condition) in live.watch.conditions.iter().enumerate() {
+            let Some(rule) = self.registry.get(&condition.code) else {
                 continue;
             };
-            for (c, condition) in live.watch.conditions.iter().enumerate() {
-                let Some(rule) = self.registry.get(&condition.code) else {
-                    continue;
-                };
-                if let Verdict::Arm { at_ms } = rule.on_start(condition.param.as_ref(), now_ms) {
-                    live.slots.entry((t, session.clone(), c)).or_default().armed = Some(at_ms);
+            if let Verdict::Arm { at_ms } = rule.on_start(condition.param.as_ref(), now_ms) {
+                let slot = live.slots.entry((t, session.to_owned(), c)).or_default();
+                if again || slot.armed.is_none() {
+                    slot.armed = Some(at_ms);
                 }
             }
         }
+    }
+
+    /// 0.5.2 G32: a group target's (an App, a project, any session) open
+    /// sessions are armed now for the conditions that count from the start
+    /// (`idle_for`: "a session in it stays idle for N minutes"), as a
+    /// session target is in [`Self::add`]; a session that emits nothing
+    /// (idle already) was never armed before, so the watch never fired.
+    /// `open`: every session open now, as observations name them. A slot
+    /// already armed (put back from the store, G12) keeps its time.
+    pub fn arm_open(&mut self, id: &WatchId, open: &[Subject], now_ms: i64) {
+        let Some(mut live) = self.live.remove(id) else {
+            return;
+        };
+        if !live.watch.paused {
+            let members: Vec<(usize, String)> = live
+                .watch
+                .targets
+                .iter()
+                .enumerate()
+                .filter(|(_, target)| !matches!(target, WatchTarget::Session(_)))
+                .flat_map(|(t, target)| {
+                    open.iter()
+                        .filter(|subject| covers(target, subject))
+                        .filter_map(move |subject| subject.session.clone().map(|s| (t, s)))
+                })
+                .collect();
+            for (t, session) in members {
+                self.arm_member(&mut live, t, &session, now_ms, false);
+            }
+        }
+        self.live.insert(id.clone(), live);
     }
 
     /// A watch's state as a unit, for saving.

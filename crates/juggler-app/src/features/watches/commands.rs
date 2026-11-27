@@ -475,13 +475,21 @@ pub fn watches_catalogue_impl(
 ) -> AppResult<Vec<CatalogueEntry>> {
     let registry = Registry::shipped();
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    let observed = Facts::new(&storage, state).observes(target);
-    Ok(catalogue::catalogue(
-        &registry,
-        target.kind(),
-        observed,
-        lang,
-    ))
+    let facts = Facts::new(&storage, state);
+    let observed = facts.observes(target);
+    let mut offered = catalogue::catalogue(&registry, target.kind(), observed, lang);
+    // 0.5.2 G32 (D-127): "Is idle for" on an App, a project or any session
+    // means a session in it stays idle for that long; it counts from an
+    // open session, so with none open it can't be met and isn't offered.
+    if !matches!(target, WatchTarget::Session(_))
+        && !facts
+            .open_subjects()
+            .iter()
+            .any(|subject| super::engine::covers(target, subject))
+    {
+        offered.retain(|entry| !catalogue::counts_from_open(&registry, &entry.code));
+    }
+    Ok(offered)
 }
 
 /// A draft checked against the closed set and its targets' Apps, and put
@@ -562,11 +570,25 @@ fn write(
         )?
     };
     let ended = info.state == WatchStateInfo::Ended;
+    // 0.5.2 G32: a group target's open sessions, armed from now for what
+    // counts from the start (idle for).
+    let open = if stored
+        .watch
+        .targets
+        .iter()
+        .any(|target| !matches!(target, WatchTarget::Session(_)))
+    {
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        Facts::new(&storage, state).open_subjects()
+    } else {
+        Vec::new()
+    };
     runtime::with_engine(state, now.now_ms, |engine| {
         if stored.removed || ended {
             engine.remove(&stored.watch.id);
         } else {
             engine.add(stored.watch.clone(), now.now_ms);
+            engine.arm_open(&stored.watch.id, &open, now.now_ms);
         }
     });
     runtime::changed(state);

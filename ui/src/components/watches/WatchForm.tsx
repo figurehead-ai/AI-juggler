@@ -21,7 +21,7 @@ import { LoadingState } from "../LoadingState";
 import type { Param } from "../../types/generated/Param";
 import { WatchPreview, WatchPreviewStrip } from "./WatchPreview";
 import { WatchTargetPicker } from "./WatchTargetPicker";
-import { draftFrom, defaultParam, lifeOf, paramSteps, previewFacts, untilMs, type FormState, type LifeKind } from "./watch-form-state";
+import { codesNow, draftFrom, defaultParam, lifeOf, paramSteps, previewFacts, untilMs, type FormState, type LifeKind } from "./watch-form-state";
 import { MAX_CONDITIONS, splitConditions, targetKey, untilEndsOffered, type TargetOption } from "./watches-view";
 import { CONDITION_LINE, FORM, LIFE, PARAM } from "./watches-words";
 import { CONDITION_ICONS, IconBin, IconCheckCircle, IconChevronD, IconChevronL, IconChevronR, IconEye, IconMoon, LIFETIME_ICONS } from "./watch-icons";
@@ -329,16 +329,16 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
   const { offered, loading } = catalogue;
   const draft = useMemo(() => draftFrom(state), [state]);
   const words = useDraftWords(draft, state.targets.length > 0 && state.codes.length > 0);
-  // Conditions no longer on offer for these targets leave (D-127: hidden,
-  // never shown as unsupported).
-  const kept = loading || state.targets.length === 0 ? state.codes : state.codes.filter((code) => offered.some((e) => e.code === code));
-  if (kept.length !== state.codes.length) setState((was) => ({ ...was, codes: kept }));
+  // What is no longer on offer leaves; until the user picks, the
+  // targets' default follows them (D-127, 0.5.2 G32).
+  const held = codesNow(state, offered, loading, book);
+  if (held.codes.join("|") !== state.codes.join("|")) setState((was) => ({ ...was, codes: held.codes, params: held.entry && !was.params[held.entry.code] ? { ...was.params, [held.entry.code]: defaultParam(held.entry) } : was.params }));
   const set = (change: Partial<FormState>) => setState((was) => ({ ...was, ...change }));
   const flip = (entry: CatalogueEntry, on: boolean) =>
     setState((was) => {
-      if (!on) return { ...was, codes: was.codes.filter((c) => c !== entry.code) };
+      if (!on) return { ...was, auto: false, codes: was.codes.filter((c) => c !== entry.code) };
       if (was.codes.length >= MAX_CONDITIONS) return was;
-      return { ...was, codes: [...was.codes, entry.code], params: { ...was.params, [entry.code]: was.params[entry.code] ?? defaultParam(entry) } };
+      return { ...was, auto: false, codes: [...was.codes, entry.code], params: { ...was.params, [entry.code]: was.params[entry.code] ?? defaultParam(entry) } };
     });
   const at = untilMs(state.untilDay, state.untilTime);
   const past = lifeOf(state) === "until" && at !== null && at <= now;
@@ -378,7 +378,7 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
             {many > 1 && <Matching state={state} set={set} />}
           </FormSection>
           <FormSection n={2} done={state.codes.length > 0} title={FORM.forWhat} help={many === 0 ? undefined : many === 2 ? FORM.forWhatBoth : FORM.forWhatHelp(many)} id={`${ids}-for`}>
-            <ConditionCards state={state} catalogue={catalogue} onFlip={flip} onParam={(code, param) => set({ params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
+            <ConditionCards state={state} catalogue={catalogue} onFlip={flip} onParam={(code, param) => set({ auto: false, params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
           </FormSection>
           <FormSection n={3} done={state.codes.length > 0} title={FORM.until} id={`${ids}-until`}>
             <UntilChoice state={state} set={set} offered={offered} book={book} now={now} />

@@ -32,6 +32,38 @@ export interface FormState {
   untilDay: string | null;
   untilTime: string | null;
   quiet: boolean;
+  /** 0.5.2 G32: the condition is the form's default, not the user's
+   * pick: it follows the targets (a project with no session open starts
+   * with "A new session starts", an account with its limit) until the
+   * user picks one. */
+  auto?: boolean;
+}
+
+/** 0.5.2 G32: the default condition for these targets, among what they
+ * can all report (`offered`): what the first target's kind is most often
+ * watched for, and for an App, a project or any session with none open,
+ * a session starting (nothing in it can end a turn or be idle yet). */
+export function defaultCode(targets: readonly WatchTarget[], offered: readonly CatalogueEntry[], book: Map<string, TargetOption>): string | null {
+  const first = targets[0];
+  const option = first ? optionOf(book, first) : null;
+  const group = option !== null && (option.kind === "app" || option.kind === "project" || option.kind === "any");
+  const order =
+    option?.kind === "account" ? ["hits_limit", "runway_below", "runway_resets"] : option?.kind === "pool" ? ["finishes", "pool_message", "asks_you"] : group && (option.openSessions ?? 0) === 0 ? ["starts", "finishes"] : ["finishes", "asks_you"];
+  return order.find((code) => offered.some((entry) => entry.code === code)) ?? offered[0]?.code ?? null;
+}
+
+/** The conditions the form holds now: what is still on offer for its
+ * targets (D-127: one no longer offered leaves, never shown as
+ * unsupported), or, until the user picks one, the targets' default
+ * (`auto`, 0.5.2 G32) with that card's entry for its parameter. */
+export function codesNow(state: FormState, offered: readonly CatalogueEntry[], loading: boolean, book: Map<string, TargetOption>): { codes: string[]; entry: CatalogueEntry | undefined } {
+  const ready = !loading && state.targets.length > 0;
+  if (state.auto === true) {
+    if (!ready) return { codes: state.codes, entry: undefined };
+    const code = defaultCode(state.targets, offered, book);
+    return { codes: code ? [code] : [], entry: offered.find((e) => e.code === code) };
+  }
+  return { codes: ready ? state.codes.filter((code) => offered.some((e) => e.code === code)) : state.codes, entry: undefined };
 }
 
 /** A parameter's default when its card is picked (the mock's, and none

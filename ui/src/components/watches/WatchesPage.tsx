@@ -154,8 +154,10 @@ function useWatchActions(input: { refresh: () => void; book: Map<string, TargetO
 /** New or Edit, in place of the list. */
 function FormView({ view, book, quiet, count, limit, now, onClose, onSaved, remove }: { view: Extract<View, { kind: "form" }>; book: Map<string, TargetOption>; quiet: { from: string; to: string } | null; count: number; limit: number; now: number; onClose: () => void; onSaved: () => void; remove: (info: WatchInfo) => void }): JSX.Element {
   const initial = stateFrom(view.draft ?? EMPTY_DRAFT, now);
-  // Finishes, the common choice, is picked already (the mock's).
-  if (view.mode === "new" && initial.codes.length === 0) initial.codes = ["finishes"];
+  // 0.5.2 G32: a new watch starts with the targets' default condition
+  // (Its turn ends for a session, the mock's), which follows the targets
+  // until the user picks one.
+  if (view.mode === "new" && initial.codes.length === 0) initial.auto = true;
   const editing = view.editing;
   return (
     <WatchForm

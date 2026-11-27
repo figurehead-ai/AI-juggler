@@ -299,6 +299,21 @@ impl<'a> Facts<'a> {
         })
     }
 
+    /// 0.5.2 G32: the sessions open now (the store's live ones: any state
+    /// but ended), each as an observation about it would name it (its
+    /// App, project, account and pools), so a group target's open members
+    /// can be found by `engine::covers`.
+    #[must_use]
+    pub fn open_subjects(&self) -> Vec<Subject> {
+        self.storage
+            .sessions()
+            .live()
+            .unwrap_or_default()
+            .iter()
+            .map(|row| self.session_subject(row.id.as_str()))
+            .collect()
+    }
+
     /// The target still exists (`None` when the store can't say).
     #[must_use]
     pub fn exists(&self, target: &WatchTarget) -> Option<bool> {

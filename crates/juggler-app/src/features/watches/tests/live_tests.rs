@@ -593,3 +593,40 @@ fn an_app_watch_hears_every_launch_setting_and_old_ones_move_to_the_app_id() {
         named.words
     );
 }
+
+/// 0.5.2 G32 (D-127): "Is idle for" on a project counts from a session
+/// open in it; with none open it can't be met, so it isn't offered. Its
+/// other conditions (a turn ending, a new session starting) still are.
+#[test]
+fn idle_for_is_offered_on_a_project_only_with_a_session_open() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = lab(dir.path());
+    let offered = |target: &WatchTarget| -> Vec<String> {
+        commands::watches_catalogue_impl(&state, target, Lang::En)
+            .unwrap()
+            .into_iter()
+            .map(|entry| entry.code)
+            .collect()
+    };
+    let session = offered(&WatchTarget::Session("s1".into()));
+    assert!(session.contains(&"idle_for".to_owned()), "{session:?}");
+    let any = offered(&WatchTarget::Any);
+    assert!(any.contains(&"idle_for".to_owned()), "s1 is open: {any:?}");
+    let empty = offered(&WatchTarget::Project("no-sessions".into()));
+    assert!(!empty.contains(&"idle_for".to_owned()), "{empty:?}");
+    assert!(empty.contains(&"finishes".to_owned()), "{empty:?}");
+    {
+        let storage = state.storage.lock().unwrap();
+        let mut s1 = storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new("s1"))
+            .unwrap();
+        s1.status = SessionStatus::Finished;
+        storage.sessions().update(&s1).unwrap();
+    }
+    let ended = offered(&WatchTarget::Any);
+    assert!(
+        !ended.contains(&"idle_for".to_owned()),
+        "s1 ended: {ended:?}"
+    );
+}
