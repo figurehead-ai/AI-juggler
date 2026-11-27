@@ -23,39 +23,16 @@
     reason = "an example's output is what it prints"
 )]
 
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use juggler_app::features::ai::engine::AiEngine;
-use juggler_app::features::ai::engine::{Draft, Request, Stop};
-use juggler_app::features::ai::engines::apple::Apple;
-use juggler_app::features::ai::engines::local::{Local, Setup};
-use juggler_app::features::ai::models::read_raw;
-use juggler_app::features::ai::models::store::Installed;
-use juggler_app::features::ai::run::{AiFailure, JobModel};
+use juggler_app::features::ai::{
+    engine::{AiEngine, Stop},
+    engines::{apple::Apple, local::Local},
+    run::Timed,
+};
 use juggler_app::features::feed::line::{self, APPLE, LOCAL, Options, TurnView};
 use serde_json::{Value, json};
-
-/// One engine and model, timed.
-struct Timed<'a> {
-    engine: &'a dyn AiEngine,
-    model: String,
-    ms: std::cell::RefCell<Vec<u64>>,
-}
-
-impl JobModel for Timed<'_> {
-    fn generate(&self, request: &Request, stop: &Stop) -> Result<Draft, AiFailure> {
-        let began = Instant::now();
-        let got = self.engine.respond(&self.model, request, stop);
-        let ms = u64::try_from(began.elapsed().as_millis()).unwrap_or(u64::MAX);
-        self.ms.borrow_mut().push(ms);
-        got.map_err(|e| {
-            eprintln!("engine: {e:?}");
-            AiFailure::TimedOut
-        })
-    }
-}
 
 fn arg(args: &[String], name: &str) -> Option<String> {
     args.iter()
@@ -102,38 +79,12 @@ fn local_engine(args: &[String]) -> Option<(Local, String)> {
     let dir = PathBuf::from(arg(args, "--models-dir")?);
     let config: Value =
         serde_json::from_str(&std::fs::read_to_string(arg(args, "--config")?).ok()?).ok()?;
-    let mut section = config["sections"]["models"].clone();
-    if let Some(items) = section["items"].as_array_mut() {
-        for item in items {
-            if let Some(o) = item.as_object_mut() {
-                o.remove("when");
-            }
-        }
-    }
-    let facts = juggler_remote_config::Facts {
-        app_version: juggler_remote_config::Version::new(0, 5, 2),
-        channel: juggler_remote_config::Channel::Nightly,
-        os: juggler_remote_config::Os::Macos,
-        os_version: None,
-        tools: BTreeMap::new(),
-        install: juggler_remote_config::InstallId::from_bytes([0; 16]),
-    };
-    let entry = read_raw(&section, &facts)?
-        .into_iter()
-        .find(|e| e.id == model)?;
-    let sha256 = entry.download.as_ref()?.sha256.clone();
-    let size_bytes = entry.download.as_ref()?.size_bytes;
-    let installed = Installed {
-        entry,
-        sha256,
-        size_bytes,
-        installed_at_ms: 0,
-    };
-    let engine = Local::with(Setup {
-        program: arg(args, "--helper").map(PathBuf::from),
-        models: Some((dir, vec![installed])),
-        ..Setup::default()
-    });
+    let engine = Local::for_listed(
+        &config,
+        &model,
+        dir,
+        arg(args, "--helper").map(PathBuf::from),
+    )?;
     Some((engine, model))
 }
 
@@ -191,16 +142,15 @@ fn main() {
         let plain = line::plain(&view);
         let mut row = json!({"id": id, "view": view_json(&view), "plain": plain});
         if let Some(engine) = engine {
-            let timed = Timed {
-                engine,
-                model: model.clone(),
-                ms: std::cell::RefCell::new(Vec::new()),
-            };
+            let timed = Timed::new(Some(engine), &model);
             let stop = Stop::at(Instant::now() + Duration::from_secs(60));
             let began = Instant::now();
             let (shown, attempts) = line::line(&timed, &view, options, &stop);
             let total = u64::try_from(began.elapsed().as_millis()).unwrap_or(u64::MAX);
-            let ms = timed.ms.borrow().clone();
+            for failure in timed.failures() {
+                eprintln!("engine: {failure}");
+            }
+            let ms = timed.took_ms();
             row["line"] = json!(shown);
             row["attempts"] = json!(
                 attempts

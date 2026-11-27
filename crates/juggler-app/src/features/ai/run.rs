@@ -460,11 +460,13 @@ impl JobModel for LiveJob<'_> {
 
 /// AJ-E3830, AJ-E3831: one engine and model as a job's model, for the
 /// harness rounds the examples run on the app's own engine code: every
-/// call's time kept; with no engine, every call refused (code alone).
+/// call's time kept, and each engine failure's words; with no engine,
+/// every call refused (code alone).
 pub struct Timed<'a> {
     engine: Option<&'a dyn super::engine::AiEngine>,
     model: String,
     took: std::cell::RefCell<Vec<Duration>>,
+    failed: std::cell::RefCell<Vec<String>>,
 }
 
 impl<'a> Timed<'a> {
@@ -475,7 +477,15 @@ impl<'a> Timed<'a> {
             engine,
             model: model.to_owned(),
             took: std::cell::RefCell::new(Vec::new()),
+            failed: std::cell::RefCell::new(Vec::new()),
         }
+    }
+
+    /// Each engine failure so far, as its error reads (`{:?}`), for a
+    /// round's log; a call refused for no engine isn't one.
+    #[must_use]
+    pub fn failures(&self) -> Vec<String> {
+        self.failed.borrow().clone()
     }
 
     /// Each call's time so far, in milliseconds.
@@ -495,7 +505,10 @@ impl JobModel for Timed<'_> {
         let began = std::time::Instant::now();
         let answer = engine.respond(&self.model, request, stop);
         self.took.borrow_mut().push(began.elapsed());
-        answer.map_err(|_| AiFailure::TimedOut)
+        answer.map_err(|e| {
+            self.failed.borrow_mut().push(format!("{e:?}"));
+            AiFailure::TimedOut
+        })
     }
 }
 
