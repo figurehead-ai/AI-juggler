@@ -67,6 +67,9 @@
 #   notebook  NotebookEdit notebooks/report.ipynb: 1 file, no line counts
 #             (files only)
 # Any other line still asks (Bash: npm test), as before.
+# `--lab-turn=KIND` plays that turn once at the start (a session started
+# outside AI Juggler, from a lab terminal, with no terminal input), then
+# idles at its prompt.
 #
 # Like Claude Code it records its session in its folder while it runs
 # (`<CLAUDE_CONFIG_DIR or ~/.claude>/sessions/<pid>.json`: its pid, id,
@@ -174,6 +177,18 @@ if [ "${1:-}" = "--selftest" ]; then
    env -u CLAUDE_CONFIG_DIR HOME="$tmp/home" AIJ_LAB_STANDIN_SECS=30 "$tmp/claude" --settings "$tmp/settings.json" \
      < <(sleep 1; echo "lab: fail"; sleep 12) > "$tmp/out8" 2>&1; echo $? > "$tmp/code8")
   [ "$(cat "$tmp/code8")" = 1 ] || fail "lab: fail ended with $(cat "$tmp/code8"), not 1"
+  # The re-walk's G12: `--lab-turn=edits` with no terminal plays the turn
+  # once at the start, then idles at its prompt in its folder.
+  (cd "$tmp/home/repo" || exit 1
+   HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/.claude-out" AIJ_LAB_STANDIN_SECS=20 "$tmp/claude" --lab-idle --lab-turn=edits \
+     --session-id 33333333-2222-4333-8444-555555555555 < /dev/null > "$tmp/out9" 2>&1 &
+   echo $! > "$tmp/pid9")
+  pid9="$(cat "$tmp/pid9")"
+  for _ in $(seq 150); do grep -q 'The tests pass' "$tmp/out9" 2>/dev/null && break; sleep 0.1; done
+  ls "$tmp"/home/.claude-out/projects/*/33333333-2222-4333-8444-555555555555.jsonl > /dev/null 2>&1 || fail "--lab-turn wrote no transcript"
+  for _ in $(seq 50); do grep -q '"status":"idle"' "$tmp/home/.claude-out/sessions/$pid9.json" 2>/dev/null && break; sleep 0.1; done
+  grep -q '"status":"idle"' "$tmp/home/.claude-out/sessions/$pid9.json" || fail "--lab-turn: not idle after its turn"
+  kill "$pid9"
   grep -q 'The tests fail' "$tmp/out8" || fail "lab: fail: no reply shown"
   # Asking at start (K3), with no terminal at all.
   mkdir -p "$tmp/home/.aij-lab-bin" && touch "$tmp/home/.aij-lab-bin/asks-at-start"
@@ -264,12 +279,14 @@ asks=0
 session=""
 settings=""
 transcript=""
+start_turn=""
 prev=""
 for arg in "$@"; do
   case "$arg" in
     --lab-idle) asks=0 ;;
     --lab-ask) asks=1 ;;
     --lab-open-turn) asks=2 ;;
+    --lab-turn=*) start_turn="${arg#--lab-turn=}" ;;
     --resume=*) session="${arg#--resume=}" ;;
   esac
   case "$prev" in
@@ -468,6 +485,12 @@ else
   printf '\n ✻ Welcome to Claude Code (lab stand-in)\n\n   cwd: %s\n' "$PWD"
 fi
 asking=0
+# RW1's re-walk (G12): a session started outside AI Juggler, in a lab
+# terminal, plays its one lab turn at the start (`--lab-turn KIND`), so
+# it has a conversation AI Juggler lists, then idles at its prompt.
+if [ -n "$start_turn" ] && [ -n "$transcript" ]; then
+  lab_turn "$start_turn" || printf '\n   (a lab stand-in: no lab turn named %s)\n' "$start_turn"
+fi
 if [ "$asks" = 2 ]; then
   # A hung turn: asked, a tool call started, never a result or Stop.
   hook UserPromptSubmit ',"prompt":"(lab)"'
