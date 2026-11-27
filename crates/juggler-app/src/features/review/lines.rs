@@ -22,7 +22,9 @@
 //! agent's words, never git), one output shape for every turn, and
 //! example 2's note in the agent's own words and with no number (the
 //! shared check refuses "streams" for its "stream", and a number no fact
-//! measures); a test keeps the rules equal.
+//! measures); a test keeps the rules equal. 0.5.2 G62: the notes field
+//! asks for one whole phrase per file (Apple's model split R27's one
+//! sentence across two files); the check still refuses a fragment.
 
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
@@ -221,7 +223,7 @@ pub fn shape(files: &[String]) -> Value {
                     "type": "object", "name": "Note",
                     "properties": [
                         {"name": "path", "description": "One of the changed files, as listed in FACTS.", "schema": path},
-                        {"name": "says", "description": "What the MESSAGE says about that file's change, in its words. At most 90 characters.", "schema": {"type": "string", "min": 1, "max": SAYS_MAX}}
+                        {"name": "says", "description": "What the MESSAGE says about that file's change, in its words, as one whole phrase of its own. At most 90 characters.", "schema": {"type": "string", "min": 1, "max": SAYS_MAX}}
                     ]
                 }
             }

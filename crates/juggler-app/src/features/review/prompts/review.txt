@@ -11,7 +11,7 @@ Rules:
 - Write in the message's language.
 
 Fields, in this order:
-- notes: 0 to 5 items, each a path from files_changed and says: what the message says changed in it, at most 90 characters.
+- notes: 0 to 5 items, each a path from files_changed and says: what the message says changed in it, as one whole phrase of its own (never a piece of a sentence split across files), at most 90 characters.
 - risk_reason: why the risk is what it is, in the message's words (never a test result), or none. At most 90 characters.
 - risk: low, medium, high, or unknown when the message and facts don't say.
 
