@@ -18,6 +18,9 @@ the replica's own schema), each ended a minute ago:
   Ended 2.5 hours before the first, so each is its own post (the feed rolls
   up one App's work within two hours into one).
 
+Run again (a fixture that has aged), it removes each thread's earlier
+rollout first, so a thread never has two files.
+
 The folder is the lab's Codex App's, read from the lab's Dev data
 (`accounts`, read-only); every path written is inside the lab and the
 lab's own repos are only named, never written. Nothing real is read.
@@ -148,9 +151,18 @@ def seed(lab: Path, dry_run: bool) -> list[str]:
         tid, lines, start = rollout(thread, cwd, done)
         day = folder / "sessions" / f"{start:%Y}" / f"{start:%m}" / f"{start:%d}"
         path = day / f"rollout-{start:%Y-%m-%dT%H-%M-%S}-{tid}.jsonl"
+        # Written again (the sheet's fixture-age step): the thread's earlier
+        # rollout goes, so one thread never has two files (two threads of
+        # one id, as the RW1 re-walk's set-up found).
+        older = [old for old in (folder / "sessions").glob(f"*/*/*/rollout-*-{tid}.jsonl") if old != path]
+        for old in older:
+            lab_only(old, lab)
+            writes.append(f"{old} (removed: {thread['id']}'s earlier rollout)")
         writes.append(f"{path} ({thread['id']}, {len(lines)} lines, in {thread['project']})")
         if dry_run:
             continue
+        for old in older:
+            old.unlink()
         day.mkdir(parents=True, exist_ok=True)
         path.write_text("\n".join(lines) + "\n")
         db = sqlite3.connect(folder / "state_5.sqlite")
@@ -203,7 +215,9 @@ def main() -> None:
     lab = Path(args.home)
     lab_only(lab, lab)
     for line in seed(lab, args.dry_run):
-        print(("would write " if args.dry_run else "wrote ") + line)
+        removing = "(removed:" in line
+        verb = ("would remove " if removing else "would write ") if args.dry_run else ("" if removing else "wrote ")
+        print(verb + line)
 
 
 if __name__ == "__main__":
