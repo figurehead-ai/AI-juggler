@@ -24,8 +24,8 @@ use std::time::{Duration, Instant};
 
 use base64::Engine as _;
 
-#[path = "../../juggler-supervisor/tests/fixtures/stand_in.rs"]
-mod stand_in;
+#[path = "../../juggler-supervisor/tests/fixtures/stand_in_app.rs"]
+mod stand_in_app;
 use juggler_adapter::{AdapterRegistry, EnvMap, LaunchSpec};
 use juggler_app::state::AppState;
 use juggler_app::{commands, terminal};
@@ -706,10 +706,11 @@ fn fake_desktop_bin() -> PathBuf {
     built
 }
 
-/// A stand-in for a busy Claude app: `fake-desktop` copied to
-/// `…/Claude.app/Contents/MacOS/Claude` (so the running-tools scan sees the
-/// Claude app), running a shell with `children` processes under it, as when
-/// it runs a build. (A copy of a system binary won't do: macOS kills it.)
+/// A stand-in for a busy Claude app: `fake-desktop` as the program of a
+/// whole, signed `…/Claude.app` (so the running-tools scan sees the Claude
+/// app; 0.5.2 G56: [`stand_in_app::make`], never a bare program in a
+/// hand-made bundle, which macOS calls damaged on the screen), running a
+/// shell with `children` processes under it, as when it runs a build.
 /// Killed with its whole group when dropped.
 struct BusyClaudeApp {
     app: std::process::Child,
@@ -717,10 +718,7 @@ struct BusyClaudeApp {
 
 impl BusyClaudeApp {
     fn start(dir: &std::path::Path, children: u32) -> Self {
-        let app = dir.join("Claude.app/Contents/MacOS");
-        std::fs::create_dir_all(&app).unwrap();
-        let exe = app.join("Claude");
-        stand_in::write(&exe, std::fs::read(fake_desktop_bin()).unwrap());
+        let exe = stand_in_app::make(&dir.join("Claude.app"), "Claude", &fake_desktop_bin(), None);
         let ready = dir.join("busy-ready");
         let script = dir.join("busy.sh");
         std::fs::write(
