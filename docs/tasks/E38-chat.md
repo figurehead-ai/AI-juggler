@@ -582,21 +582,44 @@
 3. `scripts/release_scope.py` requires its passing report for any release that changes `features/ai` or `features/bot`.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3829/manifest.md`.
 
-### AJ-E3830 Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | Status: TODO (0.5.2, D-149) | Priority P1 | Effort M | Depends: AJ-E3709, AJ-E3825
+### AJ-E3830 Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | Status: DONE (0.5.2: Bot pre-fills the Watches form with what code verified, the user saves; the confirm card an opt-in Beta; the "Bot drafts a watch" verdict stays not_yet) | Priority P1 | Effort M | Depends: AJ-E3709, AJ-E3825
 **Found**: v5 round 3 measured Apple's watch drafts at 70 % exact against a 95 % bar; 42 of 80 English/German misses were our own code (since fixed), and Apple's own misses came from the draft's shape (`docs/qa/0.5.2-ai-jobs-note.md`).
 **UI**: yes
-**Usability reasoning** (Opus, before building): (1) someone asking Bot "tell me when the build finishes" expects a watch set up, not a form to learn; (2) Bot opens the Watches form filled in, the user sees every field and clicks Add; (3) it reuses the Watches form, no second editor; (4) a request Bot can't turn into a watch says why in one line and opens the empty form; (5) none; (6) watch for a draft naming the wrong session, a watch added without the click, a restated request in the "can't watch" field.
+**Usability reasoning** (Opus, 2026-11-27, for what ships in 0.5.2; the first version's answers were about a whole draft): (1) Someone asking Bot "tell me when the api session finishes, until I remove it" expects the watch set up from their words; the Watches form is the place they already know for it, so Bot opens it with what it read filled in and says in one line what it left ("Left for you to pick: how long"). (2) A newcomer sees the form's own four sections, a calm "Filled in by Bot" note naming what is left and the words Bot couldn't read, and in each left section a plain line ("Bot couldn't tell how long from your words. Pick one."); nothing is chosen for them where Bot couldn't tell (no lifetime segment, no condition card), the nearest condition is tagged "Nearest", never ticked, and Watch says "Pick how long first" until they do. (3) The value is in the one right place, the Watches form, the one editor; the card (Watches Beta) is the same confirm card Bot's row Watch… uses, offered only for a request code read whole, its Change… opening the same form. (4) With no model served the form still opens, filled by code alone; with the Watches job switched off by an update, Bot answers as before; the Beta switch shows only while Bot's AI runs (D-127). (5) The first watch's Watch primes Notifications as the form always did (PAT-OSP); nothing new. (6) What could surprise: a question that only sounds like a watch ("tell me when api finished") opens the form, so a question about the past ("when did …", "wann hat …") never does; a field filled wrong would break trust, so the bar is 0 wrong fields and anything unread is left; the card's unsaid lifetime is the suggestion, and the card says so.
 **Requirements**:
 1. The draft schema: exactly one target (a choice among the user's sessions and projects), an enum for what can't be watched, the condition from the enum the form supports.
 2. Two calls: the target first, then the condition; retries sample (not greedy).
 3. Re-measured with the fixed code on fresh blind sets (60 requests, English and German, harness v6, a Sonnet eval round, Opus verifying every verdict that matters); ships at ≥ 90 % exact, each watch added only by the user's click; below 90 % reported to the coordinator before shipping.
-**Evidence/validation proof**: `docs/qa/evidence/AJ-E3830/manifest.md`.
-**Rounds so far (2026-11-26), pending the maintainer's choice**: harnesses v6 to v13 ran on Apple's on-device model, the only model on this Mac.
-- The hard bar held from v9 on: 0 unsupported claimed in v9, v11, v12 and v13 (v10 claimed 3).
-- Exact on fresh blind sets stayed below 90 %: v11 65.8 %, v12 31.6 %, v13 31.6 %. The later sets asked for more paraphrase and German variety.
-- v13 nearest offered 81.8 %; latency median 634.5 ms, p95 775 ms.
+4. (0.5.2, the coordinator's and maintainer's call after v13) Bot pre-fills the Watches form with only what code and the verified labels understood (target, condition with its numbers, lifetime, quiet hours); a field nothing verified stays empty for the user; Bot never saves a watch; never a wrong pre-filled field. The form is offered for everything Bot reads as a watch request, with the nearest option where one exists.
+5. (0.5.2) Where code fully verifies a request, Bot may offer its plain-words confirm card: off by default, turned on from Settings › AI › Models (the Watches Beta). The verdict stays `not_yet`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3830/manifest.md` (R4, R5 for 0.5.2; R3 superseded by the ruling, its D-number the maintainer's).
+**The rounds, v6 to v13 (2026-11-26), on Apple's on-device model** (exact with ADR-0036's default for an unsaid lifetime, strict beside it; unsupported claimed; nearest offered):
 
-The cause analysis is in `docs/qa/evidence/AJ-E3709/v13-results/summary.md`. With drafts fail-closed by construction, exact on fresh wording is bounded by code's verified vocabulary. Apple's model labels unknown words by meaning, not as filler, and code can't verify those labels. Watches stay `not_yet`, and the Watches form is unchanged.
+| Round | Exact (strict) | Unsupported claimed | Nearest offered |
+|---|---|---|---|
+| v6 | 63.5 % (19.2 %) | 0 | 60 % (3 of 5) |
+| v7 | 77.1 % (56.3 %) | 5 | 30 % |
+| v8 | 75.0 % (66.7 %) | 3 | 83.3 % |
+| v9 | 68.8 % (46.9 %) | 0 | 92.0 % |
+| v10 | 85.7 % (76.2 %) | 3 | 72.2 % |
+| v11 | 65.8 % (57.9 %) | 0 | 95.5 % |
+| v12 | 31.6 % (28.9 %) | 0 | 95.5 % |
+| v13 | 31.6 % (28.9 %) | 0 | 81.8 %; latency median 634.5 ms, p95 775 ms |
+
+The later sets asked for more paraphrase and German variety. With drafts fail-closed by construction, exact on fresh wording is bounded by code's verified vocabulary; Apple's model labels unknown words by meaning, and code can't verify those labels (`docs/qa/evidence/AJ-E3709/v13-results/summary.md`).
+
+**What ships in 0.5.2** (e923067e2 the pre-fill, d3ccfce2e the form and the card, gallery `99-watch-prefill`; G47 in 9ea640dba):
+- Every request Bot reads as a watch request opens the Watches form pre-filled field by field (`watches::draft::prefill`): the words code couldn't place spoil the fields they may touch, by their label, their clause and their place (a qualifier beside the condition, a word of another name beside the target, a name after a negation); a project or App needs its kind word, a session or account whose name another kind shares needs its own; the model's pick among several is never filled. An unread lifetime chooses nothing (Watch waits for a pick), unread quiet hours stay off with "Check it", an unread condition ticks nothing and tags the nearest.
+- The labels ride Bot's own model (the Watches verdict stays `not_yet`); with no model, code alone. No extra call: v13's one label call.
+- The confirm card (Watches Beta, off by default): only for a request code read whole whose draft the form's own check passes.
+- The Watches row in Settings › AI › Models: "On · Fills in what it understands from your words; you check the form and save." with its Beta line; the same note in builtin.json and the remote list for every model.
+- Measured through the app's own engines (manifest R4): **0 wrong pre-filled fields** on Apple's model over v6 to v13 and on Qwen3 1.7B and Granite 4.1 3B over v13. On v13 (38 supported), Apple fills the target right in 21, the condition in 16, the lifetime in 6 (plus 9 of 21 labelled suggestions equal to the gold), quiet hours as verified in 27; Qwen 19 / 15 / 6 / 24; Granite 17 / 17 / 6 / 26; code alone 20 / 12 / 4 / 12.
+- No more watch rounds in 0.5.2.
+
+**Next, in 0.5.3** (planned, not started):
+1. Grow code's vocabulary from the model's labels: v13 showed the labels are mostly right (21 condition, 15 target, 7 lifetime, 7 condition_param for words code couldn't place: "bis ich es entferne", "abschmiert", "wants something from me", "even overnight", "selbst in den Ruhezeiten"). Each label class a candidate list, reviewed by Opus, added only with its regression fixtures, so the next set fills more fields with the bar still 0.
+2. A stronger model for the labels: measure the next Apple model and the listed local models through `watch_prefill_round` per field (the bar first).
+3. The local models: Qwen3 1.7B and Granite 4.1 3B already hold the bar (v13); measure Nemotron 3 Nano 4B and Gemma, and a set written fresh for 0.5.3 (blind).
 
 ### AJ-E3831 Feed line (redesigned under D-152: what the turn came to against the request) and digest (map and reduce): one harness round each, on only if preferred | Status: IN-PROGRESS (0.5.2: the digest Beta (64 %, D-149); the feed line built and measured in v14 (e249b088e), plain in 0.5.2: preferred 67 % on Apple, 65 % on Qwen, but 19–31 % critical errors; the next round is for the next release) | Priority P1 | Effort M | Depends: AJ-E3709
 **Found**: v5 round 3: feed lines preferred 43 %, digests 33 % over the plain text (safe, not better).

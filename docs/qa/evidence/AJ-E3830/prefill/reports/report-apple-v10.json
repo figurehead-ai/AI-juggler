@@ -1,0 +1,50 @@
+{
+ "meta": {
+  "engine": "apple",
+  "items": 60,
+  "model": "apple-on-device",
+  "wall_ms": 10387
+ },
+ "supported": 42,
+ "unsupported": 18,
+ "read_as_watch": 60,
+ "fields": {
+  "target": {
+   "right": 28,
+   "wrong": 0,
+   "left": 14
+  },
+  "condition": {
+   "right": 35,
+   "wrong": 0,
+   "left": 7
+  },
+  "lifetime": {
+   "right": 11,
+   "wrong": 0,
+   "left": 3,
+   "suggested": 28,
+   "suggested_right": 10
+  },
+  "quiet_hours": {
+   "right": 40,
+   "wrong": 0,
+   "left": 2
+  }
+ },
+ "wrong_total": 0,
+ "wrong": [],
+ "complete": 21,
+ "cards": 25,
+ "cards_right": 21,
+ "unsupported_condition_filled": 0,
+ "unsupported_targets": [],
+ "nearest_offered": 17,
+ "nearest_equal_gold": 0,
+ "calls": 15,
+ "latency_ms": {
+  "median_item": 5.0,
+  "p95_item": 756,
+  "median_first_call": 671
+ }
+}

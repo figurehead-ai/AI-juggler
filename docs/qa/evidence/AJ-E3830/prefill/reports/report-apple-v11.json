@@ -1,0 +1,54 @@
+{
+ "meta": {
+  "engine": "apple",
+  "items": 60,
+  "model": "apple-on-device",
+  "wall_ms": 5605
+ },
+ "supported": 38,
+ "unsupported": 22,
+ "read_as_watch": 60,
+ "fields": {
+  "target": {
+   "right": 28,
+   "wrong": 0,
+   "left": 10
+  },
+  "condition": {
+   "right": 38,
+   "wrong": 0,
+   "left": 0
+  },
+  "lifetime": {
+   "right": 10,
+   "wrong": 0,
+   "left": 0,
+   "suggested": 28,
+   "suggested_right": 15
+  },
+  "quiet_hours": {
+   "right": 38,
+   "wrong": 0,
+   "left": 0
+  }
+ },
+ "wrong_total": 0,
+ "wrong": [],
+ "complete": 22,
+ "cards": 28,
+ "cards_right": 22,
+ "unsupported_condition_filled": 0,
+ "unsupported_targets": [
+  "R11-W48 ('account', 'acct-keller')",
+  "R11-W52 ('session', 's-wetter')",
+  "R11-W53 ('session', 's-ledger')"
+ ],
+ "nearest_offered": 22,
+ "nearest_equal_gold": 17,
+ "calls": 8,
+ "latency_ms": {
+  "median_item": 5.0,
+  "p95_item": 716,
+  "median_first_call": 674.5
+ }
+}

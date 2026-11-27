@@ -65,11 +65,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts are being made exact before Bot fills the form.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -135,11 +135,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 81 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -204,11 +204,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 85 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -273,11 +273,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 85 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -336,11 +336,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 89 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -405,11 +405,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 70 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {

@@ -43,3 +43,44 @@ The labels can't add a draft. Apple's model labels the words code can't place by
 
 **Status: watches stay `not_yet`, pending the maintainer's choice.** The hard bar held in every round from v9 to v13. Exact on fresh blind sets: v11 65.8 %, v12 31.6 %, v13 31.6 %; the later sets asked for more paraphrase.
 
+
+## 0.5.2: Bot pre-fills the Watches form; the user saves (Opus, 2026-11-27)
+
+The coordinator's and maintainer's call after v13: what ships is the form pre-filled with what code verified, each other field left empty for the user; the "Bot drafts a watch" verdict stays `not_yet` (builtin.json and the remote list). Code: e923067e2 (`watches::draft::prefill`, Bot's path, the Watches row, the note), d3ccfce2e (the form's empty fields and Bot's note, the nearest tag, Bot's confirm card as the Watches Beta, the Models row, the form folding by its room beside Bot), the gallery `99-watch-prefill` (critique there).
+
+R4 (the bar, never a wrong pre-filled field): **PASS.** Unit: `watches::draft::prefill::tests` runs every request of harness v6 to v13 (480) through the app's drafting with nine lying labellers (all filler, all lifetime, all target, all quiet hours, all condition, all other, all exclusion, a mix, a wrong length) plus a target pick code never checks, and with no model: no filled field differs from the gold. Measured (below): 0 wrong fields on Apple's model (v6 to v13), on Qwen3 1.7B and Granite 4.1 3B (v13), and code alone (v13).
+
+R4 (per-field fill, through the app's own path): PASS (measured, 0 wrong), measured by `crates/juggler-app/examples/watch_prefill_round.rs` on the app's own engines (Apple's helper; the local helper with the approved model files by sha256 name, hard-linked in scratch, nothing downloaded), jobs from the harness's own candidates (`prefill/prefill_jobs.py`), scored by `prefill/prefill_score.py`; reports `prefill/reports/report-*.json`. macOS 27.0.1, Apple M5 Ultra, one run each. **Not blind:** the v13 misses were read before this work and v6 to v12's shaped the code; no vocabulary was added (the reading changes only leave more empty: ordinals are counts, "even/selbst/sogar" never filler, a name after a negation never the target).
+
+v13, 38 supported of 60 (filled and right; lifetime plus the form's labelled suggestion and how many suggestions equal the gold; quiet hours as verified, "on" right of the 6 that asked):
+
+| R4 · engine | Target | Condition | Lifetime | Quiet hours | Wrong | Every field right | Card offered (all right) | Nearest offered | First call median |
+|---|---|---|---|---|---|---|---|---|---|
+| Apple on-device | 21 (55.3 %) | 16 (42.1 %) | 6 (+9 of 21 suggestions) | 27 (on: 3 of 6) | **0** | 11 (28.9 %) | 13 (11) | 18 of 22 | 592 ms |
+| Qwen3 1.7B Q8 (local) | 19 (50.0 %) | 15 (39.5 %) | 6 (+8 of 20) | 24 (on: 3 of 6) | **0** | 11 (28.9 %) | 12 (11) | 18 of 22 | 179 ms |
+| Granite 4.1 3B Q4_K_M (local) | 17 (44.7 %) | 17 (44.7 %) | 6 (+8 of 22) | 26 (on: 3 of 6) | **0** | 13 (34.2 %) | 15 (13) | 18 of 22 | 167 ms |
+| No model (code alone) | 20 (52.6 %) | 12 (31.6 %) | 4 (+7 of 8) | 12 (on: 2 of 6) | **0** | 11 (28.9 %) | 12 (11) | 18 of 22 | n/a |
+
+Earlier sets on Apple's model (same code; v6/v7's gold reads "idle" as stuck, scored as `idle_for` as the app reads it):
+
+| R4 · set | Supported | Target | Condition | Lifetime | Quiet hours (on) | Wrong | Card offered (all right) | Nearest offered |
+|---|---|---|---|---|---|---|---|---|
+| v6 | 52 | 23 | 26 | 6 (+3 of 28) | 39 (1 of 3) | 0 | 17 (7) | 5 of 8 |
+| v7 | 48 | 24 | 30 | 11 (+9 of 26) | 35 (1 of 3) | 0 | 20 (18) | 10 of 12 |
+| v8 | 36 | 23 | 23 | 12 (+8 of 17) | 31 (3 of 4) | 0 | 19 (16) | 22 of 24 |
+| v9 | 32 | 16 | 25 | 15 (+7 of 12) | 28 (3 of 3) | 0 | 16 (16) | 26 of 28 |
+| v10 | 42 | 28 | 35 | 11 (+10 of 28) | 40 (3 of 3) | 0 | 25 (21) | 17 of 18 |
+| v11 | 38 | 28 | 38 | 10 (+15 of 28) | 38 (5 of 5) | 0 | 28 (22) | 22 of 22 |
+| v12 | 38 | 30 | 36 | 10 (+15 of 27) | 37 (4 of 4) | 0 | 30 (25) | 21 of 22 |
+
+On unsupported requests no condition is filled anywhere; the targets filled there were checked by eye, each the entity the request names (v12's W39, "es sei denn, es ist die Rechnungsexport-Sitzung", named the excluded session before the after-negation rule and is now left). A card's unsaid lifetime is ADR-0036's default, which the card says; it differs from these sets' "today" gold in 2 of Apple's 13 v13 cards (v6's "once" gold in 10 of 17).
+
+R5 (the card is opt-in Beta, off by default; the verdict stays `not_yet`): PASS (code): `prefill.card` only with every field verified, the form's own check passing and `ai_beta_watches` on (`bot::watch_draft::tests::the_card_needs_the_beta_and_the_form_s_check`); vitest `bot-watch-prefill.test.tsx` (the card writes only on Watch; Change… opens the form filled in; Cancel writes nothing; a problem keeps Watch off). The Watches row (Settings › AI › Models) shows Bot's state and its Beta switch (`models-bot-card.test.tsx`).
+
+R4 (the form keeps empty what Bot left): PASS, vitest `watch-prefill.test.tsx`: an unread lifetime chooses nothing and Watch waits for a pick; an unread condition chooses no card (no default either) and tags the nearest; an unread target leaves the picker empty; unread quiet hours stay off with "Check it"; each leaves Bot's list once set. Gallery `99-watch-prefill`, critique there.
+
+Watches written by the job: 0 (it never writes; only the user's click in the form or on the card adds one).
+
+R3 (>= 90 % exact on a fresh blind set) was not met in any round (v6 to v13 above) and is superseded for 0.5.2 by the coordinator's and maintainer's ruling (requirements 4 and 5: the pre-filled form, the card as an opt-in Beta, the verdict `not_yet`). It needs the maintainer's D-number to be recorded as deferred; the rounds' lines above that say PASS for single bars are not R3's PASS.
+
+The task's six usability answers (2026-11-27) hold on the built screens (the gallery's critique, line 18).

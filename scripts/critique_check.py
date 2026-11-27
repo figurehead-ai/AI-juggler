@@ -63,6 +63,8 @@ RICH = frozenset(
         "99-ai-models",
         # AJ-E2027: the Reminders list and Settings › Advanced › Scheduled work.
         "99-reminders",
+        # AJ-E3830: the Watches form as Bot pre-filled it, Bot's card, the Watches row.
+        "99-watch-prefill",
     }
 )
 
