@@ -12,14 +12,19 @@ import { sharedRead, useSharedRead } from "./shared-read";
 import { osPromptRequest } from "./ipc/os-prompts";
 import { watchCatalogue, watchCreate, watchesPage, type WatchInfo } from "./ipc/watch-view";
 import { scheduleRemind, schedulesSummary } from "./ipc/schedules";
+import { switchSourceOf } from "./ipc/conversations";
 import type { FeedItemInfo } from "./ipc/feed";
 import type { WatchTarget } from "../types/generated/WatchTarget";
 
 /** What following a post watches: its session, else its pool, its
- * project, its Account, its App. */
+ * project, its Account, its App. 0.5.2 G57 (RW1 F-RW2-1): a conversation
+ * AI Juggler didn't start (a Codex thread) is a session too, by its key
+ * where a session id goes (0.5.2 G45): a Remind me on its post was about
+ * its project ("About web"), the toast about the thread. */
 export function followTarget(item: FeedItemInfo): Exclude<WatchTarget, { kind: "any" }> | null {
   const { target } = item;
   if (target.session_id) return { kind: "session", id: target.session_id };
+  if (target.conversation_id && target.account_id) return { kind: "session", id: switchSourceOf({ session_id: null, account_id: target.account_id, id: target.conversation_id }) };
   if (target.pool_id ?? item.facts.pool_id) return { kind: "pool", id: (target.pool_id ?? item.facts.pool_id)! };
   if (target.project_id ?? item.facts.project_id) return { kind: "project", id: (target.project_id ?? item.facts.project_id)! };
   if (target.account_id) return { kind: "account", id: target.account_id };

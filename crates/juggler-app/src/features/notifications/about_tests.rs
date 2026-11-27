@@ -49,3 +49,53 @@ fn a_notice_names_a_session_by_its_title_its_folder_only_as_in_folder() {
     );
     assert_eq!(untitled.place, None);
 }
+
+/// 0.5.2 G57 (RW1 F-RW2-5): a finish told before the session had a name
+/// ("“api · started 2:54 AM” finished") reads by its name once it has
+/// one, its folder then said as where it ran; the stored line is kept.
+#[test]
+fn a_bell_entry_names_its_session_as_it_is_called_now() {
+    #![allow(clippy::unwrap_used, reason = "a test: a failed step fails the test")]
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::seven_sessions(dir.path());
+    super::sources::finished(&state, "s1");
+    let read = || {
+        let now = crate::commands::now_millis();
+        let mut page = {
+            let storage = state.storage.lock().unwrap();
+            super::centre::page(
+                &storage,
+                "earlier",
+                &crate::paging::PageRequest::first(10),
+                now,
+            )
+            .unwrap()
+        };
+        super::renamed(&state, &mut page.items);
+        page.items
+            .into_iter()
+            .find(|row| row.kind == "finished")
+            .unwrap()
+    };
+    let before = read();
+    assert!(
+        before.title.starts_with("“api · started "),
+        "{}",
+        before.title
+    );
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .set_label(
+                &juggler_core::model::SessionId::new("s1"),
+                Some("Add retries to the sync client"),
+            )
+            .unwrap();
+    }
+    let after = read();
+    assert_eq!(after.title, "“Add retries to the sync client” finished");
+    assert!(after.detail.starts_with("in api"), "{}", after.detail);
+    // The same entry, renamed (nothing new written).
+    assert_eq!(after.id, before.id);
+}

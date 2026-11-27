@@ -26,6 +26,33 @@ pub fn names_of(state: &Arc<AppState>, ids: &[String], now_ms: i64) -> HashMap<S
     if ids.is_empty() {
         return HashMap::new();
     }
+    // 0.5.2 G57 (RW1 F-RW2-1): a session AI Juggler didn't start (a Codex
+    // thread), by its key, named as its rail row names it (G45).
+    let (outside, own): (Vec<&String>, Vec<&String>) = ids
+        .iter()
+        .partition(|id| super::seen::parse_source_key(id).is_some());
+    let mut out: HashMap<String, String> = if outside.is_empty() {
+        HashMap::new()
+    } else {
+        super::seen::outside_of(state, outside.iter().map(|id| id.as_str()))
+            .into_iter()
+            .map(|(key, row)| {
+                (
+                    key,
+                    crate::features::notifications::needs::conversation_name(&row, now_ms),
+                )
+            })
+            .collect()
+    };
+    if own.is_empty() {
+        return out;
+    }
+    out.extend(own_names(state, &own, now_ms));
+    out
+}
+
+/// [`names_of`] for AI Juggler's own sessions.
+fn own_names(state: &Arc<AppState>, ids: &[&String], now_ms: i64) -> HashMap<String, String> {
     let mut wanted: Vec<SessionId> = ids.iter().map(|id| SessionId::new(id.as_str())).collect();
     wanted.sort_by(|a, b| a.as_str().cmp(b.as_str()));
     wanted.dedup();

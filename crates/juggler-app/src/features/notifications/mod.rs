@@ -905,6 +905,61 @@ fn about_of(named: &needs::Named<'_>, now_ms: i64) -> About {
     }
 }
 
+/// The kinds whose line starts with a session's name in quotes: a
+/// finish, a watch's alert.
+const NAMED_KINDS: &[&str] = &["finished", watch_alerts::KIND];
+
+/// 0.5.2 G57 (RW1 F-RW2-5): a bell entry names its session as it was
+/// called when the entry was written: one told before the session's title
+/// arrived read "“api · started 2:54 AM” finished" for "Add retries to
+/// the sync client". At read time each entry about a session names it by
+/// the one rule now (a finish's place and account with it); the rest of
+/// the line is kept. One naming read for the page.
+pub(crate) fn renamed(state: &Arc<AppState>, rows: &mut [centre::NoticeInfo]) {
+    let session_of = |row: &centre::NoticeInfo| -> Option<String> {
+        if !NAMED_KINDS.contains(&row.kind.as_str()) || !row.title.starts_with('“') {
+            return None;
+        }
+        row.target.session_id.clone().or_else(|| {
+            match (&row.target.conversation_id, &row.target.account_id) {
+                (Some(id), Some(account)) => {
+                    Some(crate::features::sessions::seen::source_key(account, id))
+                }
+                _ => None,
+            }
+        })
+    };
+    let ids: Vec<String> = rows.iter().filter_map(session_of).collect();
+    if ids.is_empty() {
+        return;
+    }
+    let now = crate::commands::now_millis();
+    let names = crate::features::sessions::names::names_of(state, &ids, now);
+    for row in rows.iter_mut() {
+        let Some(id) = session_of(row) else { continue };
+        let Some(name) = names.get(&id) else { continue };
+        let Some((said, rest)) = row.title.strip_prefix('“').and_then(|t| t.split_once("” "))
+        else {
+            continue;
+        };
+        if said == name.as_str() {
+            continue;
+        }
+        let rest = rest.to_owned();
+        if row.kind == "finished" && row.target.session_id.is_some() {
+            let about = describe(state, &id);
+            row.title = format!("“{}” {rest}", about.name);
+            row.detail = [about.place, about.account]
+                .into_iter()
+                .flatten()
+                .collect::<Vec<_>>()
+                .join(" · ");
+        } else {
+            row.title = format!("“{name}” {rest}");
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "about_tests.rs"]
 mod about_tests;

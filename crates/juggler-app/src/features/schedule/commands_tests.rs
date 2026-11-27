@@ -153,6 +153,53 @@ fn a_reminder_names_its_session_by_the_rails_rule() {
     assert_eq!(name(&WatchTarget::Account("acct-1".into())), None);
 }
 
+/// 0.5.2 G57 (RW1 F-RW2-1): a Remind me on a Codex thread's post is about
+/// the thread (a session by its key, 0.5.2 G45), and the list names it by
+/// the one rule, its own title, never its project ("About web").
+#[test]
+fn a_reminder_about_a_thread_ai_juggler_didnt_start_names_the_thread() {
+    let (dir, state) = state();
+    let web = dir.path().join("web");
+    std::fs::create_dir_all(&web).unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&crate::test_support::account(
+                "acc-codex",
+                "codex",
+                "ChatGPT",
+                dir.path().join("codex"),
+            ))
+            .unwrap();
+    }
+    let now = crate::commands::now_millis();
+    crate::test_support::outside_conversation(
+        &state,
+        ("acc-codex", "codex"),
+        "x-retry",
+        "Add a retry helper to the API client",
+        &web,
+        now - 60_000,
+    );
+    let key = "conversation:acc-codex:x-retry";
+    let made = remind(
+        &state,
+        now + 3_600_000,
+        Some(WatchTarget::Session(key.into())),
+    );
+    assert_eq!(
+        made.about_name.as_deref(),
+        Some("Add a retry helper to the API client")
+    );
+    let page =
+        schedule_list_impl(&state, &PageRequest::first(10), ScheduleListWhich::Yours).unwrap();
+    assert_eq!(
+        page.items[0].about_name.as_deref(),
+        Some("Add a retry helper to the API client")
+    );
+}
+
 #[test]
 fn the_list_pauses_all_and_removes_by_id() {
     let (_dir, state) = state();

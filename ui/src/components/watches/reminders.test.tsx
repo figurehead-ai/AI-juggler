@@ -9,7 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RemindersSection } from "./RemindersSection";
 import { BotReminderDraft } from "../bot/BotReminderDraft";
 import { forgetPaged } from "../../lib/paged";
-import { remindAt } from "../../lib/feed-watch";
+import { followTarget, remindAt } from "../../lib/feed-watch";
+import { feedItem } from "../../preview/feed";
 import { takeWatchesIntent } from "../../lib/watches-open";
 import type { ScheduleInfo } from "../../types/generated/ScheduleInfo";
 
@@ -96,6 +97,13 @@ describe("AJ-E2027 — Reminders beside the watches", () => {
 
   /** 0.5.2 G23 (RW1 B7): Remind me's toast and Bot's card open the
    * reminder they set: the list scrolls to it, the keyboard on it. */
+  it("0.5.2 G57: Remind me on a Codex thread's post is about the thread (its key), never its project", () => {
+    const thread = feedItem({ id: "l:x", at_ms: NOW, kind: "finished", category: "finished", target: { conversation_id: "x-retry", account_id: "acc-codex", project_id: "p-web" }, facts: { project_id: "p-web" } });
+    expect(followTarget(thread)).toEqual({ kind: "session", id: "conversation:acc-codex:x-retry" });
+    // AI Juggler's own session: by its id, as before.
+    expect(followTarget({ ...thread, target: { ...thread.target, session_id: "s1" } })).toEqual({ kind: "session", id: "s1" });
+  });
+
   it("opens on one reminder by its id, marked and focused", async () => {
     window.__AIJ_SCHEDULES__ = { yours: [reminder("api", NOW + HOUR), reminder("web", NOW + 2 * HOUR)], calls: [] };
     render(<RemindersSection book={new Map()} now={NOW} focus="web" />);
