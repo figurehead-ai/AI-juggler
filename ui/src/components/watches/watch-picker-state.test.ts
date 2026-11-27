@@ -106,3 +106,28 @@ describe("the Watches starter card", () => {
     expect(finishes!.line).not.toContain("working");
   });
 });
+
+/** 0.5.2 G54 (RW1 W5): the starter card's accessible text read
+ * "…notebook”finishes its turn": the space after a name sat at the start
+ * of an element, which the accessible text drops. It is a bare text node
+ * beside the name. */
+describe("an echo's names and the words beside them", () => {
+  it("keep their spaces outside any element", async () => {
+    const { render } = await import("@testing-library/react");
+    const { createElement } = await import("react");
+    const { EchoHead } = await import("./WatchParts");
+    const spans = [
+      { text: "Tell you when ", name: false },
+      { text: "“Update the summary cell in the report notebook”", name: true },
+      { text: " finishes its turn.", name: false },
+    ];
+    const { container } = render(createElement("p", null, createElement(EchoHead, { spans })));
+    const p = container.querySelector("p")!;
+    expect(p.textContent).toBe("Tell you when “Update the summary cell in the report notebook” finishes its turn.");
+    for (const element of p.querySelectorAll("*")) {
+      expect(element.textContent).toBe(element.textContent.trim());
+    }
+    expect(p.childNodes[2]!.nodeType).toBe(Node.TEXT_NODE);
+    expect(p.childNodes[2]!.textContent!.startsWith(" ")).toBe(true);
+  });
+});
