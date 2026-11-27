@@ -1,7 +1,16 @@
-<!-- captures: 59eb03506099 -->
+<!-- captures: 8671799d651a -->
 # 99-ai-models: Settings › AI › Models
 
 Design critique (D-57) of Settings › AI › Models in every state of `ui/tests/visual/models-gallery.spec.ts` (`ui/src/preview/ai-models.ts` `STATES`), against the approved mock-up (`~/Dev/AIJuggler-design-refs/models-screen/`, AJ-E3812), the D-126 rich mode, PAT-SURF, PAT-COLOR and the critique checklist (VALIDATION §5). New family (AJ-E3826): the gallery's captures were written only to a scratch folder before.
+
+## 0.5.2 (2026-11-27, D-154, Opus, both themes)
+
+Re-captured with `AIJ_MODELS_OUT` (52 frames, axe clean). The 22 changed 1280 frames were opened by eye in both themes; `downloading` and `nolist` are unchanged.
+- **What changed:** the feed's AI summaries are an opt-in Beta on Apple's model (AJ-E3831's re-measure).
+  - Each job uses gains "AI summaries in the feed" with its Beta switch, off. Its honest note reads "Off · Beta: preferred in 69 % of blind checks, but about 1 line in 5 got something wrong."; the covers line is the review's; Automatic is its picker.
+  - Apple's recommended card lists it among its Betas, but **Use it does not turn it on** ("Turns on Turn reviews, Bot's AI and Digest as Beta"): only its own switch does.
+  - The downloaded models' cards say "Not yet: AI summaries in the feed, digest and watches". An acronym keeps its capitals in that list; it read "ai summaries" before this fix.
+- **Judged:** the new row has the same rhythm and controls as its neighbours, and the note's warning sits in the row's own line, never in a banner. Scores below are unchanged.
 
 ## 0.5.2 (2026-11-26, AJ-E3826, Opus, both themes)
 

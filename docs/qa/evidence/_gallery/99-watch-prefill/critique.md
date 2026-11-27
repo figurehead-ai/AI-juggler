@@ -1,4 +1,4 @@
-<!-- captures: a2528daf1e40 -->
+<!-- captures: f2578e4b8f53 -->
 # 99-watch-prefill: the Watches form as Bot pre-filled it, Bot's confirm card, the Watches row
 
 Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured on the host from the working tree at the UI commit (`watch-prefill-gallery.spec.ts`: Bot docked at 1280, its turn opening the form; the card; Settings › AI › Models' jobs card), both themes; every capture opened. Mock-ups: the Watches form's approved mock and the d126 kit (`~/Dev/AIJuggler-design-refs/`), Bot's confirm card as the row's Watch… card (`bot` gallery's `watch`).
@@ -117,3 +117,5 @@ Re-captured from a clean export of 4fef54b27 with `AIJ_PREFILL_OUT`, both themes
 | 19 | Rich-mode colour | 4 | Unchanged: the reply's eye in the accent, the added line muted. |
 
 The other lines are as the sections above scored them (lowest 3: line 16).
+
+**2026-11-27 (D-154, Opus):** `models-row-1280-{dark,light}.png` re-captured and opened in both themes. The Each job uses card gains "AI summaries in the feed" (an opt-in Beta, off, with its honest note and the review's covers line), between Attention hints and Digest. The other rows are as before.

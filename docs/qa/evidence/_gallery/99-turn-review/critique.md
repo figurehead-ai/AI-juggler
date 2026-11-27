@@ -1,4 +1,4 @@
-<!-- captures: 851d2a311801 -->
+<!-- captures: 101874d4f479 -->
 # 99-turn-review: the turn review on a finished turn's feed post and under the session page's last turn
 
 Design critique (D-57, AJ-E2814), AJ-E3820, Opus, 2026-11-26. Captured on the host (`turn-review-gallery.spec.ts`: three finished turns on Home, the first with the Beta's lines opened, a failed one opened, a clean one folded; a command-line session's page with its last turn's review opened, code-only), both themes at 1280; every capture opened. Mock-up: `~/Dev/AIJuggler-design-refs/turn-review/mock-turn-review-{dark,light}.png` (made first, the story-feed mock's style).
@@ -94,3 +94,5 @@ Re-captured on the host (`turn-review-gallery.spec.ts`), both themes, every capt
 | 19 | Rich-mode colour | 4 | A calm surface, scored as asked: status keeps its hue (risk, tests, added and removed), the AI tag and cue the accent's soft step; nothing monochrome, nothing loud. |
 
 The other lines are as the first section scored them (lowest 3: line 16).
+
+**2026-11-27 (D-154, Opus):** `models-row-{dark,light}.png` re-captured and opened in both themes. The Each job uses card gains "AI summaries in the feed" (an opt-in Beta, off, with its honest note and the review's covers line), between Attention hints and Digest. The other rows are as before.

@@ -1,7 +1,17 @@
-<!-- captures: 3e2ac0f4a984 -->
+<!-- captures: d44d9fd0eb37 -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
+
+## 0.5.2 AJ-E3831 (2026-11-27, D-154, Opus, both themes): the feed's AI summary, an opt-in Beta
+
+`ai-summary-1280-{dark,light}.png` and `ai-summary-words-1280-{dark,light}.png` (`home-feed-gallery.spec.ts` "the AI summary of a turn (Beta)", axe clean), opened by eye.
+- **What changed:** with "AI summaries in the feed" on, a finished turn's post carries one line under its sentence: the AI tag, then what the turn came to against what was asked ("Partly done: … · open: calendar sync · 6 tests pass"). A quiet foot follows: "Summary by Apple’s built-in AI", the Beta pill, "Show its words" and "This is wrong". The words open in place as a quote under "The agent's own words". A post whose every draft was refused shows "Its last reply" quoted instead, with no AI tag.
+- **Judged:** the line sits at body size in ink, so it reads as the post's second sentence, not a new card. The foot is at label size in faint, the same as the turn review's AI foot (one pattern for AI lines). The accent appears only in the AI tag and the Beta pill (PAT-COLOR); there are no new borders or shadows (PAT-SURF). The quote rule is the turn review's.
+- **Watch:**
+  - a long line wraps to two lines at 1280 (as here), still under the post's width;
+  - the foot's right-hand links wrap under the model name at narrow widths;
+  - with the Beta off, nothing renders, not even an empty space (tested).
 
 ## 0.5.1 design critique (2026-11-24, Opus, VALIDATION §5)
 
