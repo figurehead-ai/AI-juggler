@@ -561,6 +561,7 @@ pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart 
         .filter_map(|&c| rows.get((c as usize).checked_sub(1)?))
         .collect();
     let part = own_name_first(part, &cited);
+    let part = app_place_joined(part, &cited);
     // 0.5.2 G53: as many quoted kind words as cited records of that kind
     // ("“session” is idle and “session” is ended", records 1 and 2) are
     // those records, in the order cited.
@@ -672,6 +673,53 @@ fn own_name_first(part: BotWrittenPart, cited: &[&BotRowInfo]) -> BotWrittenPart
     }
     BotWrittenPart {
         text: format!("\u{201c}{}{rest}", row.title),
+        cites: part.cites,
+    }
+}
+
+/// 0.5.2 G66 (RW1 Part S, S3 on Apple's model, "… is idle in “docs” and
+/// “Work · work”"): a cited record's App joined by "and" to the place
+/// right before it is that record's second place, said as one: ", in
+/// “Work · work”". Only an App's name that is no cited record's own name,
+/// right after a name that follows "in"; any other "and “…”" is left as
+/// written, and the check refuses a place's name standing as a name.
+fn app_place_joined(part: BotWrittenPart, cited: &[&BotRowInfo]) -> BotWrittenPart {
+    const OPEN: char = '\u{201c}';
+    const CLOSE: char = '\u{201d}';
+    let is_app = |name: &str| {
+        cited.iter().any(|r| r.app_label.as_deref() == Some(name))
+            && !cited.iter().any(|r| r.title == name)
+    };
+    let mut text = part.text.clone();
+    for joiner in [" and ", " und "] {
+        let pattern = format!("{CLOSE}{joiner}{OPEN}");
+        let mut from = 0;
+        while let Some(found) = text[from..].find(&pattern).map(|at| at + from) {
+            let name_at = found + pattern.len();
+            let Some(name_len) = text[name_at..].find(CLOSE) else {
+                break;
+            };
+            let name = &text[name_at..name_at + name_len];
+            // The name before: its opening mark, and the word before it.
+            let before_quote = text[..found].rfind(OPEN);
+            let after_place = before_quote.is_some_and(|open| {
+                text[..open]
+                    .trim_end()
+                    .rsplit(|c: char| !c.is_alphanumeric())
+                    .next()
+                    .is_some_and(|w| matches!(w.to_lowercase().as_str(), "in" | "im"))
+            });
+            if after_place && is_app(name) {
+                let start = found + CLOSE.len_utf8();
+                text.replace_range(start..start + joiner.len(), ", in ");
+                from = start;
+            } else {
+                from = name_at;
+            }
+        }
+    }
+    BotWrittenPart {
+        text,
         cites: part.cites,
     }
 }
@@ -1375,7 +1423,6 @@ mod tests {
         // The walk's exact words: refused (the stray mark, the joined App).
         for refused in [
             "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Work · work\u{201d}, records. \u{201c}Rewrite the date parser to accept two-digit years\u{201d} failed in \u{201c}docs\u{201d} and \u{201c}Personal · personal\u{201d}, records.",
-            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Work · work\u{201d}, records [1].",
             "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d}, records.",
         ] {
             assert!(
@@ -1384,6 +1431,27 @@ mod tests {
                 decided(refused)
             );
         }
+        // The App joined to the folder by "and" (its mark taken out whole,
+        // or none): said as its own place, and shown as the check read it.
+        for cleaned in [
+            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Work · work\u{201d}.",
+            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Work · work\u{201d}, records [1].",
+        ] {
+            match decided(cleaned) {
+                Decided::Shown(parts) => assert_eq!(
+                    parts[0].text,
+                    "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d}, in \u{201c}Work · work\u{201d}."
+                ),
+                other @ Decided::Records(_) => unreachable!("{cleaned}: {other:?}"),
+            }
+        }
+        // A project joined so, or an App not after a place: refused.
+        assert!(matches!(
+            decided(
+                "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}Work · work\u{201d} and \u{201c}docs\u{201d}."
+            ),
+            Decided::Records(_)
+        ));
         // A mark taken out whole: shown exactly as the check read it.
         match decided(
             "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d}, records [1].",
