@@ -58,7 +58,7 @@ pub(crate) const fn state_words(state: BotState) -> &'static str {
         BotState::Blocked => "blocked",
         BotState::InReview => "waiting for review",
         BotState::Working => "working",
-        BotState::Idle => "idle (open, between turns)",
+        BotState::Idle => "idle",
         BotState::Finished => "finished",
         BotState::Ended => "ended",
         BotState::Done => "done",
@@ -397,6 +397,19 @@ pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart 
         .iter()
         .filter_map(|&c| rows.get((c as usize).checked_sub(1)?))
         .collect();
+    // 0.5.2 G53: as many quoted kind words as cited records of that kind
+    // ("“session” is idle and “session” is ended", records 1 and 2) are
+    // those records, in the order cited.
+    let quoted_kinds = super::check::quoted(&part.text)
+        .into_iter()
+        .filter(|word| {
+            !cited
+                .iter()
+                .any(|r| r.title.eq_ignore_ascii_case(word.trim()))
+        })
+        .filter_map(|word| kind_named(word.trim()))
+        .collect::<Vec<_>>();
+    let mut taken: Vec<BotRowKind> = Vec::new();
     let mut out = String::with_capacity(part.text.len());
     let mut open: Option<(char, String)> = None;
     for c in part.text.chars() {
@@ -408,7 +421,20 @@ pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart 
                 if let Some(kind) = kind_named(word).filter(|_| !named) {
                     let of_kind: Vec<&&BotRowInfo> =
                         cited.iter().filter(|r| r.kind == kind).collect();
+                    let in_order = of_kind.len() > 1
+                        && quoted_kinds.iter().filter(|k| **k == kind).count() == of_kind.len();
+                    let next = in_order
+                        .then(|| {
+                            let i = taken.iter().filter(|&&t| t == kind).count();
+                            taken.push(kind);
+                            of_kind.get(i).copied()
+                        })
+                        .flatten();
                     if let [row] = of_kind.as_slice() {
+                        out.push(*start);
+                        out.push_str(&row.title);
+                        out.push(c);
+                    } else if let Some(row) = next {
                         out.push(*start);
                         out.push_str(&row.title);
                         out.push(c);
@@ -440,9 +466,81 @@ pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart 
         out.push_str(&inner);
     }
     BotWrittenPart {
-        text: out,
+        text: cite_marks_out(&out, &part.cites),
         cites: part.cites,
     }
+}
+
+/// 0.5.2 G53: the note a second draft is asked with when the first didn't
+/// check out: what to write, never what the first said.
+#[must_use]
+pub const fn retry_note(lang: BotLang) -> &'static str {
+    match lang {
+        BotLang::En => {
+            "A note for you, not words to quote: your last answer didn't check out against the records. Write it again from the records alone: name each record in quotation marks exactly as it is written, with the state its line gives, one record to a sentence."
+        }
+        BotLang::De => {
+            "Eine Notiz für dich, keine Worte zum Zitieren: deine letzte Antwort passte nicht zu den Einträgen. Schreib sie neu, nur aus den Einträgen: nenn jeden Eintrag in Anführungszeichen genau wie geschrieben, mit dem Zustand aus seiner Zeile, ein Eintrag pro Satz."
+        }
+    }
+}
+
+/// 0.5.2 G53 (RW1 W4, Apple's model): a sentence's own citation written
+/// into its text ("… in “web” (2).", "(record 1)", "[3]") is its cite,
+/// not a number it states: taken out, so the check reads the sentence's
+/// words alone. Only a mark naming the sentence's own cites, each of
+/// them; any other number stays and is checked as any number is.
+#[must_use]
+pub fn cite_marks_out(text: &str, cites: &[u32]) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        let close = match chars[i] {
+            '(' => Some(')'),
+            '[' => Some(']'),
+            _ => None,
+        };
+        if let Some(close) = close
+            && let Some(len) = chars[i + 1..].iter().position(|&c| c == close)
+        {
+            let inner: String = chars[i + 1..i + 1 + len].iter().collect();
+            if cites_only(&inner, cites) {
+                while out.ends_with(' ') {
+                    out.pop();
+                }
+                i += len + 2;
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+/// Whether a bracket's words are only a citation of `cites`: an optional
+/// "record(s)" ("Eintrag", "Einträge"), then numbers each cited, joined by
+/// commas or "and"/"und".
+fn cites_only(inner: &str, cites: &[u32]) -> bool {
+    let mut numbers = 0;
+    for word in inner
+        .split(|c: char| c.is_whitespace() || c == ',')
+        .filter(|w| !w.is_empty())
+    {
+        let lower = word.to_lowercase();
+        if matches!(
+            lower.as_str(),
+            "record" | "records" | "eintrag" | "einträge" | "and" | "und" | "&"
+        ) {
+            continue;
+        }
+        match word.parse::<u32>() {
+            Ok(n) if cites.contains(&n) => numbers += 1,
+            _ => return false,
+        }
+    }
+    numbers > 0
 }
 
 /// The words that start a record's own clause after its quoted name ("“api”
@@ -602,6 +700,55 @@ mod tests {
 
     use super::*;
     use crate::features::bot::world::tests_support::row;
+
+    /// 0.5.2 G53: a sentence's own citation in its text is taken out; a
+    /// number that isn't one of its cites stays to be checked.
+    #[test]
+    fn a_sentences_own_citation_is_taken_out_of_its_text() {
+        assert_eq!(
+            cite_marks_out("“web” is ended in “web” (2).", &[2]),
+            "“web” is ended in “web”."
+        );
+        assert_eq!(
+            cite_marks_out("“api” waits on you (record 1).", &[1]),
+            "“api” waits on you."
+        );
+        assert_eq!(
+            cite_marks_out("Both [1, 2] are idle.", &[1, 2]),
+            "Both are idle."
+        );
+        assert_eq!(
+            cite_marks_out("“web” ran (2) times.", &[1]),
+            "“web” ran (2) times."
+        );
+        assert_eq!(cite_marks_out("“web” (3 files)", &[3]), "“web” (3 files)");
+    }
+
+    /// 0.5.2 G53 (Apple's model): "“session” is idle and “session” is
+    /// ended" over records 1 and 2 names them in the order cited.
+    #[test]
+    fn repeated_kind_words_are_the_cited_records_in_order() {
+        let rows = [
+            row(
+                BotRowKind::Session,
+                "Update the summary cell",
+                Some(BotState::Idle),
+            ),
+            row(
+                BotRowKind::Session,
+                "Add a retry helper",
+                Some(BotState::Ended),
+            ),
+        ];
+        let part = BotWrittenPart {
+            text: "“session” is idle and “session” is ended".into(),
+            cites: vec![1, 2],
+        };
+        assert_eq!(
+            kind_quotes(part, &rows).text,
+            "“Update the summary cell” is idle and “Add a retry helper” is ended"
+        );
+    }
 
     fn draft(text: &str) -> Draft {
         Draft {

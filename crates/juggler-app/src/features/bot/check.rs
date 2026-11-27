@@ -731,6 +731,11 @@ fn held_numbers(row: &BotRowInfo) -> Vec<u64> {
         .collect()
 }
 
+/// The quoted spans in a sentence, in order.
+pub(super) fn quoted(text: &str) -> Vec<String> {
+    split_quotes(text).0
+}
+
 /// The quoted spans in a sentence, and the sentence with them taken out.
 fn split_quotes(text: &str) -> (Vec<String>, String) {
     let mut quoted = Vec::new();

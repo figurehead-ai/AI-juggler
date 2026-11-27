@@ -35,6 +35,20 @@ fn ask_with(state: &Arc<AppState>, fake: &Fake, question: &str) -> BotTurnInfo {
     .unwrap()
 }
 
+/// A model whose grounded drafts claim what no record holds.
+fn lying() -> Fake {
+    Fake::with(Box::new(|request| {
+        if grounded(request) {
+            Ok(
+                r#"{"sentences":[{"text":"“web” finished and 212 tests passed.","records":[1]}]}"#
+                    .to_owned(),
+            )
+        } else {
+            default_rule(request)
+        }
+    }))
+}
+
 fn seeded() -> (tempfile::TempDir, Arc<AppState>) {
     let (dir, state) = state();
     seed_session(&state, dir.path(), "s-web", "web", "main");
@@ -123,16 +137,7 @@ fn records_found_are_grounded_and_cited() {
 
     // A fabricated number is never shown; the failure says so, and no
     // row stands in as the answer.
-    let lying = Fake::with(Box::new(|request| {
-        if grounded(request) {
-            Ok(
-                r#"{"sentences":[{"text":"“web” finished and 212 tests passed.","records":[1]}]}"#
-                    .to_owned(),
-            )
-        } else {
-            default_rule(request)
-        }
-    }));
+    let lying = lying();
     let turn = ask_with(&state, &lying, "Is web working?");
     assert_eq!(
         (turn.outcome, turn.unknown),
@@ -150,6 +155,15 @@ fn a_general_question_gets_a_general_answer_with_the_scope_line() {
     let fake = Fake::new();
     let turn = ask_with(&state, &fake, "what is 3+5");
     assert_eq!(turn.outcome, BotOutcome::General);
+    // 0.5.2 G53 (RW1 W4): naming nothing of the user's work, it carries
+    // no open record into its prompt (an open session made the model
+    // take it for a question about their work).
+    assert!(
+        fake.requests
+            .borrow()
+            .iter()
+            .all(|r| !r.prompt.contains("web") && !r.prompt.contains("api"))
+    );
     let general = turn.general.as_ref().unwrap();
     assert_eq!(general.text, "8.");
     assert!(general.off_topic);
@@ -813,4 +827,36 @@ fn a_plain_alias_is_remembered_by_code() {
     // A name that isn't a record's is a question, as before.
     let other = ask_with(&state, &Fake::new(), "call me when it's done");
     assert_ne!(other.outcome, BotOutcome::Remembered);
+}
+
+/// 0.5.2 G53 (RW1 W4): a grounded draft the check refuses is asked for
+/// once more, sampled, with a note that it didn't check out; the second
+/// is shown only if it passes, and a lie twice is still never shown.
+#[test]
+fn a_refused_draft_is_asked_once_more_and_shown_only_if_it_checks_out() {
+    let (_dir, state) = seeded();
+    let mended = Fake::with(Box::new(|request| {
+        if !grounded(request) {
+            return default_rule(request);
+        }
+        if request.prompt.contains("didn't check out") {
+            assert!(
+                matches!(
+                    request.decoding,
+                    crate::features::ai::engine::Decoding::Sampled { .. }
+                ),
+                "the second draft samples"
+            );
+            return default_rule(request);
+        }
+        Ok(r#"{"sentences":[{"text":"“web” crashed.","records":[1]}]}"#.to_owned())
+    }));
+    let turn = ask_with(&state, &mended, "Is web working?");
+    assert_eq!(turn.outcome, BotOutcome::Answered);
+    assert_eq!(mended.calls.get(), 2, "one more draft, no more");
+    let lying = lying();
+    let turn = ask_with(&state, &lying, "Is web working?");
+    assert_eq!(turn.outcome, BotOutcome::DontKnow);
+    assert_eq!(lying.calls.get(), 2);
+    assert!(turn.written.is_none());
 }

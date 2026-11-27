@@ -192,12 +192,22 @@ pub fn bot_ask_with(
     // this topic.
     let topic = current_topic(state).filter(|_| follow_up);
     let looked = super::lookup::look_up(&reading, &world, scope.as_ref());
+    // 0.5.2 G53 (RW1 W4): only what the question names seeds it. A
+    // question that names nothing gets every open record from the look-up
+    // (those aren't matches, as `answer` reads them); seeded with them, a
+    // plain "what is 3+5" carried an open session into its prompt and the
+    // model took it for a question about the user's work.
+    let seeds: &[super::dto::BotRowInfo] = if names_work(&reading, scope.as_ref()) {
+        &looked.rows
+    } else {
+        &[]
+    };
     let connected = crate::features::ai::world::assemble::assemble(
         state,
         &crate::features::ai::world::assemble::Ask {
             question: &question,
             world: &world,
-            rows: &looked.rows,
+            rows: seeds,
             topic: topic.as_deref(),
             recent: &history,
         },
@@ -326,6 +336,19 @@ pub fn bot_ask_with(
 
 /// What a turn keeps of its answer beside its question (no words: the
 /// shown answer is the `shown` column).
+/// 0.5.2 G53: the question names the user's work: a record by its words,
+/// a state, a kind, a time, something not recorded, a work word, or a
+/// scope chip. "What is 3+5" names none of it.
+fn names_work(reading: &super::question::Reading, scope: Option<&super::dto::BotScope>) -> bool {
+    scope.is_some()
+        || reading.work
+        || !reading.subject.is_empty()
+        || !reading.states.is_empty()
+        || reading.kinds.any()
+        || reading.when != super::question::When::Any
+        || reading.unknown.is_some()
+}
+
 fn keep_in_meta(meta: &mut Meta, answered: &super::answer::Answer) {
     if let Some(found) = &answered.found {
         meta.shortcut = found.shortcut;

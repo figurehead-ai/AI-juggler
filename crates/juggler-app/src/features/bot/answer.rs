@@ -608,17 +608,42 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
         &extras,
     );
     let records = u32::try_from(found.rows.len()).unwrap_or(u32::MAX);
-    match generate(model, &request, answer) {
+    let decide = |generated: &crate::features::ai::run::Generated| {
+        written::decide_with(
+            &generated.draft,
+            &found.rows,
+            asked.question,
+            &asked.world.removed,
+            &absent,
+        )
+    };
+    let mut drafted = generate(model, &request, answer);
+    // 0.5.2 G53 (RW1 W4, Apple's model): a draft the check refuses is
+    // asked for once more, sampled (D-149), with a note saying only that
+    // it didn't check out; the second is checked as the first, and shown
+    // only if it passes (G11, G17, D-130 unchanged).
+    if let Ok((generated, _)) = &drafted
+        && let Decided::Records(_) = decide(generated)
+        && uncited(&generated.draft, asked, found.rows.is_empty(), &verified).is_none()
+    {
+        let again = Request {
+            prompt: format!(
+                "{}\n\n{}",
+                request.prompt,
+                written::retry_note(asked.reading.lang)
+            ),
+            decoding: crate::features::ai::engine::Decoding::for_attempt(asked.question, 1),
+            ..request.clone()
+        };
+        if let Ok(second) = generate(model, &again, answer) {
+            drafted = Ok(second);
+        }
+    }
+    match drafted {
         Err(failure) => failed(answer, failure),
         Ok((generated, ms)) => {
             answer.details = Some(details(&generated, &request, &parts, asked, records, ms));
-            match written::decide_with(
-                &generated.draft,
-                &found.rows,
-                asked.question,
-                &asked.world.removed,
-                &absent,
-            ) {
+            match decide(&generated) {
                 Decided::Shown(parts) => {
                     answer.outcome = Some(BotOutcome::Answered);
                     answer.written = Some(BotWritten {

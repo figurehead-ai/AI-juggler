@@ -370,6 +370,35 @@ fn verdicts(
         .collect()
 }
 
+/// One question through Bot's real routing with `scope`, each generation
+/// kept with the verdict code gives it.
+fn recorded(
+    state: &Arc<crate::state::AppState>,
+    service: &Service,
+    question: &str,
+    scope: Option<crate::features::bot::dto::BotScope>,
+) -> (
+    crate::features::bot::dto::BotTurnInfo,
+    Vec<serde_json::Value>,
+) {
+    let model = Recording {
+        live: crate::features::bot::model::Live { service, state },
+        seen: std::cell::RefCell::default(),
+    };
+    let turn = crate::features::bot::commands::bot_ask_with(
+        state,
+        &crate::features::bot::dto::BotAskInput {
+            question: question.to_owned(),
+            scope,
+            again: None,
+        },
+        &model,
+    )
+    .unwrap();
+    let generations = verdicts(state, question, &turn, &model.seen.borrow());
+    (turn, generations)
+}
+
 /// One question through Bot's real routing, recorded: a fresh topic first
 /// unless `same_topic`.
 fn ask_recorded(
@@ -381,20 +410,7 @@ fn ask_recorded(
     if !same_topic {
         crate::features::bot::commands::bot_new_topic_impl(state).unwrap();
     }
-    let model = Recording {
-        live: crate::features::bot::model::Live { service, state },
-        seen: std::cell::RefCell::default(),
-    };
-    let turn = crate::features::bot::commands::bot_ask_with(
-        state,
-        &crate::features::bot::dto::BotAskInput {
-            question: question.to_owned(),
-            scope: None,
-            again: None,
-        },
-        &model,
-    )
-    .unwrap();
+    let (turn, generations) = recorded(state, service, question, None);
     let words = words_of(&turn);
     let cites: Vec<u32> = turn
         .written
@@ -409,7 +425,7 @@ fn ask_recorded(
             "words": words, "cites": cites, "failure": turn.failure,
             "ms": turn.details.as_ref().map(|d| d.ms),
             "rows": turn.rows.iter().map(|r| (r.title.clone(), r.state.map(|s| s.code()))).collect::<Vec<_>>(),
-            "generations": verdicts(state, question, &turn, &model.seen.borrow()),
+            "generations": generations,
         })
     );
     Asked {
@@ -486,16 +502,7 @@ fn ask_scoped(
     question: &str,
     scope: Option<crate::features::bot::dto::BotScope>,
 ) -> crate::features::bot::dto::BotTurnInfo {
-    let turn = crate::features::bot::commands::bot_ask_with(
-        state,
-        &crate::features::bot::dto::BotAskInput {
-            question: question.to_owned(),
-            scope,
-            again: None,
-        },
-        &crate::features::bot::model::Live { service, state },
-    )
-    .unwrap();
+    let (turn, generations) = recorded(state, service, question, scope);
     println!(
         "{}",
         serde_json::json!({
@@ -503,6 +510,7 @@ fn ask_scoped(
             "scope": turn.scope.as_ref().map(|s| s.name.clone()),
             "words": words_of(&turn),
             "rows": turn.rows.iter().map(|r| r.title.clone()).collect::<Vec<_>>(),
+            "generations": generations,
         })
     );
     turn
@@ -724,4 +732,185 @@ fn bot_names_a_session_started_outside_and_other_apps_threads_on_the_real_model(
     }
     service.engines().release();
     assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}
+
+/// 0.5.2 G53 (RW1 W4): RW1's lab as Dev reads it at the re-walk's quick
+/// pass: no session of AI Juggler's, the two Codex CLI threads it didn't
+/// start, and the outside session as the lab's stand-in makes it
+/// (`scripts/qa/lab_standin.sh --lab-turn=notebook`): its transcript
+/// written line for line as the stand-in writes it, on the Work App's
+/// folder, in docs, read by the real Claude Code adapter's pass, open and
+/// idle at its prompt.
+fn lab_outside_fixture() -> (tempfile::TempDir, Arc<crate::state::AppState>, Service) {
+    use crate::features::conversations::scan::State;
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().canonicalize().unwrap();
+    let mut registry = juggler_adapter::AdapterRegistry::new();
+    registry.register(Arc::new(juggler_adapters::ClaudeCodeAdapter::with_bin(
+        root.join("no-claude"),
+    )));
+    let state =
+        Arc::new(crate::state::AppState::init_with_registry(root.join("data"), registry).unwrap());
+    let repo = |name: &str| {
+        let path = root.join("repos").join(name);
+        std::fs::create_dir_all(path.join(".git")).unwrap();
+        path
+    };
+    let (web, api, docs) = (repo("web"), repo("api"), repo("docs"));
+    let work = root.join("work");
+    {
+        let storage = state.storage.lock().unwrap();
+        for (account, harness, label, folder) in [
+            ("acc-work", "claude-code", "Work", work.clone()),
+            (
+                "acc-personal",
+                "claude-code",
+                "Personal",
+                root.join("personal"),
+            ),
+            ("acc-chatgpt", "codex", "ChatGPT", root.join("chatgpt")),
+        ] {
+            std::fs::create_dir_all(&folder).unwrap();
+            storage
+                .accounts()
+                .insert(&crate::test_support::account(
+                    account, harness, label, folder,
+                ))
+                .unwrap();
+        }
+        for folder in [&web, &api, &docs] {
+            storage.projects().ensure(folder).unwrap();
+        }
+        beta_on(&storage);
+    }
+    // The stand-in's notebook turn (LAB_TURN_PY), its four lines.
+    let session = "5b0e8a52-3c1d-4f7e-9a61-0c2d4e6f8a10";
+    let cwd = docs.display().to_string();
+    let now = chrono_like(crate::commands::now_millis() - 120_000);
+    let line = |n: i64,
+                parent: Option<&str>,
+                uuid: &str,
+                kind: &str,
+                message: serde_json::Value| {
+        serde_json::json!({"parentUuid": parent, "isSidechain": false, "userType": "external", "cwd": cwd,
+            "sessionId": session, "version": "2.1.296", "gitBranch": "main", "entrypoint": "cli",
+            "type": kind, "message": message, "uuid": uuid, "timestamp": now(n)})
+        .to_string()
+    };
+    let said = |content: serde_json::Value, stop: &str| {
+        serde_json::json!({"id": "msg_0a1b2c3d4e5f", "type": "message", "role": "assistant",
+            "model": "claude-sonnet-4-5", "content": content, "stop_reason": stop,
+            "usage": {"input_tokens": 1200, "cache_read_input_tokens": 8000, "output_tokens": 300,
+                      "service_tier": "standard"}})
+    };
+    let notebook = format!("{cwd}/notebooks/report.ipynb");
+    let lines = [
+        line(
+            1,
+            None,
+            "u-1",
+            "user",
+            serde_json::json!({"role": "user", "content": "Update the summary cell in the report notebook"}),
+        ),
+        line(
+            2,
+            Some("u-1"),
+            "u-2",
+            "assistant",
+            said(
+                serde_json::json!([{"type": "tool_use", "id": "toolu_0a1b2c3d4e5f6a7b8c9d", "name": "NotebookEdit",
+            "input": {"notebook_path": notebook, "cell_id": "cell-3", "new_source": "summary = orders.groupby(\"week\").total.sum()", "edit_mode": "replace"}}]),
+                "tool_use",
+            ),
+        ),
+        line(
+            3,
+            Some("u-2"),
+            "u-3",
+            "user",
+            serde_json::json!({"role": "user", "content": [{"tool_use_id": "toolu_0a1b2c3d4e5f6a7b8c9d", "type": "tool_result", "content": "Updated cell cell-3"}]}),
+        ),
+        line(
+            4,
+            Some("u-3"),
+            "u-4",
+            "assistant",
+            said(
+                serde_json::json!([{"type": "text", "text": "I updated the summary cell in report.ipynb. I did not run the notebook."}]),
+                "end_turn",
+            ),
+        ),
+    ];
+    let transcript = work
+        .join("projects")
+        .join(cwd.replace(['/', '.'], "-"))
+        .join(format!("{session}.jsonl"));
+    std::fs::create_dir_all(transcript.parent().unwrap()).unwrap();
+    std::fs::write(&transcript, lines.join("\n") + "\n").unwrap();
+    crate::features::conversations::refresh_impl(&state).unwrap();
+    // The two Codex threads (scripts/qa/lab_turns.py), closed.
+    let at = crate::commands::now_millis();
+    crate::test_support::outside_conversation(
+        &state,
+        ("acc-chatgpt", "codex"),
+        "019a0c5e-0000-7000-8000-00000000c0de",
+        "Add a retry helper to the API client",
+        &web,
+        at - 30 * 60_000,
+    );
+    crate::test_support::outside_conversation(
+        &state,
+        ("acc-chatgpt", "codex"),
+        "019a0c5e-0000-7000-8000-00000000de1e",
+        "Remove the old handlers module",
+        &api,
+        at - 180 * 60_000,
+    );
+    crate::test_support::live_look(&state, &[("acc-work", "claude-code", session, State::Idle)]);
+    (dir, state, service())
+}
+
+/// A clock at `start_ms`: the `n`th line's timestamp, 600 ms apart, as
+/// the stand-in writes them (UTC, milliseconds).
+fn chrono_like(start_ms: i64) -> impl Fn(i64) -> String {
+    move |n| {
+        jiff::Timestamp::from_millisecond(start_ms + n * 600)
+            .unwrap()
+            .strftime("%Y-%m-%dT%H:%M:%S%.3fZ")
+            .to_string()
+    }
+}
+
+/// 0.5.2 G53 (RW1 W4): with the lab's outside session open and idle,
+/// every question was refused on the release Dev, "what is 3+5" too. On
+/// the lab's own shape: "3+5" is Bot's own 8, "what are my sessions"
+/// names the outside one, "what is web doing?" is answered; each in a
+/// fresh topic, three times.
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G53"]
+fn bot_answers_with_the_labs_outside_session_open_on_the_real_model() {
+    let (_dir, state, service) = lab_outside_fixture();
+    let world = crate::features::bot::world::gather(&state).unwrap();
+    println!(
+        "{}",
+        serde_json::json!({"rows": world.sessions.iter().map(|r| (r.id.clone(), r.title.clone(), r.state.map(|s| s.code()), r.name_hidden)).collect::<Vec<_>>(), "removed": world.removed})
+    );
+    for _ in 0..3 {
+        run(
+            &state,
+            &service,
+            &["what is 3+5", "what are my sessions", "what is web doing?"],
+            |question, a| match question {
+                "what is 3+5" => a.outcome == BotOutcome::General && a.words.contains('8'),
+                "what are my sessions" => {
+                    a.outcome == BotOutcome::Answered
+                        && !a.cites.is_empty()
+                        && ["summary cell", "notebook", "docs"]
+                            .iter()
+                            .any(|w| a.words.contains(w))
+                }
+                _ => a.outcome == BotOutcome::Answered && !a.cites.is_empty(),
+            },
+        );
+    }
 }
