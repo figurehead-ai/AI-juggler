@@ -72,13 +72,12 @@ fn started(
     (service, status)
 }
 
+/// Whether process `pid` is in the process table (a zombie counts, as
+/// `kill -0` counted it): read from the process list, never by a signal
+/// (the app sends signals only on its verified paths, `tests/signal_paths.rs`).
 #[cfg(unix)]
 fn process_alive(pid: u32) -> bool {
-    std::process::Command::new("/bin/kill")
-        .args(["-0", &pid.to_string()])
-        .stderr(std::process::Stdio::null())
-        .status()
-        .is_ok_and(|status| status.success())
+    crate::features::conversations::procs::some(&[pid]).contains_key(&pid)
 }
 
 fn logged(state: &AppState, what: &str) -> Vec<serde_json::Value> {
