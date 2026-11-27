@@ -676,6 +676,34 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
     answer.found = Some(found);
 }
 
+/// The general route's request: the question with the topic's history,
+/// the user's memory and (when given) the world section; `attempt` 0 is
+/// the tested decoding, a later one sampled (D-149).
+fn general_ask(
+    asked: &Asked<'_>,
+    name: &str,
+    version: Option<&str>,
+    (history, memory, world): (&str, &str, &str),
+    attempt: u32,
+) -> Request {
+    Request {
+        decoding: crate::features::ai::engine::Decoding::for_attempt(asked.question, attempt),
+        ..general::request(
+            asked.question,
+            asked.reading.lang,
+            name,
+            version,
+            history,
+            &[memory, world]
+                .iter()
+                .filter(|p| !p.is_empty())
+                .copied()
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    }
+}
+
 #[cfg(test)]
 #[path = "answer_tests.rs"]
 mod tests;
@@ -718,20 +746,13 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
     // every turn): what the user said shapes a plain answer; a reply that
     // states a work fact from it is asked again grounded (D-148's guard).
     let world = asked.connected.text.clone();
-    let general_request = |world: &str, attempt: u32| Request {
-        decoding: crate::features::ai::engine::Decoding::for_attempt(asked.question, attempt),
-        ..general::request(
-            asked.question,
-            asked.reading.lang,
+    let general_request = |world: &str, attempt: u32| {
+        general_ask(
+            asked,
             &name,
             status.version.as_deref(),
-            &history,
-            &[memory.as_str(), world]
-                .iter()
-                .filter(|p| !p.is_empty())
-                .copied()
-                .collect::<Vec<_>>()
-                .join("\n"),
+            (&history, &memory, world),
+            attempt,
         )
     };
     let request = general_request(&world, 0);
@@ -765,8 +786,13 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
     // to it that speaks of the work took it from the world section (the
     // RW1 re-walk: after a post's ask, its project's line went with "3+5"),
     // so it is asked once more without that section, sampled; only a
-    // reply that still claims work goes the grounded route (D-148).
-    if (about_work || claim.is_err()) && !asked.reading.names_work() && !world.is_empty() {
+    // reply that still claims work goes the grounded route (D-148). One
+    // that only speaks of the work ("I cannot access the mentioned
+    // sessions") is asked again too: the section confused it.
+    if (about_work || claim.is_err() || general::speaks_of_work(&text))
+        && !asked.reading.names_work()
+        && !world.is_empty()
+    {
         let again = general_request("", 1);
         if let Ok((second, second_ms)) = generate(model, &again, &mut answer)
             && let Some((second_text, second_about)) = general::parse(&second.draft)

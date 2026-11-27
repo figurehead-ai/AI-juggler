@@ -224,6 +224,14 @@ pub fn record_names(world: &World, question: &str) -> Vec<String> {
     names
 }
 
+/// 0.5.2 G58: whether a reply speaks of the user's work at all (a
+/// session, task, project, pool or account), claim or not: "3+5 equals 8.
+/// I cannot access the mentioned sessions." to a question naming none.
+#[must_use]
+pub fn speaks_of_work(text: &str) -> bool {
+    words(text).iter().any(|w| work_noun(w))
+}
+
 /// D-148's fabrication guard over a general reply: it names none of
 /// `names`, counts no work, and gives no work a state.
 ///

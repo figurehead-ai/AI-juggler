@@ -833,6 +833,11 @@ pub fn as_sentences(part: BotWrittenPart) -> BotWrittenPart {
         from = at;
     }
     out.push_str(text[from..].trim_end());
+    // 0.5.2 G58 (Apple's model): a part left on a comma or semicolon
+    // ("… is idle in “docs”,") ends on its full stop alone, never ",.".
+    while out.ends_with([',', ';']) {
+        out.pop();
+    }
     // Each part ends as a sentence: Apple's model often leaves the stop
     // off, and the parts are shown one after another.
     if !out.ends_with(['.', '!', '?', '…', ':']) {
@@ -1200,6 +1205,11 @@ mod tests {
             (
                 "Nothing needs you right now.",
                 "Nothing needs you right now.",
+            ),
+            // 0.5.2 G58's real-model run: a part left on a comma.
+            (
+                "\u{201c}Update the summary cell\u{201d} is idle in \u{201c}docs\u{201d},",
+                "\u{201c}Update the summary cell\u{201d} is idle in \u{201c}docs\u{201d}.",
             ),
         ] {
             assert_eq!(as_sentences(part(said)).text, shown, "{said}");

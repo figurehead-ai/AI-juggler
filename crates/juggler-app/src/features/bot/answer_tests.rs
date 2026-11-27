@@ -912,6 +912,19 @@ fn a_question_naming_no_work_is_asked_again_without_the_world_section() {
     assert_eq!(sent.len(), 2, "one more reply, never the grounded route");
     assert!(!sent[1].prompt.contains(world_line));
     drop(sent);
+    // One that only speaks of the work, claiming nothing, is asked again
+    // too (Apple's model: "3+5 equals 8. I cannot access the mentioned
+    // sessions or their states.").
+    let confused = Fake::with(Box::new(move |request| {
+        if request.prompt.contains(world_line) {
+            return Ok(r#"{"text":"3+5 equals 8. I cannot access the mentioned sessions or their states.","about_their_work":false}"#.to_owned());
+        }
+        default_rule(request)
+    }));
+    let plain = ask_with(&state, &confused, "what is 3+5");
+    assert_eq!(plain.outcome, BotOutcome::General);
+    assert_eq!(plain.general.as_ref().map(|g| g.text.as_str()), Some("8."));
+    assert_eq!(confused.calls.get(), 2);
     // A question about the work is grounded as before.
     let work = ask_with(&state, &Fake::new(), "what is api doing?");
     assert_eq!(work.outcome, BotOutcome::Answered);
