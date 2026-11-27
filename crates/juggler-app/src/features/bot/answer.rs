@@ -392,17 +392,20 @@ fn unchecked(answer: &mut Answer) {
     answer.unknown = Some(BotUnknown::Unverified);
 }
 
-/// A grounded reply that cites no record and claims nothing about the
-/// user's work (D-148's guard), when that is all it is.
+/// A grounded reply that cites no record, when every sentence of it says
+/// only what code verified (0.5.2 G17, [`super::check::says_only_verified`]):
+/// nothing matched the question's words or fell in its time, the store
+/// holds none of a kind, or what AI Juggler doesn't record.
 ///
 /// With no rows at all, no cite can be real: a small model given only
 /// "nothing matched" still cites a record 1 (AJ-E3829 on Apple's model,
 /// "what are my sessions" with none). Those cites are dropped, then the
-/// same guard runs on the words alone.
+/// words alone are read.
 fn uncited(
     draft: &crate::features::ai::engine::Draft,
     asked: &Asked<'_>,
     no_rows: bool,
+    verified: &super::check::Verified<'_>,
 ) -> Option<Vec<super::dto::BotWrittenPart>> {
     let mut parts = written::parse(draft)?;
     if no_rows {
@@ -415,20 +418,113 @@ fn uncited(
         .map(|p| p.text.as_str())
         .collect::<Vec<_>>()
         .join(" ");
-    let names = general::record_names(asked.world, asked.question);
-    let clean = parts.iter().all(|p| p.cites.is_empty())
-        && !text.contains('\u{201c}')
-        && general::guard(&text, &names).is_ok()
-        && !juggler_core::storage::memory::SecretScan::finds_secret(
-            &crate::features::ai::memory::RedactionSecrets,
-            &text,
-        );
+    let clean = parts.iter().all(|p| {
+        p.cites.is_empty() && super::check::says_only_verified(&p.text, asked.question, verified)
+    }) && !juggler_core::storage::memory::SecretScan::finds_secret(
+        &crate::features::ai::memory::RedactionSecrets,
+        &text,
+    );
     clean.then_some(parts)
 }
 
-/// The grounded route: the look-up's rows as data the answer must cite.
-fn grounded(model: &dyn BotModel, asked: &Asked<'_>, mut found: Found, answer: &mut Answer) {
-    let absent = absent(asked.world);
+/// G17: the question's own time words ("today", "this week"), for a
+/// sentence saying nothing fell in that time.
+fn time_phrase(question: &str) -> Option<String> {
+    let words: Vec<String> = question
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    let at = words.iter().position(|w| {
+        matches!(
+            w.as_str(),
+            "today"
+                | "yesterday"
+                | "week"
+                | "morning"
+                | "afternoon"
+                | "evening"
+                | "heute"
+                | "gestern"
+        )
+    })?;
+    let word = words.get(at)?;
+    Some(match at.checked_sub(1).and_then(|i| words.get(i)) {
+        Some(this) if this == "this" => format!("this {word}"),
+        _ => word.clone(),
+    })
+}
+
+/// G17: a sentence code verified for an empty look-up ("Nothing matches
+/// “billing”.", "Nothing finished today."), offered only when the check
+/// passes it; none otherwise.
+fn empty_sentence(asked: &Asked<'_>, verified: &super::check::Verified<'_>) -> Option<String> {
+    let de = asked.reading.lang == BotLang::De;
+    let sentence = if verified.matched_nothing {
+        let subject = asked.reading.subject.join(" ");
+        if subject.is_empty() {
+            return None;
+        }
+        if de {
+            format!("Nichts passt zu \u{201e}{subject}\u{201c}.")
+        } else {
+            format!("Nothing matches \u{201c}{subject}\u{201d}.")
+        }
+    } else {
+        let states = verified.window?;
+        let time = time_phrase(asked.question)?;
+        let finished = [BotState::Finished, BotState::Done];
+        let named = |these: &[BotState]| {
+            states.len() == these.len() && these.iter().all(|s| states.contains(s))
+        };
+        match (de, states.is_empty()) {
+            (false, true) => format!("There is nothing {time}."),
+            (false, false) if named(&finished) => format!("Nothing finished {time}."),
+            (false, false) if named(&[BotState::Failed]) => format!("Nothing failed {time}."),
+            (false, false) if named(&[BotState::Working]) => format!("Nothing was running {time}."),
+            (true, false) if named(&finished) => format!("Nichts ist {time} fertig."),
+            _ => return None,
+        }
+    };
+    super::check::says_only_verified(&sentence, asked.question, verified).then_some(sentence)
+}
+
+/// G17: the note when a look-up under a time, or over an empty store,
+/// found nothing: what code read, never "no record matched these words".
+fn empty_note(asked: &Asked<'_>) -> Option<String> {
+    if asked.reading.when != super::question::When::Any {
+        let state = if asked.reading.states.is_empty() {
+            ""
+        } else {
+            ", in the state it asks about"
+        };
+        return Some(format!(
+            "No session or task falls in the time the question asks about{state} (AI Juggler checked every one). \
+If that answers it, say so in one sentence of your own with the question's time word, citing no record."
+        ));
+    }
+    let kinds = match (
+        asked.world.sessions.is_empty(),
+        asked.world.tasks.is_empty(),
+    ) {
+        (true, true) => "sessions or tasks",
+        (true, false) if asked.reading.kinds.sessions => "sessions",
+        (false, true) if asked.reading.kinds.tasks => "tasks",
+        _ => return None,
+    };
+    Some(format!(
+        "The user has no {kinds} in AI Juggler yet (AI Juggler checked). Say so in one sentence of your own, citing no record."
+    ))
+}
+
+/// What the grounded route gives the model (G15, G17): the rows (the
+/// nearest records when states matched nothing), the note saying what
+/// code read, and what a reply citing nothing may say.
+fn grounding<'a>(
+    asked: &Asked<'a>,
+    mut found: Found,
+    absent: &[BotState],
+) -> (Found, Option<String>, super::check::Verified<'a>) {
     // G15: states that matched nothing ("what needs me" with nothing
     // waiting) get the most recent records to cite, never none.
     let mut note = None;
@@ -440,10 +536,42 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, mut found: Found, answer: &
             asked.reading,
             asked.scope.is_some(),
             &near.rows,
-            &absent,
+            absent,
         ));
         found = near;
+    } else if found.rows.is_empty() && found.unknown.is_none() {
+        note = empty_note(asked);
     }
+    let not_recorded_line = found
+        .unknown
+        .map(not_recorded)
+        .filter(|line| !line.is_empty());
+    let verified = super::check::Verified {
+        matched_nothing: found.rows.is_empty() && found.unknown == Some(BotUnknown::NothingFound),
+        window: (found.rows.is_empty()
+            && found.unknown.is_none()
+            && asked.reading.when != super::question::When::Any)
+            .then_some(asked.reading.states.as_slice()),
+        no_sessions: asked.world.sessions.is_empty(),
+        no_tasks: asked.world.tasks.is_empty(),
+        note: not_recorded_line.filter(|_| found.unknown != Some(BotUnknown::NothingFound)),
+    };
+    if let Some(sentence) = empty_sentence(asked, &verified) {
+        let line = note
+            .take()
+            .or_else(|| not_recorded_line.map(str::to_owned))
+            .unwrap_or_default();
+        note = Some(format!(
+            "{line} Say only that, in a sentence citing no record: \u{201c}{sentence}\u{201d}"
+        ));
+    }
+    (found, note, verified)
+}
+
+/// The grounded route: the look-up's rows as data the answer must cite.
+fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut Answer) {
+    let absent = absent(asked.world);
+    let (found, note, verified) = grounding(asked, found, &absent);
     let extras = Extras {
         note: note.or_else(|| {
             found
@@ -493,7 +621,9 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, mut found: Found, answer: &
                 // Juggler doesn't record how long tests take", "nothing
                 // matches that") stands: it rests on no row.
                 Decided::Records(why) => {
-                    if let Some(parts) = uncited(&generated.draft, asked, found.rows.is_empty()) {
+                    if let Some(parts) =
+                        uncited(&generated.draft, asked, found.rows.is_empty(), &verified)
+                    {
                         answer.outcome = Some(BotOutcome::Answered);
                         answer.written = Some(BotWritten {
                             parts,

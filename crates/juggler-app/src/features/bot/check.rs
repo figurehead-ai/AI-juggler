@@ -904,6 +904,179 @@ fn check_numbers(
     Ok(())
 }
 
+/// What code verified about a look-up for a reply that cites no record
+/// (0.5.2 G17): only these facts may be said without a cite.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Verified<'a> {
+    /// The question's words matched no record (nothing matched them).
+    pub matched_nothing: bool,
+    /// Under the question's time no record was found in these states
+    /// (empty: in any state).
+    pub window: Option<&'a [BotState]>,
+    /// The store holds no session at all.
+    pub no_sessions: bool,
+    /// The store holds no task at all.
+    pub no_tasks: bool,
+    /// A line code knows about what AI Juggler doesn't record.
+    pub note: Option<&'a str>,
+}
+
+/// The verbs of "nothing matched these words".
+const MATCHED: &[&str] = &[
+    "match", "matches", "matched", "matching", "found", "passt", "passen", "gefunden",
+];
+
+/// The other words a "nothing matched" sentence may use.
+const MATCH_WORDS: &[&str] = &[
+    "about",
+    "anything",
+    "any",
+    "named",
+    "called",
+    "mentions",
+    "words",
+    "eintrag",
+    "einträge",
+    "einträgen",
+    "dazu",
+    "darüber",
+    "über",
+    "etwas",
+];
+
+/// The user's work, by its kinds (a sentence naming one states a fact).
+const WORK: &[&str] = &[
+    "session",
+    "sessions",
+    "task",
+    "tasks",
+    "project",
+    "projects",
+    "pool",
+    "pools",
+    "account",
+    "accounts",
+    "app",
+    "apps",
+    "agent",
+    "agents",
+    "sitzung",
+    "sitzungen",
+    "aufgabe",
+    "aufgaben",
+    "projekt",
+    "projekte",
+    "konto",
+    "konten",
+];
+
+/// Whether the store holding none of `word`'s kind was read by code.
+fn none_read(word: &str, verified: &Verified<'_>) -> bool {
+    match word {
+        "session" | "sessions" | "sitzung" | "sitzungen" => verified.no_sessions,
+        "task" | "tasks" | "aufgabe" | "aufgaben" => verified.no_tasks,
+        _ => false,
+    }
+}
+
+/// "doesn't record", "does not look": the not-recorded line's own claim.
+fn says_not_recorded(sentence: &[String]) -> bool {
+    sentence.windows(2).any(|pair| {
+        matches!(pair[0].as_str(), "doesn't" | "not" | "don't" | "nicht")
+            && matches!(
+                pair[1].as_str(),
+                "record" | "records" | "look" | "keep" | "track"
+            )
+    })
+}
+
+/// G17 (D-130): whether a sentence that cites no record says only what
+/// code verified ([`Verified`]): that nothing matched the question's
+/// words, that nothing fell in its time (in the states it asked), that the
+/// store holds no session or no task at all, or what AI Juggler doesn't
+/// record. One claim, the check's own words, the question's words and the
+/// words of those facts; no record's name, number, quantifier, cause or
+/// first person. "You have no sessions." passes only when there are none.
+#[must_use]
+pub fn says_only_verified(text: &str, question: &str, verified: &Verified<'_>) -> bool {
+    let question_words = words(question);
+    let question_numbers = numbers_in(question);
+    let (quoted, rest) = split_quotes(text);
+    // A quoted span is the user's own words, never a record's name.
+    if quoted.iter().any(|q| {
+        let said = words(q);
+        said.is_empty() || !said.iter().all(|w| question_words.contains(w))
+    }) || numbers_in(&rest)
+        .iter()
+        .any(|n| !question_numbers.contains(n))
+    {
+        return false;
+    }
+    let sentence = words(&rest);
+    let note_words = verified.note.map(words).unwrap_or_default();
+    let (mut negated, mut matching, mut timed, mut stated) = (false, false, false, false);
+    let mut work: Vec<&str> = Vec::new();
+    for word in &sentence {
+        let w = word.as_str();
+        if NEGATION.contains(&w) {
+            negated = true;
+            continue;
+        }
+        // One claim a sentence: "and" or "but" would join an unchecked one.
+        if FIRST_PERSON.contains(&w)
+            || QUANTIFIERS.contains(&w)
+            || matches!(w, "and" | "but" | "und" | "aber")
+            || number_word(w).is_some()
+            || unheld_or_claimed(w, &[]).is_some()
+        {
+            return false;
+        }
+        if TIME.contains(&w) {
+            if verified.window.is_none() || !question_words.contains(word) {
+                return false;
+            }
+            timed = true;
+            continue;
+        }
+        if let Some(claim) = state_word(w) {
+            match verified.window {
+                Some(asked) if asked.is_empty() || claim.iter().all(|s| asked.contains(s)) => {
+                    stated = true;
+                    continue;
+                }
+                _ => return false,
+            }
+        }
+        if WORK.contains(&w) {
+            work.push(w);
+        }
+        matching |= MATCHED.contains(&w);
+        let allowed = VOCAB.contains(&w)
+            || WORK.contains(&w)
+            || question_words.contains(word)
+            || matches!(w, "yet" | "any" | "anything")
+            || (verified.matched_nothing && (MATCHED.contains(&w) || MATCH_WORDS.contains(&w)))
+            || note_words.contains(word);
+        if !allowed {
+            return false;
+        }
+    }
+    // A state is said only within the time asked about.
+    if stated && !timed {
+        return false;
+    }
+    let backed = (verified.matched_nothing && matching)
+        // Nothing in the time: in the states asked (or any, when none was).
+        || (timed && verified.window.is_some_and(|states| stated || states.is_empty()))
+        || (verified.note.is_some() && says_not_recorded(&sentence))
+        || (!work.is_empty() && work.iter().all(|w| none_read(w, verified)));
+    if negated {
+        return backed;
+    }
+    // Without a cite, a sentence about the user's work states a fact.
+    work.is_empty() && !stated && !timed
+}
+
 /// One sentence against the rows it cites.
 fn check_part(
     part: &BotWrittenPart,
@@ -1439,6 +1612,114 @@ mod tests {
             one("“api” is waiting on the user.", &finished),
             Err(Refused::State(_))
         ));
+    }
+
+    /// 0.5.2 G17 (D-130): with no record to cite, only what code read may
+    /// be said: nothing matched the words, nothing in the time asked, none
+    /// of a kind in the store, or what isn't recorded; never "You have no
+    /// sessions." while there are some.
+    #[test]
+    fn with_nothing_to_cite_only_what_code_read_is_said() {
+        let none = Verified::default();
+        let unmatched = Verified {
+            matched_nothing: true,
+            ..Verified::default()
+        };
+        let finished = [BotState::Finished, BotState::Done];
+        let today = Verified {
+            window: Some(&finished),
+            ..Verified::default()
+        };
+        let empty_store = Verified {
+            no_sessions: true,
+            no_tasks: true,
+            ..Verified::default()
+        };
+        let q_name = "what is the payments agent doing?";
+        let q_time = "what finished today?";
+        // The unmatched name.
+        for ok in [
+            "Nothing matches “payments agent”.",
+            "Nothing in your records matches that.",
+            "No record matches the payments agent.",
+        ] {
+            assert!(says_only_verified(ok, q_name, &unmatched), "{ok}");
+        }
+        for refused in [
+            "You have no sessions.",
+            "There are no sessions.",
+            "No session is running.",
+            "Nothing matches “api”.",
+            "Nothing matches, and you have no tasks.",
+            "I found nothing.",
+            "Nothing matches 2 sessions.",
+            "Nothing matches that.",
+        ] {
+            let verified = if refused == "Nothing matches that." {
+                none
+            } else {
+                unmatched
+            };
+            assert!(!says_only_verified(refused, q_name, &verified), "{refused}");
+        }
+        // The time filter.
+        for ok in ["Nothing finished today.", "No session finished today."] {
+            assert!(says_only_verified(ok, q_time, &today), "{ok}");
+        }
+        // Only the states asked were read: "nothing today" says more.
+        assert!(!says_only_verified(
+            "There is nothing today.",
+            q_time,
+            &today
+        ));
+        let anything_today = Verified {
+            window: Some(&[]),
+            ..Verified::default()
+        };
+        assert!(says_only_verified(
+            "There is nothing today.",
+            "what happened today?",
+            &anything_today
+        ));
+        for refused in [
+            "Nothing finished.",
+            "You have no sessions.",
+            "No session finished yesterday.",
+            "Nothing failed today.",
+            "Nothing matches today.",
+        ] {
+            assert!(!says_only_verified(refused, q_time, &today), "{refused}");
+        }
+        // The store read whole.
+        assert!(says_only_verified(
+            "There are no sessions yet.",
+            "what are my sessions",
+            &empty_store
+        ));
+        assert!(!says_only_verified(
+            "There are no sessions yet.",
+            "what are my sessions",
+            &none
+        ));
+        assert!(!says_only_verified(
+            "There are no projects yet.",
+            "what are my sessions",
+            &empty_store
+        ));
+        // What isn't recorded.
+        let note = Verified {
+            note: Some("AI Juggler doesn't record how long tests take."),
+            ..Verified::default()
+        };
+        let q_tests = "How long did the tests take in api?";
+        assert!(says_only_verified(
+            "AI Juggler doesn't record how long tests take.",
+            q_tests,
+            &note
+        ));
+        assert!(!says_only_verified("You have no sessions.", q_tests, &note));
+        // Without a negation, a work noun states a fact and needs a cite.
+        assert!(!says_only_verified("You have sessions.", "hi", &none));
     }
 
     /// MUT-C1: the echo check on its own (no other rule refuses this one).

@@ -444,3 +444,27 @@ fn bot_answers_the_rw1_labs_questions_on_the_real_model() {
     service.engines().release();
     assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
 }
+
+/// 0.5.2 G17: a look-up that leaves no record (a time with nothing in it,
+/// a name nothing holds) while sessions exist: the answer says only what
+/// code read, never "you have no sessions", and isn't refused.
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G17"]
+fn bot_says_only_what_code_read_when_nothing_is_found_on_the_real_model() {
+    let (_dir, state, service) = fixture();
+    let mut fails = Vec::new();
+    for _ in 0..3 {
+        for question in ["what finished today?", "is my billing session stuck?"] {
+            let a = ask_recorded(&state, &service, question, false);
+            if a.outcome != BotOutcome::Answered
+                || a.words.contains("no session")
+                || a.words.contains("web")
+                || a.words.contains("api")
+            {
+                fails.push(format!("{question}: {:?} {:?}", a.outcome, a.words));
+            }
+        }
+    }
+    service.engines().release();
+    assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}

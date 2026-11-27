@@ -611,3 +611,54 @@ fn a_question_that_doesn_t_refer_back_inherits_nothing_from_its_topic() {
         sent.prompt
     );
 }
+
+/// A fake whose grounded reply is `text`, citing nothing.
+fn uncited_reply(text: &'static str) -> Fake {
+    Fake::with(Box::new(
+        move |request: &crate::features::ai::engine::Request| {
+            if grounded(request) {
+                Ok(serde_json::json!({"sentences":[{"text": text, "records": []}]}).to_string())
+            } else {
+                default_rule(request)
+            }
+        },
+    ))
+}
+
+/// 0.5.2 G17 (D-130): when a time filter or an unmatched name leaves no
+/// record, an uncited "You have no sessions." is refused while sessions
+/// exist; what code verified (nothing matched these words, nothing in
+/// this time) stands, and the note says what was read.
+#[test]
+fn an_empty_look_up_never_lets_an_unread_none_through() {
+    let (_dir, state) = seeded();
+    for (question, honest) in [
+        (
+            "what is the payments agent doing?",
+            "Nothing matches “payments agent”.",
+        ),
+        ("what finished today?", "Nothing finished today."),
+    ] {
+        let fake = uncited_reply(honest);
+        let turn = ask_with(&state, &fake, question);
+        assert_eq!(turn.outcome, BotOutcome::Answered, "{question}: {turn:?}");
+        assert!(turn.rows.is_empty(), "{question}");
+        for invented in ["You have no sessions.", "There are no sessions yet."] {
+            let turn = ask_with(&state, &uncited_reply(invented), question);
+            assert_eq!(
+                (turn.outcome, turn.unknown),
+                (BotOutcome::DontKnow, Some(BotUnknown::Unverified)),
+                "{question}: {invented}"
+            );
+        }
+    }
+    let fake = uncited_reply("Nothing finished today.");
+    ask_with(&state, &fake, "what finished today?");
+    let sent = fake.requests.borrow().last().unwrap().clone();
+    assert!(sent.prompt.contains("falls in the time"), "{}", sent.prompt);
+    assert!(
+        !sent.prompt.contains("No record matched"),
+        "{}",
+        sent.prompt
+    );
+}
