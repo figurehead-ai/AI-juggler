@@ -445,6 +445,102 @@ pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart 
     }
 }
 
+/// The words that start a record's own clause after its quoted name ("“api”
+/// is waiting"), English and German.
+const CLAUSE_VERBS: &[&str] = &[
+    "is", "are", "was", "were", "has", "had", "needs", "asks", "waits", "looks", "reached",
+    "failed", "finished", "ended", "stopped", "ist", "sind", "war", "hat", "wartet", "arbeitet",
+    "läuft", "braucht", "fragt", "sieht", "wurde",
+];
+
+/// The words that join a quoted name to what comes before it ("and",
+/// "in", "the session …"): a name after one of them is no new clause.
+const JOINS: &[&str] = &[
+    "and", "or", "but", "while", "whereas", "with", "in", "on", "of", "for", "from", "to", "at",
+    "as", "the", "session", "task", "account", "project", "pool", "app", "called", "named", "und",
+    "oder", "aber", "während", "mit", "im", "in", "von", "für", "aus", "zu", "bei", "die", "der",
+    "das", "sitzung", "aufgabe", "konto", "projekt", "namens",
+];
+
+/// 0.5.2 G47: an answer the model ran together read as sentences. Apple's
+/// model writes each record's sentence with no stop ("“…” is idle in
+/// “docs”", then "“Add…” is ended in “web”"), shown one after another,
+/// and sometimes two records' clauses in one sentence with nothing
+/// between them ("“api” is waiting on you “web” is working"). Each part
+/// ends with a stop, and a stop goes before each quoted name that opens a
+/// clause of its own (its state verb next) right after a clause that
+/// already had one. Only punctuation is added: no name, number or state
+/// changes, and the check read the words as drafted.
+#[must_use]
+pub fn as_sentences(part: BotWrittenPart) -> BotWrittenPart {
+    let text = &part.text;
+    // Each quoted name: where its opening mark is, and the byte after its
+    // closing one (straight quotes toggle; “ ” „ « » by side, German too).
+    let mut names: Vec<(usize, usize)> = Vec::new();
+    let mut open: Option<(usize, char)> = None;
+    for (i, c) in text.char_indices() {
+        match (open, c) {
+            (None, '\u{201c}' | '"' | '\u{201e}' | '\u{ab}') => open = Some((i, c)),
+            (Some((at, first)), '\u{201d}' | '"' | '\u{201c}' | '\u{bb}')
+                if !(first == '\u{201c}' && c == '\u{201c}') =>
+            {
+                names.push((at, i + c.len_utf8()));
+                open = None;
+            }
+            _ => {}
+        }
+    }
+    let next_word = |from: usize| -> String {
+        text[from..]
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .trim_matches(|c: char| !c.is_alphanumeric())
+            .to_lowercase()
+    };
+    let opens_clause = |&(_, end): &(usize, usize)| CLAUSE_VERBS.contains(&next_word(end).as_str());
+    let mut cuts: Vec<usize> = Vec::new();
+    let mut clause_had_verb = false;
+    let mut since = 0;
+    for (k, name) in names.iter().enumerate() {
+        let before = &text[since..name.0];
+        // A new sentence starts afresh; a comma only marks a phrase ("now,
+        // in “Work”"), so the clause it is in still has its verb.
+        if before.contains(['.', ';', ':', '!', '?']) {
+            clause_had_verb = false;
+        }
+        let last = before.split_whitespace().last().map(|w| {
+            w.trim_matches(|c: char| !c.is_alphanumeric())
+                .to_lowercase()
+        });
+        let joined = last.as_deref().is_some_and(|w| JOINS.contains(&w));
+        let touches = k > 0 && !before.trim_end().ends_with([',', ';', ':', '.', '!', '?']);
+        if opens_clause(name) && clause_had_verb && touches && !joined {
+            cuts.push(name.0);
+            clause_had_verb = false;
+        }
+        clause_had_verb |= opens_clause(name);
+        since = name.1;
+    }
+    let mut out = String::with_capacity(text.len() + cuts.len() * 2 + 1);
+    let mut from = 0;
+    for at in cuts {
+        out.push_str(text[from..at].trim_end());
+        out.push_str(". ");
+        from = at;
+    }
+    out.push_str(text[from..].trim_end());
+    // Each part ends as a sentence: Apple's model often leaves the stop
+    // off, and the parts are shown one after another.
+    if !out.ends_with(['.', '!', '?', '…', ':']) {
+        out.push('.');
+    }
+    BotWrittenPart {
+        text: out,
+        cites: part.cites,
+    }
+}
+
 /// What became of a draft.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Decided {
@@ -494,7 +590,8 @@ pub fn decide_with(
         return Decided::Records("secret");
     }
     match check_with(&parts, rows, question, removed, absent) {
-        Ok(()) => Decided::Shown(parts),
+        // 0.5.2 G47: shown as sentences; the check read the words as drafted.
+        Ok(()) => Decided::Shown(parts.into_iter().map(as_sentences).collect()),
         Err(refused) => Decided::Records(Refused::code(&refused)),
     }
 }
@@ -531,6 +628,93 @@ mod tests {
             assert_eq!(again.instructions, first.instructions);
             assert_eq!(again.prompt, format!("{}\n\n{said}", first.prompt));
             assert!(!first.prompt.contains(said));
+        }
+    }
+
+    /// 0.5.2 G47: two records' clauses the model ran together read as
+    /// sentences; a sentence that joins them already is left as written.
+    #[test]
+    fn clauses_that_touch_read_as_sentences() {
+        let part = |t: &str| BotWrittenPart {
+            text: t.into(),
+            cites: vec![1, 2],
+        };
+        for (said, shown) in [
+            (
+                "“Update the summary cell…” is idle in “docs” “Add a retry helper…” is ended in “web”.",
+                "“Update the summary cell…” is idle in “docs”. “Add a retry helper…” is ended in “web”.",
+            ),
+            (
+                "The older “api” is waiting on you “web” is working.",
+                "The older “api” is waiting on you. “web” is working.",
+            ),
+            (
+                "„web“ arbeitet „api“ wartet auf dich.",
+                "„web“ arbeitet. „api“ wartet auf dich.",
+            ),
+            // Apple's model's own answer (the G45 real-model test, 5 runs).
+            (
+                "“Update the summary cell in the report notebook” is idle in “docs” “Add a retry helper to the API client” is ended in “web” “Remove the old handlers module” is ended in “api”",
+                "“Update the summary cell in the report notebook” is idle in “docs”. “Add a retry helper to the API client” is ended in “web”. “Remove the old handlers module” is ended in “api”.",
+            ),
+            (
+                "“api” is asking for your input now, in “Work” “Ship the orders page” is waiting for review, in “Team”",
+                "“api” is asking for your input now, in “Work”. “Ship the orders page” is waiting for review, in “Team”.",
+            ),
+        ] {
+            assert_eq!(as_sentences(part(said)).text, shown, "{said}");
+        }
+        // Apple's model's three parts with no stops (the G45 real-model
+        // test): each shown as a sentence.
+        for (said, shown) in [
+            (
+                "“Update the summary cell in the report notebook” is idle in “docs”",
+                "“Update the summary cell in the report notebook” is idle in “docs”.",
+            ),
+            (
+                "“Add a retry helper to the API client” is ended in “web”",
+                "“Add a retry helper to the API client” is ended in “web”.",
+            ),
+            (
+                "Nothing needs you right now.",
+                "Nothing needs you right now.",
+            ),
+        ] {
+            assert_eq!(as_sentences(part(said)).text, shown, "{said}");
+        }
+        for kept in [
+            "“web” is working and “api” is waiting on you.",
+            "The session “web” is working in “shop”.",
+            "“web” and “api” are working.",
+            "“web” is working, “api” is waiting on you.",
+            "You have “web” working.",
+            "„web“ arbeitet und „api“ wartet auf dich.",
+        ] {
+            assert_eq!(as_sentences(part(kept)).text, kept);
+        }
+    }
+
+    /// G47 end to end: the check reads the draft as written (unchanged);
+    /// what is shown is the same words, as sentences.
+    #[test]
+    fn a_run_together_answer_passes_as_before_and_shows_as_sentences() {
+        let rows = vec![
+            row(BotRowKind::Session, "api", Some(BotState::AsksYou)),
+            row(BotRowKind::Session, "web", Some(BotState::Working)),
+        ];
+        let text = r#"{"sentences":[{"text":"“api” is waiting on you “web” is working.","records":[1,2]}]}"#;
+        let joined = r#"{"sentences":[{"text":"“api” is waiting on you and “web” is working.","records":[1,2]}]}"#;
+        let as_is = decide(&draft(joined), &rows, "What are my sessions doing?", &[]);
+        let ran = decide(&draft(text), &rows, "What are my sessions doing?", &[]);
+        match (as_is, ran) {
+            (Decided::Shown(_), Decided::Shown(parts)) => {
+                assert_eq!(parts[0].text, "“api” is waiting on you. “web” is working.");
+                assert_eq!(parts[0].cites, vec![1, 2]);
+            }
+            (Decided::Records(a), Decided::Records(b)) => {
+                assert_eq!(a, b, "the check decides both alike")
+            }
+            other => unreachable!("the check decided them differently: {other:?}"),
         }
     }
 
@@ -694,7 +878,8 @@ mod tests {
         );
         assert_eq!(
             shown(&said, &rows).as_deref(),
-            Some("“Ship the orders page” is waiting for review and the pool is Team")
+            // G47: shown as a sentence, its stop added.
+            Some("“Ship the orders page” is waiting for review and the pool is Team.")
         );
         // A wrong value is still refused.
         let wrong = draft(
