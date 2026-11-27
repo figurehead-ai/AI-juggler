@@ -385,7 +385,7 @@ pub fn nearest(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Op
 }
 
 /// Every matched row counted by kind and state, in first-seen order.
-fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
+pub(crate) fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
     let mut out: Vec<BotTally> = Vec::new();
     for row in answer {
         match out

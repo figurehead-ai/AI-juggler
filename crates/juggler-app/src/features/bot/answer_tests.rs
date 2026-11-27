@@ -575,10 +575,13 @@ fn nothing_open_gives_the_nearest_records_and_a_true_note() {
         sent.prompt
     );
     assert_eq!(turn.outcome, BotOutcome::Answered);
-    assert!(
-        turn.rows.len() >= 2 && turn.rows.len() <= 3,
-        "{:?}",
+    // 0.5.2 G71: the answer keeps the records its sentences cite.
+    assert_eq!(
         turn.rows
+            .iter()
+            .map(|r| r.title.as_str())
+            .collect::<Vec<_>>(),
+        ["Rewrite the date parser"]
     );
     let invents =
         grounded_reply(r#"{"sentences":[{"text":"You have two sessions","records":[1]}]}"#);
@@ -856,6 +859,12 @@ fn a_refused_draft_is_asked_once_more_and_shown_only_if_it_checks_out() {
                 ),
                 "the second draft samples"
             );
+            // 0.5.2 G67: the note carries the records' own example.
+            assert!(
+                request.prompt.contains("for example: \"\u{201c}web"),
+                "{}",
+                request.prompt
+            );
             return default_rule(request);
         }
         Ok(r#"{"sentences":[{"text":"“web” crashed.","records":[1]}]}"#.to_owned())
@@ -962,4 +971,67 @@ fn a_post_s_ask_looks_up_its_record_by_its_key() {
         "{prompt}"
     );
     assert!(!prompt.contains("under a minute"), "{prompt}");
+}
+
+/// The name record `n` is framed with in a grounded prompt.
+fn framed_name(prompt: &str, n: u32) -> String {
+    let line = prompt
+        .lines()
+        .find(|l| l.starts_with(&format!("{n}. ")))
+        .unwrap_or_default();
+    line.split('\u{201c}')
+        .nth(1)
+        .and_then(|rest| rest.split('\u{201d}').next())
+        .unwrap_or_default()
+        .to_owned()
+}
+
+/// 0.5.2 G71 (RW1 Part S, S4 and S7): the answer keeps only the records
+/// its shown sentences cite, numbered again, and the lead counts them; a
+/// memory question's sentence about a session nobody asked of is dropped.
+#[test]
+fn an_answer_keeps_the_records_it_cites_and_the_sentences_asked_for() {
+    let (_dir, state) = seeded();
+    let named = Fake::with(Box::new(|request| {
+        if !grounded(request) {
+            return default_rule(request);
+        }
+        // The second record, by its own name from the frame.
+        let name = framed_name(&request.prompt, 2);
+        Ok(serde_json::json!({"sentences":[{"text": format!("\u{201c}{name}\u{201d} is working."), "records":[2]}]}).to_string())
+    }));
+    let turn = ask_with(&state, &named, "what are my sessions");
+    assert_eq!(turn.outcome, BotOutcome::Answered, "{turn:?}");
+    assert_eq!(turn.rows.len(), 1, "{:?}", turn.rows);
+    assert_eq!(turn.rows[0].id, "s-web");
+    assert_eq!(turn.written.as_ref().unwrap().parts[0].cites, vec![1]);
+    assert_eq!(turn.total, 1);
+    // A memory question: the session sentence beside the memory's goes.
+    let kept = ask_with(
+        &state,
+        &Fake::new(),
+        "Remember: call api the payments agent",
+    );
+    assert_eq!(kept.outcome, BotOutcome::Remembered);
+    let both = Fake::with(Box::new(|request| {
+        if !grounded(request) {
+            return default_rule(request);
+        }
+        let n = memory_number(&request.prompt).unwrap_or(0);
+        let session = if n == 1 { 2 } else { 1 };
+        let name = framed_name(&request.prompt, session);
+        Ok(serde_json::json!({"sentences":[
+            {"text": "You asked me to call \u{201c}api\u{201d} \u{201c}the payments agent\u{201d}.", "records":[n]},
+            {"text": format!("\u{201c}{name}\u{201d} is working."), "records":[session]}
+        ]}).to_string())
+    }));
+    let turn = ask_with(&state, &both, "what did I ask you to remember about api?");
+    assert_eq!(turn.outcome, BotOutcome::Answered, "{turn:?}");
+    let written = turn.written.as_ref().unwrap();
+    assert_eq!(written.parts.len(), 1, "{:?}", written.parts);
+    assert!(written.parts[0].text.contains("payments agent"));
+    assert_eq!(
+        turn.rows.iter().map(|r| r.kind).collect::<Vec<_>>(),
+        [crate::features::bot::dto::BotRowKind::Memory]
+    );
 }

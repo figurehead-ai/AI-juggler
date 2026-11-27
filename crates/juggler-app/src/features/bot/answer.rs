@@ -578,10 +578,73 @@ fn grounding<'a>(
     (found, note, verified)
 }
 
+/// 0.5.2 G71 (RW1 Part S, S7): a question about what the user told Bot
+/// is answered by the sentences resting on those memories; a sentence
+/// beside them about a session nobody asked of ("The session “…” is
+/// finished in project “api”.") is dropped. None resting on one: as
+/// written (the check passed it).
+fn asked_about(
+    parts: Vec<super::dto::BotWrittenPart>,
+    asked: &Asked<'_>,
+    rows: &[super::dto::BotRowInfo],
+) -> Vec<super::dto::BotWrittenPart> {
+    if asked.memories.is_empty() {
+        return parts;
+    }
+    let of_memory = |part: &super::dto::BotWrittenPart| {
+        part.cites.iter().any(|&c| {
+            rows.get((c as usize).wrapping_sub(1))
+                .is_some_and(|r| r.kind == super::dto::BotRowKind::Memory)
+        })
+    };
+    if parts.iter().any(of_memory) {
+        parts.into_iter().filter(of_memory).collect()
+    } else {
+        parts
+    }
+}
+
+/// 0.5.2 G71 (RW1 Part S, S4: "what is web doing?" was "checked against
+/// the 3 records below" and named two): the answer keeps only the records
+/// its shown sentences cite, numbered again in their order, and the lead's
+/// counts are theirs. Nothing is added: the sentences are as checked.
+fn only_cited(
+    parts: Vec<super::dto::BotWrittenPart>,
+    found: &mut Found,
+) -> Vec<super::dto::BotWrittenPart> {
+    let cited: Vec<u32> = (1..=u32::try_from(found.rows.len()).unwrap_or(0))
+        .filter(|n| parts.iter().any(|p| p.cites.contains(n)))
+        .collect();
+    if cited.is_empty() || cited.len() == found.rows.len() {
+        return parts;
+    }
+    let renumber = |old: u32| {
+        cited
+            .iter()
+            .position(|&n| n == old)
+            .and_then(|i| u32::try_from(i + 1).ok())
+    };
+    let rows = std::mem::take(&mut found.rows);
+    found.rows = rows
+        .into_iter()
+        .zip(1_u32..)
+        .filter_map(|(row, n)| cited.contains(&n).then_some(row))
+        .collect();
+    found.total = u32::try_from(found.rows.len()).unwrap_or(u32::MAX);
+    found.tallies = super::lookup::tally(&found.rows.iter().collect::<Vec<_>>());
+    parts
+        .into_iter()
+        .map(|part| super::dto::BotWrittenPart {
+            cites: part.cites.iter().filter_map(|&c| renumber(c)).collect(),
+            text: part.text,
+        })
+        .collect()
+}
+
 /// The grounded route: the look-up's rows as data the answer must cite.
 fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut Answer) {
     let absent = absent(asked.world);
-    let (found, note, verified) = grounding(asked, found, &absent);
+    let (mut found, note, verified) = grounding(asked, found, &absent);
     let extras = Extras {
         note: note.or_else(|| {
             found
@@ -630,7 +693,7 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
             prompt: format!(
                 "{}\n\n{}",
                 request.prompt,
-                written::retry_note(asked.reading.lang)
+                written::retry_note(asked.reading.lang, &found.rows)
             ),
             decoding: crate::features::ai::engine::Decoding::for_attempt(asked.question, 1),
             ..request.clone()
@@ -645,6 +708,8 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
             answer.details = Some(details(&generated, &request, &parts, asked, records, ms));
             match decide(&generated) {
                 Decided::Shown(parts) => {
+                    let parts = asked_about(parts, asked, &found.rows);
+                    let parts = only_cited(parts, &mut found);
                     answer.outcome = Some(BotOutcome::Answered);
                     answer.written = Some(BotWritten {
                         parts,

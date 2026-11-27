@@ -725,17 +725,22 @@ fn app_place_joined(part: BotWrittenPart, cited: &[&BotRowInfo]) -> BotWrittenPa
 }
 
 /// 0.5.2 G53: the note a second draft is asked with when the first didn't
-/// check out: what to write, never what the first said.
+/// check out: what to write, never what the first said. 0.5.2 G67 (RW1
+/// Part S, S5): with the records' own example sentence ([`example`]),
+/// true of them and passed by the check: Apple's model's second draft over
+/// one post's record copied the record's line ("…; state: finished").
 #[must_use]
-pub const fn retry_note(lang: BotLang) -> &'static str {
-    match lang {
+pub fn retry_note(lang: BotLang, rows: &[BotRowInfo]) -> String {
+    let mut note = match lang {
         BotLang::En => {
-            "A note for you, not words to quote: your last answer didn't check out against the records. Write it again from the records alone: name each record in quotation marks exactly as it is written, with the state its line gives, one record to a sentence."
+            "A note for you, not words to quote: your last answer didn't check out against the records. Write it again from the records alone: name each record in quotation marks exactly as it is written, with the state its line gives, one record to a sentence".to_owned()
         }
         BotLang::De => {
-            "Eine Notiz für dich, keine Worte zum Zitieren: deine letzte Antwort passte nicht zu den Einträgen. Schreib sie neu, nur aus den Einträgen: nenn jeden Eintrag in Anführungszeichen genau wie geschrieben, mit dem Zustand aus seiner Zeile, ein Eintrag pro Satz."
+            "Eine Notiz für dich, keine Worte zum Zitieren: deine letzte Antwort passte nicht zu den Einträgen. Schreib sie neu, nur aus den Einträgen: nenn jeden Eintrag in Anführungszeichen genau wie geschrieben, mit dem Zustand aus seiner Zeile, ein Eintrag pro Satz".to_owned()
         }
-    }
+    };
+    note.push_str(&example_words(rows, lang));
+    note
 }
 
 /// 0.5.2 G53 (RW1 W4, Apple's model): a sentence's own citation written

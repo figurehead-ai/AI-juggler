@@ -47,12 +47,19 @@ pub(super) fn rewalk_fixture(
                 ("acc-chatgpt", "codex", "ChatGPT"),
             ],
         );
-        storage
-            .profiles()
-            .insert(&crate::test_support::launch_settings(
-                "rec-work", "Work", "acc-work",
-            ))
-            .unwrap();
+        // R7's revert ran on the Personal App (Part S's records: "Change the
+        // date format … (Personal · api, Finished)").
+        for (profile, label, account) in [
+            ("rec-work", "Work", "acc-work"),
+            ("rec-personal", "Personal", "acc-personal"),
+        ] {
+            storage
+                .profiles()
+                .insert(&crate::test_support::launch_settings(
+                    profile, label, account,
+                ))
+                .unwrap();
+        }
         let mut project = std::collections::HashMap::new();
         for (name, folder) in [("web", &web), ("api", &api), ("docs", &docs)] {
             project.insert(name, storage.projects().ensure(folder).unwrap().id);
@@ -97,7 +104,12 @@ pub(super) fn rewalk_fixture(
                 "api" => &api,
                 _ => &docs,
             };
-            let mut record = crate::test_support::instance(id, "rec-work", status, folder.clone());
+            let profile = if id == "s-revert" {
+                "rec-personal"
+            } else {
+                "rec-work"
+            };
+            let mut record = crate::test_support::instance(id, profile, status, folder.clone());
             record.project = project.get(name).cloned();
             record.started_at = Timestamp::from_millis(now - (ago + 3) * 60_000);
             record.last_activity = Some(Timestamp::from_millis(now - ago * 60_000));
@@ -346,6 +358,55 @@ fn bot_shows_no_stray_mark_or_joined_place_on_the_real_model() {
                     && !a.words.contains(",.")
                     && !joined,
             );
+        }
+    }
+    service.engines().release();
+    assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}
+
+/// 0.5.2 G67 (RW1 Part S, S5 on the real app): Ask Bot on the revert post
+/// as the window sends it through `bot_ask`: the feed's post targets its
+/// session by the session's own id (`feed::items`, `target.session_id`),
+/// `botScope` makes the chip `{kind: "session", id, name: the post's
+/// subject}`, `startDraft` puts the post's sentence before the user's
+/// words; the JSON goes through the IPC's own types. Earlier in the walk:
+/// the alias kept, other topics asked. "did it finish cleanly?", each in a
+/// fresh topic, three times: answered about that post's session, citing
+/// it, never refused.
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G67"]
+fn bot_answers_a_post_s_ask_as_the_window_sends_it_on_the_real_model() {
+    let (_dir, state, service) = rewalk_fixture(false);
+    let kept = ask_for_check(&state, &service, "call api the payments agent").unwrap();
+    assert_eq!(kept.turn.outcome, BotOutcome::Remembered);
+    let sent = serde_json::json!({
+        "question": "About this post: \u{201c}Claude Code CLI finished Change the date format in the API responses to ISO 8601 in api in under a minute.\u{201d} did it finish cleanly?",
+        "scope": {
+            "kind": "session",
+            "id": "s-revert",
+            "name": "Change the date format in the API responses to ISO 8601",
+            "sessions": []
+        }
+    });
+    let mut fails = Vec::new();
+    for _ in 0..3 {
+        crate::features::bot::commands::bot_new_topic_impl(&state).unwrap();
+        let input: crate::features::bot::dto::BotAskInput =
+            serde_json::from_value(sent.clone()).unwrap();
+        let post = ask_scoped(&state, &service, &input.question, input.scope);
+        let words = words_of(&post).to_lowercase();
+        if post.outcome != BotOutcome::Answered
+            || !post.rows.iter().any(|r| r.id == "s-revert")
+            || !words.contains("date format")
+        {
+            fails.push(format!(
+                "post's ask: {:?} {words:?} rows {:?}",
+                post.outcome,
+                post.rows
+                    .iter()
+                    .map(|r| r.title.clone())
+                    .collect::<Vec<_>>()
+            ));
         }
     }
     service.engines().release();
