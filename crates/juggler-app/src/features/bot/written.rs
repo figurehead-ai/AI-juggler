@@ -392,6 +392,12 @@ fn field_named<'r>(word: &str, row: &'r BotRowInfo) -> Option<&'r str> {
 /// record: "the pool", unquoted, when one cited record holds it.
 #[must_use]
 pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart {
+    // 0.5.2 G55: a sentence whose quotes don't open and close in turn is
+    // left as the model wrote it, for the check to refuse (its shape),
+    // never rewritten into another malformed one.
+    if !super::check::well_quoted(&part.text) {
+        return part;
+    }
     let cited: Vec<&BotRowInfo> = part
         .cites
         .iter()
@@ -722,6 +728,45 @@ mod tests {
             "“web” ran (2) times."
         );
         assert_eq!(cite_marks_out("“web” (3 files)", &[3]), "“web” (3 files)");
+    }
+
+    /// 0.5.2 G55: Apple's model's "“web” is working in “session “web””"
+    /// was shown as "“web” is working in “web“web””", passed by the check.
+    /// A quote inside a quote is refused; a well-formed kind word is
+    /// rewritten whole.
+    #[test]
+    fn a_quote_inside_a_quote_is_refused_never_shown_garbled() {
+        let rows = [row(BotRowKind::Session, "web", Some(BotState::Working))];
+        let absent = crate::features::bot::check::Absent::default();
+        let decided = |text: &str| {
+            decide_with(
+                &draft(
+                    &serde_json::json!({"sentences": [{"records": [1], "text": text}]}).to_string(),
+                ),
+                &rows,
+                "which app is web running in?",
+                &[],
+                &absent,
+            )
+        };
+        assert_eq!(
+            decided("“web” is working in “session “web””, records 1."),
+            Decided::Records("shape")
+        );
+        assert_eq!(
+            decided("“web” is working in “session”."),
+            Decided::Shown(vec![BotWrittenPart {
+                text: "“web” is working in “web”.".into(),
+                cites: vec![1],
+            }])
+        );
+        assert!(crate::features::bot::check::well_quoted("„web“ arbeitet."));
+        assert!(!crate::features::bot::check::well_quoted(
+            "“web“ is working."
+        ));
+        assert!(!crate::features::bot::check::well_quoted(
+            "web” is working."
+        ));
     }
 
     /// 0.5.2 G53 (Apple's model): "“session” is idle and “session” is

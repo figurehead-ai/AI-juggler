@@ -861,10 +861,35 @@ fn shape(parts: &[BotWrittenPart]) -> Result<String, Refused> {
         || all.contains("://")
         || all.contains("www.")
         || all.chars().any(bad_char)
+        || parts.iter().any(|p| !well_quoted(&p.text))
     {
         return Err(Refused::Shape);
     }
     Ok(all)
+}
+
+/// 0.5.2 G55: every quote in a sentence is opened and closed in turn,
+/// never one inside another ("“web” is working in “session “web””") nor a
+/// closing one with none open: what is shown is read the way the check
+/// read it. “…”, „…“ (or „…”), «…» and "…".
+#[must_use]
+pub fn well_quoted(text: &str) -> bool {
+    let mut open: Option<char> = None;
+    for c in text.chars() {
+        match (open, c) {
+            (None, '\u{201c}' | '\u{201e}' | '\u{ab}' | '"') => open = Some(c),
+            (None, '\u{201d}' | '\u{bb}') => return false,
+            (Some('\u{201c}'), '\u{201d}')
+            | (Some('\u{201e}'), '\u{201c}' | '\u{201d}')
+            | (Some('\u{ab}'), '\u{bb}')
+            | (Some('"'), '"') => open = None,
+            (Some(_), '\u{201c}' | '\u{201d}' | '\u{201e}' | '\u{ab}' | '\u{bb}' | '"') => {
+                return false;
+            }
+            _ => {}
+        }
+    }
+    open.is_none()
 }
 
 /// Checks a written answer against the rows it may cite (1-based) and
