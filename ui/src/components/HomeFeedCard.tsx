@@ -23,6 +23,7 @@ import { HomeFeedDigest } from "./HomeFeedDigest";
 import { POST, PostAttachment, PostAvatar, PostThread, Story } from "./HomeFeedParts";
 import { GestureBar, WhyPanel } from "./HomeFeedGestures";
 import { TurnReview } from "./TurnReview";
+import { FeedSummary } from "./FeedSummary";
 import { exactWhen, feedWhen, rollupSentence, said, sentence } from "../lib/feed-words";
 import { attachmentOf, changesOf, postAuthor, story, type Attachment, type PostAuthor, type StoryPart } from "../lib/feed-story";
 import { stateOf, threadOf, type FeedCard, type FeedThing } from "../lib/feed-rollup";
@@ -119,6 +120,13 @@ function PostReview({ card, post }: { card: FeedCard; post: FeedItemInfo }): JSX
   return ask ? <TurnReview ask={ask} quote /> : null;
 }
 
+/** AJ-E3831 (D-154): the post's AI summary, when its Beta runs and it
+ * covers the turn (the same turns the review covers). */
+function PostSummary({ card, post }: { card: FeedCard; post: FeedItemInfo }): JSX.Element | null {
+  const ask = reviewAskOf(card, post, useAiJob("feed")?.covers);
+  return ask ? <FeedSummary ask={ask} /> : null;
+}
+
 /** A rollup's things: three, then Show all in place. */
 function Rolled({ card, now, actions }: { card: FeedCard; now: number; actions: CardActions }): JSX.Element {
   const [all, setAll] = useState(false);
@@ -211,6 +219,7 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned,
         <p id={`${id}-what`} className="mb-2 mt-[3px] text-body leading-normal text-ink" data-testid="feed-sentence">
           <Story parts={parts} onOpen={open} onPool={() => void actions.open(poolOf(post))} />
         </p>
+        <PostSummary card={card} post={post} />
         {attachment && <PostAttachment attachment={attachment} />}
         <PostReview card={card} post={post} />
         {card.rolled && <Rolled card={card} now={now} actions={actions} />}

@@ -254,6 +254,8 @@ macro_rules! app_commands {
             Write features::feed::commands::prefs::feed_lean,
             Read  features::feed::commands::prefs::feed_leans,
             Write features::feed::commands::prefs::feed_unlean,
+            Read  features::feed::summary::feed_line,
+            Write features::feed::summary::feed_line_wrong,
             Read  features::review::commands::review_turn,
             Read  features::review::commands::review_turn_ai,
             Write features::review::commands::review_wrong,

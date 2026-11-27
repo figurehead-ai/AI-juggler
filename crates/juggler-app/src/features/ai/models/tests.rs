@@ -217,11 +217,11 @@ fn the_built_in_list_is_apple_only_through_the_same_reader() {
     assert_eq!(built_in[0].verdict(Job::Bot), Verdict::Beta);
     assert_eq!(built_in[0].verdict(Job::Attention), Verdict::Ships);
     // D-149's v6 round (2026-11-26): the digest passed its blind checks
-    // (64 %, Beta); the feed line and watches didn't.
+    // (64 %, Beta); watches didn't. D-154 (v14's re-measure, 2026-11-27):
+    // the feed's AI summaries are an opt-in Beta on Apple's model.
     assert_eq!(built_in[0].verdict(Job::Digest), Verdict::Beta);
-    for job in [Job::Feed, Job::Watches] {
-        assert_eq!(built_in[0].verdict(job), Verdict::NotYet, "{job:?}");
-    }
+    assert_eq!(built_in[0].verdict(Job::Feed), Verdict::Beta);
+    assert_eq!(built_in[0].verdict(Job::Watches), Verdict::NotYet);
     let raw: Value = serde_json::from_str(include_str!("builtin.json")).unwrap();
     assert!(
         raw["items"]

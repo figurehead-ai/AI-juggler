@@ -54,6 +54,10 @@ export const REVIEW = {
   hideWords: "Hide its words",
   wordsLabel: "Its last reply, as the lines were checked against",
   wrong: "This is wrong",
+  /** AJ-E3831 (D-154): the feed's AI summary of a turn. */
+  summaryBy: (model: string) => `Summary by ${model}`,
+  summaryWords: "The agent's own words",
+  lastReply: "Its last reply",
   wrongKept: `Marked wrong, kept on ${THIS_MACHINE_IN_TEXT} for the next check.`,
   undo: "Undo",
   aiRisk: (risk: string) => `AI rates it ${REVIEW.riskWord[riskOf(risk)].toLowerCase()}`,

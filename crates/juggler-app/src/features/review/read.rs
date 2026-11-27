@@ -84,7 +84,7 @@ pub fn covered_tools(state: &AppState) -> Vec<String> {
 }
 
 /// The transcript, its tool and whether it is a desktop app's.
-fn locate(state: &Arc<AppState>, ask: &ReviewAsk) -> Option<(PathBuf, String, bool)> {
+pub(crate) fn locate(state: &Arc<AppState>, ask: &ReviewAsk) -> Option<(PathBuf, String, bool)> {
     if let (Some(account), Some(id)) = (ask.account_id.as_deref(), ask.conversation_id.as_deref())
         && let Some(found) = state.conversations.conversation_of(account, id)
     {

@@ -59,7 +59,7 @@ const APPLE: CatalogModel = model({
   speed: null,
   verdicts: [
     // AJ-E3826: as builtin.json has them (D-149 and its amendments).
-    v("feed", "not_yet", "The plain line reads better for now."),
+    v("feed", "beta", "Beta: preferred in 69 % of blind checks, but about 1 line in 5 got something wrong."),
     v("review", "beta", "Preferred over the plain review in 81 % of blind checks."),
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 75 % of blind checks."),
@@ -76,7 +76,7 @@ const QWEN: CatalogModel = model({
   memory: 8,
   speed: "quick",
   verdicts: [
-    v("feed", "not_yet", "The plain line reads better for now."),
+    v("feed", "not_yet", "Not yet: in testing the line got the outcome wrong too often, so the plain line stays."),
     v("review", "beta", "Preferred over the plain review in 89 % of blind checks."),
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Answers in about half a second; preferred in 76 % of blind checks."),
@@ -93,7 +93,7 @@ const NEMOTRON: CatalogModel = model({
   memory: 8,
   speed: "moderate",
   verdicts: [
-    v("feed", "not_yet", "The plain line reads better for now."),
+    v("feed", "not_yet", "Not yet: in testing the line got the outcome wrong too often, so the plain line stays."),
     v("review", "beta", "Preferred over the plain review in 71 % of blind checks."),
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 80 % of blind checks."),
@@ -110,7 +110,7 @@ const GRANITE: CatalogModel = model({
   memory: 8,
   speed: "quick",
   verdicts: [
-    v("feed", "not_yet", "The plain line reads better for now."),
+    v("feed", "not_yet", "Not yet: in testing the line got the outcome wrong too often, so the plain line stays."),
     v("review", "beta", "Preferred over the plain review in 77 % of blind checks."),
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 79 % of blind checks."),
@@ -127,7 +127,7 @@ export const GEMMA: CatalogModel = model({
   memory: 16,
   speed: "moderate",
   verdicts: [
-    v("feed", "not_yet", "The plain line reads better for now."),
+    v("feed", "not_yet", "Not yet: in testing the line got the outcome wrong too often, so the plain line stays."),
     v("review", "beta", "Preferred over the plain review in 74 % of blind checks."),
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 89 % of blind checks."),
@@ -164,13 +164,13 @@ function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" 
 }
 
 /** The AI jobs' answer as this version gives it (AJ-E3826, D-149): Bot,
- * the digest and the turn review (AJ-E3820, for the tools whose turn
- * ends AI Juggler sees) with their Beta switch; the feed line on its
- * plain path by its verdict; watches on Bot's AI (AJ-E3830). */
-export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
+ * the digest, the turn review (AJ-E3820) and the feed's AI summaries
+ * (AJ-E3831, D-154; both for the tools whose turn ends AI Juggler sees)
+ * with their Beta switch; watches on Bot's AI (AJ-E3830). */
+export function jobs(over: Partial<Record<"review" | "chat" | "digest" | "feed", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
   const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null, covers: [] });
   return [
-    { ...base("feed", "no_engine") },
+    { ...base("feed", "beta_off"), covers: ["claude-code", "codex"], ...over.feed },
     { ...base("review", "beta_off"), covers: ["claude-code", "codex"], ...over.review },
     { ...base("chat", "beta_off"), ...over.chat },
     { ...base("digest", "beta_off"), ...over.digest },

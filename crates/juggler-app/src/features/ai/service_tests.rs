@@ -61,13 +61,16 @@ fn on_a_mac_with_apple_intelligence_bot_waits_for_its_beta() {
     );
     assert!(changed, "the first answer is news");
     assert_eq!(jobs.len(), 5, "every routed job, attention aside");
-    for job in [AiJob::Feed, AiJob::Watches] {
-        assert_eq!(
-            state_of(&jobs, job).0,
-            AiJobState::NoEngine,
-            "{job:?}: on, and the plain path by its not_yet verdict (D-149)"
-        );
-    }
+    assert_eq!(
+        state_of(&jobs, AiJob::Watches).0,
+        AiJobState::NoEngine,
+        "watches: on, and the plain path by its not_yet verdict (D-149)"
+    );
+    assert_eq!(
+        state_of(&jobs, AiJob::Feed).0,
+        AiJobState::BetaOff,
+        "D-154: the feed's summaries wait for their Beta"
+    );
     // D-149's v6 round: the digest passed its blind checks (64 %), so it is
     // a Beta waiting for its switch, like Bot.
     assert_eq!(state_of(&jobs, AiJob::Digest).0, AiJobState::BetaOff);
@@ -166,8 +169,8 @@ fn a_remote_kill_and_a_narrowed_verdict_each_hide_a_job() {
     );
     assert_eq!(
         state_of(&jobs, AiJob::Feed).0,
-        AiJobState::NoEngine,
-        "D-149: the feed line's flag is on, and its not_yet verdict keeps the plain path"
+        AiJobState::BetaOff,
+        "D-154: the feed's flag is on, and its summaries wait for their Beta"
     );
     assert_eq!(
         state_of(&jobs, AiJob::Review).0,
@@ -316,9 +319,15 @@ fn a_pick_wins_and_only_a_model_that_passed_may_be_picked() {
     assert_eq!(chat.pick.as_deref(), Some("apple-on-device"));
     let review = jobs.iter().find(|info| info.job == AiJob::Review).unwrap();
     assert_eq!(review.pick, None, "Automatic");
-    // Apple's model passed review and Chat, not the feed line.
+    // Apple's model passed review, Chat and the feed's summaries (D-154),
+    // not watches.
     assert!(super::may_pick(&builtin(), Job::Bot, "apple-on-device"));
-    assert!(!super::may_pick(&builtin(), Job::Feed, "apple-on-device"));
+    assert!(super::may_pick(&builtin(), Job::Feed, "apple-on-device"));
+    assert!(!super::may_pick(
+        &builtin(),
+        Job::Watches,
+        "apple-on-device"
+    ));
     assert!(!super::may_pick(&builtin(), Job::Bot, "no-such-model"));
 }
 

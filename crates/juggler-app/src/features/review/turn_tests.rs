@@ -300,3 +300,37 @@ fn the_lead_is_the_sentence_saying_what_isnt_done_or_that_it_waits() {
         None
     );
 }
+
+/// v14's re-measure (H23): a piped test run's exit is `tail`'s, so its
+/// result is unknown and the agent's words decide ("I could not run the
+/// tests"); H04's piped run still reads passed, from its own words (the
+/// verify-and-restore sentence isn't a test reading).
+#[test]
+fn a_piped_test_runs_result_is_the_words() {
+    assert!(piped(
+        "python3 -m unittest discover -s tests 2>&1 | tail -5"
+    ));
+    assert!(!piped("python3 -m unittest || echo failed"));
+    let h23 = "`percentile` now calls `numpy.percentile`. I could not run the tests because numpy isn't installed in this environment, so the change is unverified.";
+    let r = reviewed(
+        h23,
+        &["heron/stats.py"],
+        vec![call(
+            "python3 -m unittest discover -s tests 2>&1 | tail -5",
+            false,
+            None,
+        )],
+    );
+    assert_eq!(r.tests.as_deref(), Some("not_run"));
+    let r = reviewed(
+        H04,
+        &["osprey/load.py", "tests/test_load.py"],
+        vec![call(
+            "python3 -m unittest discover -s tests -t . 2>&1 | tail -5",
+            false,
+            None,
+        )],
+    );
+    assert_eq!(r.tests.as_deref(), Some("passed"));
+    assert_eq!(r.risk, "low", "{:?}", r.risk_why);
+}

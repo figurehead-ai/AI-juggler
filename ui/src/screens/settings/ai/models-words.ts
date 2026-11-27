@@ -39,7 +39,7 @@ export const JOB_NAMES: Record<ModelJob, string> = {
   // AJ-E1548 #6: the one name Bot and Settings both use.
   chat: "Bot’s AI",
   attention: "Attention hints",
-  feed: "Feed lines",
+  feed: "AI summaries in the feed",
   digest: "Digest",
   watches: "Watches",
 };

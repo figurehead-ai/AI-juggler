@@ -39,7 +39,7 @@ use crate::features::bot::world::empty_row;
 use crate::features::digest::rollup::{cap, first_sentence};
 use crate::features::review::dto::TurnReviewInfo;
 use crate::features::review::facts::{Facts, review};
-use crate::features::review::turn::{lead, read, undone_in};
+use crate::features::review::turn::{TurnRead, lead, read, undone_in};
 
 /// Apple's instructions (harness v14, tuned on the tuning set only).
 pub const APPLE: &str = include_str!("line_prompts/apple.txt");
@@ -160,9 +160,21 @@ pub fn read_at(
     ended: Option<&str>,
     goal: Option<&str>,
 ) -> Option<TurnView> {
-    let turn = read(path, until_ms).ok()?;
+    let mut turn = read(path, until_ms).ok()?;
+    if let Some(goal) = goal {
+        turn.opening = Some(goal.to_owned());
+    }
+    let changes = turn_changes(path, until_ms).ok().flatten();
+    assemble(turn, changes, matches!(ended, Some("failed" | "crashed")))
+}
+
+/// The view of a turn already read (its transcript's reading, or a
+/// recorded one): its words through the guard (G49), its facts through
+/// the review's reading, results first (G48). `None` without a request
+/// or any words of the agent's.
+#[must_use]
+pub fn assemble(turn: TurnRead, changes: Option<TurnChanges>, failed: bool) -> Option<TurnView> {
     let request = turn.request.clone()?;
-    // G49: every agent word that reaches the model or the screen is guarded.
     let mut removed = Vec::new();
     let messages: Vec<String> = turn
         .messages
@@ -180,8 +192,6 @@ pub fn read_at(
     if messages.last() != Some(&reply) {
         messages.push(reply.clone());
     }
-    let changes = turn_changes(path, until_ms).ok().flatten();
-    let failed = matches!(ended, Some("failed" | "crashed"));
     let facts = review(&Facts {
         turn: "",
         changes: changes.as_ref(),
@@ -194,7 +204,7 @@ pub fn read_at(
         german: german(&format!("{request} {reply}")),
         question,
         request,
-        goal: goal.map(str::to_owned).or(turn.opening),
+        goal: turn.opening,
         messages,
         removed,
         calls: turn.runs,
@@ -397,6 +407,10 @@ fn facts_block(view: &TurnView, allowed: &[Status]) -> String {
     }
     let failed_commands = view.calls.commands.iter().filter(|(_, f)| *f).count();
     let tests = match view.calls.last {
+        None if view.calls.test_runs > 0 => format!(
+            "run {} times; the last result isn't known (its output was piped)",
+            view.calls.test_runs
+        ),
         None => "none run".to_owned(),
         Some(last) => format!(
             "run {} times; the last run {}",

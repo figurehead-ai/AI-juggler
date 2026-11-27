@@ -413,6 +413,10 @@ pub const NOT_SERVED: &[(&str, &str)] = &[
         "the counts of Bot's current topic, part of Bot's conversation, which stays in the app's window (ADR-0037 §9, as bot_page); the real window walks it",
     ),
     (
+        "features::feed::summary::feed_line",
+        "the feed's AI summaries (AJ-E3831's opt-in Beta, D-154) run the AI engine in the app's own helper; the real window walks them",
+    ),
+    (
         "features::review::commands::review_turn_ai",
         "the turn review's model lines (AJ-E3820's opt-in Beta) run the AI engine in the app's own helper; the bridge serves the code-only review (review_turn), and the real window walks the lines",
     ),

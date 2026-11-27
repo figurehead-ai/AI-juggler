@@ -129,11 +129,28 @@ pub fn review_wrong_impl(
     lines: &str,
     wrong: bool,
 ) -> AppResult<()> {
+    record_wrong(state, "turn_review", turn, lines, wrong)
+}
+
+/// "This is wrong" (or its Undo) about a model's lines on a turn, whose
+/// they are by `kind` (`turn_review`, `feed_line`): the AI log on this
+/// Mac only, the lines in a sidecar for the next harness round.
+///
+/// # Errors
+///
+/// Storage failures.
+pub(crate) fn record_wrong(
+    state: &Arc<AppState>,
+    kind: &'static str,
+    turn: &str,
+    lines: &str,
+    wrong: bool,
+) -> AppResult<()> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
     let now = state.notifier.clock().now;
     let what = if wrong { "wrong" } else { "wrong_undone" };
     let mut event = NewEvent::new(now, Stream::Feedback, what, Actor::User);
-    event.subject = Some(("turn_review", turn.to_owned()));
+    event.subject = Some((kind, turn.to_owned()));
     let sidecar = NewSidecar {
         body: lines,
         untrusted: true,

@@ -121,7 +121,8 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
     expect(lineOf("review")).toBe("Off · Preferred over the plain review in 81 % of blind checks.");
     expect(lineOf("chat")).toBe("On · Beta with Apple's on-device model");
     expect(lineOf("attention")).toBe("On · Built from the facts, so it needs no model");
-    expect(lineOf("feed")).toBe("Off · The plain line reads better for now.");
+    // D-154: the feed's AI summaries, an opt-in Beta with its honest note.
+    expect(lineOf("feed")).toBe("Off · Beta: preferred in 69 % of blind checks, but about 1 line in 5 got something wrong.");
     expect(lineOf("digest")).toBe("On · Beta with Apple's on-device model");
     // AJ-E3830 (0.5.2): Watches rides Bot's AI; its Beta is Bot's confirm card.
     expect(lineOf("watches")).toBe("On · Fills in what it understands from your words; you check the form and save.");

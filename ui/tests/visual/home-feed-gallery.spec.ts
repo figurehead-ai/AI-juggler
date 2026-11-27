@@ -18,6 +18,8 @@ import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
 import { STATES as BOT } from "../../src/preview/bot";
+import { feedItem } from "../../src/preview/feed";
+import { jobs as modelJobs } from "../../src/preview/ai-models";
 import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome, releaseWalkFeed, STORY_T0, storyHome } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
@@ -430,6 +432,41 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     await page.getByTestId("feed").screenshot({ path: resolve(OUT, `g24-less-folded-1280-${theme}.png`) });
     await axeClean(page, `a post leaned less, folded ${theme}`);
+  });
+}
+
+/**
+ * AJ-E3831 (D-154): the feed's AI summary, its opt-in Beta on: a finished
+ * turn's post with the summary tagged AI (whose, Beta, the agent's own
+ * words one tap away, This is wrong), the words opened, and a post whose
+ * every draft was refused showing the agent's words in the line's place.
+ */
+for (const theme of ["dark", "light"] as const) {
+  test(`home feed — the AI summary of a turn (Beta) — 1280 — ${theme}`, async ({ page }) => {
+    const cli = { kind: "app", name: null, provider: "claude-code", folder: "claude-work", folder_label: "Work Max", desktop: false } as const;
+    const post = (id: string, ago: number, subject: string, project: string) =>
+      feedItem({ id: `l:${id}`, at_ms: T0 - ago, kind: "finished", category: "finished", level: 1, coalesce: `s:${id}`, subject, author: cli, facts: { project, duration_ms: 14 * 60_000 }, target: { session_id: id } });
+    const ready = { state: "ready", beta: true, beta_on: true, model_id: "apple-on-device", model_name: "Apple’s built-in AI", why: "recommended" } as const;
+    await seed(page, allStatuses, theme, { width: 1280, height: 900 }, {
+      feed: [post("sum-1", 3 * 60_000, "Add priorities and calendar sync", "kestrel"), post("sum-2", 25 * 60_000, "Fix the cron range end", "fennel")],
+      globals: {
+        __AIJ_AI_JOBS__: modelJobs({ feed: ready, chat: ready }),
+        __AIJ_FEED_LINES__: {
+          "sum-1": { state: "shown", turn: "t-sum-1", line: "Partly done: added the priority option and due-date checks · open: calendar sync · 6 tests pass", excerpt: "Two of the three are done, and the 6 tests pass. I haven't done the calendar sync.", model: "Apple’s built-in AI" },
+          "sum-2": { state: "plain", turn: "t-sum-2", line: null, excerpt: "I fixed the bug, but I couldn't run the tests.", model: null },
+        },
+      },
+    });
+    await expect(page.getByTestId("feed-summary-line")).toHaveText(/Partly done: added the priority option/);
+    await expect(page.getByTestId("feed-summary-plain")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `ai-summary-1280-${theme}.png`) });
+    await axeClean(page, `the AI summary ${theme}`);
+    await page.getByTestId("feed-summary-words-toggle").click();
+    await expect(page.getByTestId("feed-summary").getByTestId("feed-summary-words")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `ai-summary-words-1280-${theme}.png`) });
+    await axeClean(page, `the AI summary, its words open ${theme}`);
   });
 }
 

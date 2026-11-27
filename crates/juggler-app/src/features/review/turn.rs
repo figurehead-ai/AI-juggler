@@ -124,6 +124,15 @@ pub fn is_test_runner(command: &str) -> bool {
     })
 }
 
+/// Whether `command` pipes into another (`a | b`, never `a || b`).
+#[must_use]
+pub fn piped(command: &str) -> bool {
+    let chars: Vec<char> = command.chars().collect();
+    chars.iter().enumerate().any(|(i, c)| {
+        *c == '|' && chars.get(i + 1) != Some(&'|') && (i == 0 || chars[i - 1] != '|')
+    })
+}
+
 /// The calls of `turns`, read from their results.
 #[must_use]
 pub fn runs_of(turns: &[&TurnInfo]) -> Runs {
@@ -147,13 +156,18 @@ pub fn runs_of(turns: &[&TurnInfo]) -> Runs {
         let blocked = call.result_kind.as_deref() == Some("blocked");
         if is_test_runner(&command) && call.done {
             runs.test_runs += 1;
-            runs.last = Some(if blocked {
-                Run::Blocked
+            // A piped run's exit is the pipe's last command's (`unittest …
+            // | tail -5` exits 0 on failing tests): its result is unknown,
+            // and the words decide (0.5.2, v14's re-measure, H23).
+            runs.last = if blocked {
+                Some(Run::Blocked)
+            } else if piped(&command) {
+                None
             } else if call.failed {
-                Run::Failed
+                Some(Run::Failed)
             } else {
-                Run::Passed
-            });
+                Some(Run::Passed)
+            };
         }
         runs.commands.push((command, call.failed && !blocked));
     }

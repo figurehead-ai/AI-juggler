@@ -26,12 +26,15 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use juggler_adapter::subagents::LinesChanged;
+use juggler_adapters::turn_changes::{FileChange, TurnChanges};
 use juggler_app::features::ai::{
     engine::{AiEngine, Stop},
     engines::{apple::Apple, local::Local},
     run::Timed,
 };
 use juggler_app::features::feed::line::{self, APPLE, LOCAL, Options, TurnView};
+use juggler_app::features::review::turn::{Run, Runs, TurnRead, is_test_runner};
 use serde_json::{Value, json};
 
 fn arg(args: &[String], name: &str) -> Option<String> {
@@ -88,6 +91,77 @@ fn local_engine(args: &[String]) -> Option<(Local, String)> {
     Some((engine, model))
 }
 
+/// A turn as a recorded round's output holds it (its reading: request,
+/// goal, messages, commands and their failed flags, files and lines),
+/// assembled by the app's own code: the guard, the review's reading
+/// (results first), the question. What the recording didn't keep: which
+/// failed command was refused pending approval (the agent's "couldn't run
+/// the tests" then decides, G48's backstop).
+fn recorded(v: &Value) -> Option<TurnView> {
+    let text = |x: &Value| x.as_str().map(str::to_owned);
+    let messages: Vec<String> = v["messages"].as_array()?.iter().filter_map(text).collect();
+    let mut runs = Runs {
+        hidden: u32::try_from(v["calls"]["hidden"].as_u64().unwrap_or(0)).unwrap_or(0),
+        ..Runs::default()
+    };
+    for pair in v["calls"]["by_tool"].as_array().into_iter().flatten() {
+        if let (Some(tool), Some(n)) = (pair[0].as_str(), pair[1].as_u64()) {
+            runs.by_tool
+                .push((tool.to_owned(), u32::try_from(n).unwrap_or(0)));
+        }
+    }
+    for pair in v["calls"]["commands"].as_array().into_iter().flatten() {
+        let (Some(command), Some(failed)) = (pair[0].as_str(), pair[1].as_bool()) else {
+            continue;
+        };
+        if is_test_runner(command) {
+            runs.test_runs += 1;
+            runs.last = Some(if failed { Run::Failed } else { Run::Passed });
+        }
+        runs.commands.push((command.to_owned(), failed));
+    }
+    let changes = v["changes"].as_object().map(|c| {
+        let per_file: Vec<FileChange> = c["per_file"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|f| FileChange {
+                name: f["name"].as_str().unwrap_or_default().to_owned(),
+                lines: match (f["added"].as_u64(), f["removed"].as_u64()) {
+                    (Some(added), Some(removed)) => Some(LinesChanged { added, removed }),
+                    _ => None,
+                },
+            })
+            .collect();
+        // Summed only when every file counts its lines (the reader's rule).
+        let zero = LinesChanged {
+            added: 0,
+            removed: 0,
+        };
+        let lines = per_file.iter().try_fold(zero, |sum, f| {
+            f.lines.map(|l| LinesChanged {
+                added: sum.added + l.added,
+                removed: sum.removed + l.removed,
+            })
+        });
+        TurnChanges {
+            start: 0,
+            files: u32::try_from(c["files"].as_u64().unwrap_or(0)).unwrap_or(0),
+            names: per_file.iter().map(|f| f.name.clone()).collect(),
+            lines,
+            per_file,
+        }
+    });
+    let turn = TurnRead {
+        request: text(&v["request"]),
+        opening: text(&v["goal"]),
+        reply: messages.last().cloned(),
+        messages,
+        runs,
+    };
+    line::assemble(turn, changes, v["failed"].as_bool().unwrap_or(false))
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let (Some(set), Some(out)) = (arg(&args, "--set"), arg(&args, "--out")) else {
@@ -129,12 +203,19 @@ fn main() {
     let mut results = Vec::new();
     for t in &turns {
         let id = t["id"].as_str().unwrap_or_default();
-        let Some(view) = line::read_at(
-            &PathBuf::from(t["transcript"].as_str().unwrap_or_default()),
-            t["until_ms"].as_i64(),
-            t["ended"].as_str(),
-            t["goal"].as_str(),
-        ) else {
+        // `--set` rows name a transcript; a recorded round's rows (`view`)
+        // are rebuilt through the app's own assembly (0.5.2 re-measure).
+        let read = if t.get("view").is_some() {
+            recorded(&t["view"])
+        } else {
+            line::read_at(
+                &PathBuf::from(t["transcript"].as_str().unwrap_or_default()),
+                t["until_ms"].as_i64(),
+                t["ended"].as_str(),
+                t["goal"].as_str(),
+            )
+        };
+        let Some(view) = read else {
             results.push(json!({"id": id, "error": "no turn read"}));
             eprintln!("{id}: no turn read");
             continue;

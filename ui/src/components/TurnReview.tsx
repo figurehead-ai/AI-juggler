@@ -35,7 +35,7 @@ const TESTS_LOOK: Record<string, keyof typeof RISK_LOOK> = { failed: "high", not
 
 /** Asks for the review once the row is near the view (a page of posts
  * never reads every turn at once). */
-function useNear(): [(node: HTMLElement | null) => void, boolean] {
+export function useNear(): [(node: HTMLElement | null) => void, boolean] {
   const [near, setNear] = useState(false);
   const observer = useRef<IntersectionObserver | null>(null);
   const ref = useCallback((node: HTMLElement | null) => {
@@ -78,7 +78,7 @@ function Row({ label, children, testId }: { label: string; children: ReactNode; 
   );
 }
 
-function AiTag(): JSX.Element {
+export function AiTag(): JSX.Element {
   return <span className="shrink-0 rounded-[5px] bg-accent-soft px-1.5 text-label font-semibold text-accent-hi">{REVIEW.aiTag}</span>;
 }
 

@@ -21,6 +21,13 @@ import { DISK, DOWNLOAD, JOB_NAMES, OTHERS, listWords } from "./models-words";
 
 const TAG_WORDS: Record<ModelTag, string> = { smallest: OTHERS.smallest, fastest: OTHERS.fastest };
 
+/** A job's name inside a sentence: its first letter lower case, never an
+ * acronym's ("digest and watches", "AI summaries in the feed", "Bot’s AI"
+ * → "bot’s AI"). */
+function inSentence(name: string): string {
+  return /^[A-Z][A-Z]/.test(name) ? name : name.charAt(0).toLowerCase() + name.slice(1);
+}
+
 export function Licence({ model }: { model: CatalogModel }): JSX.Element | null {
   if (!model.licence_name) return null;
   return (
@@ -76,7 +83,7 @@ function ModelCard({
         ))}
       </ul>
       {notYet.length > 0 && (
-        <Disclosure summary={OTHERS.notYet(listWords(notYet.map((job) => JOB_NAMES[job].toLowerCase())))} className="pl-0.5" testId="model-not-yet">
+        <Disclosure summary={OTHERS.notYet(listWords(notYet.map((job) => inSentence(JOB_NAMES[job]))))} className="pl-0.5" testId="model-not-yet">
           <ul className="mt-2 flex flex-col gap-2.5">
             {notYet.map((job) => (
               <ModelJobRow key={job} model={model} job={job} quiet />

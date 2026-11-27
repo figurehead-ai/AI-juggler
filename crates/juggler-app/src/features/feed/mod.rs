@@ -23,6 +23,7 @@ pub mod items;
 pub mod line;
 pub mod page;
 pub mod pick;
+pub mod summary;
 
 #[cfg(test)]
 mod tests;

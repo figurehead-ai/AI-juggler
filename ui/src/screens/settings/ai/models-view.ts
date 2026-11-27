@@ -47,11 +47,18 @@ export function absentJobs(jobs: readonly AiJobInfo[] | null): AiJob[] {
   return (jobs ?? []).filter((info) => info.state === "off").map((info) => info.job);
 }
 
+/** Beta jobs only their own switch turns on, never Use it or Download:
+ * the feed's AI summaries (AJ-E3831, D-154: about 1 line in 5 got
+ * something wrong in testing, so the user opts in to them alone). */
+const OWN_SWITCH_ONLY: readonly AiJob[] = ["feed"];
+
 /** The jobs it passed as a Beta: what Use it and Download turn on.
  * AJ-E3826: with the jobs' answer, only the jobs this version has (a job
  * that isn't built yet is never promised). */
 export function betaJobs(model: CatalogModel, jobs?: readonly AiJobInfo[] | null): AiJob[] {
-  return MODEL_JOBS.filter((job) => verdictOf(model, job).verdict === "beta" && jobs?.find((info) => info.job === job)?.state !== "off");
+  return MODEL_JOBS.filter(
+    (job) => !OWN_SWITCH_ONLY.includes(job) && verdictOf(model, job).verdict === "beta" && jobs?.find((info) => info.job === job)?.state !== "off",
+  );
 }
 
 /** What the Recommended card's action is. */

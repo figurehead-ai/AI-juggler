@@ -254,7 +254,9 @@ fn about_tests(sentence: &str) -> bool {
 /// What each sentence about tests says of them, in order.
 fn tests_said(said: &[String]) -> Vec<(Tests, String)> {
     said.iter()
-        .filter(|s| about_tests(s))
+        // A check that undid the fix for a moment says nothing of the
+        // turn's own tests ("with the old file restored, the test fails").
+        .filter(|s| about_tests(s) && !verification(s))
         .filter_map(|sentence| {
             let low = sentence.to_lowercase();
             let found = if says_failed(sentence) {
@@ -426,9 +428,9 @@ pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
         .iter()
         .filter(|s| says_failed(s) && !s.trim_end().ends_with('?'))
         .filter(|s| Some(s.as_str()) != tests_sentence)
-        // A passing run outranks a sentence about tests or a check that
-        // undid the fix for a moment: neither is the turn's failure.
-        .filter(|s| !(passed_run && (about_tests(s) || verification(s))))
+        // A check that undid the fix for a moment is never the turn's
+        // failure; a passing run outranks a sentence about tests.
+        .filter(|s| !verification(s) && (!passed_run || !about_tests(s)))
         .take(FAILURES_MAX)
         .map(|s| quoted(s))
         .collect();

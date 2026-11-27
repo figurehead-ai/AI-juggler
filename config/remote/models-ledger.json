@@ -24,12 +24,12 @@
       "basis": "round3_after_fix_floor",
       "jobs": {
         "feed": {
-          "verdict": "not_yet",
-          "note": "Not yet: in testing the line got the outcome wrong too often, so the plain line stays.",
+          "verdict": "beta",
+          "note": "Beta: preferred in 69 % of blind checks, but about 1 line in 5 got something wrong.",
           "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
           "date": "2026-11-27",
-          "commit": "e249b088e"
+          "commit": "d8c3c2194"
         },
         "review": {
           "verdict": "beta",

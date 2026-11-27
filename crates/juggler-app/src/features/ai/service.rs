@@ -299,9 +299,13 @@ fn with_watch_help(jobs: &mut [AiJobInfo]) {
 }
 
 /// AJ-E3820 R5: the query says which turns the review covers (only those
-/// whose end AI Juggler sees), so no surface promises one it can't write.
+/// whose end AI Juggler sees), so no surface promises one it can't write;
+/// the feed's summaries (AJ-E3831, D-154) read the same turns.
 fn with_covers(state: &AppState, jobs: &mut [AiJobInfo]) {
-    for info in jobs.iter_mut().filter(|info| info.job == AiJob::Review) {
+    for info in jobs
+        .iter_mut()
+        .filter(|info| matches!(info.job, AiJob::Review | AiJob::Feed))
+    {
         info.covers = crate::features::review::read::covered_tools(state);
     }
 }

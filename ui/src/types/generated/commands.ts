@@ -78,6 +78,7 @@ import type { FeedFiltersInfo } from "./FeedFiltersInfo";
 import type { FeedItemInfo } from "./FeedItemInfo";
 import type { FeedLeanAsk } from "./FeedLeanAsk";
 import type { FeedLeanInfo } from "./FeedLeanInfo";
+import type { FeedLineInfo } from "./FeedLineInfo";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -579,6 +580,10 @@ export interface Commands {
   feed_lean: { args: { ask: FeedLeanAsk }; result: FeedLeanInfo | null };
   /** Read features::feed::commands::prefs::feed_leans */
   feed_leans: { args: Record<string, never>; result: FeedLeanInfo[] };
+  /** Read features::feed::summary::feed_line */
+  feed_line: { args: { ask: ReviewAsk }; result: FeedLineInfo };
+  /** Write features::feed::summary::feed_line_wrong */
+  feed_line_wrong: { args: { turn: string; line: string; wrong?: boolean | null }; result: void };
   /** Read features::feed::commands::feed_page */
   feed_page: { args: { request: PageRequest; filters: FeedFiltersInfo }; result: Page<FeedItemInfo> };
   /** Write features::feed::commands::prefs::feed_unlean */
