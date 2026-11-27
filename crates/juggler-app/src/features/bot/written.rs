@@ -744,7 +744,7 @@ pub fn retry_note(lang: BotLang, rows: &[BotRowInfo]) -> String {
 }
 
 /// 0.5.2 G53 (RW1 W4, Apple's model): a sentence's own citation written
-/// into its text ("… in “web” (2).", "(record 1)", "[3]") is its cite,
+/// into its text (`… in “web” (2).`, `(record 1)`, `[3]`) is its cite,
 /// not a number it states: taken out, so the check reads the sentence's
 /// words alone. Only a mark naming the sentence's own cites, each of
 /// them; any other number stays and is checked as any number is.

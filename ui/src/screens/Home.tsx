@@ -39,9 +39,8 @@ import { shortName } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import { headCount, needsHeading, needsParts } from "../lib/home-needs";
 import { itemsOf, openNow } from "../lib/rail-items";
-import { runningNow } from "../lib/running-now";
 import { useNoticeSummary } from "../lib/notices-store";
-import { homeCounts } from "../lib/home-counts";
+import { homeCounts, runningNow } from "../lib/home-counts";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
@@ -324,8 +323,7 @@ export function HomeScreen({
   });
   // The heading's parts, said with it (its visible words are one count).
   const parts = needCount > 0 ? needsParts(allNeeds, { caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }) : [];
-  const openCount = items.filter(openNow).length;
-  const counts = homeCounts({ open: openCount, finishedToday, toReview: notes, inactive: items.filter((item) => item.inactive).length, hidden: hiddenApps });
+  const counts = homeCounts({ open: items.filter(openNow).length, finishedToday, toReview: notes, inactive: items.filter((item) => item.inactive).length, hidden: hiddenApps });
   // D-118: the feed (its handlers are Home's: the session's page, Mark
   // reviewed as Home marks it, the rail's row for ↗).
   const feed = (

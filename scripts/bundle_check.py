@@ -13,7 +13,9 @@ CFBundleShortVersionString equals AIJ_EXPECT_VERSION when set (CI's
 rc_version.sh), else the workspace's Cargo version (the 0.4.2 RC showed
 "v0.4.0").
 
---local (scripts/build_dev_app.sh, 0.5.2 G38): a build made here, which
+--local (the local Dev build script's own check, 0.5.2 G38; named by its
+role, not its file, so `release_ships.py` doesn't read it as a script
+the release workflows run): a build made here, which
 CI's rc_version.sh hasn't stamped. With no AIJ_EXPECT_VERSION, on a
 release branch it shows the workspace's Cargo version (CI stamps the
 release's patch); that is accepted and said, and every helper is still

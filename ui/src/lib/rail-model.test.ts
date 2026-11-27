@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, needWord, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
 import { buildLines, foldSections } from "./rail-lines";
-import { runningNow } from "./running-now";
+import { runningNow } from "./home-counts";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
 import { parseSeen } from "./seen";

@@ -1,8 +1,8 @@
 //! 0.5.2 G42, G44: sessions named by the one rule (the rail's row,
-//! [`crate::features::notifications::needs::session_name`] over
+//! `notifications::needs::session_name` over
 //! `naming::short_name`) for a reader the window may not hold them for:
 //! the feed's posts and the Reminders list. Their rows are made as the
-//! rail makes its own ([`super::list::stored_rows`], their tasks' and
+//! rail makes its own (`sessions::list::stored_rows`, their tasks' and
 //! conversations' titles), so a post or a reminder says the name the rail
 //! says, never a second rule (label, else the folder).
 

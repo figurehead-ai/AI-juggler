@@ -10,7 +10,10 @@
 //! Shared by every crate's tests:
 //! `#[path = "…/juggler-supervisor/tests/fixtures/stand_in_app.rs"] mod stand_in_app;`
 
-#![allow(dead_code)]
+#![allow(
+    dead_code,
+    reason = "a fixture shared by several crates' tests by `#[path]`: each uses part of it"
+)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};

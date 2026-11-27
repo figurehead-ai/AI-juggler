@@ -6,6 +6,7 @@
 
 pub mod answer;
 pub mod check;
+pub mod clause;
 pub mod commands;
 pub mod dto;
 pub mod general;

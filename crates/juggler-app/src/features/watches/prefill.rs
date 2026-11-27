@@ -1,13 +1,13 @@
 //! AJ-E3830 (0.5.2, the coordinator's and maintainer's call): **Bot
 //! pre-fills the Watches form; the user saves.** Each field is filled only
-//! with what code verified, from [`super::draft_traced`]'s own reading and
+//! with what code verified, from `draft::draft_traced`'s own reading and
 //! the model's labels as code checks them; a field nothing verified stays
 //! empty for the user. **The bar: never a wrong pre-filled field.**
 //!
 //! - **Every field verified** (a draft code accounts for word by word, the
 //!   target its own, not the model's pick): the form filled in, and, with
 //!   the user's Beta on, Bot's confirm card in plain words instead.
-//! - **Otherwise each field on its own** ([`fields`]): the words code
+//! - **Otherwise each field on its own** (`fields`): the words code
 //!   couldn't place ("live" words, after the labels' filler passed the
 //!   second guard) spoil the fields they may touch:
 //!
@@ -22,7 +22,7 @@
 //!   | quiet_hours | quiet hours |
 //!
 //!   and any live word that says something of its own (the second guard's
-//!   [`super::cover::qualifies`]) spoils every field whose words share its
+//!   `cover::qualifies`) spoils every field whose words share its
 //!   clause, whatever its label.
 //! - **The target** is code's own resolution only: the one session or
 //!   account named whole outside what is said back (the nearest's rule,

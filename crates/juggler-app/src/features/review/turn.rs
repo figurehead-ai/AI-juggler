@@ -102,7 +102,15 @@ pub fn is_test_runner(command: &str) -> bool {
         .to_lowercase()
         .split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '.' || c == '-'))
         .filter(|w| !w.is_empty())
-        .map(|w| w.rsplit('/').next().unwrap_or(w).to_owned())
+        // A runner named by its path (`./node_modules/.bin/jest`): its
+        // file name, whatever the separator.
+        .map(|w| {
+            std::path::Path::new(w)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or(w)
+                .to_owned()
+        })
         .collect();
     words.iter().enumerate().any(|(i, w)| {
         RUNNERS.contains(&w.as_str())

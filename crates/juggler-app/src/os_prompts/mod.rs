@@ -43,7 +43,10 @@ use registry::Entry;
 /// One system prompt, as the window shows it (setup's cards, the sheet).
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
-#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact the sheet and setup read
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "a wire DTO: each flag is its own fact the sheet and setup read"
+)]
 pub struct OsPromptInfo {
     /// The registry's short, stable id.
     pub id: String,
