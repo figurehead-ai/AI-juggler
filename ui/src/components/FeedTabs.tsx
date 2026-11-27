@@ -43,8 +43,9 @@ export function fitTabs(widths: readonly number[], room: number, chosen: number)
   return chosen >= 0 ? [chosen] : [];
 }
 
-/** Each tab's width, measured in an invisible copy of the row (in the
- * chosen look's weight, the widest), and the room the row has. */
+/** Each tab's width, measured in an invisible copy of the row as it is
+ * drawn (the chosen one semibold), and the room the row has; measured
+ * again when either resizes (another tab chosen changes the copy). */
 function useFit(row: RefObject<HTMLElement | null>, measure: RefObject<HTMLElement | null>): { widths: number[]; room: number } {
   const [fit, setFit] = useState<{ widths: number[]; room: number }>({ widths: [], room: Number.POSITIVE_INFINITY });
   useLayoutEffect(() => {
@@ -57,6 +58,7 @@ function useFit(row: RefObject<HTMLElement | null>, measure: RefObject<HTMLEleme
     if (typeof ResizeObserver === "undefined" || !row.current) return undefined;
     const observer = new ResizeObserver(read);
     observer.observe(row.current);
+    if (measure.current) observer.observe(measure.current);
     return () => observer.disconnect();
   }, [row, measure]);
   return fit;
@@ -66,8 +68,8 @@ function useFit(row: RefObject<HTMLElement | null>, measure: RefObject<HTMLEleme
 export function FeedTabs({ tab, onTab, onHidden }: { tab: Tab; onTab: (value: Tab) => void; onHidden: (hidden: Tab[]) => void }): JSX.Element {
   const row = useRef<HTMLFieldSetElement | null>(null);
   const measure = useRef<HTMLDivElement | null>(null);
-  const { widths, room } = useFit(row, measure);
   const chosen = TABS.findIndex((one) => one.value === tab);
+  const { widths, room } = useFit(row, measure);
   // Not laid out yet (or no layout at all, as in a test's DOM): every tab.
   const measured = widths.length === TABS.length && Number.isFinite(room) && room > 0 && widths.some((w) => w > 0);
   const shown = measured ? fitTabs(widths, room, chosen) : TABS.map((_, i) => i);
@@ -102,7 +104,7 @@ export function FeedTabs({ tab, onTab, onHidden }: { tab: Tab; onTab: (value: Ta
       {/* Every tab as the row would draw it, unseen: their widths. */}
       <div ref={measure} aria-hidden="true" className="pointer-events-none invisible absolute top-0 left-0 flex gap-1.5">
         {TABS.map((one) => (
-          <span key={one.value} className={TAB + " font-semibold"}>
+          <span key={one.value} className={TAB + (one.value === tab ? " font-semibold" : "")}>
             {one.label}
           </span>
         ))}
