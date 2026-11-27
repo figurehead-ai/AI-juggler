@@ -9,7 +9,9 @@
  *   dialog and what to click: marks it primed and makes the call.
  * - `osPromptRequest(id)`: a click about to use what `id` guards (the
  *   Watches form's Watch for `notifications`): our sheet first when it
- *   isn't primed and the system hasn't decided; nothing when it is.
+ *   isn't primed and the system hasn't decided; nothing when it is, or
+ *   when the user said Not now to an entry offered again from its
+ *   setting (unless the click is that setting, `fromSetting`).
  * - `osPromptStatus(id)`: one entry now.
  * - The sheet's side: `onOsPromptAsk` (the backend is about to make the
  *   system ask), `osPromptAnswer` (Continue or Not now), `onOsPromptOutcome`.
@@ -60,10 +62,13 @@ export async function osPromptPrime(id: string): Promise<OsPromptOutcomeInfo> {
   return call("os_prompt_prime", { id });
 }
 
-/** A click about to use what `id` guards: the sheet first when needed. */
-export async function osPromptRequest(id: string): Promise<OsPromptOutcomeInfo> {
+/** A click about to use what `id` guards: the sheet first when needed.
+ * `fromSetting`: the click is the entry's own setting (its "offered
+ * again" place), which asks again after an earlier Not now; any other
+ * use doesn't (0.5.2 G33, PAT-OSP). */
+export async function osPromptRequest(id: string, options: { fromSetting?: boolean } = {}): Promise<OsPromptOutcomeInfo> {
   if (!hasBackend) return previewOutcome(id, "already");
-  return call("os_prompt_request", { id });
+  return call("os_prompt_request", { id, fromSetting: options.fromSetting ?? null });
 }
 
 /** The sheet's answer for `id`: Continue (`go`) or Not now. */

@@ -45,6 +45,7 @@ const accessibility: OsPromptInfo = {
   change_later: "System Settings › Privacy & Security › Accessibility",
   background: "Waits: nothing asks until you've said go.",
   never_shown: false,
+  dialog_follows: true,
   dialog: {
     style: "alert",
     title: "“AI Juggler” would like to control this computer using accessibility features.",
@@ -140,6 +141,34 @@ describe("the sheet before a system prompt", () => {
     );
   });
 
+  /** 0.5.2 G36 (RW1 V4): Bot's helper's first start brings no dialog
+   * from macOS, so its sheet promises none, draws none and has no What to
+   * click; while it starts it says so, never "Answer macOS's dialog". */
+  it("says a dialog is coming only when one will", async () => {
+    const helper: OsPromptInfo = {
+      ...accessibility,
+      id: "helper",
+      title: "Start Bot's AI helper",
+      why: "Bot's answers are written by AI on this computer, through a small helper inside AI Juggler.",
+      system_says: "",
+      click: "",
+      dialog: null,
+      dialog_follows: false,
+    };
+    await asked(helper);
+    expect(screen.getByTestId("os-prompt-subtitle").textContent).toBe("macOS won’t ask anything. Here’s what it does.");
+    expect(screen.queryByTestId("os-prompt-picture")).toBeNull();
+    expect(screen.queryByTestId("os-prompt-click")).toBeNull();
+    fireEvent.click(screen.getByTestId("os-prompt-continue"));
+    expect(screen.queryByTestId("os-prompt-subtitle")).toBeNull();
+    expect(screen.getByTestId("os-prompt-sheet").textContent).toContain("Starting it now…");
+    expect(screen.getByTestId("os-prompt-sheet").textContent).not.toContain("dialog");
+    act(() => handlers.told?.({ id: "helper", result: "called", status: "allowed", words: "Bot's AI helper started: Bot answers with the AI you chose." }));
+    expect(screen.getByTestId("os-prompt-outcome").textContent).toBe("Bot's AI helper started: Bot answers with the AI you chose.");
+    // An entry whose call makes macOS ask still says so.
+    expect(sheetSubtitle({ kind: "ask" }, accessibility)).toContain("macOS will ask next");
+  });
+
   it("puts Not now first in focus, the calm choice", async () => {
     await asked();
     expect(document.activeElement).toBe(screen.getByTestId("os-prompt-not-now"));
@@ -176,7 +205,7 @@ describe("the sheet before a system prompt", () => {
       const heading = screen.getByRole("heading").textContent ?? "";
       expect(heading).toBe(sheetTitle(helperChanged));
       const subtitle = screen.queryByTestId("os-prompt-subtitle")?.textContent ?? null;
-      expect(subtitle).toBe(sheetSubtitle(phase));
+      expect(subtitle).toBe(sheetSubtitle(phase, helperChanged));
       expect(subtitle).not.toBe(heading);
       const body = phase.kind === "done" ? screen.getByTestId("os-prompt-outcome").textContent ?? "" : document.getElementById("os-prompt-why")?.textContent ?? "";
       expect(BANNED).not.toContain(body.trim());

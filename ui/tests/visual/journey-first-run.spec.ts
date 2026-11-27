@@ -84,6 +84,7 @@ const prompt = (id: string, title: string, needed: boolean) => ({
   change_later: "System Settings › Privacy & Security",
   background: "waits",
   never_shown: false,
+  dialog_follows: true,
   dialog: { style: "alert", title: "“AI Juggler” would like to control this computer using accessibility features.", body: "Grant access to this application in Privacy & Security settings, located in System Settings.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
 });
 const PROMPTS = [prompt("accessibility", "Jump to a session's own window", true), prompt("screen-recording", "See a live preview of each session", false)];

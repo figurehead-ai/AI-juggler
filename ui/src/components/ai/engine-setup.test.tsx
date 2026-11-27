@@ -159,7 +159,7 @@ describe("AJ-E3823 the guide on screen", () => {
   // check is its first start, and the click goes through the gate first.
   it("not set up yet: says so, and Check this Mac is the one primary", async () => {
     window.__AIJ_OS_PROMPTS__ = [
-      { id: "helper", title: "Start Bot's AI", why: "", system_says: "", click: "", if_declined: "", offered_again: "", needed: true, status: "not_asked", primed: false, change_later: null, background: "", never_shown: false, dialog: null },
+      { id: "helper", title: "Start Bot's AI", why: "", system_says: "", click: "", if_declined: "", offered_again: "", needed: true, status: "not_asked", primed: false, change_later: null, background: "", never_shown: false, dialog: null, dialog_follows: false },
     ];
     const setup = await show(withApple("unchecked", STATES.noanswer));
     await waitFor(() => expect(screen.getByTestId("setup-apple-state").textContent).toBe("Not checked yet"));

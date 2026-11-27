@@ -834,7 +834,7 @@ export interface Commands {
   /** Write os_prompts::os_prompt_prime */
   os_prompt_prime: { args: { id: string }; result: OsPromptOutcomeInfo };
   /** Write os_prompts::os_prompt_request */
-  os_prompt_request: { args: { id: string }; result: OsPromptOutcomeInfo };
+  os_prompt_request: { args: { id: string; fromSetting?: boolean | null }; result: OsPromptOutcomeInfo };
   /** Read os_prompts::os_prompt_status */
   os_prompt_status: { args: { id: string }; result: OsPromptInfo };
   /** Read os_prompts::os_prompts_list */

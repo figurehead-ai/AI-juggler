@@ -84,6 +84,7 @@ const SHEET: OsPromptInfo = {
   change_later: null,
   background: "Never asks: links sent without you are sent quietly or not at all.",
   never_shown: false,
+  dialog_follows: true,
   dialog: null,
 };
 

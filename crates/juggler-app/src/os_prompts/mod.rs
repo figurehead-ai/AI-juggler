@@ -43,6 +43,7 @@ use registry::Entry;
 /// One system prompt, as the window shows it (setup's cards, the sheet).
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[allow(clippy::struct_excessive_bools)] // wire DTO: each flag is its own fact the sheet and setup read
 pub struct OsPromptInfo {
     /// The registry's short, stable id.
     pub id: String,
@@ -73,6 +74,11 @@ pub struct OsPromptInfo {
     pub never_shown: bool,
     /// The system's dialog, for the picture the sheet and cards draw.
     pub dialog: Option<OsPromptDialogInfo>,
+    /// 0.5.2 G36: whether the system shows a dialog after Continue. Bot's
+    /// helper's first start brings none (macOS asks only when the helper
+    /// on disk changed since it last opened, `helper-changed`), so its
+    /// sheet never says "macOS will ask next" and draws no dialog.
+    pub dialog_follows: bool,
 }
 
 /// The system's dialog in its own words: what the picture is drawn from.
@@ -98,7 +104,8 @@ pub struct OsPromptOutcomeInfo {
     /// The entry.
     pub id: String,
     /// `called` (the system may have asked) | `not_now` (nothing was
-    /// asked; the next click asks again) | `waiting` (nobody was there) |
+    /// asked: said now, or remembered for an entry offered again from its
+    /// setting, 0.5.2 G33) | `waiting` (nobody was there) |
     /// `already` (primed or decided before: nothing was asked).
     pub result: String,
     /// What the system says now (the info's `status` words).
@@ -111,6 +118,28 @@ pub struct OsPromptOutcomeInfo {
 pub const ASK_WAIT: Duration = Duration::from_secs(600);
 
 const PRIMED_PREFIX: &str = "os_prompt_primed:";
+
+/// 0.5.2 G33 (PAT-OSP): the user said Not now to an entry's sheet. For an
+/// entry offered again from its setting ([`registry::Again::Setting`]) it
+/// is remembered: a use elsewhere asks nothing more, only that setting.
+const NOT_NOW_PREFIX: &str = "os_prompt_not_now:";
+
+/// Whether the user said Not now to `id`'s sheet before.
+#[must_use]
+pub fn said_not_now(state: &AppState, id: &str) -> bool {
+    state
+        .app_setting(&format!("{NOT_NOW_PREFIX}{id}"))
+        .as_deref()
+        == Some("1")
+}
+
+fn remember_not_now(state: &AppState, id: &str) {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage
+            .app_settings()
+            .set(&format!("{NOT_NOW_PREFIX}{id}"), "1");
+    }
+}
 
 /// The marks earlier versions left that say the user already went
 /// through an entry's prompt (so it isn't primed a second time).
@@ -209,11 +238,27 @@ impl Primer for WindowPrimer {
     }
 
     fn told(&self, prompt: Prompt, outcome: &Outcome) {
-        self.app.emit_event(
-            AppEvent::OsPromptOutcome,
-            outcome_info(prompt.id, "called", outcome),
-        );
+        // 0.5.2 G36: the helper's start says what came of it (its probe:
+        // started, stopped, not answered yet), told by `prime_call`; the
+        // system won't say, so the gate's outcome would be "If you allowed
+        // it… If not…".
+        if is_helper(prompt.id) {
+            return;
+        }
+        self.tell(&outcome_info(prompt.id, "called", outcome));
     }
+}
+
+impl WindowPrimer {
+    /// The sheet's outcome, said.
+    fn tell(&self, outcome: &OsPromptOutcomeInfo) {
+        self.app
+            .emit_event(AppEvent::OsPromptOutcome, outcome.clone());
+    }
+}
+
+fn is_helper(id: &str) -> bool {
+    id == registry::HELPER.id || id == registry::HELPER_CHANGED.id
 }
 
 static PRIMER: std::sync::OnceLock<Arc<WindowPrimer>> = std::sync::OnceLock::new();
@@ -457,7 +502,8 @@ pub fn status_of(state: &Arc<AppState>, prompt: Prompt) -> Status {
 #[must_use]
 pub fn info(state: &Arc<AppState>, entry: &Entry) -> OsPromptInfo {
     let app = crate::edition::current().app_name();
-    let dialog = os_prompt::dialog(entry.prompt.kind, app);
+    let dialog_follows = dialog_follows(entry);
+    let dialog = os_prompt::dialog(entry.prompt.kind, app).filter(|_| dialog_follows);
     let place = os_prompt::settings_place(entry.prompt.kind);
     OsPromptInfo {
         id: entry.prompt.id.to_owned(),
@@ -493,7 +539,17 @@ pub fn info(state: &Arc<AppState>, entry: &Entry) -> OsPromptInfo {
             buttons: dialog.buttons.iter().map(|b| (*b).to_owned()).collect(),
             click: dialog.click.to_owned(),
         }),
+        dialog_follows,
     }
+}
+
+/// 0.5.2 G36: whether the system shows a dialog after `entry`'s Continue.
+/// Bot's helper's first start (`helper`) brings none; only a helper that
+/// changed on disk since it last opened (`helper-changed`) may be asked
+/// about. Every other entry's call makes the system ask.
+#[must_use]
+pub fn dialog_follows(entry: &Entry) -> bool {
+    entry.prompt.id != registry::HELPER.id
 }
 
 /// What to click, in words: the button, and for a dialog that sends the
@@ -555,7 +611,7 @@ fn gated_info<T>(state: &Arc<AppState>, prompt: Prompt, gated: &Gated<T>) -> OsP
             id: prompt.id.to_owned(),
             result: "not_now".to_owned(),
             status: status_of(state, prompt).as_str().to_owned(),
-            words: "Nothing was asked. It will ask again the next time you use it.".to_owned(),
+            words: not_now_words(prompt.id),
         },
         Gated::Waiting => OsPromptOutcomeInfo {
             id: prompt.id.to_owned(),
@@ -564,6 +620,15 @@ fn gated_info<T>(state: &Arc<AppState>, prompt: Prompt, gated: &Gated<T>) -> OsP
             words: "Nothing was asked: it waits for you.".to_owned(),
         },
     }
+}
+
+/// After Not now: nothing was asked, and where (or when) it's offered
+/// again, the registry's own sentence.
+fn not_now_words(id: &str) -> String {
+    registry::entry(id).map_or_else(
+        || "Nothing was asked.".to_owned(),
+        |entry| format!("Nothing was asked. {}", entry.offered_again),
+    )
 }
 
 /// What came of starting the helper (its probe's reading of this Mac):
@@ -687,6 +752,7 @@ pub fn prime_call(
         // first, once; that primes `helper` too.
         "helper" | "helper-changed" => {
             let prompt = helper_entry_now(entry).prompt;
+            let sheet_shown = matches!(presence, Presence::User(_)) && !gate.primed(prompt.id);
             let gated = gate.through(prompt, presence, &|| None, || {
                 if prompt.id == registry::HELPER_CHANGED.id {
                     AppLedger(Arc::clone(state)).set_primed(registry::HELPER.id);
@@ -696,7 +762,14 @@ pub fn prime_call(
             // AJ-E1555 R3: the helper's start is the action; the sheet says
             // what came of it, never "asked" for a prompt that didn't come.
             match &gated {
-                Gated::Called { value, .. } => helper_outcome(prompt, value.as_ref()),
+                Gated::Called { value, .. } => {
+                    let outcome = helper_outcome(prompt, value.as_ref());
+                    // 0.5.2 G36: the sheet says what came of the start.
+                    if sheet_shown && let Some(primer) = PRIMER.get() {
+                        primer.tell(&outcome);
+                    }
+                    outcome
+                }
                 _ => gated_info(state, prompt, &gated),
             }
         }
@@ -787,11 +860,14 @@ pub async fn os_prompt_prime(
 }
 
 /// A click that is about to use what `id` guards (the Watches form's
-/// Watch button for `notifications`, a Settings switch): the sheet first
-/// when the entry isn't primed and the system hasn't decided, then the
-/// call, then the outcome. An entry already primed or decided asks
-/// nothing and calls nothing (never the same sheet twice, never a sheet
-/// with no dialog after it).
+/// Watch button for `notifications`, a reminder's Set; `from_setting`
+/// for the entry's own setting, Check this computer for Bot's helper):
+/// the sheet first when the entry isn't primed and the system hasn't
+/// decided, then the call, then the outcome. An entry already primed or
+/// decided asks nothing and calls nothing (never the same sheet twice,
+/// never a sheet with no dialog after it), and so does an entry offered
+/// again from its setting that the user said Not now to, unless this is
+/// that setting (0.5.2 G33).
 ///
 /// # Errors
 ///
@@ -800,14 +876,40 @@ pub async fn os_prompt_prime(
 pub async fn os_prompt_request(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
+    from_setting: Option<bool>,
 ) -> AppResult<OsPromptOutcomeInfo> {
+    let from = if from_setting.unwrap_or(false) {
+        Asked::FromSetting
+    } else {
+        Asked::ByUse
+    };
     crate::ipc::blocking_with(
         state.inner(),
         "os prompt request",
         crate::ipc::Wait::Person,
-        move |state| request_impl(state, entry_of(&id)?),
+        move |state| request_impl(state, entry_of(&id)?, from),
     )
     .await
+}
+
+/// Where a request comes from (0.5.2 G33).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Asked {
+    /// A use of what the entry guards (a watch's Watch, a reminder's Set,
+    /// a move's link).
+    ByUse,
+    /// The entry's own setting (the place its `offered_again` names).
+    FromSetting,
+}
+
+/// 0.5.2 G33 (PAT-OSP): whether a request shows `entry`'s sheet again
+/// after the user said Not now to it (`said_not_now`): always from its
+/// setting, and at a use only for an entry offered again at its next use.
+/// Never by itself: a watch's Watch or a reminder's Set after Not now to
+/// notifications asks nothing more.
+#[must_use]
+pub fn asks_again(entry: &Entry, from: Asked, said_not_now: bool) -> bool {
+    !said_not_now || from == Asked::FromSetting || entry.again == registry::Again::NextUse
 }
 
 /// Core of [`os_prompt_request`].
@@ -815,7 +917,11 @@ pub async fn os_prompt_request(
 /// # Errors
 ///
 /// An entry built never to be shown.
-pub fn request_impl(state: &Arc<AppState>, entry: &Entry) -> AppResult<OsPromptOutcomeInfo> {
+pub fn request_impl(
+    state: &Arc<AppState>,
+    entry: &Entry,
+    from: Asked,
+) -> AppResult<OsPromptOutcomeInfo> {
     let entry = helper_entry_now(entry);
     let status = status_of(state, entry.prompt);
     if os_prompt::gate().primed(entry.prompt.id)
@@ -827,7 +933,21 @@ pub fn request_impl(state: &Arc<AppState>, entry: &Entry) -> AppResult<OsPromptO
             &Outcome::of(entry.prompt.kind, Some(status)),
         ));
     }
-    prime_call(state, entry, os_prompt::user())
+    // 0.5.2 G33 (PAT-OSP): Not now is remembered for an entry offered
+    // again from its setting; a use elsewhere goes on without asking.
+    if !asks_again(entry, from, said_not_now(state, entry.prompt.id)) {
+        return Ok(OsPromptOutcomeInfo {
+            id: entry.prompt.id.to_owned(),
+            result: "not_now".to_owned(),
+            status: status.as_str().to_owned(),
+            words: not_now_words(entry.prompt.id),
+        });
+    }
+    let outcome = prime_call(state, entry, os_prompt::user())?;
+    if outcome.result == "not_now" {
+        remember_not_now(state, entry.prompt.id);
+    }
+    Ok(outcome)
 }
 
 /// The sheet's answer: Continue (`go`) or Not now, for the entry `id`.

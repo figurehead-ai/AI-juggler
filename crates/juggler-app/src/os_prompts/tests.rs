@@ -162,7 +162,119 @@ fn not_now_without_a_window_asks_nothing() {
     let entry = registry::entry("automation-app-links").unwrap();
     let outcome = prime_call(&state, entry, juggler_platform::os_prompt::user()).unwrap();
     assert_eq!(outcome.result, "not_now");
-    assert!(outcome.words.contains("ask again"), "{}", outcome.words);
+    assert_eq!(
+        outcome.words,
+        format!("Nothing was asked. {}", entry.offered_again)
+    );
+}
+
+/// 0.5.2 G33 (RW1 K3: the Notifications sheet came back after every Not
+/// now, seven times): Not now is remembered for an entry offered again
+/// from its setting. A use elsewhere (a reminder's Set, a watch's Watch)
+/// asks nothing more and goes on; only the setting asks again. An entry
+/// offered again at its next use asks there, as its words say.
+#[test]
+fn not_now_is_remembered_until_the_setting_asks_again() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().to_path_buf());
+    let notifications = registry::entry("notifications").unwrap();
+    assert_eq!(notifications.again, registry::Again::Setting);
+    assert!(!said_not_now(&state, "notifications"));
+    // No window in a test: the sheet's answer is Not now.
+    let first = request_impl(&state, notifications, Asked::ByUse).unwrap();
+    assert_eq!(first.result, "not_now");
+    assert!(said_not_now(&state, "notifications"), "Not now is kept");
+    assert!(
+        !asks_again(notifications, Asked::ByUse, true),
+        "a reminder's Set after Not now shows no sheet"
+    );
+    assert!(
+        asks_again(notifications, Asked::FromSetting, true),
+        "Settings › Notifications asks again"
+    );
+    let again = request_impl(&state, notifications, Asked::ByUse).unwrap();
+    assert_eq!(again.result, "not_now");
+    assert!(
+        again.words.contains("Settings › Notifications"),
+        "{}",
+        again.words
+    );
+    let links = registry::entry("automation-app-links").unwrap();
+    assert_eq!(links.again, registry::Again::NextUse);
+    assert!(
+        asks_again(links, Asked::ByUse, true),
+        "a link's next use asks again"
+    );
+    assert!(asks_again(notifications, Asked::ByUse, false), "never said");
+}
+
+/// The registry's `again` and its words agree: an entry offered again
+/// from its setting names the place; one offered at its next use says so.
+#[test]
+fn each_entry_is_offered_again_as_its_words_say() {
+    for entry in registry::ENTRIES.iter().filter(|entry| !entry.never_shown) {
+        let from_setting = entry.offered_again.contains("Settings ›");
+        assert_eq!(
+            entry.again == registry::Again::Setting,
+            from_setting,
+            "{}: {}",
+            entry.prompt.id,
+            entry.offered_again
+        );
+    }
+}
+
+/// 0.5.2 G36 (RW1 V4, AJ-E1555 R3): Bot's helper's first start brings no
+/// dialog from the system, so its sheet promises none and draws none; a
+/// helper that changed on disk may be asked about, and its sheet says so.
+#[test]
+fn the_helper_s_sheet_says_a_dialog_comes_only_when_one_will() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().to_path_buf());
+    let first = info(&state, registry::entry("helper").unwrap());
+    assert!(!first.dialog_follows);
+    assert!(
+        first.dialog.is_none(),
+        "no picture of a dialog that won't come"
+    );
+    assert!(first.system_says.is_empty());
+    let changed = info(&state, registry::entry("helper-changed").unwrap());
+    assert!(changed.dialog_follows);
+    for entry in registry::ENTRIES
+        .iter()
+        .filter(|entry| entry.prompt.id != "helper")
+    {
+        assert!(dialog_follows(entry), "{}", entry.prompt.id);
+    }
+}
+
+/// 0.5.2 G36: the helper's sheet ends with what came of its start (the
+/// probe), never the system's "If you allowed it… If not…".
+#[test]
+fn the_helper_s_outcome_says_what_happened() {
+    use crate::features::ai::models::recommend::{AppleAi, HostChip, MacFacts};
+    let entry = registry::entry("helper").unwrap();
+    let not_yet = helper_outcome(registry::HELPER, None);
+    assert!(
+        not_yet
+            .words
+            .starts_with("Bot's helper hasn't answered yet"),
+        "{}",
+        not_yet.words
+    );
+    assert!(!not_yet.words.contains("If you allowed it"));
+    let mut mac = MacFacts {
+        chip: HostChip::AppleNewer,
+        memory_gb: 16,
+        free_disk_bytes: 1,
+        apple_ai: AppleAi::On,
+    };
+    let started = helper_outcome(registry::HELPER, Some(&mac));
+    assert_eq!(started.words, entry.after);
+    mac.apple_ai = AppleAi::Blocked;
+    let stopped = helper_outcome(registry::HELPER, Some(&mac));
+    assert_eq!(stopped.words, entry.if_declined);
+    assert!(is_helper("helper") && is_helper("helper-changed") && !is_helper("notifications"));
 }
 
 /// 0.5.1 F28: after Not now the sheet says where (or when) it's offered

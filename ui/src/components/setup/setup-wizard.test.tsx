@@ -39,6 +39,7 @@ const prompt = (id: string, status: string, over: Partial<OsPromptInfo> = {}): O
   change_later: "System Settings › Privacy & Security",
   background: "waits",
   never_shown: false,
+  dialog_follows: true,
   dialog: { style: "alert", title: "“AI Juggler” would like to control this computer", body: "Grant access in Privacy & Security.", buttons: ["Deny", "Open System Settings"], click: "Open System Settings" },
   ...over,
 });

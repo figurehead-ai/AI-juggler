@@ -10,7 +10,8 @@ export type OsPromptOutcomeInfo = {
 id: string, 
 /**
  * `called` (the system may have asked) | `not_now` (nothing was
- * asked; the next click asks again) | `waiting` (nobody was there) |
+ * asked: said now, or remembered for an entry offered again from its
+ * setting, 0.5.2 G33) | `waiting` (nobody was there) |
  * `already` (primed or decided before: nothing was asked).
  */
 result: string, 
