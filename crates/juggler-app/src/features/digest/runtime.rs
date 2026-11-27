@@ -224,21 +224,18 @@ pub fn gather(
             ) && !events.contains_key(&row.id)
         })
         .count();
+    let now = crate::commands::now_millis();
     let agents = events
         .into_iter()
         .map(|(session, events)| {
             let row = rows.iter().find(|row| row.id == session);
-            let folder = row.and_then(|row| {
-                std::path::Path::new(&row.cwd)
-                    .file_name()
-                    .map(|name| name.to_string_lossy().into_owned())
-                    .filter(|name| !name.is_empty())
-            });
             AgentFacts {
-                name: row
-                    .and_then(|row| row.label.clone())
-                    .or(folder)
-                    .unwrap_or_else(|| "A session".to_owned()),
+                // 0.5.2 G21: as the rail names it (its title, never its
+                // folder with a counter: "web (1)").
+                name: row.map_or_else(
+                    || "A session".to_owned(),
+                    |row| crate::features::notifications::needs::session_name(row, now),
+                ),
                 author: DigestAuthorInfo {
                     provider: row.map(|row| row.provider.clone()),
                     folder: row.and_then(|row| row.account_id.clone()),

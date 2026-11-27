@@ -117,12 +117,39 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
 /// its facts (D-96, D-103.8: "“billing · started 1:14 AM” needs your
 /// reply"), its Account in the notice's detail, never in its name.
 pub(crate) fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
-    let folder = folder(Some(&row.cwd));
-    let started = started_words(Some(row.started_at_ms), now_ms);
+    name_of(&Named::of(row), now_ms)
+}
+
+/// What a session's short name is made of (its row's fields).
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Named<'a> {
+    pub(crate) label: Option<&'a str>,
+    pub(crate) title: Option<&'a str>,
+    pub(crate) branch: Option<&'a str>,
+    pub(crate) cwd: &'a str,
+    pub(crate) started_ms: i64,
+}
+
+impl<'a> Named<'a> {
+    pub(crate) fn of(row: &'a InstanceInfo) -> Self {
+        Self {
+            label: row.label.as_deref(),
+            title: row.title.as_deref(),
+            branch: row.git_branch.as_deref(),
+            cwd: &row.cwd,
+            started_ms: row.started_at_ms,
+        }
+    }
+}
+
+/// [`session_name`] over its parts.
+pub(crate) fn name_of(named: &Named<'_>, now_ms: i64) -> String {
+    let folder = folder(Some(named.cwd));
+    let started = started_words(Some(named.started_ms), now_ms);
     juggler_core::naming::short_name(
-        row.label.as_deref(),
-        row.title.as_deref(),
-        row.git_branch.as_deref(),
+        named.label,
+        named.title,
+        named.branch,
         &juggler_core::naming::Facts {
             folder: folder.as_deref(),
             started: started.as_deref(),

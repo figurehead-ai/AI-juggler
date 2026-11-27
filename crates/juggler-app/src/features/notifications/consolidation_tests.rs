@@ -13,6 +13,7 @@ use crate::state::AppState;
 /// folder named for it (`s1` is api … `s7` is cli); every kind on.
 fn lab(dir: &std::path::Path) -> Arc<AppState> {
     let state = crate::test_support::seven_sessions(dir);
+    crate::test_support::name_seven(&state);
     // A wait is news at once here (AJ-E2904's threshold is the user's).
     state
         .storage

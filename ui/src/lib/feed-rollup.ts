@@ -73,24 +73,11 @@ function levelOf(thing: FeedThing): number {
   return Math.max(...thing.items.map((item) => item.level));
 }
 
-/** AJ-E2314 L5 (the 0.5.0 re-walk, DW1): a digest says each agent's
- * finish in its window, so the finished cards of the same sessions in that
- * window aren't shown again beside it (the feed showed web and api
- * finished twice). Ids of the items a digest in `items` covers. */
-export function digestCovered(items: readonly FeedItemInfo[]): Set<string> {
-  const finishes = items.flatMap(({ digest, at_ms }) => (digest ? digest.lines.filter((line) => line.state === "finished").map((line) => ({ session: line.session_id, from: digest.start_ms, to: Math.max(digest.end_ms, at_ms) })) : []));
-  if (finishes.length === 0) return new Set();
-  return new Set(
-    items
-      .filter((item) => item.digest === null && item.kind === "finished" && finishes.some((one) => one.session === item.target.session_id && item.at_ms >= one.from && item.at_ms <= one.to))
-      .map((item) => item.id),
-  );
-}
-
-/** The cards: things coalesced, then rolled up by key and window. */
-export function cardsOf(given: readonly FeedItemInfo[]): FeedCard[] {
-  const covered = digestCovered(given);
-  const items = covered.size === 0 ? given : given.filter((item) => !covered.has(item.id));
+/** The cards: things coalesced, then rolled up by key and window. A
+ * digest never hides a post (0.5.2 G21, over AJ-E2314 L5): a finished
+ * post keeps its diff stat and its review, the digest only says it again
+ * in a line. */
+export function cardsOf(items: readonly FeedItemInfo[]): FeedCard[] {
   const cards: FeedCard[] = [];
   // Rollup key → the card still open for it, and the scope it belongs to.
   const open = new Map<string, { card: FeedCard; scope: string | null }>();

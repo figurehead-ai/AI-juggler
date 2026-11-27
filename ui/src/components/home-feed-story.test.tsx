@@ -57,7 +57,21 @@ describe("AJ-E3713 R6a — the diff stat on a post", () => {
     feed();
     const stat = await screen.findByTestId("feed-changes");
     expect(stat.textContent).toBe("2 files+412 lines added−96 lines removed");
-    expect(stat.getAttribute("title")).toBe("src/calc.py, tests/test_calc.py");
+    // 0.5.2 G22: the app's tip, never a native title the web view may not show.
+    expect(stat.getAttribute("title")).toBeNull();
+    fireEvent.pointerEnter(stat);
+    const tip = screen.getByTestId("feed-changes-tip");
+    expect(tip.getAttribute("role")).toBe("tooltip");
+    expect([...within(tip).getByTestId("feed-changes-names").children].map((one) => one.textContent)).toEqual(["src/calc.py", "tests/test_calc.py"]);
+    expect(stat.getAttribute("aria-describedby")).toBe(tip.id);
+    fireEvent.pointerLeave(stat);
+    expect(screen.queryByTestId("feed-changes-tip")).toBeNull();
+    // And by keyboard: a tab stop whose focus shows the names.
+    expect(stat.tabIndex).toBe(0);
+    act(() => stat.focus());
+    expect(screen.getByTestId("feed-changes-tip").textContent).toBe("src/calc.pytests/test_calc.py");
+    act(() => stat.blur());
+    expect(screen.queryByTestId("feed-changes-tip")).toBeNull();
     expect(stat.querySelector(".bg-success-strong")?.getAttribute("style")).toContain("width: 81%");
     expect(stat.querySelector(".bg-danger-strong")?.getAttribute("style")).toContain("width: 19%");
   });
@@ -153,6 +167,28 @@ describe("AJ-E3713 R3 — More / Less like this", () => {
     });
     expect(await feedLeans()).toEqual([]);
     await waitFor(() => expect(screen.queryByTestId("feed-why")).toBeNull());
+  });
+
+  it("0.5.2 G24: the post leaned less folds too once its why is closed; a post of the same App in another project is left alone", async () => {
+    const codex = { kind: "app", name: null, provider: "codex", folder: "acc-codex", folder_label: "ChatGPT", desktop: false } as const;
+    const worked = (id: string, at: number, project: string) =>
+      feedItem({ id, at_ms: at, kind: "worked", category: "other", level: 0, coalesce: `c:${id}`, subject: `Thread ${id}`, author: codex, facts: { project_id: project }, target: { conversation_id: id, account_id: "acc-codex", project_id: project } });
+    seed([worked("patch", NOW - MIN, "p-web"), worked("delete", NOW - 5 * MIN, "p-api")]);
+    feed();
+    const del = (await screen.findAllByTestId("feed-card"))[1]!;
+    await act(async () => {
+      fireEvent.click(within(del).getByTestId("feed-less-like"));
+    });
+    // The patch thread is in another project: not leaned, never folded.
+    const patch = screen.getAllByTestId("feed-card")[0]!;
+    expect(within(patch).getByTestId("feed-less-like").getAttribute("aria-pressed")).toBe("false");
+    expect(within(patch).queryByTestId("feed-why")).toBeNull();
+    // The leaned one stays with its why and Undo; closed, it folds.
+    expect(await within(del).findByTestId("feed-why")).toBeTruthy();
+    expect(screen.queryByTestId("feed-folded")).toBeNull();
+    fireEvent.click(within(del).getByTestId("feed-less-like"));
+    await waitFor(() => expect(screen.getByTestId("feed-folded").textContent).toBe("1 post shown less · Show"));
+    expect(screen.getAllByTestId("feed-card").map((card) => card.getAttribute("data-feed-ids"))).toEqual(["patch"]);
   });
 
   it("More like this lifts posts like it to the top of their day; its lit arrow opens the why", async () => {

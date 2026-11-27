@@ -224,10 +224,15 @@ function layOut(sections: readonly Section[], budget: number, unfolded: Readonly
 /** A section's posts a "less" folded: one quiet line, Show in place. */
 function Folded({ cards, shown, onShow }: { cards: readonly FeedCard[]; shown: boolean; onShow: () => void }): JSX.Element | null {
   if (cards.length === 0 || shown) return null;
+  const words = `${cards.length} ${cards.length === 1 ? "post" : "posts"} shown less`;
+  // In the feed, as one of its articles (a feed holds articles only; the
+  // 0.5.2 RW1 walk first saw this line, and axe its place).
   return (
-    <button type="button" onClick={onShow} className={GHOST + " text-muted"} data-testid="feed-folded">
-      {cards.length} {cards.length === 1 ? "post" : "posts"} shown less · Show
-    </button>
+    <article aria-label={words} className="flex">
+      <button type="button" onClick={onShow} className={GHOST + " text-muted"} data-testid="feed-folded">
+        {words} · Show
+      </button>
+    </article>
   );
 }
 
@@ -314,7 +319,8 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
               {row.label !== null && <p aria-hidden="true" className="section-label px-0.5 pb-0 pt-1" data-testid="feed-day">{row.label}</p>}
               {row.cards.map(({ card, pos }) => (
                 <HomeFeedCard key={card.key} card={card} pos={pos} now={now} unread={unread(card.head, read, horizon)} fresh={stream.fresh(card.head)} actions={cardActions}
-                  onLeaned={(key) => setPinned((was) => new Set([...was, key]))} />
+                  onLeaned={(key) => setPinned((was) => new Set([...was, key]))}
+                  onSettled={(key) => setPinned((was) => new Set([...was].filter((one) => one !== key)))} />
               ))}
               {row.shown > 0 && <Folded cards={row.section.folded} shown={unfolded.has(row.section.key)} onShow={() => setUnfolded((was) => new Set([...was, row.section.key]))} />}
             </Fragment>

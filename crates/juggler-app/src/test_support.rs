@@ -319,6 +319,24 @@ pub(crate) fn seven_sessions(dir: &std::path::Path) -> std::sync::Arc<crate::sta
     state
 }
 
+/// [`seven_sessions`]' sessions named as a user names them (each by its
+/// folder's word: `s1` "api" … `s7` "cli"): what every list says of them
+/// by the one short-name rule (0.5.2 G27; untitled, they're named by their
+/// facts, "api · started 9:41 AM").
+pub(crate) fn name_seven(state: &crate::state::AppState) {
+    const NAMES: [&str; 7] = ["api", "web", "docs", "infra", "ui", "db", "cli"];
+    let storage = state.storage.lock().unwrap();
+    for (i, name) in NAMES.iter().enumerate() {
+        storage
+            .sessions()
+            .set_label(
+                &juggler_core::model::SessionId::new(format!("s{}", i + 1)),
+                Some(name),
+            )
+            .unwrap();
+    }
+}
+
 /// A Claude app profile AI Juggler knows, on folder `dir`, run from the
 /// app in `/Applications` (the process-tree and ownership fixtures).
 pub(crate) fn claude_profile(dir: &str) -> crate::features::places::book::KnownPlace {

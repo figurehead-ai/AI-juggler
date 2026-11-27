@@ -26,7 +26,7 @@ import { TurnReview } from "./TurnReview";
 import { exactWhen, feedWhen, rollupSentence, said, sentence } from "../lib/feed-words";
 import { attachmentOf, changesOf, postAuthor, story, type Attachment, type PostAuthor, type StoryPart } from "../lib/feed-story";
 import { stateOf, threadOf, type FeedCard, type FeedThing } from "../lib/feed-rollup";
-import type { RailItem } from "../lib/rail-items";
+import { needWord, type RailItem } from "../lib/rail-items";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import type { ReviewAsk } from "../lib/ipc/turn-review";
 import { useAiJob } from "../lib/ai-availability";
@@ -39,6 +39,9 @@ export interface CardActions {
   review: (sessionId: string) => void;
   /** The rail's row for an item's session, when it is one. */
   railOf: (item: FeedItemInfo) => RailItem | null;
+  /** The rail's row for a session it lists, live or ended (a digest's
+   * lines name each as the rail does, in its state now: 0.5.2 G21). */
+  sessionOf?: (sessionId: string) => RailItem | null;
 }
 
 /** The kinds that are a session's ending (Home's e archives one). */
@@ -150,7 +153,7 @@ function attachmentOfCard(card: FeedCard, post: FeedItemInfo, follow: readonly F
   return card.rolled ? changesOf(card.things.flatMap((thing) => thing.items)) : attachmentOf(post, follow);
 }
 
-export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned }: {
+export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned, onSettled }: {
   card: FeedCard;
   pos: number;
   now: number;
@@ -159,13 +162,20 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned 
   actions: CardActions;
   /** A lean was kept on this post (it stays in place with its why). */
   onLeaned?: (key: string) => void;
+  /** Its why was closed: the lean now acts on it too (0.5.2 G24: a
+   * "less" post folds, a "more" one rises). */
+  onSettled?: (key: string) => void;
 }): JSX.Element {
   const [why, setWhy] = useState(false);
   const [allThread, setAllThread] = useState(false);
   const item = card.head;
   // AJ-E3712: the agent digest, its own post: a line per session.
   if (item.kind === "agent_digest" && item.digest) {
-    return <HomeFeedDigest item={item} digest={item.digest} when={feedWhen(item.at_ms, now)} pos={pos} onOpen={(sessionId) => void actions.open({ ...item, target: { ...item.target, session_id: sessionId } })} />;
+    const live = (sessionId: string) => {
+      const row = actions.sessionOf?.(sessionId);
+      return row ? { name: row.title, state: needWord(row) } : null;
+    };
+    return <HomeFeedDigest item={item} digest={item.digest} when={feedWhen(item.at_ms, now)} pos={pos} live={live} onOpen={(sessionId) => void actions.open({ ...item, target: { ...item.target, session_id: sessionId } })} />;
   }
   const id = `feed-${item.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
   const thread = card.rolled ? null : threadOf(card.things[0]!);
@@ -224,7 +234,10 @@ export function HomeFeedCard({ card, pos, now, unread, fresh, actions, onLeaned 
           setWhy(true);
           onLeaned?.(card.key);
         }}
-        onWhy={() => setWhy((was) => !was)}
+        onWhy={() => {
+          if (why) onSettled?.(card.key);
+          setWhy(!why);
+        }}
         extra={finished ? <Review sessionId={finished} subject={item.subject} onReview={actions.review} /> : null}
       />
       {why && <WhyPanel item={post} />}

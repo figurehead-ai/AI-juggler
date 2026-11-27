@@ -829,8 +829,11 @@ pub(super) struct About {
     pub(super) project_id: Option<String>,
 }
 
-/// A session as its row names it: its conversation's title, else its
-/// folder; where it runs, and on which account.
+/// A session as its rail row names it (0.5.2 G27: the bell said "api",
+/// its folder, for a session named by its first ask): the one short-name
+/// rule ([`needs::session_name`], `naming::short_name`); where it runs as
+/// "in <folder>" (unless its name, by its facts, holds the folder
+/// already), and on which account.
 pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
     let info = crate::features::conversations::titled_snapshot(state)
         .into_iter()
@@ -843,22 +846,32 @@ pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
             project_id: None,
         };
     };
-    let folder = std::path::Path::new(&info.cwd)
+    let mut about = about_of(&needs::Named::of(&info), crate::commands::now_millis());
+    about.account = Some(info.account_label).filter(|label| !label.is_empty());
+    about.project_id = info.project_id;
+    about
+}
+
+/// A session's name and place by [`describe`]'s rule, from its parts.
+fn about_of(named: &needs::Named<'_>, now_ms: i64) -> About {
+    let folder = std::path::Path::new(named.cwd)
         .file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .filter(|name| !name.is_empty());
-    let name = info
-        .label
-        .clone()
-        .or_else(|| folder.clone())
-        .unwrap_or_else(|| "A session".to_owned());
+    let by_facts = juggler_core::naming::named_by_facts(named.label, named.title, named.branch);
     About {
-        place: folder.filter(|folder| *folder != name),
-        account: Some(info.account_label).filter(|label| !label.is_empty()),
-        project_id: info.project_id.clone(),
-        name,
+        name: needs::name_of(named, now_ms),
+        place: folder
+            .filter(|_| !by_facts)
+            .map(|folder| format!("in {folder}")),
+        account: None,
+        project_id: None,
     }
 }
+
+#[cfg(test)]
+#[path = "about_tests.rs"]
+mod about_tests;
 
 /// A notification was clicked: AI Juggler comes forward on its session
 /// (or This Mac). An unknown id still brings the window forward.

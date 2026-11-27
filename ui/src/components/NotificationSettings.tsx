@@ -70,7 +70,7 @@ const KINDS: { id: keyof SystemNotificationsInfo; label: string; hint: string; w
   // AJ-E3817: on by default; the user asked for each watch when they set it.
   { id: "watch", label: "Watches and reminders", hint: "A watch you set was met, or a reminder came due. Quiet hours hold a watch unless it is set to tell you even then; a reminder comes at the time you picked.", when: "a watch you set is met or a reminder comes due" },
   // AJ-E3712: off by default, like every other kind.
-  { id: "digest", label: "The digest", hint: "What your agents did, in a few lines, every 15 to 30 minutes while they work. Finished sessions are told in it, not one each.", when: "a digest is ready" },
+  { id: "digest", label: "The digest", hint: "A notification when Home's digest is ready. Finished sessions are told in it, not one each.", when: "a digest is ready" },
 ];
 
 /** A card's heading: the section-title style (design review 31). */
@@ -160,7 +160,7 @@ function AgentDigest({ onStatus }: { onStatus: (status: string | null, error: st
       <SettingSwitch icon={IconSparkle}
         id="agent-digest-on"
         label="Write a digest of what your agents did"
-        hint="On Home, every 15 to 30 minutes while agents work: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it."
+        hint="On Home, every 15 to 30 minutes while agents work, and a minute after one finishes or needs you: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it."
         checked={on}
         onChange={(next) => {
           setOn(next);

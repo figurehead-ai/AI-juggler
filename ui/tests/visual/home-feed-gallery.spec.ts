@@ -18,7 +18,7 @@ import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
 import { STATES as BOT } from "../../src/preview/bot";
-import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome, STORY_T0, storyHome } from "./fixtures/home-feed";
+import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome, releaseWalkFeed, STORY_T0, storyHome } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
 const T0 = 1_728_800_000_000;
@@ -390,3 +390,45 @@ test.describe("the story mock's data", () => {
     });
   }
 });
+
+/**
+ * 0.5.2 (the RW1 walk): the digest beside the finished post it tells,
+ * its sessions named as the rail names them in their state now (G21); a
+ * diff stat's names shown by keyboard focus (G22); a Codex thread leaned
+ * less, folded once its why closed, its App's thread in another project
+ * left alone (G24).
+ */
+for (const theme of ["dark", "light"] as const) {
+  test(`home feed — 0.5.2 the digest beside its posts, a diff stat's names, a lean — 1280 — ${theme}`, async ({ page }) => {
+    await seed(page, allStatuses, theme, { width: 1280, height: 1000 }, { feed: releaseWalkFeed(T0) });
+    const digest = page.getByTestId("feed-digest");
+    await expect(digest).toBeVisible();
+    await expect(digest.getByTestId("digest-line")).toHaveText(["Add retries to the sync job · ended", "Fix the flaky login test · working", "docs · finished"]);
+    // The finished post stays a post, its diff stat with it.
+    const post = page.locator('[data-testid="feed-card"][data-session-id="sess-6"]');
+    await expect(post.getByTestId("feed-changes")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `g21-digest-beside-posts-1280-${theme}.png`) });
+    await axeClean(page, `the digest beside its posts ${theme}`);
+    // G22: the names by keyboard.
+    await post.getByTestId("feed-changes").focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("feed-changes-tip")).toBeVisible();
+    await expect(page.getByTestId("feed-changes-names")).toHaveText(/src\/sync\/retry\.ts/);
+    // The post and the tip under its stat (the tip is drawn over the page).
+    const box = (await post.boundingBox())!;
+    await page.screenshot({ path: resolve(OUT, `g22-diff-stat-names-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: box.height + 40 } });
+    // G24: less on the delete thread, its why closed: it folds; the patch
+    // thread (another project) stays.
+    const del = page.locator('[data-testid="feed-card"]').filter({ hasText: "Remove the old handlers module" });
+    await del.getByTestId("feed-less-like").click();
+    await expect(del.getByTestId("feed-why")).toBeVisible();
+    await del.getByTestId("feed-less-like").click();
+    await expect(page.getByTestId("feed-folded")).toHaveText("1 post shown less · Show");
+    await expect(page.locator('[data-testid="feed-card"]').filter({ hasText: "Add a retry helper to the API client" })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `g24-less-folded-1280-${theme}.png`) });
+    await axeClean(page, `a post leaned less, folded ${theme}`);
+  });
+}

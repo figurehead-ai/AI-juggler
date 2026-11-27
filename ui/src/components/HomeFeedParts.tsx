@@ -10,8 +10,9 @@
  * Codex row's bold title, a button, wrapped inside itself and centred
  * mid-row); past its width it ends in "…", its whole name in its tooltip.
  */
-import type { JSX } from "react";
+import type { FocusEvent, JSX } from "react";
 import { AppIconTile } from "./AppIcon";
+import { keyboardFocus, useTip } from "./WhyTip";
 import { IconJuggler } from "./icons";
 import { appOfTool } from "../lib/app-of";
 import { clock } from "../lib/time-words";
@@ -87,26 +88,56 @@ function UsageMeter({ left, window, resetsAt }: { left: number; window: string |
   );
 }
 
+/** The diff stat's names, one a line (the tip's words). */
+function NamesTip({ names, more }: { names: readonly string[]; more: number }): JSX.Element {
+  return (
+    <span className="flex flex-col font-mono" data-testid="feed-changes-names">
+      {names.map((name) => (
+        <span key={name} className="break-all">{name}</span>
+      ))}
+      {more > 0 && <span className="font-sans">and {more} more</span>}
+    </span>
+  );
+}
+
 /** AJ-E3713 R6a: the diff stat, as the approved mock draws it: "14
  * files +412 −96" and a calm bar of the two (green added, red removed,
  * PAT-COLOR), the files' names on hover. A tool whose calls don't count
- * lines shows the files only, with their names. */
-function DiffStat({ changes }: { changes: Changes }): JSX.Element {
+ * lines shows the files only, with their names.
+ * 0.5.2 G22: the names are the app's tip (`useTip`), on hover and on
+ * keyboard focus (the stat is a tab stop), never a native `title`, which
+ * the app's web view shows only after a still hover in a key window and
+ * never on focus (the RW1 walk saw none). */
+function DiffStat({ changes, look }: { changes: Changes; /** The attachment's box (the tab stop and its ring are the box's). */ look: string }): JSX.Element {
   const files = `${changes.files} ${changes.files === 1 ? "file" : "files"}`;
   const list = changes.names.join(", ");
+  const { ref, show, hide, shown, tipId, tip } = useTip<HTMLDivElement>(<NamesTip names={changes.names} more={changes.files - changes.names.length} />, "feed-changes-tip");
+  const reach = {
+    ref,
+    tabIndex: 0,
+    "aria-describedby": shown ? tipId : undefined,
+    onPointerEnter: show,
+    onPointerLeave: hide,
+    onFocus: (event: FocusEvent<HTMLDivElement>) => keyboardFocus(event.currentTarget) && show(),
+    onBlur: hide,
+  };
   const { added, removed } = changes;
   if (added === null || removed === null) {
     return (
-      <div className="flex min-w-0 items-baseline gap-3.5" title={list} data-testid="feed-changes" data-files-only="yes">
-        <span className="shrink-0">{files}</span>
-        <span className="min-w-0 truncate text-faint">{list}</span>
-      </div>
+      <>
+        <div {...reach} className={look + " flex min-w-0 items-baseline gap-3.5 outline-none focus-visible:ring-1 focus-visible:ring-accent/60"} data-testid="feed-changes" data-files-only="yes">
+          <span className="shrink-0">{files}</span>
+          <span className="min-w-0 truncate text-faint">{list}</span>
+        </div>
+        {tip}
+      </>
     );
   }
   const all = added + removed;
   const share = all > 0 ? Math.round((added / all) * 100) : 0;
   return (
-    <div className="flex items-center gap-3.5 tabular-nums" title={list} data-testid="feed-changes">
+    <>
+    <div {...reach} className={look + " flex items-center gap-3.5 tabular-nums outline-none focus-visible:ring-1 focus-visible:ring-accent/60"} data-testid="feed-changes">
       <span className="shrink-0">{files}</span>
       <span className="shrink-0 font-semibold text-success">
         +{added}
@@ -123,19 +154,15 @@ function DiffStat({ changes }: { changes: Changes }): JSX.Element {
         </span>
       )}
     </div>
+    {tip}
+    </>
   );
 }
 
 /** What a post shows beside its words. */
 export function PostAttachment({ attachment }: { attachment: Attachment }): JSX.Element {
   const look = "mb-2 mt-0.5 rounded-[10px] bg-surface-2 px-3 py-2.5 text-meta text-ink-2";
-  if (attachment.kind === "changes") {
-    return (
-      <div className={look}>
-        <DiffStat changes={attachment} />
-      </div>
-    );
-  }
+  if (attachment.kind === "changes") return <DiffStat changes={attachment} look={look} />;
   if (attachment.kind === "switch") {
     return (
       <div className={look + " flex flex-wrap items-center gap-2.5"} data-testid="feed-switch">

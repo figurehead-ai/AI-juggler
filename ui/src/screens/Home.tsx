@@ -349,6 +349,7 @@ export function HomeScreen({
           else void instanceMarkReviewed(id).then(() => onChanged?.(), (cause) => showToast({ tone: "warning", message: errorText(cause) }));
         },
         railOf: (item) => railRowOf(item, items),
+        sessionOf: (id) => items.find((row) => row.session?.id === id) ?? null,
       }}
     />
   );

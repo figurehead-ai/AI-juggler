@@ -59,6 +59,8 @@ fn digests_in_feed(
 fn a_digest_is_kept_and_shown_in_the_feed_needs_first_every_agent_counted() {
     let dir = tempfile::tempdir().unwrap();
     let state = crate::test_support::seven_sessions(dir.path());
+    // Named as the rail names them (G21: never "web (1)" by folder).
+    crate::test_support::name_seven(&state);
     let writers = Writers::for_tests();
     let now = crate::commands::now_millis();
     let mut events = BTreeMap::new();

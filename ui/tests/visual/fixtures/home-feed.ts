@@ -265,3 +265,38 @@ export function storyHome(now: number) {
   };
   return { ...base, fixture, feed, summary: away(now, 1, 0.9), messages: { ...base.messages, needs: [] }, notices: { earlier: [] }, watchView };
 }
+
+/** 0.5.2 (the RW1 walk's G21, G22, G24): a digest beside the finished
+ * posts it tells (they stay posts), its lines on the fixture's sessions
+ * (`allStatuses`: sess-6 "Add retries to the sync job" finished, sess-2
+ * "Fix the flaky login test" working) and one the rail no longer lists;
+ * two Codex threads of one App in two projects (a lean on one leaves the
+ * other alone). */
+export function releaseWalkFeed(now: number): FeedItemInfo[] {
+  const CODEX = { kind: "app", name: null, provider: "codex", folder: "codex-default", folder_label: "ChatGPT", desktop: false } as const;
+  const line = (session_id: string, name: string, state: string, at: number) => ({
+    session_id, name, state, at_ms: now - at,
+    author: { provider: "claude-code", folder: "claude-work", folder_label: "Work Max", desktop: false },
+    level: 1, notable: state === "finished", stuck_min: null, left_processes: null, runway_left: null, restarted: false, task: null,
+    turns: null, files: null, tests: null, passed: null, failed: null, reverted: false, caveat: null, quote: null, quote_kind: null, picked: null,
+  });
+  const worked = (id: string, ago: number, subject: string, project: string, projectId: string, names: string[], added: number | null, removed: number | null) =>
+    feedItem({
+      id: `c:codex-default:${id}`, at_ms: now - ago, kind: "worked", category: "other", level: 0, coalesce: `c:codex-default:${id}`, subject, author: CODEX,
+      facts: { project, project_id: projectId, changes: { turn: `${id}:0`, files: names.length, names, added, removed } },
+      target: { conversation_id: id, account_id: "codex-default", project_id: projectId },
+    });
+  return [
+    feedItem({
+      id: "d:1", at_ms: now - MIN, kind: "agent_digest", category: "digest", level: 1,
+      digest: { start_ms: now - 30 * MIN, end_ms: now - MIN, shown: 3, quiet: 0, ai: false, lines: [line("sess-6", "api", "finished", 3 * MIN), line("sess-2", "web", "working", 5 * MIN), line("sess-gone", "docs", "finished", 9 * MIN)] },
+    }),
+    feedItem({
+      id: "l:sess-6", at_ms: now - 3 * MIN, kind: "finished", category: "finished", level: 1, coalesce: "s:sess-6", subject: "Add retries to the sync job", author: WORK,
+      facts: { project: "api", project_id: "proj-2", duration_ms: 4 * MIN, changes: { turn: "sess-6:0", files: 3, names: ["src/sync/retry.ts", "src/sync/client.ts", "tests/sync/retry.test.ts"], added: 31, removed: 4 } },
+      target: { session_id: "sess-6" },
+    }),
+    worked("cx-patch", 20 * MIN, "Add a retry helper to the API client", "web", "proj-1", ["src/api/client.py", "src/api/retry.py"], 11, 1),
+    worked("cx-delete", 40 * MIN, "Remove the old handlers module", "api", "proj-2", ["src/old_handlers.py", "src/routes.py"], null, null),
+  ];
+}

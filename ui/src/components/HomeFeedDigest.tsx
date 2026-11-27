@@ -13,6 +13,12 @@
  * Calm (D-126): normal ink, no amber or red, even for a need (its loud
  * copy is the pinned zone's, D-117). Each name opens its session. The
  * words are `feed-words.ts`'s; the rollup's facts are the backend's.
+ *
+ * 0.5.2 G21 (the RW1 walk): a session the app holds is named as the rail
+ * names it and said in its state now (`live`), never by its folder with a
+ * counter ("web (1)") or the state it had when the digest was made ("web
+ * (2) · working" for one that had finished); the digest's own words are
+ * the fallback for one the rail no longer lists.
  */
 import { useState, type JSX } from "react";
 import { CliAppMark } from "./PlaceMarks";
@@ -38,8 +44,15 @@ function Mark({ line }: { line: DigestLineInfo }): JSX.Element {
   return <span aria-hidden="true" className="size-3.5 shrink-0 rounded-full bg-surface-3" />;
 }
 
-function Line({ line, name, onOpen }: { line: DigestLineInfo; name: string; onOpen: (sessionId: string) => void }): JSX.Element {
+/** A session as the rail says it now: its name and its state's words. */
+export interface LiveSession {
+  name: string;
+  state: string;
+}
+
+function Line({ line, name, now, onOpen }: { line: DigestLineInfo; name: string; now: LiveSession | null; onOpen: (sessionId: string) => void }): JSX.Element {
   const words = digestLineWords(line);
+  if (now) words.state = ` · ${now.state.charAt(0).toLowerCase()}${now.state.slice(1)}`;
   return (
     <li className="flex min-w-0 items-baseline gap-2 text-meta text-ink-2" data-testid="digest-line" data-level={line.level}>
       <Mark line={line} />
@@ -55,13 +68,15 @@ function Line({ line, name, onOpen }: { line: DigestLineInfo; name: string; onOp
 }
 
 /** The digest's body: its header, its first lines, the rest folded. */
-export function HomeFeedDigest({ item, digest, when, pos, onOpen }: { item: FeedItemInfo; digest: DigestInfo; when: string; pos?: number; onOpen: (sessionId: string) => void }): JSX.Element {
+export function HomeFeedDigest({ item, digest, when, pos, onOpen, live = () => null }: { item: FeedItemInfo; digest: DigestInfo; when: string; pos?: number; onOpen: (sessionId: string) => void; /** The rail's name and state now of a session it holds. */ live?: (sessionId: string) => LiveSession | null }): JSX.Element {
   const [all, setAll] = useState(false);
   const shown = all ? digest.lines : digest.lines.slice(0, digest.shown);
   const more = digestMoreWords(all ? 0 : digest.lines.length - digest.shown, digest.quiet);
   const id = `feed-${item.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  // AJ-E1548 #20: twins told apart as everywhere else ("api (1)", "api (2)").
-  const names = tellApart(digest.lines, (line) => line.name, (line) => [line.at_ms, line.session_id]);
+  const now = new Map(digest.lines.map((line) => [line, live(line.session_id)] as const));
+  // AJ-E1548 #20: twins the rail doesn't name told apart as everywhere
+  // else ("api (1)", "api (2)"); the rail's own names are its own.
+  const names = tellApart(digest.lines.filter((line) => !now.get(line)), (line) => line.name, (line) => [line.at_ms, line.session_id]);
   return (
     <article
       aria-labelledby={`${id}-who ${id}-what`}
@@ -84,7 +99,7 @@ export function HomeFeedDigest({ item, digest, when, pos, onOpen }: { item: Feed
         </p>
         <p id={`${id}-what`} className="mt-[3px] text-body leading-normal text-ink" data-testid="digest-header">{digestStory(digest)}</p>
         <ul className="mt-1 flex flex-col gap-1" data-testid="digest-lines">
-          {shown.map((line) => <Line key={line.session_id} line={line} name={names.get(line) ?? line.name} onOpen={onOpen} />)}
+          {shown.map((line) => <Line key={line.session_id} line={line} name={now.get(line)?.name ?? names.get(line) ?? line.name} now={now.get(line) ?? null} onOpen={onOpen} />)}
         </ul>
         {more && (
           digest.lines.length > digest.shown && !all ? (
