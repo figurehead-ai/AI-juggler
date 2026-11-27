@@ -99,6 +99,8 @@ for (const theme of ["dark", "light"] as const) {
     await expect(page.getByTestId("watch-lifetime-line")).toHaveAttribute("data-asked", "true");
     await expect(page.getByTestId("watch-quiet-left")).toBeVisible();
     await expect(page.getByTestId("watch-condition-finishes").locator("input")).toBeChecked();
+    // The strip's echo comes from the preview call: a frame before it says "…".
+    await expect(page.getByTestId("watch-preview-strip")).toContainText("api");
     await wholeForm(page);
     await page.mouse.move(0, 0);
     if (OUT) await page.screenshot({ path: `${OUT}/form-left-1280-${theme}.png` });
@@ -120,6 +122,8 @@ for (const theme of ["dark", "light"] as const) {
     await open(page, theme, CASES.card!);
     await expect(page.getByTestId("bot-watch-confirm-card")).toBeVisible();
     await expect(page.getByTestId("bot-watch-echo")).toContainText("api");
+    // 0.5.2 G51: quiet hours as the form writes them (the system's clock).
+    await expect(page.getByTestId("bot-watch-quiet")).toContainText("Between 10:00");
     await expect(page.getByTestId("watch-form")).toHaveCount(0);
     await page.mouse.move(0, 0);
     if (OUT) await page.screenshot({ path: `${OUT}/card-1280-${theme}.png` });

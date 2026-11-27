@@ -1,4 +1,4 @@
-<!-- captures: 47f02a3b69d7 -->
+<!-- captures: 18ce15e803b3 -->
 # 99-watch-prefill: the Watches form as Bot pre-filled it, Bot's confirm card, the Watches row
 
 Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured on the host from the working tree at the UI commit (`watch-prefill-gallery.spec.ts`: Bot docked at 1280, its turn opening the form; the card; Settings › AI › Models' jobs card), both themes; every capture opened. Mock-ups: the Watches form's approved mock and the d126 kit (`~/Dev/AIJuggler-design-refs/`), Bot's confirm card as the row's Watch… card (`bot` gallery's `watch`).
@@ -34,3 +34,19 @@ Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured o
 | 19 | Rich-mode colour | 4 | Every section and option leads with its icon; the chosen card and the Bot chip are the accent's soft step; Nearest a soft-step pill; no bright border; AA in both themes (axe). |
 
 Lowest: 3 (line 16).
+
+## 0.5.2 G51 (2026-11-27, Opus, both themes)
+
+Re-captured from the worktree at HEAD (b74eab212) with `AIJ_PREFILL_OUT`; each frame compared pixel by pixel with the one before. Only `card-1280-*` changed; both opened by eye. (`form-left-1280-dark` came out once with the strip's echo still "…", a frame taken before the preview answered: not kept; the spec now waits for the echo, and for the card's quiet line.)
+
+**What changed.** The first Weak point above is fixed. `card-1280-*`: the card's quiet line read "Between 22:00 and 07:00 it waits till morning." beside a form that writes "10:00 PM". It now reads "Between 10:00 PM and 7:00 AM it waits till morning.", the times from the form's own rule (the system's clock; G51, a2aeefa50), each kept on one line with its PM/AM. Nothing else on the card moved: the line is a little longer and still fits on one line in the docked panel at 1280.
+
+**Judged.** The card and the form now say the same times in the same style; the moon icon and the muted step are unchanged; light and dark both read.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 12 | Words | 4 | One time style across the card, the form and the Watches page. |
+| 14 | Consistency | 4 | The card takes the form's formatter instead of its own. |
+| 19 | Rich-mode colour | 4 | Unchanged: the eyebrow and Watch in the accent, the quiet line muted with its icon; no bright edge. |
+
+Lowest: 3 (line 16, unchanged).
