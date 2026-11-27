@@ -134,6 +134,13 @@ if [ "${1:-}" = "--selftest" ]; then
   for _ in $(seq 50); do [ -f "$tmp/hook-Stop.json" ] && grep -q '"status":"idle"' "$record" && break; sleep 0.1; done
   [ -f "$tmp/hook-Stop.json" ] || fail "no Stop"
   grep -q '"status":"idle"' "$record" || fail "answered, it isn't idle again"
+  # G20: after a quiet stretch (a timed-out read), a typed line is read at
+  # once, not after a 5 s nap (bash 3.2 returns 1 for a timeout too).
+  rm -f "$tmp/hook-UserPromptSubmit.json"
+  sleep 6
+  echo "and the lint" >&4
+  for _ in $(seq 10); do [ -f "$tmp/hook-UserPromptSubmit.json" ] && break; sleep 0.1; done
+  [ -f "$tmp/hook-UserPromptSubmit.json" ] || fail "a line after 6 quiet seconds wasn't read within 1 s"
   kill "$pid"
   for _ in $(seq 30); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
   kill -0 "$pid" 2>/dev/null && fail "still running"
@@ -474,6 +481,7 @@ elif [ "$asks" = 1 ]; then ask; asking=1; else prompt; fi
 # prompt. With no terminal (the seeder's), it only waits.
 deadline=$((SECONDS + secs))
 while [ "$SECONDS" -lt "$deadline" ]; do
+  t=$SECONDS
   if IFS= read -r -t 5 line; then
     if [ "$asking" = 2 ]; then
       :  # a hung turn takes nothing in
@@ -502,7 +510,11 @@ while [ "$SECONDS" -lt "$deadline" ]; do
       ask
       asking=1
     fi
-  elif [ $? -le 128 ]; then
+  elif [ $((SECONDS - t)) -lt 4 ]; then
+    # End of input came back at once: wait before reading again. macOS's
+    # /bin/bash 3.2 returns 1 for a timed-out read too, the same as end of
+    # input, so only the time it took tells them apart (G20): a quiet
+    # 5 s is a timeout, and the next line is read straight away.
     sleep 5 &
     wait $!
   fi
