@@ -598,7 +598,7 @@
 
 The cause analysis is in `docs/qa/evidence/AJ-E3709/v13-results/summary.md`. With drafts fail-closed by construction, exact on fresh wording is bounded by code's verified vocabulary. Apple's model labels unknown words by meaning, not as filler, and code can't verify those labels. Watches stay `not_yet`, and the Watches form is unchanged.
 
-### AJ-E3831 Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | Status: TODO (0.5.2, D-149) | Priority P1 | Effort M | Depends: AJ-E3709
+### AJ-E3831 Feed line (redesigned under D-152: what the turn came to against the request) and digest (map and reduce): one harness round each, on only if preferred | Status: IN-PROGRESS (0.5.2: the digest Beta (64 %, D-149); the feed line built and measured in v14 (e249b088e), plain in 0.5.2: preferred 67 % on Apple, 65 % on Qwen, but 19–31 % critical errors; the next round is for the next release) | Priority P1 | Effort M | Depends: AJ-E3709
 **Found**: v5 round 3: feed lines preferred 43 %, digests 33 % over the plain text (safe, not better).
 **UI**: yes (the line saying why a job stays plain)
 **Requirements**:
@@ -606,6 +606,62 @@ The cause analysis is in `docs/qa/evidence/AJ-E3709/v13-results/summary.md`. Wit
 2. Digest: the model writes one short line per session (the feed-line task); code orders, groups, counts and assembles.
 3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
+
+**The redesign (D-152, 2026-11-26, built e249b088e):**
+- **The line:** one line per finished turn saying what the turn came to compared with what the user asked. It replaces "pick, don't write", which lost v6 to v8.
+- **One definition of good** (`docs/qa/evidence/AJ-E3831/definition-of-good.md`) for the prompt, the gold and the judges.
+- **Input**, read from the session's own transcript, never git:
+  - the request;
+  - the whole turn: every agent message, the tool calls, the diff stat through the feed's reader, the tests;
+  - the session's goal: its opening request when the turn isn't the first. A caller may pass the world model's own words for it instead; gyrus holds no session-goal node yet, so that's a kind-pack follow-up.
+- **Code supplies the truth:**
+  - The status enum (done, partly, not_done, undone, asks) is narrowed by the facts. Never done on failing tests, a failed turn or an undo; undone only on undo words; asks only with the agent's own question.
+  - The model fills `status`, `did`, `left` and `extra`.
+  - Code renders the line: "Done: …", "Partly done: … · open: …", "Not done: …", "Tried, then undone: … · why: …", "Asks you: …". It adds the agent's question whatever the status (never hidden) and the tests from the facts, with the agent's own count.
+- **The gate** (`features/feed/line.rs`):
+  - Bot's check in a new own-words mode (`check_own_words`): a state, outcome or negation passes only on the agent's own word. Bot's default is unchanged.
+  - The request is cited by name only, so it never supports a state.
+  - The line's support rule: each claim, result or negation word stands in one agent sentence with the line's own subject words.
+  - An outcome verb the turn doesn't say becomes "worked on"; a refused optional part is dropped.
+- **Retries:** at most two, sampled; after that the plain excerpt (the digest's quote: the question, else the failure, else the reply's first sentence).
+- **Injection safety:** the guarded fields and the gate. Datamarking is per model: Apple on, Qwen off, Granite on (from the tuning set).
+
+**Usability reasoning** (PAT-USE, for the line where a finished turn's post shows it; none of it reaches the UI until a model passes):
+(1) A developer glancing at Home after an agent finishes wants to know whether what they asked got done, without opening the session.
+(2) A newcomer sees one line under the post starting with the outcome word, the thing named in the agent's words, the agent's question when it asks, and the tests; tagged AI, its source (the plain excerpt) one tap away, with "This is wrong" (D-130's Beta).
+(3) Its value is relating the turn to the request, which the excerpt (the reply's first sentence) can't do: in v14 the excerpt hid a question or an undone part in about 30 % of turns.
+(4) With no model, a refused draft or the job off, the plain excerpt shows with no note; Settings › AI › Models says why in one line.
+(5) It raises no system prompt.
+(6) Watch for: a status the facts don't back, a request word stated as done, and the line truncating in a narrow post (it is bounded at 170 characters).
+
+**v14 findings** (the coordinator's one round, 2026-11-27; `docs/qa/evidence/AJ-E3831/manifest.md`, data in `docs/qa/evidence/AJ-E3709/v14-results/`):
+
+| Model | Pooled preference | Verified critical errors |
+|---|---|---|
+| Apple | **67.2 %** | 19.4 % (7/36) |
+| Qwen3 1.7B | **65.4 %** | 30 % (9/30) |
+| Granite 4.1 3B | 59.1 % | 30.8 % (8/26) |
+
+The bars are ≥ 60 % preference and ≤ 1 % critical. All three stay `not_yet` and the excerpt ships; the value is there, the safety isn't.
+- **14 of the 24 critical errors are the code's own facts.** "tests fail" was read from the agent's words over a passing run. `ls tests` was taken as a test run. A test command blocked by approval was taken as failing. A verify-and-restore ("put the fix back afterwards") was read as an undo.
+- **Most of the rest are the model's status:** "Done" with a part the reply says wasn't done; "Partly" when all was done.
+- **The rest:** one request word stated as done (Qwen, "published"), two questions the code didn't find (the agent stops with no question mark), and one false agent claim repeated.
+- **Injection:** H44's planted comment got through on every model and in both datamark modes, through the facts after the agent quoted it, not through the prompt.
+
+**Next optimizations, in order, for the next release** (each a code change measured by one fresh blind round per model; the v14 sets are now known, so a new held-out set is needed):
+1. **Facts from results, not words:**
+   - a test command's exit outranks the words;
+   - only a runner word (`unittest`, `pytest`, `cargo test`, `npm test`…) makes a command a test run;
+   - a command blocked by approval is "not run";
+   - the undo reading takes the reply only and never a verify-and-restore.
+   The turn review and the digest share these readings: the shipped review's tests reading has the first bug, reported to the coordinator.
+2. **Code status floors:**
+   - no "done" when the reply has a not-done sentence about a request noun ("couldn't push", "haven't pointed the sync", "isn't installed");
+   - no "partly" when there is none, the last run passed and every request clause's nouns are in the reply.
+3. **A "Waiting on you" reading** for a stop with no question mark ("I haven't changed anything", "höre hier auf", a choice offered).
+4. **Done-elsewhere verbs** (published, pushed, merged, deployed, released, opened a pull request) only on the agent's words.
+5. **The plain excerpt itself** leads with a not-done or waiting sentence when the reply has one: a no-model gain for every user, with its own check.
+6. **Then the round,** with Granite last: its coverage was lowest, 26/42.
 
 ### AJ-E3832 Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | Status: DONE (0.5.2) | Priority P0 | Effort XL | Depends: ADR-0037, ADR-0038
 **Found**: the maintainer (2026-11-25) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; ADR-0038 accepted 2026-11-26 (D-150).

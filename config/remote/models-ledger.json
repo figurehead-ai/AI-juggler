@@ -25,11 +25,11 @@
       "jobs": {
         "feed": {
           "verdict": "not_yet",
-          "note": "The plain line reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Not yet: in testing the line got the outcome wrong too often, so the plain line stays.",
+          "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e249b088e"
         },
         "review": {
           "verdict": "beta",
@@ -95,11 +95,11 @@
       "jobs": {
         "feed": {
           "verdict": "not_yet",
-          "note": "The plain line reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Not yet: in testing the line got the outcome wrong too often, so the plain line stays.",
+          "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e249b088e"
         },
         "review": {
           "verdict": "beta",
@@ -233,11 +233,11 @@
       "jobs": {
         "feed": {
           "verdict": "not_yet",
-          "note": "The plain line reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Not yet: in testing the line got the outcome wrong too often, so the plain line stays.",
+          "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e249b088e"
         },
         "review": {
           "verdict": "beta",

@@ -3890,3 +3890,28 @@ With an AI ready, a question with no AI Juggler records in it ("what is 3+5") ge
 1. **Watches fail closed:** code accepts a draft only when the request parses into a shape it fully understands (target, condition, lifetime accounted for); a broad quantifier with a named entity is unsupported unless the entity is clearly the target; a number in a unit no condition takes is refused before the model is called; any leftover meaning-changing word (but, except, skipping, other than, besides, not, without…) makes it unsupported with the nearest option; never widen. The confirm card states the watch in plain words, its target included. A regression test for every miss so far. Round v9 on a fresh blind set.
 2. **The feed line stays the plain excerpt in 0.5.2** until the maintainer chooses (it was a promised 0.5 feature); no more rounds meanwhile.
 3. **The fabrication gate** (D-130): a claimed outcome, benefit, state, count or cause must trace to a checked clause; contradiction alone was a hole. Re-run over the digest's passing v6 outputs and Bot's E3829 answers; a changed digest verdict goes to the coordinating session; Opus verifies by eye.
+
+### D-152 — The feed line redesigned (what the turn came to against the request); one round on three models; plain in 0.5.2 (2026-11-27)
+
+- **Ruling** (the coordinating session, 2026-11-26, relaying the maintainer's standing rule "we do the best we can, and we optimize for later"; amends D-149 §3 and its amendment 2's "no more rounds"):
+  - AJ-E3831's feed line is redesigned as one line per finished turn saying what it came to compared with the user's request. It replaces "pick, don't write".
+  - The round is time-boxed to one well-built round: real context, lab-recorded turns, an aligned judge, on Apple's model and the two local models (Qwen3 1.7B Q8, Granite 4.1 3B, downloaded by the maintainer's yes).
+  - A model whose line passes both bars ships as an opt-in Beta for that engine; otherwise the plain excerpt ships.
+  - Either way, the findings and next optimizations go into AJ-E3831, with no second round in 0.5.2. The safety bars stay hard; the quality bars decide the label and the default.
+- **The builder's design calls** (Opus, recorded in AJ-E3831):
+  - one definition of good shared by the prompt, the gold and the judges;
+  - code narrows a status enum from the facts and renders the line; the model fills four guided fields;
+  - Bot's check gets an own-words mode (`check_own_words`; Bot's default unchanged), and the request is cited by name only;
+  - the line's support rule puts each claim word in one agent sentence with the line's subject words;
+  - an unsupported outcome verb becomes "worked on";
+  - datamarking is per model, chosen on the tuning set.
+- **Result** (v14, e249b088e; `docs/qa/evidence/AJ-E3831/manifest.md`; bars ≥ 60 % preference and ≤ 1 % critical):
+
+  | Model | Pooled preference | Verified critical errors |
+  |---|---|---|
+  | Apple | 67.2 % | 19.4 % |
+  | Qwen | 65.4 % | 30 % |
+  | Granite | 59.1 % | 30.8 % |
+
+  Every feed verdict stays `not_yet` and the plain excerpt ships in 0.5.2. The Models page's note now says why: "the line got the outcome wrong too often", not "the plain line reads better", which the preference no longer supports.
+- **Next:** the six optimizations in AJ-E3831, then one fresh blind round per model in the next release. 14 of the 24 critical errors were the code's own facts, so the first lever is code.
