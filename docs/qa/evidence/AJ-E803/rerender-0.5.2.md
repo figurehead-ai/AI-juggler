@@ -176,3 +176,9 @@ A compare run of the whole gate after fix batches A, B and C (HEAD 136d204dc) fa
 
 - 99-when-to-tell: `section-1280x800-dark`: the Notifications kind "The digest" now reads "A notification when Home's digest is ready. Finished sessions are told in it, not one each." (G21: the kind is only the notification; Home's item is Agent digest's), one line where it was two, so the rows above move up; the switches are unchanged (Watches and reminders on, The digest off).
 - 99-settings-search: `opened-1280x800-dark`: Agent digest's hint, "Write a digest of what your agents did", now says "On Home, every 15 to 30 minutes while agents work, and a minute after one finishes or needs you: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it." (G21).
+
+### PR #257's Happo review, the feed's tabs on one row (2026-11-27): 1 re-rendered
+
+A compare run of the whole gate on 3e15f683f failed only this state (347 of 348 passed); rendered with `scripts/visual_gate.sh --update` in the pinned container, by name, and opened at full size.
+
+- 69-rail-narrow: `folded-390x844-dark`: the feed's tabs are one row, "All · Needs you · Sessions · ⋯", the rest in ⋯ (the row measures its own width and never wraps, FeedTabs); before, the tabs wrapped onto three lines ("Pools · Switches & limits", "This Mac"), so the chips, Showing and Today below move up by those lines.
