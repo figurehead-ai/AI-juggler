@@ -345,7 +345,9 @@ fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
 }
 
 /// G18: a state "needs me" asks about: for a session, Home's Needs you
-/// (its `need`) decides, never the state alone (a parked limit is calm).
+/// (its `need`) decides, never the state alone (a parked limit is calm);
+/// G37: for a task too (in review, or a change held for the user: a
+/// blocked task waits on another task, not on the user).
 const fn needs_state(state: Option<BotState>) -> bool {
     matches!(
         state,
@@ -357,6 +359,12 @@ const fn needs_state(state: Option<BotState>) -> bool {
                 | BotState::InReview
         )
     )
+}
+
+/// Whether "needs me" is read of `row` by Home's rule (its `need`): a
+/// session (G18) or a task (G37).
+fn by_need(row: &BotRowInfo) -> bool {
+    matches!(row.kind, BotRowKind::Session | BotRowKind::Task)
 }
 
 /// The matched rows narrowed by the question's states and time, in the
@@ -374,8 +382,8 @@ fn narrow<'w>(
     if !reading.states.is_empty() {
         answer.retain(|row| {
             row.kind == BotRowKind::Account
-                || (reading.needs && row.kind == BotRowKind::Session && row.need.is_some())
-                || (!(reading.needs && row.kind == BotRowKind::Session && needs_state(row.state))
+                || (reading.needs && by_need(row) && row.need.is_some())
+                || (!(reading.needs && by_need(row) && needs_state(row.state))
                     && row.state.is_some_and(|s| reading.states.contains(&s)))
         });
     }

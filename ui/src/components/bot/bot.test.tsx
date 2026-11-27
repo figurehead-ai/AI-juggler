@@ -210,11 +210,10 @@ describe("every state of the mock-up", () => {
     await act(async () => {
       await ask("What needs me?");
     });
-    const before = screen.queryAllByTestId("bot-topic").length;
     await act(async () => {
       await newTopic();
     });
-    expect(screen.getAllByTestId("bot-topic").length).toBe(before + 1);
+    expect(screen.getAllByTestId("bot-topic")).toHaveLength(1);
   });
 
   it("newtopic and long: dividers for the topic and the day, Earlier pages", async () => {
@@ -301,7 +300,8 @@ describe("the scope chip", () => {
     });
     const asked: unknown = window.__AIJ_BOT__?.calls?.filter(([c]) => c === "bot_ask").at(-1)?.[1];
     expect(Reflect.get(Object(Reflect.get(Object(asked), "scope")), "id")).toBe("s-api");
-    fireEvent.click(screen.getByTestId("bot-scope-x"));
+    // 0.5.2 G31: the chip goes with its ask; the next question asks about
+    // everything (a follow-up that refers back keeps it, backend-side).
     expect(screen.queryByTestId("bot-scope-chip")).toBeNull();
     await act(async () => {
       await ask("Anything else stuck?");
@@ -309,6 +309,7 @@ describe("the scope chip", () => {
     const widened: unknown = window.__AIJ_BOT__?.calls?.filter(([c]) => c === "bot_ask").at(-1)?.[1];
     expect(Reflect.get(Object(widened), "scope")).toBeNull();
   });
+
 });
 
 describe("acting needs a confirm card", () => {

@@ -753,3 +753,64 @@ fn a_session_s_need_is_read_by_home_s_rule() {
         "a failure is in Needs you now"
     );
 }
+
+/// 0.5.2 G37 (left from G18): tasks used Bot's own waiting states
+/// (blocked, in review), a second rule beside Home's. A task needs the user
+/// by Home's one rule (`tasks::needs::needs`): in review it does; blocked
+/// (it waits on another task, not on the user) it doesn't.
+#[test]
+fn a_task_s_need_is_read_by_home_s_rule() {
+    use juggler_core::tasks::TaskStatus;
+    let (_dir, state) = crate::features::bot::tests::state();
+    crate::features::bot::tests::seed_tasks(
+        &state,
+        &[
+            ("aj-0001", "Ship the orders API", TaskStatus::InReview),
+            ("aj-0002", "Write the totals docs", TaskStatus::Blocked),
+        ],
+    );
+    let world = crate::features::bot::world::gather(&state).unwrap();
+    let need = |title: &str| {
+        world
+            .tasks
+            .iter()
+            .find(|row| row.title == title)
+            .unwrap()
+            .need
+    };
+    assert_eq!(need("Ship the orders API"), Some("review"));
+    assert_eq!(
+        need("Write the totals docs"),
+        None,
+        "blocked: not on the user"
+    );
+    assert!(!crate::features::bot::answer::absent(&world).nothing_needs);
+    let found = crate::features::bot::lookup::find_records(&state, "which tasks need me", None)
+        .unwrap()
+        .rows;
+    let titles: Vec<&str> = found.iter().map(|r| r.title.as_str()).collect();
+    assert_eq!(titles, ["Ship the orders API"], "{titles:?}");
+}
+
+/// 0.5.2 G29 (RW1 F6): "call api the payments agent", said plainly (no
+/// "Remember:"), is the user naming a record: code's own echo card that
+/// keeps it (ADR-0037 §2.3, D-144: "Remember …" stays code), never the
+/// model's reply, and the alias is found afterwards.
+#[test]
+fn a_plain_alias_is_remembered_by_code() {
+    let (_dir, state) = seeded();
+    let fake = Fake::new();
+    let turn = ask_with(&state, &fake, "call api the payments agent");
+    assert_eq!(turn.outcome, BotOutcome::Remembered, "{turn:?}");
+    let memory = turn.memory.as_ref().unwrap();
+    assert_eq!(memory.slot, "alias");
+    assert_eq!(memory.about.as_deref(), Some("api"));
+    assert_eq!(memory.text, "the payments agent");
+    assert!(
+        fake.requests.borrow().is_empty(),
+        "code's own reply, no model call"
+    );
+    // A name that isn't a record's is a question, as before.
+    let other = ask_with(&state, &Fake::new(), "call me when it's done");
+    assert_ne!(other.outcome, BotOutcome::Remembered);
+}

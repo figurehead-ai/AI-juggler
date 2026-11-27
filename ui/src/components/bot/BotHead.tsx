@@ -182,14 +182,18 @@ function WatchCount(): JSX.Element | null {
 
 /** AJ-E3825 R5: the model in use and how it stands, calm and muted:
  * "Apple on-device · Running", "· Starting…", "· Idle", "· Failed: …",
- * then the Beta pill. */
-export function BotEngineBadge({ beta }: { beta: boolean }): JSX.Element {
+ * then the Beta pill. `under`: the panel's head draws it as the line
+ * under "Bot" (0.5.2 G35: beside it, between "Bot" and the head's
+ * buttons, it was cut to "Apple on-d…" at the panel's usual width), its
+ * Beta pill beside the title instead. */
+export function BotEngineBadge({ beta, under = false }: { beta: boolean; under?: boolean }): JSX.Element {
   const engine = useBotEngine(false);
   const state = engineStateWords(engine.status, engine.starting);
   const failed = engine.status?.state === "failed";
   const why = failed ? failureWords(engine.status?.failure ?? "unknown", modelName(engine.status)) : null;
+  const whole = `${engineLabel(engine.status)}${state ? ` · ${state}` : ""}`;
   return (
-    <span className="ml-2 flex min-w-0 items-center gap-1.5 text-label text-muted" title={why ? `${why.line} ${why.fix}` : undefined} data-testid="bot-engine">
+    <span className={(under ? "pl-[26px] " : "ml-2 ") + "flex min-w-0 items-center gap-1.5 text-label text-muted"} title={why ? `${why.line} ${why.fix}` : under ? whole : undefined} data-testid="bot-engine">
       <span className="truncate">
         {engineLabel(engine.status)}
         {state && <span className={failed ? "text-danger" : undefined}> · {state}</span>}
@@ -204,12 +208,18 @@ export function BotHead({ job, onClear, onMemories, setup = false }: { job: AiJo
   const [menu, setMenu] = useState(false);
   return (
     <div className="relative flex h-12 shrink-0 items-center gap-0.5 border-b border-divider pr-2 pl-4 whitespace-nowrap">
-      <h2 className="flex items-center gap-2 text-section font-semibold text-ink">
-        <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
-        {WORDS.title}
-      </h2>
-      {job?.state === "ready" && !setup && <BotEngineBadge beta={job.beta} />}
-      <span className="grow" />
+      {/* 0.5.2 G35: the model and its state on the line under "Bot", with
+          the head's whole width up to its buttons; Beta beside the title. */}
+      <div className="flex min-w-0 grow flex-col justify-center">
+        <div className="flex items-center gap-2">
+          <h2 className="flex items-center gap-2 text-section leading-5 font-semibold text-ink">
+            <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
+            {WORDS.title}
+          </h2>
+          {job?.state === "ready" && !setup && job.beta && <BetaPill>Beta</BetaPill>}
+        </div>
+        {job?.state === "ready" && !setup && <BotEngineBadge beta={false} under />}
+      </div>
       {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
       {!setup && (
         <>

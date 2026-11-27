@@ -370,12 +370,25 @@ fn kind_named(word: &str) -> Option<BotRowKind> {
     }
 }
 
+/// A field a record line names ("pool: Team"), as a word, when a cited
+/// record holds it: its value.
+fn field_named<'r>(word: &str, row: &'r BotRowInfo) -> Option<&'r str> {
+    match word.to_lowercase().as_str() {
+        "pool" => row.pool.as_deref(),
+        "project" | "projekt" => row.project.as_deref(),
+        "app" => row.app_label.as_deref(),
+        _ => None,
+    }
+}
+
 /// 0.5.2 G19: a quoted kind word ("“session” failed") names no record:
 /// the model read the record line's kind (`1. session “…”`) as the name.
 /// It is the record of that kind the sentence cites, when it cites one,
 /// so its name is put there; else the word stands unquoted. Then the
 /// check reads the sentence as it reads any other. A record really named
-/// "session" keeps its quotes.
+/// "session" keeps its quotes. G37 on Apple's model: a quoted field word
+/// ("“pool” is Team", read off `pool: Team`) is that field of the cited
+/// record: "the pool", unquoted, when one cited record holds it.
 #[must_use]
 pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart {
     let cited: Vec<&BotRowInfo> = part
@@ -401,6 +414,15 @@ pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart 
                     } else {
                         out.push_str(word);
                     }
+                } else if !named
+                    && let [_] = cited
+                        .iter()
+                        .filter(|r| field_named(word, r).is_some())
+                        .collect::<Vec<_>>()
+                        .as_slice()
+                {
+                    out.push_str("the ");
+                    out.push_str(&word.to_lowercase());
                 } else {
                     out.push(*start);
                     out.push_str(inner);
@@ -646,6 +668,38 @@ mod tests {
         let named = [row(BotRowKind::Session, "session", Some(BotState::Failed))];
         let said = draft(r#"{"sentences":[{"records":[1],"text":"“session” failed."}]}"#);
         assert_eq!(shown(&said, &named).as_deref(), Some("“session” failed."));
+    }
+
+    /// 0.5.2 G37 on Apple's model: "which tasks need me?" got "“task” is
+    /// waiting for review and “pool” is Team" (the record line's labels
+    /// quoted as names). A quoted field word is that field of the cited
+    /// record ("the pool"); the sentence is then checked as any other.
+    #[test]
+    fn a_quoted_field_word_is_the_cited_record_s_field() {
+        let shown =
+            |d: &Draft, rows: &[BotRowInfo]| match decide(d, rows, "which tasks need me?", &[]) {
+                Decided::Shown(parts) => parts.first().map(|p| p.text.clone()),
+                Decided::Records(_) => None,
+            };
+        let mut task = row(
+            BotRowKind::Task,
+            "Ship the orders page",
+            Some(BotState::InReview),
+        );
+        task.pool = Some("Team".into());
+        let rows = [task];
+        let said = draft(
+            r#"{"sentences":[{"records":[1],"text":"“task” is waiting for review and “pool” is Team"}]}"#,
+        );
+        assert_eq!(
+            shown(&said, &rows).as_deref(),
+            Some("“Ship the orders page” is waiting for review and the pool is Team")
+        );
+        // A wrong value is still refused.
+        let wrong = draft(
+            r#"{"sentences":[{"records":[1],"text":"“task” is waiting for review and “pool” is Billing"}]}"#,
+        );
+        assert_eq!(shown(&wrong, &rows), None);
     }
 
     /// I4: an answer holding something that looks like a key is never shown.

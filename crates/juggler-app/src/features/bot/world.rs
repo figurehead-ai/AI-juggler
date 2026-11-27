@@ -219,6 +219,27 @@ pub fn session_row<S: BuildHasher>(
     }
 }
 
+/// 0.5.2 G37: each task that waits on the user by Home's Needs you
+/// (`tasks::needs::needs`, the one rule Home and the bell read): `review`,
+/// `ask` or `launch`, by task id.
+fn task_needs(state: &Arc<AppState>) -> HashMap<String, &'static str> {
+    crate::features::tasks::needs::needs(state)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|need| {
+            let kind = match need.kind.as_str() {
+                "review" => "review",
+                "launch" => "launch",
+                _ => "ask",
+            };
+            let task = need
+                .task_id
+                .or_else(|| need.id.strip_prefix("review:").map(str::to_owned))?;
+            Some((task, kind))
+        })
+        .collect()
+}
+
 /// Reads the records now.
 ///
 /// # Errors
@@ -232,6 +253,10 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
         crate::features::sessions::read_model::session_infos_snapshot(&storage).unwrap_or_default()
     };
     let rows = crate::features::conversations::titled(state, rows).unwrap_or_default();
+    // 0.5.2 G37: a task's need by Home's one rule (its Needs you:
+    // a task in review, an agent's change or new session held for the
+    // user), never Bot's own waiting states.
+    let task_needs = task_needs(state);
     // Read under the lock, guarded after it (I3).
     let (projects, pools, tasks, accounts) = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
@@ -275,6 +300,7 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
             BotRowInfo {
                 name_hidden,
                 state: Some(task_state(task.status)),
+                need: task_needs.get(&task.id).copied(),
                 at_ms: Some(task.updated_at),
                 project: project_id.as_ref().and_then(|id| projects.get(id).cloned()),
                 project_id,
@@ -377,6 +403,8 @@ pub mod tests_support {
                 (BotRowKind::Session, Some(BotState::Stuck)) => Some("stuck"),
                 (BotRowKind::Session, Some(BotState::Limit)) => Some("limit"),
                 (BotRowKind::Session, Some(BotState::Failed)) => Some("failed"),
+                // G37: a task in review waits on the user (Home's rule).
+                (BotRowKind::Task, Some(BotState::InReview)) => Some("review"),
                 _ => None,
             },
             ..empty_row(kind, title.to_owned(), title.to_owned())

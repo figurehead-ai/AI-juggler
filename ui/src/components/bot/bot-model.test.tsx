@@ -162,6 +162,19 @@ describe("the header", () => {
     expect(screen.getByTestId("bot-engine").textContent).toContain("Beta");
   });
 
+  /** 0.5.2 G35 (RW1 F-RW1-17: "Apple on-d…" at 1755 wide): in the
+   * panel's head the model and its state are the line under "Bot", whole,
+   * with Beta beside the title. */
+  it("in the panel's head, puts the model on the line under Bot, Beta beside the title", async () => {
+    window.__AIJ_AI_ENGINE__ = status({ state: "running" });
+    await act(async () => refreshEngine());
+    render(<BotEngineBadge beta={false} under />);
+    const line = screen.getByTestId("bot-engine");
+    expect(line.textContent).toBe("Apple on-device · Running");
+    expect(line.getAttribute("title")).toBe("Apple on-device · Running");
+    expect(line.className).toContain("pl-[26px]");
+  });
+
   it("says Starting…, Idle and Failed: why", () => {
     expect(engineStateWords(status({ state: "starting" }), false)).toBe("Starting…");
     expect(engineStateWords(status({ state: "idle" }), false)).toBe("Idle");

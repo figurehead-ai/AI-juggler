@@ -232,13 +232,13 @@ pub struct Absent {
 }
 
 /// The words that say a record needs the user: Home's Needs you for a
-/// session (its `need`), the waiting states for a task.
+/// session (its `need`, G18) and a task (G37).
 const NEEDS_WORDS: &[&str] = &["needs", "need", "braucht", "brauchen"];
 
 /// Whether `row` needs the user, as `claim` (the needs words' states)
-/// reads it: a session by Home's rule, any other by its state.
+/// reads it: a session or a task by Home's rule, any other by its state.
 fn needs(row: &BotRowInfo, claim: &[BotState]) -> bool {
-    if row.kind == BotRowKind::Session {
+    if matches!(row.kind, BotRowKind::Session | BotRowKind::Task) {
         row.need.is_some()
     } else {
         row.state.is_some_and(|s| claim.contains(&s))

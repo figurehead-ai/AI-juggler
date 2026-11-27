@@ -230,6 +230,39 @@ pub(super) fn state() -> (tempfile::TempDir, Arc<AppState>) {
     (dir, state)
 }
 
+/// 0.5.2 G37: a pool "Team" holding these tasks (id, title, status).
+pub(super) fn seed_tasks(
+    state: &Arc<AppState>,
+    tasks: &[(&str, &str, juggler_core::tasks::TaskStatus)],
+) {
+    use juggler_core::storage::{NewTask, TASK_USER};
+    use juggler_core::tasks::{Priority, TaskKind};
+    let storage = state.storage.lock().unwrap();
+    let pool = storage.pools().create("Team", None).unwrap().id;
+    for &(id, title, status) in tasks {
+        storage
+            .tasks()
+            .create(&NewTask {
+                id,
+                pool_id: &pool,
+                kind: TaskKind::Task,
+                parent_id: None,
+                title,
+                body: "",
+                acceptance: "",
+                priority: Priority::Normal,
+                status,
+                assignee: None,
+                created_by: TASK_USER,
+                created_by_name: "You",
+                external_url: None,
+                blocked_by: &[],
+                project: None,
+            })
+            .unwrap();
+    }
+}
+
 /// AJ-E3825: every question goes to the model; the tests' model is the
 /// fake ([`super::fake`]).
 fn ask(state: &Arc<AppState>, question: &str) -> super::dto::BotTurnInfo {
@@ -653,4 +686,48 @@ fn question_words_are_never_taken_for_a_records_name() {
             "{q}: nothing found"
         );
     }
+}
+
+/// 0.5.2 G31 (RW1 F-RW1-12): the chip's scope stuck across asks (a
+/// reminder drafted about the chip's post long after). It is the ask's
+/// own: a question that refers back keeps the topic's last scope, any
+/// other asks about everything, and a New topic none.
+#[test]
+fn a_scope_goes_with_its_ask_and_a_follow_up_that_refers_back() {
+    use super::dto::{BotScope, BotScopeKind};
+    let (_dir, state) = state();
+    let scope = BotScope {
+        kind: BotScopeKind::Session,
+        id: "s-api".into(),
+        name: "api".into(),
+        sessions: Vec::new(),
+    };
+    let scoped = super::commands::bot_ask_with(
+        &state,
+        &BotAskInput {
+            question: "What did api change today?".into(),
+            scope: Some(scope.clone()),
+            again: None,
+        },
+        &super::fake::Fake::new(),
+    )
+    .unwrap();
+    assert_eq!(scoped.scope.as_ref(), Some(&scope));
+    let follow = ask(&state, "And why did it stop?");
+    assert_eq!(follow.scope.as_ref(), Some(&scope), "refers back: kept");
+    let other = ask(&state, "What needs me?");
+    assert_eq!(other.scope, None, "its own words: everything");
+    let _ = super::commands::bot_ask_with(
+        &state,
+        &BotAskInput {
+            question: "What did api change today?".into(),
+            scope: Some(scope),
+            again: None,
+        },
+        &super::fake::Fake::new(),
+    )
+    .unwrap();
+    super::commands::bot_new_topic_impl(&state).unwrap();
+    let fresh = ask(&state, "And what about it?");
+    assert_eq!(fresh.scope, None, "a New topic asks about everything");
 }

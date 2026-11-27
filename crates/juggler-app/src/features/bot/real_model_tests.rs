@@ -477,3 +477,122 @@ fn bot_says_only_what_code_read_when_nothing_is_found_on_the_real_model() {
     service.engines().release();
     assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
 }
+
+/// One question with the chip `scope` (the window's "About: api"), in the
+/// same topic, through Bot's real routing; the turn as it came back.
+fn ask_scoped(
+    state: &Arc<crate::state::AppState>,
+    service: &Service,
+    question: &str,
+    scope: Option<crate::features::bot::dto::BotScope>,
+) -> crate::features::bot::dto::BotTurnInfo {
+    let turn = crate::features::bot::commands::bot_ask_with(
+        state,
+        &crate::features::bot::dto::BotAskInput {
+            question: question.to_owned(),
+            scope,
+            again: None,
+        },
+        &crate::features::bot::model::Live { service, state },
+    )
+    .unwrap();
+    println!(
+        "{}",
+        serde_json::json!({
+            "question": question, "outcome": turn.outcome.code(),
+            "scope": turn.scope.as_ref().map(|s| s.name.clone()),
+            "words": words_of(&turn),
+            "rows": turn.rows.iter().map(|r| r.title.clone()).collect::<Vec<_>>(),
+        })
+    );
+    turn
+}
+
+/// 0.5.2 batch B on Apple's model: G29 "call api the payments agent"
+/// (no "Remember") is kept by code, no model call, and the alias then
+/// answers; G31 the chip goes with its ask, a follow-up that refers back
+/// keeps it, a question of its own asks about everything; G37 a task in
+/// review is what "which tasks need me?" names (Home's rule), a blocked
+/// one isn't. Each asked three times (the model samples).
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G29, G31, G37"]
+fn bot_batch_b_on_the_real_model() {
+    use juggler_core::tasks::TaskStatus;
+    let (_dir, state, service) = fixture();
+    super::tests::seed_tasks(
+        &state,
+        &[
+            ("aj-0001", "Ship the orders page", TaskStatus::InReview),
+            ("aj-0002", "Write the totals docs", TaskStatus::Blocked),
+        ],
+    );
+    let mut fails = Vec::new();
+    // G29.
+    let kept = ask_for_check(&state, &service, "call api the payments agent").unwrap();
+    println!(
+        "{}",
+        serde_json::json!({"question": "call api the payments agent", "outcome": kept.turn.outcome.code(),
+            "memory": kept.turn.memory.as_ref().map(|m| (m.about.clone(), m.text.clone())),
+            "model_called": kept.turn.details.is_some()})
+    );
+    if kept.turn.outcome != BotOutcome::Remembered || kept.turn.details.is_some() {
+        fails.push(format!("alias: {:?}", kept.turn.outcome));
+    }
+    let api = crate::features::bot::dto::BotScope {
+        kind: crate::features::bot::dto::BotScopeKind::Session,
+        id: "s-api".into(),
+        name: "api".into(),
+        sessions: Vec::new(),
+    };
+    let mut orders = 0;
+    for _ in 0..3 {
+        let alias = ask(&state, &service, "what is the payments agent doing?");
+        if alias.outcome != BotOutcome::Answered || alias.cites.is_empty() {
+            fails.push(format!(
+                "payments agent: {:?} {:?}",
+                alias.outcome, alias.words
+            ));
+        }
+        // G31.
+        crate::features::bot::commands::bot_new_topic_impl(&state).unwrap();
+        let first = ask_scoped(&state, &service, "what is it doing?", Some(api.clone()));
+        let follow = ask_scoped(&state, &service, "and why is it waiting?", None);
+        let own = ask_scoped(&state, &service, "what is web doing?", None);
+        if first.scope.as_ref() != Some(&api)
+            || follow.scope.as_ref() != Some(&api)
+            || own.scope.is_some()
+            || follow.outcome != BotOutcome::Answered
+            || own.outcome != BotOutcome::Answered
+        {
+            fails.push(format!(
+                "scope: {:?}/{:?} {:?}/{:?} {:?}/{:?}",
+                first.scope.map(|s| s.name),
+                first.outcome,
+                follow.scope.map(|s| s.name),
+                follow.outcome,
+                own.scope.map(|s| s.name),
+                own.outcome
+            ));
+        }
+        // G37: Home's Needs you, tasks included: the blocked task is never
+        // named; "which tasks need me?" names the one in review ("what
+        // needs me?" may name only the session that asks: true, and the
+        // model's choice), counted below.
+        for question in ["what needs me?", "which tasks need me?"] {
+            let needs = ask(&state, &service, question);
+            if needs.words.contains("orders") {
+                orders += 1;
+            }
+            if needs.outcome != BotOutcome::Answered
+                || needs.cites.is_empty()
+                || needs.words.contains("totals")
+                || (question == "which tasks need me?" && !needs.words.contains("orders"))
+            {
+                fails.push(format!("{question}: {:?} {:?}", needs.outcome, needs.words));
+            }
+        }
+    }
+    service.engines().release();
+    assert!(orders >= 3, "the task in review named {orders} times in 6");
+    assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}

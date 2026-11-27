@@ -68,6 +68,13 @@ fn topic_turns(
         .collect())
 }
 
+/// 0.5.2 G31: the scope the topic's newest turn was asked with (`None`
+/// in a New topic, or when it was asked about everything).
+fn last_scope(state: &AppState) -> Option<super::dto::BotScope> {
+    let newest = topic_turns(state, 1).ok()?.into_iter().next()?;
+    serde_json::from_str::<Meta>(&newest.entities).ok()?.scope
+}
+
 /// The current topic: a New topic started after the newest turn, else
 /// the newest turn's (`None` before the first question).
 fn current_topic(state: &AppState) -> Option<String> {
@@ -149,14 +156,24 @@ pub fn bot_ask_with(
     }
     let (read_as, used) = super::memory::with_aliases(state, &world, &question);
     let reading = read(&read_as);
-    let scope = input.scope.clone();
+    // 0.5.2 G31: the chip is the ask's own (the window drops it once
+    // asked); a question that refers back keeps the topic's last scope
+    // ("and why did it fail?"), one that doesn't asks about everything.
+    let scope = input.scope.clone().or_else(|| {
+        super::question::refers_back(&question)
+            .then(|| last_scope(state))
+            .flatten()
+    });
     let mut meta = Meta {
         scope: scope.clone(),
         lang: reading.lang,
         used: used.iter().map(|(info, _)| info.key.clone()).collect(),
         ..Meta::default()
     };
-    if let Some(words) = reading.remember.as_deref() {
+    // 0.5.2 G29: "call api the payments agent" is a Remember too.
+    let alias = (reading.remember.is_none() && super::memory::names_alias(&world, &question))
+        .then(|| question.clone());
+    if let Some(words) = reading.remember.as_deref().or(alias.as_deref()) {
         return remember_turn(state, &world, &question, words, secret, meta);
     }
     let memory: Vec<_> = used.iter().map(|(info, _)| info.clone()).collect();

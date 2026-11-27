@@ -117,30 +117,20 @@ const STATES: [BotState; 13] = [
 
 /// 0.5.2 G15: the states no session or task holds now, read by code from
 /// every record (none when a record's state is unknown: it could be any),
-/// and (G18) whether nothing needs the user by Home's rule.
+/// and (G18, G37) whether nothing needs the user by Home's rule.
 #[must_use]
 pub fn absent(world: &World) -> super::check::Absent {
     let rows = || world.sessions.iter().chain(&world.tasks);
     if rows().any(|row| row.state.is_none()) {
         return super::check::Absent::default();
     }
-    let task_waits = [
-        BotState::AsksYou,
-        BotState::Stuck,
-        BotState::Limit,
-        BotState::Blocked,
-        BotState::InReview,
-    ];
     super::check::Absent {
         states: STATES
             .into_iter()
             .filter(|state| !rows().any(|row| row.state == Some(*state)))
             .collect(),
-        nothing_needs: !world.sessions.iter().any(|row| row.need.is_some())
-            && !world
-                .tasks
-                .iter()
-                .any(|row| row.state.is_some_and(|s| task_waits.contains(&s))),
+        // G18, G37: Home's Needs you, one rule for sessions and tasks.
+        nothing_needs: !rows().any(|row| row.need.is_some()),
     }
 }
 

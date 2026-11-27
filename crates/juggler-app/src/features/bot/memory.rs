@@ -114,6 +114,29 @@ fn note_key(words: &str) -> String {
     format!("note:{hash:016x}")
 }
 
+/// "call X Y" (or "nenn X Y"): the record X names and Y, the user's name
+/// for it, when X is a record's name and Y a name that can be kept.
+fn alias_in<'n>(records: &'n [Named], words: &str) -> Option<(&'n Named, SettingLabel)> {
+    let rest = ["call ", "nenn ", "nenne "]
+        .iter()
+        .find_map(|cue| strip_prefix_ci(words.trim(), cue))?;
+    records.iter().find_map(|named| {
+        let alias = strip_prefix_ci(rest, &named.name).filter(|a| a.starts_with(' '))?;
+        let alias = alias.trim().trim_matches(['"', '“', '”', '.']).trim();
+        SettingLabel::new(alias).map(|label| (named, label))
+    })
+}
+
+/// 0.5.2 G29 (RW1 F6): "call api the payments agent", said without
+/// "Remember", names a record the user's way: it is kept as "Remember …"
+/// is, by code with its echo card (ADR-0037 §2.3), never sent to the model
+/// as a question. Only when "api" is a record's name ("call me when it's
+/// done" stays a question).
+#[must_use]
+pub fn names_alias(world: &World, text: &str) -> bool {
+    alias_in(&named_records(world), text).is_some()
+}
+
 /// What "Remember …" keeps, before it is written.
 fn record_for(world: &World, words: &str, turn: &str, now_ms: i64) -> NewRecord {
     let base = |kind: Kind,
@@ -139,27 +162,17 @@ fn record_for(world: &World, words: &str, turn: &str, now_ms: i64) -> NewRecord 
         entities,
     };
     let records = named_records(world);
-    let call = ["call ", "nenn ", "nenne "]
-        .iter()
-        .find_map(|cue| strip_prefix_ci(words, cue));
-    if let Some(rest) = call {
-        for named in &records {
-            if let Some(alias) = strip_prefix_ci(rest, &named.name).filter(|a| a.starts_with(' ')) {
-                let alias = alias.trim().trim_matches(['"', '“', '”', '.']).trim();
-                if let Some(label) = SettingLabel::new(alias) {
-                    return base(
-                        Kind::Preference,
-                        format!("alias:{}:{}", named.kind.as_str(), named.id),
-                        RecordText::Setting(label),
-                        vec![EntityRef {
-                            kind: named.kind,
-                            id: named.id.clone(),
-                        }],
-                        serde_json::json!({ "slot": "alias", "about": named.name }),
-                    );
-                }
-            }
-        }
+    if let Some((named, label)) = alias_in(&records, words) {
+        return base(
+            Kind::Preference,
+            format!("alias:{}:{}", named.kind.as_str(), named.id),
+            RecordText::Setting(label),
+            vec![EntityRef {
+                kind: named.kind,
+                id: named.id.clone(),
+            }],
+            serde_json::json!({ "slot": "alias", "about": named.name }),
+        );
     }
     let lower = words.to_lowercase();
     for cue in [
