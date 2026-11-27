@@ -1,4 +1,4 @@
-<!-- captures: 5933d5d787a9 -->
+<!-- captures: 5a5b73151f91 -->
 # 67-home: Home in its states (welcome, no sessions, all clear, sessions that need you) with the legend, the account menu and the rail's View menu
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -94,3 +94,21 @@ Lowest: 4 (line 12 was 3: F56 fixed).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); at 390 px the words wrap cleanly. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 PR #257's Happo review: the feed's tabs on one row, and the frames since 0.5.1 (Opus, 2026-11-27)
+
+All twelve changed frames re-captured from a clean export of 0fd6b8528 (`home-gallery.spec.ts`), both themes; every one opened. They were last taken on 2026-11-24, so they now also show what 0.5.2 changed on Home since: the story feed's posts and gesture bar (AJ-E3713), its tabs, state chips and Showing picker, the Needs you rows in the rail without the App's colour dot (AJ-E1558, the maintainer's "no bullet-like dots"; each need keeps its level's mark beside why), and the chosen tab in the selected look (PR #257).
+
+**What changed in this round.** The feed's tab row is one row, always: the tabs that don't fit go into its ⋯, from the end (This Mac first, as the story-feed mock orders them), and the chosen one always stays in the row. At 1280 all seven fit; at 390 the row holds All, Needs you and Sessions, the rest in ⋯. Nothing wraps under the row.
+
+**Weak.** A tab in ⋯ is a press further away; This Mac, the one most often there, is the narrowest need of the seven.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 6 | Areas | 5 | Tabs one row, chips one row, the feed under them; no stray line. |
+| 9 | Actions | 4 | Every tab reachable: in the row, or first in ⋯ with its icon. |
+| 13 | States | 4 | Wide, narrow and the phone width each keep one row (fits-its-room.spec). |
+| 14 | Consistency | 4 | The overflow uses the toolbar's own ⋯ menu, its lines with icons (F60). |
+| 19 | Rich-mode colour | 4 | Not a create or settings surface; calm Home, the accent kept for actions. |
+
+The other lines are as the sections above scored them (lowest 4).

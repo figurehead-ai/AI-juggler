@@ -1,4 +1,4 @@
-<!-- captures: 7ddff16adefb -->
+<!-- captures: 115689279bd6 -->
 <!-- captures: pending -->
 # 99-bot-breakdown: Bot's context and memory breakdown, and a memory as a record
 
@@ -153,5 +153,19 @@ Re-captured from a clean export of 246225b97, both themes; every changed frame d
 | 14 | Consistency | 5 | The shared SELECTED, as every other tab, chip and segment. |
 | 15 | Accessibility | 4 | Two cues (fill step and weight), never colour alone (WCAG 1.4.1); aria-pressed as before. |
 | 19 | Rich-mode colour | 4 | Not a create or settings surface; the tab row is calm, the accent kept for actions. |
+
+The other lines are as the sections above scored them.
+
+## 0.5.2 PR #257's Happo review: the feed's tabs on one row (Opus, 2026-11-27)
+
+Re-captured from a clean export of 0fd6b8528, both themes; the frames that changed are those where the tab row had no room for all seven (1024, and 1280 with Bot docked): "This Mac" sat alone on a second line and now goes into the toolbar's ⋯, so everything under the row moves up one line (the pixel diff starts under the row). A frame of each width and theme was opened.
+
+**What changed.** One row of tabs, always, measured by the row's own width; the hidden ones (from the end, This Mac first) lead the ⋯ menu with their icons; the chosen tab never leaves the row.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 6 | Areas | 5 | The tab row one line; no orphan tab under it. |
+| 9 | Actions | 4 | A hidden tab is first in ⋯, one press away. |
+| 19 | Rich-mode colour | 4 | Unchanged colour; calm. |
 
 The other lines are as the sections above scored them.
