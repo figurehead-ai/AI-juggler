@@ -102,6 +102,29 @@ def next_version(root: Path, tags: list[str]) -> str:
     return ".".join(map(str, version))
 
 
+# A dependency's inline table, on one line.
+INLINE_TABLE = re.compile(r"\{[^{}\n]*\}")
+DEP_PATH = re.compile(r'path\s*=\s*"([^"]*)"')
+OWN_VERSION = re.compile(r'^version\s*=\s*"', re.M)
+
+
+def stamped_dep(manifest: Path, table: str, version: str) -> str:
+    """An internal dependency's requirement follows the stamp, unless the
+    crate it names keeps a version of its own (gyrus, a crate published on
+    its own, 0.1.0; the stamp made it `^0.5.2` and Cargo found no such
+    gyrus, PR #257's rc-dev-app): only a crate on the workspace's version
+    is stamped."""
+    path = DEP_PATH.search(table)
+    if not path:
+        return table
+    target = (manifest.parent / path.group(1) / "Cargo.toml").resolve()
+    if target.is_file() and OWN_VERSION.search(target.read_text()):
+        return table
+    for pattern in PATH_DEP_VERSION:
+        table = pattern.sub(lambda m: f"{m.group(1)}{version}{m.group(2)}", table)
+    return table
+
+
 def stamp(root: Path, version: str) -> None:
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         raise SystemExit(f"not a release version: {version!r}")
@@ -113,9 +136,7 @@ def stamp(root: Path, version: str) -> None:
         raise SystemExit("Cargo.toml has no workspace version")
     cargo.write_text(text)
     for manifest in sorted((root / "crates").glob("*/Cargo.toml")):
-        text = manifest.read_text()
-        for pattern in PATH_DEP_VERSION:
-            text = pattern.sub(lambda m: f"{m.group(1)}{version}{m.group(2)}", text)
+        text = INLINE_TABLE.sub(lambda m: stamped_dep(manifest, m.group(0), version), manifest.read_text())
         manifest.write_text(text)
     helper_lock = root / HELPER_LOCK
     if helper_lock.exists():
@@ -147,7 +168,12 @@ def selftest() -> int:
             'core = { version = "0.3.1", path = "../core" }\n'
             'link = { path = "../link", version = "0.3.1" }\n'
             'serde = { version = "1.0.200", features = ["derive"] }\n'
+            'graph = { version = "0.1.0", path = "../graph" }\n'
         )
+        (root / "crates/graph").mkdir(parents=True)
+        (root / "crates/graph/Cargo.toml").write_text('[package]\nname = "graph"\nversion = "0.1.0"\n')
+        (root / "crates/core").mkdir(parents=True)
+        (root / "crates/core/Cargo.toml").write_text('[package]\nname = "core"\nversion.workspace = true\n')
         (root / HELPER_LOCK).parent.mkdir(parents=True)
         (root / HELPER_LOCK).write_text(
             '[[package]]\nname = "juggler-local-ai"\nversion = "0.4.0"\n\n'
@@ -179,6 +205,8 @@ def selftest() -> int:
         assert 'core = { version = "0.3.57", path = "../core" }' in app, app
         assert 'link = { path = "../link", version = "0.3.57" }' in app, app
         assert 'serde = { version = "1.0.200"' in app, "a registry dependency is left alone"
+        assert 'graph = { version = "0.1.0", path = "../graph" }' in app, "a crate with its own version is left alone (#257)"
+        assert (root / "crates/graph/Cargo.toml").read_text().endswith('version = "0.1.0"\n'), "its own manifest too"
         lock = (root / HELPER_LOCK).read_text()
         assert 'name = "juggler-local-ai-protocol"\nversion = "0.3.57"' in lock, lock
         assert 'name = "llama-cpp-2"\nversion = "0.1.146"' in lock, "the helper's pins are left alone"
