@@ -31,8 +31,9 @@ pub fn feed_page_impl(
     if ask.state.as_deref() == Some("running") {
         let rows = crate::features::sessions::list::instances_shared_snapshot(state)?;
         ask = ask.with_running(
+            // 0.5.2 G73: working as the rail reads it, never by status alone.
             rows.into_iter()
-                .filter(|row| matches!(row.status.as_str(), "starting" | "running"))
+                .filter(crate::features::sessions::read_model::working_now)
                 .map(|row| row.id),
         );
     }

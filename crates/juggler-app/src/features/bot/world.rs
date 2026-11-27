@@ -184,8 +184,13 @@ pub fn session_row<S: BuildHasher>(
         Some("stuck") => Some(BotState::Stuck),
         Some("limit") => Some(BotState::Limit),
         Some("failed") => Some(BotState::Failed),
+        // 0.5.2 G73: the rail's rule (`sessionItem`): its tool's own word
+        // while it runs, a turn that ended Idle, an ask Asks you.
         _ => match exact {
             Some("idle" | "done_review") => Some(BotState::Idle),
+            Some("asks_you") => Some(BotState::AsksYou),
+            Some("working") => Some(BotState::Working),
+            Some("ended") => Some(BotState::Ended),
             _ => status,
         },
     };
@@ -315,6 +320,11 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         crate::features::sessions::read_model::session_infos_snapshot(&storage).unwrap_or_default()
     };
+    // 0.5.2 G73 (RW1 Part T, T4): each row with its runtime, as the
+    // window's list has it (`runtime::described`): without it no row ever
+    // carried its tool's own word, and a session whose turn had ended read
+    // "working" by its stored status while the rail read it Idle.
+    let rows = crate::features::runtime::described(state, rows);
     let rows = crate::features::conversations::titled(state, rows).unwrap_or_default();
     // 0.5.2 G45: and the sessions AI Juggler didn't start (the window's
     // other list), read before the store's lock below.

@@ -39,6 +39,7 @@ import { shortName } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import { headCount, needsHeading, needsParts } from "../lib/home-needs";
 import { itemsOf, openNow } from "../lib/rail-items";
+import { runningNow } from "../lib/running-now";
 import { useNoticeSummary } from "../lib/notices-store";
 import { homeCounts } from "../lib/home-counts";
 import { isSnoozed } from "../lib/railview";
@@ -334,7 +335,7 @@ export function HomeScreen({
       // Filled only once the needs are read and none waits (D-118: else the
       // first pinned need holds the one fill; an unread list counts as one).
       quiet={needsNow.known && allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length === 0}
-      scroller={scroller} running={sessions.filter((one) => one.status === "running" || one.status === "starting").length}
+      scroller={scroller} running={runningNow(sessions)}
       nameOf={nameOf}
       facets={{ projects, accounts, subscriptions, pools }}
       toReview={toPick.total}

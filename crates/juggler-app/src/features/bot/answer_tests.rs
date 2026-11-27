@@ -1035,3 +1035,58 @@ fn an_answer_keeps_the_records_it_cites_and_the_sentences_asked_for() {
         [crate::features::bot::dto::BotRowKind::Memory]
     );
 }
+
+/// 0.5.2 G73 (RW1 Part T, T4): a session stored Running whose turn ended
+/// by its hooks (UserPromptSubmit, then Stop) reads Idle on the rail
+/// (`sessionState`: its tool's own word). Bot's records read it the same
+/// (the window's runtime on each row), and so does the backend's working
+/// rule Home's Running chip filters by; before, both read "working".
+#[test]
+fn a_running_session_whose_turn_ended_is_idle_as_the_rail_reads_it() {
+    use juggler_core::model::SessionId;
+    let (_dir, state) = seeded();
+    let hook = |event: &str| juggler_agentbridge::wire::HookReport {
+        event: event.to_owned(),
+        ..juggler_agentbridge::wire::HookReport::default()
+    };
+    let web = SessionId::new("s-web");
+    let before = crate::features::bot::world::gather(&state).unwrap();
+    let row = |world: &crate::features::bot::world::World| {
+        world
+            .sessions
+            .iter()
+            .find(|r| r.id == "s-web")
+            .unwrap()
+            .state
+    };
+    assert_eq!(
+        row(&before),
+        Some(crate::features::bot::dto::BotState::Working)
+    );
+    state
+        .runtime
+        .observe(&state, &web, &hook("UserPromptSubmit"));
+    assert_eq!(
+        row(&crate::features::bot::world::gather(&state).unwrap()),
+        Some(crate::features::bot::dto::BotState::Working),
+        "its turn running"
+    );
+    state.runtime.observe(&state, &web, &hook("Stop"));
+    let after = crate::features::bot::world::gather(&state).unwrap();
+    assert_eq!(row(&after), Some(crate::features::bot::dto::BotState::Idle));
+    // The window's own rows: the same rule for Home's Running chip.
+    let rows = crate::features::sessions::list::instances_shared_snapshot(&state).unwrap();
+    let working: Vec<&str> = rows
+        .iter()
+        .filter(|r| crate::features::sessions::read_model::working_now(r))
+        .map(|r| r.id.as_str())
+        .collect();
+    assert_eq!(working, ["s-api"], "s-web's turn ended");
+    // Bot's answer reads it Idle too.
+    let fake = Fake::new();
+    let turn = ask_with(&state, &fake, "what is web doing?");
+    let sent = fake.requests.borrow().last().unwrap().prompt.clone();
+    assert!(sent.contains("state: idle"), "{sent}");
+    assert!(!sent.contains("state: working"), "{sent}");
+    assert_eq!(turn.outcome, BotOutcome::Answered);
+}

@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { conversationItem, endedToday, goToWhere, itemsOf, needsYou, needWord, openNow, sessionItem, placeWords, stateWord } from "./rail-items";
 import { buildLines, foldSections } from "./rail-lines";
+import { runningNow } from "./running-now";
 import { foldGroup, frozenOrder, groupItems, isQuiet, quietWords } from "./rail-places";
 import { DEFAULT_VIEW, isDefaultView, matches, paletteMatches, parseQuery, parseView } from "./rail-view";
 import { parseSeen } from "./seen";
@@ -74,6 +75,9 @@ describe("one state vocabulary (AJ-E2104 Req.3, AJ-E2107)", () => {
     expect(sessionItem(exact("idle"), none, false)).toMatchObject({ state: "idle", probably: false });
     expect(sessionItem(exact("working"), none, false).state).toBe("working");
     expect(sessionItem(exact("nonsense"), none, false).state).toBe("working");
+    // 0.5.2 G73 (RW1 Part T, T4): Home's Running chip counts by the same
+    // rule: a stored "running" session whose turn ended (Idle) isn't.
+    expect(runningNow([exact("idle"), exact("working"), own("s"), own("q", { status: "waiting_user" }), exact("done_review")])).toBe(2);
   });
 
   it("a row's state follows the backend's need: one word on Home, in the centre and on the rail (the 0.2 walk, F4)", () => {
