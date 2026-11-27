@@ -11,7 +11,7 @@
  * the request's own words, and the form opens with the nearest it can (or
  * empty). A past turn keeps its line and its way back to the form.
  */
-import { useEffect, useRef, type JSX } from "react";
+import { useEffect, useRef, useState, type JSX } from "react";
 import { IconEye } from "./bot-icons";
 import { BotWatchDraftWords } from "./BotWatchDraftWords";
 import { openWatches, type WatchesIntent } from "../../lib/watches-open";
@@ -75,6 +75,7 @@ const WORDS = {
     form: "I couldn't fill the form from your words. The Watches form is open.",
     past: "Bot filled in the Watches form for this.",
     open: "Open the form",
+    isOpen: "The Watches form is open.",
     remind: (at: boolean) => (at ? "I drafted the reminder. Check the time, then set it." : "I drafted the reminder. Pick a time, then set it."),
     remindSet: "Bot set a reminder for this.",
     remindNotSet: "Bot drafted a reminder for this; it wasn't set.",
@@ -87,6 +88,7 @@ const WORDS = {
     form: "Ich konnte das Formular aus deinen Worten nicht ausfüllen. Es ist offen.",
     past: "Bot hat dafür das Beobachtungsformular ausgefüllt.",
     open: "Formular öffnen",
+    isOpen: "Das Beobachtungsformular ist offen.",
     remind: (at: boolean) => (at ? "Ich habe die Erinnerung vorbereitet. Prüf die Zeit und setz sie." : "Ich habe die Erinnerung vorbereitet. Wähl eine Zeit und setz sie."),
     remindSet: "Bot hat dafür eine Erinnerung gesetzt.",
     remindNotSet: "Bot hat dafür eine Erinnerung vorbereitet; sie wurde nicht gesetzt.",
@@ -138,6 +140,9 @@ function lineOf(drafted: WatchDrafted | null | undefined, lang: BotTurnInfo["lan
 export function BotWatchDraft({ turn }: { turn: BotTurnInfo }): JSX.Element {
   const drafted = turn.watch_draft ?? null;
   const opened = useRef(false);
+  // 0.5.2 G75 (RW1 Part T): the form opened by itself: the reply says so,
+  // and offers "Open the form" only when it didn't open (a turn read back).
+  const [selfOpened, setSelfOpened] = useState(false);
   useEffect(() => {
     // The turn just asked opens the form once; a turn read back doesn't,
     // nor Bot's confirm card (its Change… opens the form).
@@ -145,6 +150,7 @@ export function BotWatchDraft({ turn }: { turn: BotTurnInfo }): JSX.Element {
     if (drafted && drafted.kind !== "remind" && !card && turn.live && !opened.current) {
       opened.current = true;
       openWatches(intentOf(drafted));
+      setSelfOpened(true);
     }
   }, [drafted, turn.live]);
   const w = WORDS[turn.lang] ?? WORDS.en;
@@ -167,14 +173,22 @@ export function BotWatchDraft({ turn }: { turn: BotTurnInfo }): JSX.Element {
         {lineOf(drafted, turn.lang)}
       </p>
       <BotWatchDraftWords drafted={drafted} />
-      <button
-        type="button"
-        className={OPEN}
-        onClick={() => openWatches(drafted ? intentOf(drafted) : { kind: "list" })}
-        data-testid="bot-watch-draft-open"
-      >
-        {w.open}
-      </button>
+      {selfOpened ? (
+        !/is open|ist offen/.test(lineOf(drafted, turn.lang)) && (
+          <p className="text-meta text-muted" data-testid="bot-watch-draft-is-open">
+            {w.isOpen}
+          </p>
+        )
+      ) : (
+        <button
+          type="button"
+          className={OPEN}
+          onClick={() => openWatches(drafted ? intentOf(drafted) : { kind: "list" })}
+          data-testid="bot-watch-draft-open"
+        >
+          {w.open}
+        </button>
+      )}
     </div>
   );
 }

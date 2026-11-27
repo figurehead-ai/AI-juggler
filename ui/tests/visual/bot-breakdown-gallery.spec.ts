@@ -74,10 +74,15 @@ const ENGINE = {
   today: { answers: 0, tokens_in: count(0, false), tokens_out: count(0, false) },
 };
 
-async function open(page: Page, theme: "dark" | "light", width: number, memoryRow: boolean): Promise<void> {
+/** 0.5.2 G74: the walk's long titles ("Split the cart total into its own
+ * module and test it", working; "Add a retry helper to the API client",
+ * ended) on the first answer's rows. */
+const LONG_TITLES = ["Split the cart total into its own module and test it", "Add a retry helper to the API client"];
+
+async function open(page: Page, theme: "dark" | "light", width: number, memoryRow: boolean, long = false): Promise<void> {
   const state = STATES.full!;
   await page.addInitScript(
-    ({ fixture, theme: t, now, bot, jobs, latest, memoryRow: withMemory, engine }) => {
+    ({ fixture, theme: t, now, bot, jobs, latest, memoryRow: withMemory, engine, long: titles }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       const seeded = JSON.parse(JSON.stringify(bot)) as { turns: { rows: unknown[] }[]; usage?: unknown };
@@ -87,6 +92,9 @@ async function open(page: Page, theme: "dark" | "light", width: number, memoryRo
           { ...(seeded.turns[0].rows[0] as object), kind: "memory", id: "sub-1", title: "the payments agent", state: null, about: "api", memory_key: "alias:session:s-api", at_ms: now - 2 * 86_400_000, provider: null, project: null, app_label: null, branch: null, files_changed: null },
           ...seeded.turns[0].rows,
         ];
+      }
+      if (titles.length > 0 && seeded.turns[0]) {
+        seeded.turns[0].rows = seeded.turns[0].rows.map((row, i) => (i < titles.length ? { ...(row as object), title: titles[i], state: i === 0 ? "working" : "ended" } : row));
       }
       w.__AIJ_BOT__ = seeded;
       w.__AIJ_AI_JOBS__ = jobs;
@@ -98,7 +106,7 @@ async function open(page: Page, theme: "dark" | "light", width: number, memoryRo
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => now;
     },
-    { fixture: allStatuses, theme, now: BOT_NOW, bot: state.bot, jobs: state.jobs, latest: LATEST, memoryRow, engine: ENGINE },
+    { fixture: allStatuses, theme, now: BOT_NOW, bot: state.bot, jobs: state.jobs, latest: LATEST, memoryRow, engine: ENGINE, long: long ? LONG_TITLES : [] },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height: 860 });
@@ -129,6 +137,27 @@ for (const theme of ["dark", "light"] as const) {
       await page.waitForTimeout(150);
       if (OUT && width === 1755) await page.screenshot({ path: `${OUT}/head-${theme}-1755.png` });
       if (width === 1755) await axeClean(page, `head ${theme} ${width}`);
+    });
+  }
+
+  /** 0.5.2 G74 (RW1 Part T, T4): a long title truncates before its row's
+   * state ("…module and tes[Working]" was drawn under the state). */
+  for (const width of [1755, 1300]) {
+    test(`a long title truncates before its state — ${theme} — ${width}`, async ({ page }) => {
+      await open(page, theme, width, false, true);
+      const row = page.getByTestId("bot-row").filter({ hasText: LONG_TITLES[0]! }).first();
+      await row.scrollIntoViewIfNeeded();
+      for (const title of LONG_TITLES) {
+        const one = page.getByTestId("bot-row").filter({ hasText: title }).first();
+        const name = await one.getByTestId("bot-row-title").boundingBox();
+        const state = await one.getByTestId("bot-row-state").boundingBox();
+        expect(name && state && name.x + name.width <= state.x, `${title}: ${JSON.stringify({ name, state })}`).toBe(true);
+      }
+      const scrolls = await page.getByTestId("bot-panel").evaluate((el) => [...el.querySelectorAll("*")].some((one) => one.scrollWidth > one.clientWidth + 1 && getComputedStyle(one).overflowX !== "hidden" && getComputedStyle(one).overflowX !== "visible" && one.clientWidth > 0));
+      expect(scrolls, "nothing in the panel scrolls sideways").toBe(false);
+      await page.waitForTimeout(150);
+      if (OUT) await page.screenshot({ path: `${OUT}/long-title-${theme}-${width}.png` });
+      if (width === 1755) await axeClean(page, `long title ${theme} ${width}`);
     });
   }
 

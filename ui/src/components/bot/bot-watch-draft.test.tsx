@@ -39,6 +39,21 @@ describe("Bot fills the Watches form", () => {
     stop();
   });
 
+  /** 0.5.2 G75 (RW1 Part T): the form opened by itself: the reply says
+   * it is open and offers no "Open the form" beside it. */
+  it("once the form opened by itself, says it is open and offers no Open the form", () => {
+    const stop = onWatchesIntent(() => undefined);
+    render(<BotTurn turn={turn({ watch_draft: { kind: "filled", draft: DRAFT } })} now={NOW} latest />);
+    expect(screen.queryByTestId("bot-watch-draft-open")).toBeNull();
+    expect(screen.getByTestId("bot-watch-draft-is-open").textContent).toBe("The Watches form is open.");
+    cleanup();
+    // A line that already says so isn't said twice.
+    render(<BotTurn turn={turn({ watch_draft: { kind: "form" } })} now={NOW} latest />);
+    expect(screen.queryByTestId("bot-watch-draft-open")).toBeNull();
+    expect(screen.queryByTestId("bot-watch-draft-is-open")).toBeNull();
+    stop();
+  });
+
   it("says what it can't watch in the request's words, with the nearest", () => {
     render(<BotTurn turn={turn({ watch_draft: { kind: "cant_watch", asked: "tests pass", draft: DRAFT } })} now={NOW} latest />);
     expect(screen.getByTestId("bot-watch-draft").textContent).toBe("I can't watch for “tests pass”. The form is open with the nearest I can.");
