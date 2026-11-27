@@ -1,4 +1,4 @@
-<!-- captures: dbdfe097dc5b -->
+<!-- captures: a2528daf1e40 -->
 # 99-watch-prefill: the Watches form as Bot pre-filled it, Bot's confirm card, the Watches row
 
 Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured on the host from the working tree at the UI commit (`watch-prefill-gallery.spec.ts`: Bot docked at 1280, its turn opening the form; the card; Settings › AI › Models' jobs card), both themes; every capture opened. Mock-ups: the Watches form's approved mock and the d126 kit (`~/Dev/AIJuggler-design-refs/`), Bot's confirm card as the row's Watch… card (`bot` gallery's `watch`).
@@ -100,3 +100,20 @@ The other lines are as the sections above scored them (lowest 3: line 16).
 |---|---|---|---|
 | 12 | Words | 4 | The Beta's state said, as the other Beta rows say theirs. |
 | 19 | Rich-mode colour | 4 | Unchanged: icon chip, Beta pill, the switch. |
+
+## 0.5.2 G75: the reply says the form is open (Opus, 2026-11-27)
+
+Re-captured from a clean export of 4fef54b27 with `AIJ_PREFILL_OUT`, both themes; every changed frame opened. Six changed (`form-left-*`, `form-nearest-*`, `form-several-*`), only in Bot's reply; `card-*` and `models-row-*` came out byte-equal and are unchanged.
+
+**What changed.** RW1 Part T saw the reply still offer "Open the form" after the form had opened by itself. Now a reply whose form opened by itself offers no button: `form-left` and `form-nearest` already say "The Watches form is open." in their line, so the button is simply gone; `form-several`'s line ("More than one matches that name, so the Watches form asks which one.") gets a muted "The Watches form is open." under it, lined up with the reply's words. A turn read back later (its form not opened) still offers "Open the form" (vitest).
+
+**Weak.** Once the user closes the form, this live turn has no button to open it again; asking again does (a turn read back offers it).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 9 | Actions | 4 | No action offered for what is already done; the way back is on a turn read back. |
+| 12 | Words | 4 | "The Watches form is open." said once, never twice. |
+| 13 | States | 4 | Opened by itself, or read back: each its own words (vitest). |
+| 19 | Rich-mode colour | 4 | Unchanged: the reply's eye in the accent, the added line muted. |
+
+The other lines are as the sections above scored them (lowest 3: line 16).
