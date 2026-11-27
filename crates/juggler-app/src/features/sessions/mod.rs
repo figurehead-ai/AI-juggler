@@ -10,6 +10,7 @@ pub mod lifecycle;
 pub mod limits;
 pub mod linking;
 pub mod list;
+pub mod names;
 pub mod read_model;
 pub mod restart;
 pub mod rows;

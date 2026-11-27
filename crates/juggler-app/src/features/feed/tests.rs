@@ -17,6 +17,12 @@ const T0: i64 = 1_800_000_000_000;
 /// A store with two Accounts, a project, a pool, a thread and a task.
 fn store() -> Storage {
     let storage = Storage::open_in_memory().unwrap();
+    seed(&storage);
+    storage
+}
+
+/// [`store`]'s rows, into `storage`.
+fn seed(storage: &Storage) {
     storage
         .raw_conn()
         .execute_batch(
@@ -36,7 +42,6 @@ fn store() -> Storage {
              INSERT INTO epochs (id, work_id, account, provider) VALUES ('ep-1', 'work-1', 'acc-work', 'claude-code');",
         )
         .unwrap();
-    storage
 }
 
 fn session(storage: &Storage, id: &str, profile: &str, project: &str, started: i64) {
@@ -490,4 +495,159 @@ fn five_thousand_events_page_thirty_at_a_time_within_the_budget_never_reading_th
         )
         .unwrap();
     assert!(plan.contains("idx_instance_lifecycle_at"), "{plan}");
+}
+
+/// An app whose storage holds [`store`]'s rows.
+fn app() -> (tempfile::TempDir, std::sync::Arc<crate::state::AppState>) {
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("data"));
+    seed(&state.storage.lock().unwrap());
+    (dir, state)
+}
+
+/// Every session row whole, as the app writes them (the journal tests'
+/// rows carry an empty usage, which the read model's rows can't read).
+fn whole(storage: &Storage) {
+    let usage = serde_json::to_string(&juggler_core::model::UsageSnapshot::default()).unwrap();
+    storage
+        .raw_conn()
+        .execute("UPDATE instances SET usage_json = ?1", params![usage])
+        .unwrap();
+}
+
+fn feed(
+    state: &std::sync::Arc<crate::state::AppState>,
+    cursor: Option<&str>,
+) -> crate::paging::Page<FeedItemInfo> {
+    let request = PageRequest {
+        cursor: cursor.map(str::to_owned),
+        limit: Some(30),
+    };
+    super::commands::feed_page_impl(state, &request, &FeedFiltersInfo::default()).unwrap()
+}
+
+/// 0.5.2 G44: a post about a session the window may not hold is named by
+/// the one rule over the rail's row of it (`needs::session_name`): its
+/// label, else a branch that says the work, else its facts ("web-app ·
+/// started …"), never the second rule's bare folder. An Account's post
+/// keeps its Account's name.
+#[test]
+fn a_post_names_its_session_as_the_rail_does() {
+    let (dir, state) = app();
+    let branch = dir.path().join("web-app");
+    std::fs::create_dir_all(branch.join(".git")).unwrap();
+    std::fs::write(
+        branch.join(".git/HEAD"),
+        "ref: refs/heads/fix-login-redirect\n",
+    )
+    .unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        session(&storage, "s-ok", "prof-work", "proj-web", T0);
+        session(&storage, "s-bad", "prof-work", "proj-web", T0);
+        session(&storage, "s-mine", "prof-home", "proj-notes", T0);
+        storage
+            .raw_conn()
+            .execute(
+                "UPDATE instances SET cwd = ?1 WHERE id = 's-bad'",
+                params![branch.to_string_lossy()],
+            )
+            .unwrap();
+        storage
+            .sessions()
+            .set_label(
+                &juggler_core::model::SessionId::new("s-mine"),
+                Some("Trip notes"),
+            )
+            .unwrap();
+        ended(&storage, "s-ok", "ended: finished", T0 + 60_000);
+        ended(
+            &storage,
+            "s-bad",
+            "ended: error (exit code 1)",
+            T0 + 120_000,
+        );
+        ended(&storage, "s-mine", "ended: crashed", T0 + 150_000);
+        notice(
+            &storage,
+            "reset:acc-home:1",
+            "reset",
+            false,
+            r#"{"target":{"account_id":"acc-home"},"facts":{"account":"Personal","window":"5-hour"}}"#,
+            T0 + 300_000,
+        );
+        whole(&storage);
+    }
+    let page = feed(&state, None);
+    let subject = |kind: &str| {
+        page.items
+            .iter()
+            .find(|item| item.kind == kind)
+            .unwrap()
+            .subject
+            .clone()
+    };
+    let untitled = subject("finished");
+    assert!(
+        untitled.starts_with("proj-web · started "),
+        "named by its facts, as the rail names it: {untitled}"
+    );
+    assert_eq!(
+        subject("failed"),
+        "fix-login-redirect",
+        "its branch says the work"
+    );
+    assert_eq!(subject("crashed"), "Trip notes", "its label");
+    assert_eq!(subject("reset"), "Personal", "an Account's post");
+}
+
+/// 0.5.2 G44: naming the page's sessions stays inside the feed page's
+/// budget (`changes::PAGE_BUDGET`, 250 ms): 5,000 events over 2,000
+/// sessions (each with lifecycle rows the rail's row reads), ten pages.
+#[test]
+fn naming_a_page_s_sessions_stays_inside_the_page_budget() {
+    let (_dir, state) = app();
+    {
+        let storage = state.storage.lock().unwrap();
+        busy(&storage);
+        let conn = storage.raw_conn();
+        conn.execute_batch("BEGIN").unwrap();
+        for n in 20..2_000 {
+            session(&storage, &format!("s-{n}"), "prof-work", "proj-web", T0);
+            ended(&storage, &format!("s-{n}"), "ended: finished", T0 - n);
+        }
+        conn.execute_batch("COMMIT").unwrap();
+        whole(&storage);
+    }
+    let mut cursor: Option<String> = None;
+    let (mut slowest, mut slowest_names) = (Duration::ZERO, Duration::ZERO);
+    for _ in 0..10 {
+        let started = Instant::now();
+        let mut page = feed(&state, cursor.as_deref());
+        slowest = slowest.max(started.elapsed());
+        assert_eq!(page.items.len(), 30);
+        let named = Instant::now();
+        super::commands::name_sessions(&state, &mut page.items);
+        slowest_names = slowest_names.max(named.elapsed());
+        let about: Vec<&FeedItemInfo> = page
+            .items
+            .iter()
+            .filter(|item| super::items::named_session(item).is_some())
+            .collect();
+        assert!(!about.is_empty(), "posts about sessions on every page");
+        assert!(
+            about
+                .iter()
+                .all(|item| item.subject.starts_with("proj-web · started ")),
+            "every session post named by the rule"
+        );
+        cursor = page.next_cursor;
+    }
+    eprintln!(
+        "feed_page_impl with names, 5,000 events over 2,000 sessions: slowest of 10 pages {slowest:?}, its naming {slowest_names:?}"
+    );
+    assert!(
+        slowest <= Duration::from_millis(250),
+        "a page took {slowest:?} (budget 250 ms)"
+    );
 }

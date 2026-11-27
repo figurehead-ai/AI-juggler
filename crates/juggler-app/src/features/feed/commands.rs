@@ -43,9 +43,26 @@ pub fn feed_page_impl(
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         page::page_for(&storage, request, &ask, more)?
     };
+    // 0.5.2 G44: each post about a session named as the rail names it
+    // (the one rule over its row), with no storage lock held.
+    name_sessions(state, &mut page.items);
     // AJ-E3713 R6a: each turn's diff stat, with no storage lock held.
     super::changes::attach(state, &mut page.items);
     Ok(page)
+}
+
+/// Names the page's posts about sessions by the one rule
+/// ([`crate::features::sessions::names::names_of`]): one read of the
+/// page's sessions, a part of the page's time (`changes::PAGE_BUDGET`).
+pub fn name_sessions(state: &Arc<AppState>, items: &mut [FeedItemInfo]) {
+    let ids: Vec<String> = items
+        .iter()
+        .filter_map(super::items::named_session)
+        .map(str::to_owned)
+        .collect();
+    let names =
+        crate::features::sessions::names::names_of(state, &ids, crate::commands::now_millis());
+    super::items::name_sessions(items, &names);
 }
 
 /// One page of the activity feed (see [`feed_page_impl`]).

@@ -13,6 +13,7 @@ use super::dto::{FeedAuthorInfo, FeedFactsInfo, FeedItemInfo};
 use crate::features::notifications::centre::{
     LevelFacts, NoticeFacts, NoticeTarget, attention_level,
 };
+use crate::features::notifications::needs;
 
 /// Same verb, App and project (the proposal §3.2).
 pub const SAME_VERB_MS: i64 = 2 * 3_600_000;
@@ -158,21 +159,47 @@ fn juggler() -> FeedAuthorInfo {
     }
 }
 
-/// A session's subject: the name the user gave it, else its folder's
-/// name (the window names a session it holds by its own rule).
+/// A session's subject by the one rule (0.5.2 G44: the rail's,
+/// [`needs::name_of`]) over what its journal row holds: its label, else
+/// its folder. The page then names each by the rail's whole row (its
+/// title, its branch, when it started: [`name_sessions`]), so a post says
+/// the name the rail says whether or not the window holds the session.
 fn session_name(session: &FeedSession) -> String {
-    session
-        .label
-        .clone()
-        .filter(|label| !label.trim().is_empty())
-        .unwrap_or_else(|| folder_name(session.cwd.as_deref()))
+    needs::name_of(
+        &needs::Named {
+            label: session.label.as_deref(),
+            title: None,
+            branch: None,
+            cwd: session.cwd.as_deref().unwrap_or(""),
+            started_ms: session.started_ms.unwrap_or(0),
+        },
+        0,
+    )
 }
 
-fn folder_name(cwd: Option<&str>) -> String {
-    cwd.and_then(|cwd| std::path::Path::new(cwd).file_name())
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| "A session".to_owned())
+/// The session an item is named after (its subject is that session's
+/// name): an ending, or a notice about one, never an Account's.
+#[must_use]
+pub fn named_session(item: &FeedItemInfo) -> Option<&str> {
+    let from_session = item.id.starts_with("l:") || item.id.starts_with("n:");
+    (from_session && !ACCOUNT_KINDS.contains(&item.kind.as_str()))
+        .then_some(item.target.session_id.as_deref())
+        .flatten()
+}
+
+/// 0.5.2 G44: names each item about a session by the one rule over the
+/// rail's row of it (`names`, by session id); one storage doesn't hold
+/// keeps the name its journal row gave.
+pub fn name_sessions<S: std::hash::BuildHasher>(
+    items: &mut [FeedItemInfo],
+    names: &std::collections::HashMap<String, String, S>,
+) {
+    for item in items {
+        let Some(name) = named_session(item).and_then(|id| names.get(id)) else {
+            continue;
+        };
+        item.subject.clone_from(name);
+    }
 }
 
 fn session_facts(session: &FeedSession) -> FeedFactsInfo {
