@@ -1,4 +1,4 @@
-<!-- captures: 37a4bafa6eef -->
+<!-- captures: 0e28f7d4add7 -->
 <!-- captures: pending -->
 # 99-settings-search: Settings' search
 
@@ -64,3 +64,17 @@ Re-captured on the host from a clean export of HEAD (the shared tree held anothe
 | 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
 
 The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+## 0.5.2 G52 (2026-11-27, Opus, both themes)
+
+Re-captured from the worktree at HEAD (ea6bda3e2) with the family's own spec; each frame compared pixel by pixel with the one before, and every changed frame opened by eye, light and dark side by side. Only the four `opened-*` frames changed ("quiet" opened on Notifications with More unfolded); `results-*` and `none-*` are unchanged.
+
+**What changed.** More's line read "quiet hours 22:00–07:00" and the From/to pickers "22:00" and "07:00". They now read "quiet hours 10:00 PM–7:00 AM" and "10:00 PM" / "7:00 AM", by the system's clock (G52, ea6bda3e2); the pickers' options are written the same way. The Agent digest row's help line under it is longer than in the last frames ("…and a minute after one finishes or needs you…", from earlier 0.5.2 work), so it wraps to three lines at 1280.
+
+**Judged.** The wider picker values fit their pills and the row; the quiet-hours card keeps its soft accent fill and moon chip; nothing clips at 1024.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 11 | Plain words | 4 | The times read as the system writes them. |
+| 14 | Consistency | 4 | Same time rule as the Watches form, Bot's cards and the bell. |
+| 19 | Rich-mode colour | 4 | Unchanged: the quiet-hours row in the accent's soft step with its icon chip, rows with icons, checkboxes in the accent; no bright edge. |
