@@ -2,8 +2,7 @@
 //! the model's lines after it when the Beta is on (never blocking the
 //! page), and "This is wrong" about them.
 
-use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 
 use juggler_core::storage::memory::{Actor, NewEvent, NewSidecar, Stream};
@@ -14,6 +13,7 @@ use super::read::read;
 use crate::error::{AppError, AppResult};
 use crate::features::ai::dto::AiJob;
 use crate::features::ai::engine::Stop;
+use crate::features::ai::kept::Kept;
 use crate::features::ai::models::Job;
 use crate::features::ai::run::LiveJob;
 use crate::features::ai::service;
@@ -36,9 +36,9 @@ const WRONG_KEPT_MS: i64 = 30 * 86_400_000;
 
 /// What the model wrote for a turn, by the turn and its reply: the lines
 /// and the model's name, or `None` when every draft was refused.
-type Kept = HashMap<(String, u64), Option<(Written, String)>>;
+type Lines = Kept<(String, u64), Option<(Written, String)>>;
 
-static KEPT: LazyLock<Mutex<Kept>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static KEPT: LazyLock<Lines> = LazyLock::new(|| Kept::new(KEPT_MAX));
 
 fn hash(text: &str) -> u64 {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -68,7 +68,7 @@ pub fn review_turn_ai_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReview
         return review;
     }
     let key = (review.turn.clone(), hash(&read.reply));
-    let kept = KEPT.lock().ok().and_then(|kept| kept.get(&key).cloned());
+    let kept = KEPT.get(&key);
     let done = if let Some(done) = kept {
         done
     } else {
@@ -101,12 +101,7 @@ pub fn review_turn_ai_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReview
                 );
             }
             let done = written.map(|written| (written, routed.name));
-            if let Ok(mut kept) = KEPT.lock() {
-                if kept.len() >= KEPT_MAX {
-                    kept.clear();
-                }
-                kept.insert(key, done.clone());
-            }
+            KEPT.keep(key, done.clone());
             done
         }
     };

@@ -13,19 +13,16 @@
 //! The turn is the review's: the same gates (Last messages on, an App
 //! whose turn ends AI Juggler sees) and the same transcript.
 
-use std::collections::HashMap;
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
 use std::time::Instant;
 
 use serde::Serialize;
 
 use super::line::{self, Options};
 use crate::error::AppResult;
-use crate::features::ai::dto::AiJob;
-use crate::features::ai::engine::Stop;
-use crate::features::ai::models::Job;
-use crate::features::ai::run::LiveJob;
-use crate::features::ai::service;
+use crate::features::ai::{
+    dto::AiJob, engine::Stop, kept::Kept, models::Job, run::LiveJob, service,
+};
 use crate::features::conversations::last_messages;
 use crate::features::review::commands::{LINES_WAIT, record_wrong};
 use crate::features::review::dto::ReviewAsk;
@@ -64,9 +61,8 @@ impl FeedLineInfo {
 
 /// What the model wrote for a turn, by its key: the line and the model's
 /// name, or `None` when every draft was refused.
-type Kept = HashMap<String, Option<(String, String)>>;
-
-static KEPT: LazyLock<Mutex<Kept>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+static KEPT: LazyLock<Kept<String, Option<(String, String)>>> =
+    LazyLock::new(|| Kept::new(KEPT_MAX));
 
 fn key_of(path: &std::path::Path, ask: &ReviewAsk, reply: &str) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
@@ -113,7 +109,7 @@ pub fn feed_line_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> FeedLineInfo {
         "off".clone_into(&mut info.state);
         return info;
     };
-    let kept = KEPT.lock().ok().and_then(|kept| kept.get(&turn).cloned());
+    let kept = KEPT.get(&turn);
     let done = kept.unwrap_or_else(|| {
         let live = LiveJob {
             service,
@@ -137,12 +133,7 @@ pub fn feed_line_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> FeedLineInfo {
             );
         }
         let done = shown.map(|shown| (shown, routed.name.clone()));
-        if let Ok(mut kept) = KEPT.lock() {
-            if kept.len() >= KEPT_MAX {
-                kept.clear();
-            }
-            kept.insert(turn, done.clone());
-        }
+        KEPT.keep(turn, done.clone());
         done
     });
     if let Some((shown, model)) = done {
