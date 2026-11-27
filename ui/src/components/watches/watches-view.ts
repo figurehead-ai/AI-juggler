@@ -19,7 +19,7 @@ import { shortName } from "../../lib/session-titles";
 import { conversationItem, needWord, openNow as railOpenNow, sessionState } from "../../lib/rail-items";
 import { conversationTitle } from "../../lib/conversations";
 import { switchSourceOf } from "../../lib/ipc/conversations";
-import { clock, pastDay, pastWhen } from "../../lib/time-words";
+import { clock, hourWords, pastDay, pastWhen } from "../../lib/time-words";
 import { ENDED, KIND, ROW } from "./watches-words";
 
 /** The most targets a watch has (the backend's MAX_TARGETS). */
@@ -367,9 +367,5 @@ export function shownWatches(list: readonly WatchInfo[], opts: { query: string; 
 /** Quiet hours as the user set them; `null` when they have none. */
 export function quietHours(prefs: { quiet_start: number; quiet_end: number } | null): { from: string; to: string } | null {
   if (!prefs || prefs.quiet_start === prefs.quiet_end) return null;
-  const at = (hour: number) => {
-    const d = new Date(2026, 0, 1, hour, 0, 0, 0);
-    return clock(d.getTime());
-  };
-  return { from: at(prefs.quiet_start), to: at(prefs.quiet_end) };
+  return { from: hourWords(prefs.quiet_start), to: hourWords(prefs.quiet_end) };
 }

@@ -31,13 +31,13 @@ import { IconRestart } from "./icons-settings";
 import { IconEye } from "./watches/watch-icons";
 import { THIS_MACHINE } from "../lib/machine-words";
 import { IconSparkle } from "./bot/bot-icons";
+import { clocksWhole, hourWords } from "../lib/time-words";
 
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 /** AJ-E2904: the choices, as the backend accepts them. */
 const WAITS = [0, 2, 5, 10, 15, 30];
 const LEVELS = [50, 70, 80, 90, 95, 99];
 const waitLabel = (minutes: number) => (minutes === 0 ? "Right away" : `${minutes} minutes`);
-const hourLabel = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
 /** Each kind, as the switch says it, what it means, and the end of
  * "You'll get a notification when …". */
@@ -78,7 +78,7 @@ const HEADING = "text-section font-semibold text-ink";
 
 /** The fold's line: the quiet hours and who's in the digest, as set. */
 export function moreWords(prefs: Pick<NotificationPrefsInfo, "quiet_start" | "quiet_end" | "digest_muted_accounts">, accounts: readonly { id: string }[]): string {
-  const quiet = prefs.quiet_start === prefs.quiet_end ? "no quiet hours" : `quiet hours ${hourLabel(prefs.quiet_start)}–${hourLabel(prefs.quiet_end)}`;
+  const quiet = prefs.quiet_start === prefs.quiet_end ? "no quiet hours" : clocksWhole(`quiet hours ${hourWords(prefs.quiet_start)}–${hourWords(prefs.quiet_end)}`);
   if (accounts.length === 0) return quiet;
   const out = accounts.filter((account) => prefs.digest_muted_accounts.includes(account.id)).length;
   const digest = out === 0 ? "all accounts" : out === 1 ? "1 account left out" : `${out} accounts left out`;
@@ -274,7 +274,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
     if (done) setStatus(done);
   });
   const quietOff = prefs !== null && prefs.quiet_start === prefs.quiet_end;
-  const quietWords = (start: number, end: number) => `Quiet from ${hourLabel(start)} to ${hourLabel(end)}: the digest and notifications wait.`;
+  const quietWords = (start: number, end: number) => clocksWhole(`Quiet from ${hourWords(start)} to ${hourWords(end)}: the digest and notifications wait.`);
   return (
     <div className="flex flex-col gap-3" data-testid="settings-notifications">
       <div className="px-1">
@@ -319,7 +319,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                       save({ ...prefs, quiet_start: start }, quietWords(start, prefs.quiet_end));
                     }}
                     testId="quiet-start"
-                    options={HOURS.map((hour) => ({ value: String(hour), label: hourLabel(hour) }))}
+                    options={HOURS.map((hour) => ({ value: String(hour), label: hourWords(hour) }))}
                   />
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -333,7 +333,7 @@ export function NotificationSettingsCard({ accounts }: { accounts: AccountInfo[]
                       save({ ...prefs, quiet_end: end }, quietWords(prefs.quiet_start, end));
                     }}
                     testId="quiet-end"
-                    options={HOURS.map((hour) => ({ value: String(hour), label: hourLabel(hour) }))}
+                    options={HOURS.map((hour) => ({ value: String(hour), label: hourWords(hour) }))}
                   />
                 </div>
                 <span className="w-full text-label text-muted">

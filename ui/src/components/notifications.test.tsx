@@ -10,6 +10,7 @@ import { resetNoticeStandIn, notificationsSummary, standInNeeds, type NoticeInfo
 import { resetNotices, applySummary } from "../lib/notices-store";
 import { backendFailed, resetBackendHealth } from "../lib/backend-health";
 import { digestLine, mutedLine, needLine, quotaDetail, secondOf } from "../lib/notice-words";
+import { clocksWhole, hourWords } from "../lib/time-words";
 
 /**
  * AJ-E2501..E2507 — the notification system's views (the approved design
@@ -156,8 +157,11 @@ describe("the notification centre", () => {
   it("in the quiet hours, says what is muted and what still counts", async () => {
     w().__AIJ_NOTICES__ = { app: [quota], quiet_until: "09:00" };
     render(<NotificationCentre summary={await notificationsSummary()} sessions={[]} onClose={() => {}} />);
-    expect((await screen.findByTestId("notices-muted")).textContent).toBe("Muted until 09:00 — Needs you still tracks 1.");
-    expect(mutedLine("09:00", 2)).toBe("Muted until 09:00 — Needs you still tracks 2.");
+    // 0.5.2 G52: the stored hour ("09:00") by the one quiet-hours rule.
+    expect((await screen.findByTestId("notices-muted")).textContent).toBe(clocksWhole(`Muted until ${hourWords(9)} — Needs you still tracks 1.`));
+    expect(mutedLine("09:00", 2)).toBe(clocksWhole(`Muted until ${hourWords(9)} — Needs you still tracks 2.`));
+    if (new Intl.DateTimeFormat([], { hour: "numeric" }).resolvedOptions().hourCycle?.startsWith("h1")) expect(mutedLine("09:00", 2)).toMatch(/^Muted until 9:00\s?AM /u);
+    expect(mutedLine("soon", 2)).toBe("Muted until soon — Needs you still tracks 2.");
   });
 
   it("its heading counts the rows under it, even when the count it was handed is behind (the 0.2 walk, F4)", async () => {

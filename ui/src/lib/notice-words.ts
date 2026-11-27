@@ -6,7 +6,7 @@
  */
 import type { NoticeInfo } from "../types/generated/NoticeInfo";
 import type { NoticeDigestInfo } from "../types/generated/NoticeDigestInfo";
-import { clock, minutes, resetsWords, whenWords } from "./time-words";
+import { clock, clocksWhole, hourWords, minutes, resetsWords, whenWords } from "./time-words";
 import { waitingWords } from "./waiting";
 import { brokenParts } from "./attention";
 
@@ -153,9 +153,13 @@ export function digestLine(digest: NoticeDigestInfo, now: number): string | null
   return parts.length > 0 ? `Today: ${parts.join(" · ")}` : null;
 }
 
-/** While muted (the quiet hours): what still holds. */
+/** While muted (the quiet hours): what still holds. The end comes as the
+ * stored hour ("07:00") and is written by the one quiet-hours rule
+ * ("7:00 AM" on a 12-hour system; 0.5.2 G52); any other shape as sent. */
 export function mutedLine(until: string, count: number): string {
-  return `Muted until ${until} — Needs you still tracks ${count}.`;
+  const hour = /^(\d{1,2}):00$/u.exec(until);
+  const at = hour ? hourWords(Number(hour[1])) : until;
+  return clocksWhole(`Muted until ${at} — Needs you still tracks ${count}.`);
 }
 
 /** The bell's name for screen readers. */
