@@ -470,6 +470,28 @@ fn time_phrase(question: &str) -> Option<String> {
 /// passes it; none otherwise.
 fn empty_sentence(asked: &Asked<'_>, verified: &super::check::Verified<'_>) -> Option<String> {
     let de = asked.reading.lang == BotLang::De;
+    // 0.5.2 G77 (a fresh lab, Apple's model: "You have no sessions in"):
+    // an empty store's own sentence, whole, for the model to say.
+    let kinds = asked.reading.kinds;
+    let empty_store = match (verified.no_sessions, verified.no_tasks) {
+        (true, true) if !kinds.any() || (kinds.sessions && kinds.tasks) => Some((
+            "You have no sessions or tasks.",
+            "Du hast keine Sitzungen oder Aufgaben.",
+        )),
+        (true, _) if kinds.sessions || !kinds.any() => {
+            Some(("You have no sessions.", "Du hast keine Sitzungen."))
+        }
+        (_, true) if kinds.tasks => Some(("You have no tasks.", "Du hast keine Aufgaben.")),
+        _ => None,
+    };
+    if let Some((en, de_words)) = empty_store
+        && !verified.matched_nothing
+        && verified.window.is_none()
+    {
+        let sentence = if de { de_words } else { en };
+        return super::check::says_only_verified(sentence, asked.question, verified)
+            .then(|| sentence.to_owned());
+    }
     let sentence = if verified.matched_nothing {
         let subject = asked.reading.subject.join(" ");
         if subject.is_empty() {

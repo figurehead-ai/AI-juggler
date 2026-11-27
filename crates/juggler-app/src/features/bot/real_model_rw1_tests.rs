@@ -412,3 +412,36 @@ fn bot_answers_a_post_s_ask_as_the_window_sends_it_on_the_real_model() {
     service.engines().release();
     assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
 }
+
+/// 0.5.2 G77: a fresh lab, no sessions or tasks (0 records): Apple's model
+/// once showed "You have no sessions in", cut off. "what are my sessions"
+/// three times, each in a fresh topic: answered, never a sentence ending
+/// on a word that leads on (G62's rule on the reply citing no record).
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G77"]
+fn bot_says_whole_sentences_on_an_empty_store_on_the_real_model() {
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("data"));
+    beta_on(&state.storage.lock().unwrap());
+    let service = service();
+    let mut fails = Vec::new();
+    for _ in 0..3 {
+        let a = ask_recorded(&state, &service, "what are my sessions", false);
+        let last = a
+            .words
+            .trim_end_matches(['.', ' '])
+            .rsplit(' ')
+            .next()
+            .unwrap_or_default()
+            .to_owned();
+        expect(
+            &mut fails,
+            "what are my sessions",
+            &a,
+            a.outcome == BotOutcome::Answered
+                && !["in", "of", "the", "to", "a", "and", "for"].contains(&last.as_str()),
+        );
+    }
+    service.engines().release();
+    assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}

@@ -1367,6 +1367,11 @@ fn says_not_recorded(sentence: &[String]) -> bool {
 /// first person. "You have no sessions." passes only when there are none.
 #[must_use]
 pub fn says_only_verified(text: &str, question: &str, verified: &Verified<'_>) -> bool {
+    // 0.5.2 G77 (a fresh lab, Apple's model: "You have no sessions in"):
+    // G62's whole-clause rule here too; a cut-off sentence is never shown.
+    if fragment(text).is_some() {
+        return false;
+    }
     let question_words = words(question);
     let question_numbers = numbers_in(question);
     let (quoted, rest) = split_quotes(text);
@@ -1709,6 +1714,30 @@ mod tests {
             ),
             Ok(())
         );
+    }
+
+    /// 0.5.2 G77 (a fresh lab with no records, Apple's model): "You have
+    /// no sessions in" cites nothing and would say only what code read
+    /// (no sessions), but is cut off: refused on that path too.
+    #[test]
+    fn a_cut_off_sentence_citing_nothing_is_refused() {
+        let verified = Verified {
+            matched_nothing: false,
+            window: None,
+            no_sessions: true,
+            no_tasks: true,
+            note: None,
+        };
+        assert!(!says_only_verified(
+            "You have no sessions in",
+            "what are my sessions",
+            &verified
+        ));
+        assert!(says_only_verified(
+            "You have no sessions.",
+            "what are my sessions",
+            &verified
+        ));
     }
 
     /// 0.5.2 G62 (and RW1 on Apple's model, "your session in."): a sentence
