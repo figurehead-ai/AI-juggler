@@ -231,3 +231,34 @@ fn a_message_whose_image_data_was_left_out_keeps_its_words() {
     };
     assert_eq!(message.text(), "look at this");
 }
+
+#[test]
+fn a_call_refused_for_approval_is_blocked_not_failed_by_its_command() {
+    // 0.5.2 G48 (v14 H03): `pytest` asked for approval twice; the tool ran
+    // neither, so the tests were not run, never "failed".
+    let refused = serde_json::json!({
+        "type": "user",
+        "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "is_error": true,
+            "content": "Claude requested permissions to use Bash, but you haven't granted it yet."}]}
+    });
+    let Said::Results { results, .. } = claude(&refused) else {
+        unreachable!("a result")
+    };
+    assert_eq!(
+        (results[0].failed, results[0].kind.as_deref()),
+        (true, Some("blocked"))
+    );
+    // A command that ran and failed keeps its own result.
+    let ran = serde_json::json!({
+        "type": "user",
+        "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "is_error": true,
+            "content": [{"type": "text", "text": "FAILED (failures=1)\nAssertionError: 2 != 3"}]}]}
+    });
+    let Said::Results { results, .. } = claude(&ran) else {
+        unreachable!("a result")
+    };
+    assert_eq!(
+        (results[0].failed, results[0].kind.as_deref()),
+        (true, None)
+    );
+}

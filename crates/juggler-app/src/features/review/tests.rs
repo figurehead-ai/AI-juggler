@@ -57,6 +57,7 @@ fn of(files: &[(&str, Option<(u64, u64)>)], reply: &str, failed: bool) -> TurnRe
         changes: (!files.is_empty()).then_some(&changes),
         reply: Some(reply),
         failed,
+        runs: None,
     })
 }
 

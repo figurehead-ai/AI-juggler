@@ -23,8 +23,8 @@
 use juggler_adapters::turn_changes::TurnChanges;
 
 use super::dto::{ReviewFileInfo, TurnReviewInfo};
-use crate::features::digest::rollup::says_undone;
-use crate::features::feed::pick::{FAILURE, holds_phrase, sentences, undone};
+use super::turn::{Run, Runs, undone_sentence, verification};
+use crate::features::feed::pick::{FAILURE, holds_phrase, sentences};
 
 /// The longest sentence quoted (characters), as the digest's quote.
 pub const QUOTE_MAX: usize = 240;
@@ -50,6 +50,10 @@ pub struct Facts<'a> {
     pub reply: Option<&'a str>,
     /// The turn ended failed (the feed's `failed` or `crashed`).
     pub failed: bool,
+    /// 0.5.2 G48: its calls, as their results say (the tests come from
+    /// the last test run first, the words only when none ran); none when
+    /// the calls weren't read.
+    pub runs: Option<&'a Runs>,
 }
 
 /// Its tests, as the agent's words say.
@@ -247,29 +251,37 @@ fn about_tests(sentence: &str) -> bool {
         .any(|w| TEST_WORDS.contains(&w.as_str()) || w.starts_with("test"))
 }
 
+/// What each sentence about tests says of them, in order.
+fn tests_said(said: &[String]) -> Vec<(Tests, String)> {
+    said.iter()
+        .filter(|s| about_tests(s))
+        .filter_map(|sentence| {
+            let low = sentence.to_lowercase();
+            let found = if says_failed(sentence) {
+                Tests::Failed
+            } else if holds_phrase(&low, NOT_RUN) {
+                Tests::NotRun
+            } else if holds_phrase(&low, PASSED) {
+                Tests::Passed
+            } else {
+                return None;
+            };
+            Some((found, sentence.clone()))
+        })
+        .collect()
+}
+
 /// The tests its sentences say, most serious first, with the sentence.
 fn tests_of(said: &[String]) -> Option<(Tests, String)> {
-    let mut best: Option<(Tests, String)> = None;
     let rank = |t: Tests| match t {
         Tests::Failed => 3,
         Tests::NotRun => 2,
         Tests::Passed => 1,
     };
-    for sentence in said.iter().filter(|s| about_tests(s)) {
-        let low = sentence.to_lowercase();
-        let found = if says_failed(sentence) {
-            Some(Tests::Failed)
-        } else if holds_phrase(&low, NOT_RUN) {
-            Some(Tests::NotRun)
-        } else if holds_phrase(&low, PASSED) {
-            Some(Tests::Passed)
-        } else {
-            None
-        };
-        if let Some(found) = found
-            && best.as_ref().is_none_or(|(t, _)| rank(found) > rank(*t))
-        {
-            best = Some((found, sentence.clone()));
+    let mut best: Option<(Tests, String)> = None;
+    for (found, sentence) in tests_said(said) {
+        if best.as_ref().is_none_or(|(t, _)| rank(found) > rank(*t)) {
+            best = Some((found, sentence));
         }
     }
     best
@@ -347,11 +359,9 @@ pub fn said(reply: &str) -> Vec<String> {
 #[must_use]
 pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
     let said = facts.reply.map(said).unwrap_or_default();
-    // Undo: the digest's facts, sentence by sentence.
-    let undo: Vec<&String> = said
-        .iter()
-        .filter(|s| undone(s) || says_undone(s))
-        .collect();
+    // Undo: the shared reading, sentence by sentence (G48: negation-aware,
+    // never a verify-and-restore).
+    let undo: Vec<&String> = said.iter().filter(|s| undone_sentence(s)).collect();
     // 0.5.2 G26: the post's diff stat's numbers. A turn whose calls don't
     // all count lines shows its files only, here as on its post: a file's
     // own count beside a stat that says none would read as two readings.
@@ -393,13 +403,32 @@ pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
     }
     // An undo that names none of several files: none is said as changed.
     let undone_unclear = !undo.is_empty() && !whole && reverted.is_empty() && !changed.is_empty();
-    let tests = tests_of(&said);
+    // G48: results first. The last test run decides; the words' sentence
+    // is quoted only when it says the same.
+    let words = tests_of(&said);
+    let tests = match facts.runs {
+        Some(runs) if runs.last.is_some() => runs.tests(words.as_ref().map(|(t, _)| *t)).map(|t| {
+            // The first sentence that says what the run says, if any.
+            let sentence = tests_said(&said)
+                .into_iter()
+                .find(|(w, _)| *w == t)
+                .map(|(_, s)| s);
+            (t, sentence)
+        }),
+        _ => words.map(|(t, s)| (t, Some(s))),
+    };
+    let passed_run = facts
+        .runs
+        .is_some_and(|runs| runs.last == Some(Run::Passed));
     // The tests' own sentence is said once, as the tests.
-    let tests_sentence = tests.as_ref().map(|(_, s)| s.as_str());
+    let tests_sentence = tests.as_ref().and_then(|(_, s)| s.as_deref());
     let failures: Vec<String> = said
         .iter()
         .filter(|s| says_failed(s) && !s.trim_end().ends_with('?'))
         .filter(|s| Some(s.as_str()) != tests_sentence)
+        // A passing run outranks a sentence about tests or a check that
+        // undid the fix for a moment: neither is the turn's failure.
+        .filter(|s| !(passed_run && (about_tests(s) || verification(s))))
         .take(FAILURES_MAX)
         .map(|s| quoted(s))
         .collect();
@@ -436,7 +465,7 @@ pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
         failures,
         question,
         tests: tests.as_ref().map(|(t, _)| t.key().to_owned()),
-        tests_words: tests.map(|(_, s)| quoted(&s)),
+        tests_words: tests.and_then(|(_, s)| s).map(|s| quoted(&s)),
         risk: risk.key().to_owned(),
         risk_why,
         ai: None,
@@ -447,7 +476,7 @@ pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
 fn risk_of(
     facts: &Facts<'_>,
     changed: &[ReviewFileInfo],
-    tests: Option<&(Tests, String)>,
+    tests: Option<&(Tests, Option<String>)>,
     failures: &[String],
     question: Option<&String>,
     reverted: &[String],

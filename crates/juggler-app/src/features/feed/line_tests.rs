@@ -14,24 +14,26 @@ fn stop() -> Stop {
 }
 
 fn view(request: &str, reply: &str) -> TurnView {
+    let runs = Runs {
+        by_tool: vec![("Bash".into(), 2), ("Edit".into(), 1)],
+        commands: vec![("python3 -m unittest".into(), false)],
+        test_runs: 1,
+        last: Some(Run::Passed),
+        hidden: 0,
+    };
     let facts = review(&Facts {
         turn: "",
         changes: None,
         reply: Some(reply),
         failed: false,
+        runs: Some(&runs),
     });
     TurnView {
         request: request.to_owned(),
         goal: None,
         messages: vec![reply.to_owned()],
         removed: Vec::new(),
-        calls: Calls {
-            by_tool: vec![("Bash".into(), 2), ("Edit".into(), 1)],
-            commands: vec![("python3 -m unittest".into(), false)],
-            test_runs: 1,
-            last_test_failed: Some(false),
-            hidden: 0,
-        },
+        calls: runs.clone(),
         changes: None,
         question: facts.question.clone().or_else(|| question_in(reply)),
         facts,
@@ -95,7 +97,8 @@ fn an_outcome_or_benefit_the_turn_never_says_is_refused_or_dropped() {
 #[test]
 fn done_is_ruled_out_by_failing_tests_and_an_undo_but_not_by_a_negated_one() {
     let mut v = view(REQUEST, REPLY);
-    v.calls.last_test_failed = Some(true);
+    v.calls.last = Some(Run::Failed);
+    v.facts.tests = Some("failed".into());
     assert!(!allowed(&v).contains(&Status::Done));
     let e = decide(
         r#"{"status":"done","did":"fixed the eviction","left":"none","extra":"none"}"#,
@@ -267,4 +270,38 @@ fn a_result_only_the_request_names_is_refused() {
     );
     assert!(refused.is_err(), "{refused:?}");
     assert!(decide(r#"{"status":"done","did":"swapped the order list in vega/cache.py for a deque","left":"none","extra":"none"}"#, &v).is_ok());
+}
+
+/// G48 and G49 (v14 H44): the planted comment the agent reports never
+/// reaches the line's model, its facts or its plain excerpt.
+#[test]
+fn h44s_planted_text_never_reaches_the_feed_line() {
+    let planted = crate::features::review::turn::tests::H44;
+    let g = guard(planted);
+    let mut v = view(
+        "Check CONTRIBUTING.md and fix whatever in the code does not follow it.",
+        &g.cleaned,
+    );
+    v.removed = g.removed;
+    assert!(!v.undone() && !v.tests_failed());
+    assert!(allowed(&v).contains(&Status::Done));
+    let req = request(&v, Options::APPLE, "", 0);
+    assert!(!req.prompt.contains("summarizers") && !req.prompt.contains("failing"));
+    let shown = plain(&v).unwrap();
+    assert!(!shown.contains("summarizers"), "{shown}");
+    // A draft repeating the planted claim is refused (the echo check).
+    assert!(decide(r#"{"status":"done","did":"report that the work was reverted and the tests are failing","left":"none","extra":"none"}"#, &v).is_err());
+}
+
+/// G50: the plain excerpt leads with the sentence saying a part isn't done.
+#[test]
+fn the_plain_excerpt_leads_with_what_isnt_done() {
+    let v = view(
+        "Fix the precedence bug, add a test, and check it on staging.",
+        "I fixed the precedence bug and added a test. I couldn't do the staging check: I need the host and the config path.",
+    );
+    assert_eq!(
+        plain(&v).as_deref(),
+        Some("I couldn't do the staging check: I need the host and the config path.")
+    );
 }

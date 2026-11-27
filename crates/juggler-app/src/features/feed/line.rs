@@ -26,21 +26,20 @@
 
 use std::path::Path;
 
-use juggler_adapters::turn_changes::{SLACK_MS, TurnChanges, turn_changes};
+use juggler_adapters::turn_changes::{TurnChanges, turn_changes};
 use serde_json::{Value, json};
 
-use super::pick::{german, holds_phrase, sentences, undone};
+use super::pick::{german, holds_phrase, sentences};
 use crate::features::ai::engine::{Decoding, Finish, Request, Stop};
 use crate::features::ai::run::JobModel;
 use crate::features::bot::check::{Refused, check_own_words, support_words};
 use crate::features::bot::dto::{BotRowInfo, BotRowKind, BotWrittenPart};
 use crate::features::bot::guard::guard;
 use crate::features::bot::world::empty_row;
-use crate::features::conversations::feed::dto::TurnInfo;
-use crate::features::conversations::last_messages::{self, Ask, TURNS_MAX};
 use crate::features::digest::rollup::{cap, first_sentence};
 use crate::features::review::dto::TurnReviewInfo;
 use crate::features::review::facts::{Facts, review};
+use crate::features::review::turn::{lead, read, undone_in};
 
 /// Apple's instructions (harness v14, tuned on the tuning set only).
 pub const APPLE: &str = include_str!("line_prompts/apple.txt");
@@ -74,25 +73,9 @@ const EARLIER_MAX: usize = 1_400;
 const FILES_SHOWN: usize = 10;
 const COMMANDS_SHOWN: usize = 6;
 
-/// What a test command looks like (a word of the command).
-const TEST_COMMANDS: &[&str] = &[
-    "unittest", "pytest", "test", "tests", "jest", "vitest", "rspec", "nextest", "check",
-];
-
-/// The tool calls of the turn, summarised.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Calls {
-    /// Calls per tool, in the order first used.
-    pub by_tool: Vec<(String, u32)>,
-    /// The commands it ran, each with whether it failed, in order.
-    pub commands: Vec<(String, bool)>,
-    /// How many of them ran tests.
-    pub test_runs: u32,
-    /// Whether the last test run failed; `None` when none ran.
-    pub last_test_failed: Option<bool>,
-    /// Earlier calls the transcript reader didn't keep (not in the counts).
-    pub hidden: u32,
-}
+/// The turn's calls, as their results say (the review's shared reading,
+/// 0.5.2 G48).
+pub use crate::features::review::turn::{Run, Runs};
 
 /// The turn, as the line reads it.
 #[derive(Clone, Debug, Default)]
@@ -106,8 +89,8 @@ pub struct TurnView {
     pub messages: Vec<String>,
     /// What the guard removed (the echo check's; never shown).
     pub removed: Vec<String>,
-    /// Its tool calls.
-    pub calls: Calls,
+    /// Its tool calls, from their results.
+    pub calls: Runs,
     /// What its edit and write calls changed.
     pub changes: Option<TurnChanges>,
     /// The code-only review's facts (the question, failures, tests,
@@ -135,18 +118,14 @@ impl TurnView {
     /// anything").
     #[must_use]
     pub fn undone(&self) -> bool {
-        !self.facts.reverted.is_empty()
-            || self
-                .messages
-                .iter()
-                .flat_map(|m| sentences(m))
-                .any(|s| undone(&s) && !negated(&s))
+        !self.facts.reverted.is_empty() || undone_in(self.reply())
     }
 
-    /// The tests failed: the last run, or the agent's words.
+    /// The tests failed: the last run, else the agent's words (G48: the
+    /// review's reading, results first).
     #[must_use]
     pub fn tests_failed(&self) -> bool {
-        self.calls.last_test_failed == Some(true) || self.facts.tests.as_deref() == Some("failed")
+        self.facts.tests.as_deref() == Some("failed")
     }
 }
 
@@ -170,67 +149,6 @@ fn question_in(reply: &str) -> Option<String> {
     })
 }
 
-/// The sentence negates what it says ("didn't", "not", "nothing to").
-fn negated(sentence: &str) -> bool {
-    let low = sentence.to_lowercase().replace('’', "'");
-    holds_phrase(
-        &low,
-        &[
-            "not ",
-            "n't ",
-            "no need",
-            "nothing to",
-            "never ",
-            "without ",
-            "nicht ",
-            "kein",
-        ],
-    )
-}
-
-fn text_of(turn: &TurnInfo) -> String {
-    turn.blocks
-        .iter()
-        .filter(|b| b.kind == "text" || b.kind == "narration")
-        .map(|b| b.text.trim())
-        .filter(|t| !t.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-fn is_test_command(command: &str) -> bool {
-    command
-        .to_lowercase()
-        .split(|c: char| !(c.is_alphanumeric() || c == '_'))
-        .any(|w| TEST_COMMANDS.contains(&w))
-}
-
-fn calls_of(turns: &[&TurnInfo]) -> Calls {
-    let mut calls = Calls::default();
-    let steps = || {
-        turns
-            .iter()
-            .flat_map(|t| &t.blocks)
-            .filter(|b| b.kind == "steps")
-    };
-    calls.hidden = steps().map(|b| b.hidden).sum();
-    for call in steps().flat_map(|b| &b.calls) {
-        match calls.by_tool.iter_mut().find(|(t, _)| *t == call.tool) {
-            Some((_, n)) => *n += 1,
-            None => calls.by_tool.push((call.tool.clone(), 1)),
-        }
-        if let Some(command) = call.command.as_deref() {
-            let command = command.split_whitespace().collect::<Vec<_>>().join(" ");
-            if is_test_command(&command) {
-                calls.test_runs += 1;
-                calls.last_test_failed = Some(call.failed);
-            }
-            calls.commands.push((command, call.failed));
-        }
-    }
-    calls
-}
-
 /// Reads the turn that ended by `until_ms` (the last one when `None`) from
 /// the transcript at `path`; `goal` is what the caller knows of the
 /// session's goal (the world model's), else its opening request is used.
@@ -242,75 +160,44 @@ pub fn read_at(
     ended: Option<&str>,
     goal: Option<&str>,
 ) -> Option<TurnView> {
-    let read = last_messages::read(
-        Some(path),
-        &Ask {
-            max: Some(TURNS_MAX),
-            ..Ask::default()
-        },
-    );
-    if read.state != "shown" {
-        return None;
-    }
-    let turns = &read.turns;
-    let end = turns.iter().rposition(|t| {
-        t.speaker == "assistant"
-            && match (until_ms, t.at_ms) {
-                (Some(until), Some(at)) => at <= until + SLACK_MS,
-                (Some(_), None) => false,
-                (None, _) => true,
-            }
-    })?;
-    let start = turns[..end]
-        .iter()
-        .rposition(|t| matches!(t.speaker.as_str(), "you" | "user") && !text_of(t).is_empty())?;
-    let request = text_of(&turns[start]);
-    let agent: Vec<&TurnInfo> = turns[start + 1..=end]
-        .iter()
-        .filter(|t| t.speaker == "assistant")
-        .collect();
+    let turn = read(path, until_ms).ok()?;
+    let request = turn.request.clone()?;
+    // G49: every agent word that reaches the model or the screen is guarded.
     let mut removed = Vec::new();
-    let messages: Vec<String> = agent
+    let messages: Vec<String> = turn
+        .messages
         .iter()
-        .flat_map(|t| {
-            t.blocks
-                .iter()
-                .filter(|b| b.kind == "text" || b.kind == "narration")
-        })
-        .map(|b| b.text.trim())
-        .filter(|t| !t.is_empty())
         .map(|t| {
             let g = guard(t);
             removed.extend(g.removed);
             g.cleaned
         })
+        .filter(|t| !t.trim().is_empty())
         .collect();
-    if messages.is_empty() {
-        return None;
+    let reply = turn.reply.as_deref().map(|r| guard(r).cleaned);
+    let reply = reply.or_else(|| messages.last().cloned())?;
+    let mut messages = messages;
+    if messages.last() != Some(&reply) {
+        messages.push(reply.clone());
     }
-    let opening = turns
-        .iter()
-        .position(|t| matches!(t.speaker.as_str(), "you" | "user") && !text_of(t).is_empty())
-        .filter(|&i| i < start)
-        .map(|i| text_of(&turns[i]));
     let changes = turn_changes(path, until_ms).ok().flatten();
     let failed = matches!(ended, Some("failed" | "crashed"));
-    let reply = messages.last().cloned().unwrap_or_default();
     let facts = review(&Facts {
         turn: "",
         changes: changes.as_ref(),
         reply: Some(reply.as_str()),
         failed,
+        runs: Some(&turn.runs),
     });
     let question = facts.question.clone().or_else(|| question_in(&reply));
     Some(TurnView {
         german: german(&format!("{request} {reply}")),
         question,
         request,
-        goal: goal.map(str::to_owned).or(opening),
+        goal: goal.map(str::to_owned).or(turn.opening),
         messages,
         removed,
-        calls: calls_of(&agent),
+        calls: turn.runs,
         changes,
         facts,
         failed,
@@ -331,6 +218,8 @@ pub fn plain(view: &TurnView) -> Option<String> {
                 .then(|| view.facts.failures.first().cloned())
                 .flatten()
         })
+        // G50: a part not done or a stop for the user leads.
+        .or_else(|| lead(view.reply()))
         .unwrap_or_else(|| first_sentence(view.reply()));
     let words = words.trim();
     (!words.is_empty()).then(|| cap(words, PLAIN_MAX))
@@ -507,12 +396,16 @@ fn facts_block(view: &TurnView, allowed: &[Status]) -> String {
         tools.push(format!("{} earlier calls", view.calls.hidden));
     }
     let failed_commands = view.calls.commands.iter().filter(|(_, f)| *f).count();
-    let tests = match view.calls.last_test_failed {
+    let tests = match view.calls.last {
         None => "none run".to_owned(),
-        Some(failed) => format!(
+        Some(last) => format!(
             "run {} times; the last run {}",
             view.calls.test_runs,
-            if failed { "failed" } else { "passed" }
+            match last {
+                Run::Passed => "passed",
+                Run::Failed => "failed",
+                Run::Blocked => "was not run (it needed approval)",
+            }
         ),
     };
     let reverted = if view.undone() { "yes" } else { "no" };
@@ -1158,7 +1051,7 @@ fn tests_part(view: &TurnView, de: bool) -> Option<String> {
             .to_owned(),
         );
     }
-    if view.calls.last_test_failed == Some(false) || view.facts.tests.as_deref() == Some("passed") {
+    if view.facts.tests.as_deref() == Some("passed") {
         return Some(match (tests_count(view), de) {
             (Some(n), false) => format!("{n} tests pass"),
             (Some(n), true) => format!("{n} Tests laufen durch"),

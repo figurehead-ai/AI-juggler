@@ -72,7 +72,7 @@ fn view_json(v: &TurnView) -> Value {
             "by_tool": v.calls.by_tool,
             "commands": v.calls.commands,
             "test_runs": v.calls.test_runs,
-            "last_test_failed": v.calls.last_test_failed,
+            "last": v.calls.last.map(|l| format!("{l:?}")),
             "hidden": v.calls.hidden,
         },
         "question": v.question,

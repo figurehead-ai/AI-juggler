@@ -17,13 +17,13 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use juggler_adapter::Observes;
-use juggler_adapters::turn_changes::{SLACK_MS, TurnChanges, turn_changes};
+use juggler_adapters::turn_changes::{TurnChanges, turn_changes};
 use juggler_core::model::{HarnessId, SessionId};
 
 use super::dto::{ReviewAsk, TurnReviewInfo};
 use super::facts::{Facts, review};
 use crate::features::bot::guard::guard;
-use crate::features::conversations::last_messages::{self, Ask};
+use crate::features::conversations::last_messages;
 use crate::state::AppState;
 
 /// A turn read for its review: the code-only review, and what the
@@ -115,47 +115,6 @@ fn key_of(path: &Path, changes: Option<&TurnChanges>, until: Option<i64>) -> Str
     format!("{hash:016x}:t{}", until.unwrap_or(0))
 }
 
-/// The agent's reply in the turn that ended by `until` (the last one when
-/// none): its tool's marked final answer, else its last words when the
-/// turn ends on them; redacted by the page's reader.
-fn reply_of(path: &Path, until: Option<i64>) -> Result<Option<String>, &'static str> {
-    let read = last_messages::read(
-        Some(path),
-        &Ask {
-            max: Some(8),
-            ..Ask::default()
-        },
-    );
-    match read.state.as_str() {
-        "shown" => {}
-        "compressed" | "none" => return Err("none"),
-        _ => return Err("unreadable"),
-    }
-    let turn = read
-        .turns
-        .iter()
-        .rev()
-        .filter(|turn| turn.speaker == "assistant")
-        .find(|turn| match (until, turn.at_ms) {
-            (Some(until), Some(at)) => at <= until + SLACK_MS,
-            (Some(_), None) => false,
-            (None, _) => true,
-        });
-    let Some(turn) = turn else {
-        return Ok(None);
-    };
-    let marked = turn
-        .blocks
-        .iter()
-        .rev()
-        .find(|block| block.kind == "text" && block.final_answer);
-    let last = turn.blocks.last().filter(|block| block.kind == "text");
-    Ok(marked
-        .or(last)
-        .map(|block| block.text.trim().to_owned())
-        .filter(|text| !text.is_empty()))
-}
-
 /// Reads the turn `ask` names and builds its code-only review.
 #[must_use]
 pub fn read(state: &Arc<AppState>, ask: &ReviewAsk) -> Read {
@@ -177,19 +136,22 @@ pub fn read_at(path: &Path, ask: &ReviewAsk) -> Read {
     let Ok(changes) = turn_changes(path, ask.until_ms) else {
         return Read::without("unreadable");
     };
-    let reply = match reply_of(path, ask.until_ms) {
-        Ok(reply) => reply,
+    // G48: the shared reading (results first); G49: the reply guarded
+    // before any fact is read from it.
+    let turn = match super::turn::read(path, ask.until_ms) {
+        Ok(turn) => turn,
         Err(why) => return Read::without(why),
     };
-    let guarded = guard(reply.as_deref().unwrap_or(""));
+    let guarded = guard(turn.reply.as_deref().unwrap_or(""));
     let failed = matches!(ask.ended.as_deref(), Some("failed" | "crashed"));
-    let turn = key_of(path, changes.as_ref(), ask.until_ms);
+    let key = key_of(path, changes.as_ref(), ask.until_ms);
     let reply = guarded.cleaned;
     let review = review(&Facts {
-        turn: &turn,
+        turn: &key,
         changes: changes.as_ref(),
         reply: Some(reply.as_str()).filter(|r| !r.is_empty()),
         failed,
+        runs: Some(&turn.runs),
     });
     Read {
         review,

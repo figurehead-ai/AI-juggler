@@ -101,8 +101,46 @@ pub(crate) struct Call {
 pub(crate) struct CallResult {
     pub call_id: String,
     pub failed: bool,
-    /// What it did to a file (`create`, `update`), when it says.
+    /// What it did to a file (`create`, `update`), when it says; `blocked`
+    /// for a call the tool refused to run pending the user's approval
+    /// ([`refused_for_approval`], 0.5.2 G48).
     pub kind: Option<String>,
+}
+
+/// What Claude Code answers in place of a call's output when it didn't run
+/// the call: a permission not granted, a sandbox refusal, the user's no.
+const NOT_RUN: &[&str] = &[
+    "requested permissions",
+    "haven't granted",
+    "have not granted",
+    "requires approval",
+    "needs approval",
+    "permission to use",
+    "permission denied by",
+    "has been denied",
+    "was denied",
+    "tool use was rejected",
+    "doesn't want to proceed",
+    "was blocked by",
+    "blocked by the sandbox",
+    "not allowed to run",
+];
+
+/// G48: the result says the tool didn't run the call (approval, sandbox
+/// or the user's refusal), not that the call ran and failed.
+fn refused_for_approval(item: &Value) -> bool {
+    let text = match item.get("content") {
+        Some(Value::String(text)) => text.to_lowercase(),
+        Some(Value::Array(parts)) => parts
+            .iter()
+            .filter_map(|p| p.get("text").and_then(Value::as_str))
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase(),
+        _ => return false,
+    };
+    let head: String = text.chars().take(400).collect();
+    NOT_RUN.iter().any(|p| head.contains(p))
 }
 
 /// A Claude Code line.
@@ -164,12 +202,18 @@ pub(crate) fn claude(value: &Value) -> Said {
                     }
                     Some("tool_result") => {
                         if let Some(call_id) = string(item, "tool_use_id") {
+                            let failed =
+                                item.get("is_error").and_then(Value::as_bool) == Some(true);
                             results.push(CallResult {
                                 call_id,
-                                failed: item.get("is_error").and_then(Value::as_bool) == Some(true),
-                                kind: value
-                                    .get("toolUseResult")
-                                    .and_then(|result| string(result, "type")),
+                                failed,
+                                kind: if failed && refused_for_approval(item) {
+                                    Some("blocked".to_owned())
+                                } else {
+                                    value
+                                        .get("toolUseResult")
+                                        .and_then(|result| string(result, "type"))
+                                },
                             });
                         }
                     }

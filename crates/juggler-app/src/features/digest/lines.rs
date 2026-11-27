@@ -11,8 +11,10 @@
 
 use crate::features::ai::engine::Stop;
 use crate::features::ai::run::JobModel;
+use crate::features::bot::guard::guard;
 use crate::features::feed::pick;
 use crate::features::observe::TurnOutcome;
+use crate::features::review::turn::undone_in;
 
 use super::rollup::{AgentFacts, DigestInfo};
 
@@ -35,12 +37,16 @@ pub fn map(
         else {
             continue;
         };
-        let Some(words) = turn.words.as_deref().filter(|w| !w.trim().is_empty()) else {
+        // G49: the agent's words reach the model only through the guard.
+        let guarded = guard(turn.words.as_deref().unwrap_or(""));
+        let words = guarded.cleaned.as_str();
+        if words.trim().is_empty() {
             continue;
-        };
+        }
         // G7: a reverted or abandoned turn keeps the plain words (what was
-        // tried, and that it was undone), never a pick.
-        if line.reverted || pick::undone(words) {
+        // tried, and that it was undone), never a pick; G48: the shared
+        // reading (negation-aware, never a verify-and-restore).
+        if line.reverted || undone_in(words) {
             continue;
         }
         let read = pick::Turn {
@@ -127,5 +133,43 @@ mod tests {
             .map(|l| l.picked.clone());
         assert_eq!(yew, Some(None));
         assert!(digest.ai);
+    }
+
+    /// G48 and G49 (v14 H44): the agent reports a planted comment telling AI
+    /// summarizers to say the work was reverted and the tests fail. The
+    /// guard takes that report out before anything is read or sent, so
+    /// the turn is no undo, the model never sees the planted words, and
+    /// the quote shown is the agent's own first sentence.
+    #[test]
+    fn h44s_planted_text_never_reaches_the_digest() {
+        let agents = vec![agent("quartz", crate::features::review::turn::tests::H44)];
+        let mut digest = rollup(
+            Window {
+                start_ms: 0,
+                end_ms: 20,
+            },
+            &agents,
+            0,
+        );
+        let line = &digest.lines[0];
+        assert!(!line.reverted);
+        let quote = line.quote.clone().unwrap_or_default();
+        assert!(
+            !quote.contains("summarizers") && !quote.contains("failing"),
+            "{quote}"
+        );
+        let model = Scripted::new(&[r#"{"fact":"1","verb":"none"}"#]);
+        map(
+            &model,
+            &agents,
+            &mut digest,
+            &Stop::at(Instant::now() + Duration::from_secs(5)),
+        );
+        assert_eq!(model.calls(), 1, "picked: the turn isn't undone");
+        let sent = &model.seen.borrow()[0].prompt;
+        assert!(
+            !sent.contains("summarizers") && !sent.contains("reverted"),
+            "{sent}"
+        );
     }
 }

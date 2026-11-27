@@ -166,7 +166,9 @@ impl CallInput {
 pub struct StepResult {
     /// It failed.
     pub failed: bool,
-    /// What it did to a file (`create`, `update`), when it says.
+    /// What it did to a file (`create`, `update`), when it says;
+    /// `blocked` when the tool didn't run it (pending approval, a sandbox
+    /// refusal, the user's no: 0.5.2 G48).
     pub kind: Option<String>,
 }
 
