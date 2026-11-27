@@ -1,4 +1,4 @@
-<!-- captures: 2d73edee0ea5 -->
+<!-- captures: 59eb03506099 -->
 # 99-ai-models: Settings › AI › Models
 
 Design critique (D-57) of Settings › AI › Models in every state of `ui/tests/visual/models-gallery.spec.ts` (`ui/src/preview/ai-models.ts` `STATES`), against the approved mock-up (`~/Dev/AIJuggler-design-refs/models-screen/`, AJ-E3812), the D-126 rich mode, PAT-SURF, PAT-COLOR and the critique checklist (VALIDATION §5). New family (AJ-E3826): the gallery's captures were written only to a scratch folder before.
@@ -54,3 +54,22 @@ Captured from the worktree at HEAD (b74eab212, nothing uncommitted under `ui/`) 
 - `installed`: the Digest picker's open menu covers the Watches row's switch in this frame (a floating menu over the row below; closing it shows the row whole).
 - The Turn reviews row's coverage line wraps to two lines at 1280 beside the switch and picker; it is the one three-line row in the list.
 - Carried over: the failed line names the model twice; Other tested models' notes come from the signed remote list and can trail builtin.json until it is republished.
+
+## 0.5.2 G72 (2026-11-27, Opus, both themes)
+
+Captured from a clean checkout of c55c152da with `AIJ_MODELS_OUT`, 13 states × both themes × 1280 and 900; each 1280 frame compared byte by byte with the one before: `inuse`, `failed`, `installed` and `offline` changed (both themes, the states where the Watches row is on), the other nine are byte-equal and left as they were. Every changed frame opened.
+
+**What changed.** The Watches row's second line says the Beta's state. It read "Beta: when Bot understands every part of a request, it asks you to confirm in its own card instead" whether the switch was on or off (RW1 F-S-8). Off, as in every frame here, it now reads "Beta off: Bot opens the Watches form for you to check. Turn it on and, when Bot understands every part of a request, it asks you to confirm in its own card instead". On (vitest; no gallery state has it on), the row reads "On · Beta with Bot’s own card", the other Beta rows' way ("On · Beta with …"), with "Beta on: … instead of the form".
+
+**Judged.** The row is now readable without pressing the switch, in the words the other rows use; the line is the faint third-step grey, as Turn reviews' coverage line.
+
+**Weak.** The line now wraps to three lines at 1280 beside the switch (the longest in the list); in `installed` the open Digest menu covers its end, as it covered the switch before.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 12 | Words | 4 | "Beta off: …", "Beta on: …", "On · Beta with Bot’s own card" (plain-words lint). |
+| 13 | States | 4 | The row says on and off apart; the switch agrees with the words. |
+| 14 | Consistency | 4 | "On · Beta with …" as Bot's AI and Digest say it. |
+| 19 | Rich-mode colour | 4 | Unchanged: icon chip, the Beta pill in the accent's soft step, the switch the only accent fill. |
+
+The other lines are as the sections above scored them.

@@ -1,4 +1,4 @@
-<!-- captures: 2bfdff31d475 -->
+<!-- captures: 3e2ac0f4a984 -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -164,3 +164,12 @@ Captured from a clean checkout of 7f39c9b81 (`home-feed-gallery.spec.ts`, the g6
 | 16 | Hand walk | 3 | Preview only; the re-walk on the fixed build follows. |
 
 The other lines are as the AJ-E2027 section scored them (lowest 3: line 16).
+
+## 0.5.2 G70 (2026-11-27, Opus, both themes)
+
+`g63-new-pill-scrolled-1280-*` re-taken from a clean checkout of c55c152da: dark byte-equal, light changed (it scrolled to another post: the feed's order at the scroll moment), both opened. The band's canvas colour now reaches 12 px above its top edge (clipped by the column), for RW1 S15's sliver of the covered post above the edge on the app. The sliver didn't show in Chromium or WebKit at 1280 in the preview, so these frames look as before: the pill on the band, the post under it, nothing beside the pill.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 6 | Areas and spacing | 4 | No text above or beside the band. |
+| 16 | Hand walk | 3 | The app's re-walk confirms the sliver gone. |

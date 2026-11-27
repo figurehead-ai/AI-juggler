@@ -1,4 +1,4 @@
-<!-- captures: c30fba0cc2e9 -->
+<!-- captures: dbdfe097dc5b -->
 # 99-watch-prefill: the Watches form as Bot pre-filled it, Bot's confirm card, the Watches row
 
 Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured on the host from the working tree at the UI commit (`watch-prefill-gallery.spec.ts`: Bot docked at 1280, its turn opening the form; the card; Settings › AI › Models' jobs card), both themes; every capture opened. Mock-ups: the Watches form's approved mock and the d126 kit (`~/Dev/AIJuggler-design-refs/`), Bot's confirm card as the row's Watch… card (`bot` gallery's `watch`).
@@ -91,3 +91,12 @@ Re-captured from a clean export of 195dc384e with `AIJ_PREFILL_OUT`, both themes
 | 19 | Rich-mode colour | 4 | Unchanged: the form's icons, the accent's soft step on the chosen card, Bot chip and Nearest; Beta's soft pill in the head; no bright border, AA in both themes (axe). |
 
 The other lines are as the sections above scored them (lowest 3: line 16).
+
+## 0.5.2 G72 (2026-11-27, Opus, both themes)
+
+`models-row-1280-*` re-taken from a clean checkout of c55c152da (`AIJ_PREFILL_OUT`); the other frames came out byte-equal. Both opened. The Watches row's second line now says its Beta is off ("Beta off: Bot opens the Watches form for you to check. Turn it on and, when Bot understands every part of a request, it asks you to confirm in its own card instead"); before, the same words showed on and off (RW1 F-S-8). Judged: the state reads without pressing; three lines beside the switch, the longest row.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 12 | Words | 4 | The Beta's state said, as the other Beta rows say theirs. |
+| 19 | Rich-mode colour | 4 | Unchanged: icon chip, Beta pill, the switch. |
