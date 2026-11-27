@@ -1,4 +1,4 @@
-<!-- captures: bd366787b7ea -->
+<!-- captures: a5cf54adc848 -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -117,3 +117,30 @@ Re-captured on the host from a clean export of HEAD (`home-feed-gallery.spec.ts`
 | 19 | Rich-mode colour | n/a (calm) | A monitoring feed; its menu is the shared RowMenu. |
 
 The other lines are as the G8 section scored them (lowest 3: line 16, no hand walk in Dev).
+
+## 0.5.2 G21, G22, G24 (2026-11-26, Opus): the RW1 walk's feed findings
+
+Re-captured on the host (`home-feed-gallery.spec.ts`), every state, both themes, two workers: the 48 captures from before are byte for byte the same (the diff stat's box moved its tab stop and ring onto the attachment's own box, same classes, same pixels; the folded line now sits in an article of its own, same look). Six new captures from one test on the `releaseWalkFeed` fixture, each opened at full size: `g21-digest-beside-posts-1280-*`, `g22-diff-stat-names-*`, `g24-less-folded-1280-*`.
+
+**What changed.**
+- G21: the digest item sits above the finished post it tells, and the post stays a post with its diff stat and its gesture bar (before, the digest took it in, its stat and review unreachable). The digest's lines name each session as the rail names it and say its state now: "Add retries to the sync job · ended" (the fixture's session has no ending how, so the rail's own word "Ended"), "Fix the flaky login test · working"; a session the rail no longer lists keeps the digest's own words ("docs · finished"). Before: "api (1) · working" for a finished session.
+- G22: focused by keyboard, the diff stat's box takes the focus ring and the app's tip opens under it with the files one a line in mono ("src/sync/retry.ts", "src/sync/client.ts", "tests/sync/retry.test.ts"); the pointer opens the same tip. It was a native `title` the web view shows only after a still hover and never on focus.
+- G24: the delete thread leaned less, its why closed: it folds into "1 post shown less · Show" at the section's end; the patch thread of the same App in another project is untouched (before, the lean took both: Codex recorded `/private/tmp/…` folders the projects kept as `/tmp/…`, so neither post had a project).
+
+**Judged.** Dark and light. The digest's names are now the bold, longest words in its lines; three lines still read at a glance, and the state word stays muted after the dot. The tip is the app's one tip (portalled, wrapped, inside the window), clear of the bar below it. The focus ring on the stat's box is the accent ring every focused box has; on light it reads strong next to the calm box, as focus should (PAT-SURF allows it for focus).
+
+**Weak.** The fold line "1 post shown less · Show" is faint and small at the section's end; it is the existing line, unchanged. In g21 the digest says "ended" where the post says "finished": the rail's word for a session whose ending isn't known; a real session that finished on its own says "Finished" in both.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Hierarchy | 4 | The digest a summary line, the posts the detail; nothing hidden by the summary. |
+| 5 | Mock-up | 4 | The story mock's attachment and gestures; its tip as the mock's hover. |
+| 7 | Colour | 4 | Nothing new coloured; the focus ring the accent's. |
+| 12 | Words | 4 | Sessions by their names, states in the rail's words; "1 post shown less · Show". |
+| 13 | States | 4 | Digest with live and unlisted sessions; tip by pointer and keyboard; folded after a lean. |
+| 15 | Accessibility | 4 | The stat a tab stop described by its tip while shown; the fold line in an article of the feed (axe clean); axe clean on both captures with axe. |
+| 16 | Hand walk | 3 | The re-walk on the fixed build follows (RW1). |
+| 18 | Usability | 4 | Answer 2 now holds: a finished turn's stat and review stay reachable after a digest. |
+| 19 | Rich-mode colour | 4 | A calm monitoring feed, scored as asked: the App tiles and the stat's green and red carry the colour, the digest's lines stay ink and muted, nothing monochrome or loud. |
+
+The other lines are as the AJ-E2027 section scored them (lowest 3: line 16).

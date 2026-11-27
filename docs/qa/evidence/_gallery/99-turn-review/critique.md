@@ -1,4 +1,4 @@
-<!-- captures: 10db4881759e -->
+<!-- captures: 851d2a311801 -->
 # 99-turn-review: the turn review on a finished turn's feed post and under the session page's last turn
 
 Design critique (D-57, AJ-E2814), AJ-E3820, Opus, 2026-11-26. Captured on the host (`turn-review-gallery.spec.ts`: three finished turns on Home, the first with the Beta's lines opened, a failed one opened, a clean one folded; a command-line session's page with its last turn's review opened, code-only), both themes at 1280; every capture opened. Mock-up: `~/Dev/AIJuggler-design-refs/turn-review/mock-turn-review-{dark,light}.png` (made first, the story-feed mock's style).
@@ -66,3 +66,31 @@ The Turn reviews row now reads as the other Betas do (Bot's AI, Digest): its ico
 | 19 | Rich-mode colour | 4 | Its chip leads the row and lights when on; the Beta tag and picker in the kit's colours. |
 
 Lowest: 3 (line 16).
+
+## 0.5.2 G25, G26, G28 (2026-11-26, Opus): the RW1 walk's review findings
+
+Re-captured on the host (`turn-review-gallery.spec.ts`), both themes, every capture opened at full size. Changed: `feed-1280-*` and `session-1280-*` (the streamed turn's fold reads "3 files", the post's stat "3 files +58 −34": its reverted quoting.py is one of the turn's files, counted once for both). New: `writing-*`, `revert-delete-*`, `ended-terminal-*`.
+
+**What changed.**
+- G25 (`revert-delete-*`, first post): the post's "2 files +3 −3" and its review's "Turn review · 2 files · Medium risk" are one count; Changed lists src/format.ts (+1 −1), Reverted src/locale.ts with the agent's sentence, Tests "Not run", the risk "tests not run · part undone". On the walk the review said "no files", listed format.ts as reverted (its stem was in "their own format") and gave only "part undone".
+- G26 (`revert-delete-*`, the Codex delete thread): the post says "2 files" and the names, no line counts; the review lists both files with none either (it showed routes.py +1 −1).
+- G28 (`writing-*`): opened while the model writes, the facts are there at once and a quiet foot line under them reads "AI · Apple’s on-device model is writing lines on this turn…", a small accent dot pulsing (still under reduced motion). It goes when the lines come (they take its place: "Lines by …", Beta) or, when every draft is refused, without a word. The model's work ends inside 6 s (one draft about 2 s on Apple's model; the RW1 failed turn 5.0 s, was 7.9 s).
+- G28 (`ended-terminal-*`): an ended Claude Code session whose terminal was kept now shows its last turn's review on a card under "ran 6h · scrollback replayed", as its post does (the walk found none on such a page). The preview draws the terminal as its loading blocks (no replay in the preview).
+
+**Judged.** Dark and light. The cue is fainter than every fact and sits where the lines will be, so nothing moves when they arrive; the AI tag keeps the accent's soft step. The ended page's card is the terminal's own card style, the review's anatomy the feed's (the quotes, since the terminal isn't the conversation's reply). Both risk words read on the card in light (axe clean; on the page canvas the amber failed contrast, hence the card).
+
+**Weak.** The writing line is one more line under a long review; it is short and goes. On the ended page the card's top sits close under the "ran 6h" line (8 px), as the page's gap.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Hierarchy | 4 | Facts first, the cue last and faintest; the ended page: terminal, its line, then the review. |
+| 3 | Spacing | 4 | The cue on the foot's hairline as the AI foot; the card's 16 px inset. |
+| 7 | Colour | 4 | Risk and tests keep their hues; the cue's dot the accent; nothing new loud. |
+| 12 | Words | 4 | "2 files" in both places; "… is writing lines on this turn…"; no internal words. |
+| 13 | States | 4 | Writing, written, refused (vitest), revert, files only, ended page with and without kept output (vitest). |
+| 15 | Accessibility | 4 | The cue an `output` (announced politely); axe clean on every capture. |
+| 16 | Hand walk | 3 | The RW1 re-walk on the fixed build follows. |
+| 18 | Usability | 4 | Answers 1 and 3 now hold: the review where the turn's end is shown, one count, never waiting on the model. |
+| 19 | Rich-mode colour | 4 | A calm surface, scored as asked: status keeps its hue (risk, tests, added and removed), the AI tag and cue the accent's soft step; nothing monochrome, nothing loud. |
+
+The other lines are as the first section scored them (lowest 3: line 16).
