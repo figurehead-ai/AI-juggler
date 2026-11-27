@@ -142,6 +142,21 @@ fn names_for<'t>(
     } else {
         std::collections::BTreeMap::new()
     };
+    // 0.5.2 G45: a session AI Juggler didn't start, named as its rail row
+    // names it (the one rule), read before the storage lock.
+    let now_ms = crate::commands::now_millis();
+    for (key, row) in crate::features::sessions::seen::outside_of(
+        state,
+        targets.iter().filter_map(|t| match t {
+            WatchTarget::Session(id) => Some(id.as_str()),
+            _ => None,
+        }),
+    ) {
+        book.0.insert(
+            WatchTarget::Session(key),
+            crate::features::notifications::needs::conversation_name(&row, now_ms),
+        );
+    }
     let Ok(storage) = state.storage.lock() else {
         return book;
     };
@@ -474,8 +489,15 @@ pub fn watches_catalogue_impl(
     lang: Lang,
 ) -> AppResult<Vec<CatalogueEntry>> {
     let registry = Registry::shipped();
+    // 0.5.2 G45: a group's open sessions count those AI Juggler didn't
+    // start (read before the store's lock).
+    let outside = if matches!(target, WatchTarget::Session(_)) {
+        Vec::new()
+    } else {
+        crate::features::sessions::seen::outside_open(state)
+    };
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    let facts = Facts::new(&storage, state);
+    let facts = Facts::new(&storage, state).with_outside(outside);
     let observed = facts.observes(target);
     let mut offered = catalogue::catalogue(&registry, target.kind(), observed, lang);
     // 0.5.2 G32 (D-127): "Is idle for" on an App, a project or any session
@@ -578,8 +600,12 @@ fn write(
         .iter()
         .any(|target| !matches!(target, WatchTarget::Session(_)))
     {
+        // 0.5.2 G45: with the open sessions AI Juggler didn't start.
+        let outside = crate::features::sessions::seen::outside_open(state);
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-        Facts::new(&storage, state).open_subjects()
+        Facts::new(&storage, state)
+            .with_outside(outside)
+            .open_subjects()
     } else {
         Vec::new()
     };

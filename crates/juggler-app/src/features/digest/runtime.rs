@@ -115,6 +115,11 @@ pub fn heard(state: &Arc<AppState>, observations: &[Observation]) {
             let Some(session) = obs.subject.session.as_deref() else {
                 continue;
             };
+            // 0.5.2 G45: a session AI Juggler didn't start is the feed's
+            // own conversation item (D-118 R1), never a digest's line.
+            if crate::features::sessions::seen::parse_source_key(session).is_some() {
+                continue;
+            }
             inner
                 .scheduler
                 .heard(session, notable(&obs.event), obs.at_ms);

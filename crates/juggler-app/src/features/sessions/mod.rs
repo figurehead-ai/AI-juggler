@@ -14,6 +14,7 @@ pub mod names;
 pub mod read_model;
 pub mod restart;
 pub mod rows;
+pub mod seen;
 pub mod spawn;
 
 use std::sync::Arc;

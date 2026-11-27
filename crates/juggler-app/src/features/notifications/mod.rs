@@ -835,6 +835,42 @@ pub(super) struct About {
 /// "in <folder>" (unless its name, by its facts, holds the folder
 /// already), and on which account.
 pub(super) fn describe(state: &Arc<AppState>, session_id: &str) -> About {
+    // 0.5.2 G45: a session AI Juggler didn't start, by its key, named as
+    // its rail row names it.
+    if crate::features::sessions::seen::parse_source_key(session_id).is_some() {
+        let row = crate::features::sessions::seen::outside_of(state, [session_id])
+            .into_values()
+            .next();
+        return row.map_or_else(
+            || About {
+                name: "A session".to_owned(),
+                place: None,
+                account: None,
+                project_id: None,
+            },
+            |row| {
+                let folder = row
+                    .cwd
+                    .as_deref()
+                    .and_then(|cwd| std::path::Path::new(cwd).file_name())
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .filter(|name| !name.is_empty());
+                let by_facts = juggler_core::naming::named_by_facts(
+                    None,
+                    row.title.as_deref(),
+                    row.git_branch.as_deref(),
+                );
+                About {
+                    name: needs::conversation_name(&row, crate::commands::now_millis()),
+                    place: folder
+                        .filter(|_| !by_facts)
+                        .map(|folder| format!("in {folder}")),
+                    account: Some(row.account_label).filter(|label| !label.is_empty()),
+                    project_id: row.project_id,
+                }
+            },
+        );
+    }
     let info = crate::features::conversations::titled_snapshot(state)
         .into_iter()
         .find(|row| row.id == session_id);

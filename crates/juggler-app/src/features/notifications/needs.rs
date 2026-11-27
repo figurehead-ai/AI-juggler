@@ -158,7 +158,7 @@ pub(crate) fn name_of(named: &Named<'_>, now_ms: i64) -> String {
 }
 
 /// Another app's session's name as its rail row says it (the same rule).
-fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
+pub(crate) fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
     let folder = folder(c.cwd.as_deref());
     let started = started_words(c.started_ms, now_ms);
     juggler_core::naming::short_name(

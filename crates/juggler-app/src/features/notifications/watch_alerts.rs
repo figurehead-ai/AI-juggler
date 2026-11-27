@@ -81,13 +81,24 @@ fn about_target(
 ) -> About {
     if let Some(session) = session {
         let about = super::describe(state, session);
-        return About {
-            name: about.name,
-            target: Target::Session(session.to_owned()),
-            notice: NoticeTarget {
+        // 0.5.2 G45: a session AI Juggler didn't start opens its page as
+        // the centre's other notices about one do (its account and id).
+        let notice = crate::features::sessions::seen::parse_source_key(session).map_or_else(
+            || NoticeTarget {
                 session_id: Some(session.to_owned()),
                 ..NoticeTarget::default()
             },
+            |(account, id)| NoticeTarget {
+                conversation_id: Some(id.to_owned()),
+                account_id: Some(account.to_owned()),
+                project_id: about.project_id.clone(),
+                ..NoticeTarget::default()
+            },
+        );
+        return About {
+            name: about.name,
+            target: Target::Session(session.to_owned()),
+            notice,
             project_id: about.project_id,
         };
     }

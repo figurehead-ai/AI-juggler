@@ -1344,4 +1344,5 @@ fn a_group_target_s_open_sessions_count_idle_from_the_start() {
 
 mod durable_tests;
 mod live_tests;
+mod seen_tests;
 mod store_tests;
