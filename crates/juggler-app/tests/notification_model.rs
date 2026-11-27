@@ -1230,7 +1230,10 @@ fn archiving_a_failed_session_takes_its_need_away_at_once_and_unarchiving_brings
     // say a time); D-103.8: its Account is in the detail, never its name.
     let said = rows();
     assert_eq!(said.len(), 1, "the failed session needs you");
-    let lead = if cfg!(target_os = "macos") {
+    // Whether the system's clock gives the words (macOS's formatter; none
+    // elsewhere): the same platform words the naming uses (PR #257).
+    let now = Timestamp::now().millis();
+    let lead = if juggler_platform::clock::started_words(now, now).is_some() {
         "“billing · started "
     } else {
         "“billing”"
