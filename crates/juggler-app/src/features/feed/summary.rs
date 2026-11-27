@@ -23,7 +23,7 @@ use super::line::{self, Options};
 use crate::error::AppResult;
 use crate::features::ai::dto::AiJob;
 use crate::features::ai::engine::Stop;
-use crate::features::ai::models::{Engine, Job};
+use crate::features::ai::models::Job;
 use crate::features::ai::run::LiveJob;
 use crate::features::ai::service;
 use crate::features::conversations::last_messages;
@@ -120,8 +120,9 @@ pub fn feed_line_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> FeedLineInfo {
             state,
             job: AiJob::Feed,
         };
-        // The prompt each engine was measured with (harness v14).
-        let options = if routed.engine == Some(Engine::AppleBuiltin) {
+        // The prompt each engine was measured with (harness v14): the
+        // built-in model's, or a downloaded model's with its JSON tail.
+        let options = if routed.engine.is_some_and(|engine| !engine.downloads()) {
             Options::APPLE
         } else {
             Options::LOCAL
