@@ -264,8 +264,18 @@ read_routes! {
     "tool_updates_status" => async_result features::tool_updates::commands::tool_updates_status(state; tool: String);
     // D-118: Home's activity feed, one keyset page.
     "feed_page" => async_result features::feed::commands::feed_page(state; request: crate::paging::PageRequest, filters: features::feed::dto::FeedFiltersInfo);
+    // G24: Home's leans ("more like this" / "fewer like this"), the user's
+    // own feed preferences, no conversation text.
+    "feed_leans" => async_result features::feed::commands::prefs::feed_leans(state);
     // AJ-E3820: a turn's code-only review (the model's lines are the app's).
     "review_turn" => async_result features::review::commands::review_turn(state; ask: features::review::dto::ReviewAsk);
+    // AJ-E2027: reminders and the app's own scheduled work, read only, as the
+    // watches are (set, move, pause and remove are the user's clicks).
+    "schedule_list" => async_result features::schedule::commands::schedule_list(state; request: crate::paging::PageRequest, which: Option<features::schedule::commands::ScheduleListWhich>);
+    "schedule_summary" => async_result features::schedule::commands::schedule_summary(state);
+    // AJ-E3826: the AI engine's state for a job (status only: it starts
+    // nothing, as Models' and Bot's headers read it).
+    "ai_engine_status" => async_result features::ai::commands::ai_engine_status(state; job: features::ai::dto::AiJob);
     // AJ-E3814: the watches, read only (create, edit, pause and remove are
     // the user's clicks in the app).
     "watches_list" => async_result features::watches::commands::watches_list(state; request: crate::paging::PageRequest, which: Option<features::watches::commands::WatchListWhich>, lang: Option<features::watches::words::Lang>);
@@ -398,6 +408,14 @@ read_routes! {
 /// checks it).
 #[cfg(test)]
 pub const NOT_SERVED: &[(&str, &str)] = &[
+    (
+        "features::bot::commands::bot_topic_usage",
+        "the counts of Bot's current topic, part of Bot's conversation, which stays in the app's window (ADR-0037 §9, as bot_page); the real window walks it",
+    ),
+    (
+        "features::review::commands::review_turn_ai",
+        "the turn review's model lines (AJ-E3820's opt-in Beta) run the AI engine in the app's own helper; the bridge serves the code-only review (review_turn), and the real window walks the lines",
+    ),
     (
         "features::bot::commands::bot_page",
         "Bot's conversation is the user's own words and stays in the app's window (ADR-0037 §9: never off this Mac's own process); the real window walks it",
