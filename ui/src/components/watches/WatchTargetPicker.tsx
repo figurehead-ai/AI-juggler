@@ -76,6 +76,15 @@ function matchedOptions(book: Map<string, TargetOption>, suggested: readonly Wat
 export function WatchTargetPicker({ picked, book, onChange, invalid = false, labelledBy, suggested = [], startOpen = false }: { picked: readonly WatchTarget[]; book: Map<string, TargetOption>; onChange: (next: WatchTarget[]) => void; invalid?: boolean; labelledBy: string; suggested?: readonly WatchTarget[]; startOpen?: boolean }): JSX.Element {
   const matched = useMemo(() => matchedOptions(book, suggested), [book, suggested]);
   const [open, setOpen] = useState(startOpen && matched.length > 0);
+  // 0.5.2 G68 (RW1 S10, S11): on the real app the form opens before this
+  // Mac's lists are read, so the matches came after the first frame and
+  // the picker stayed shut. It opens once, when the matches first show.
+  const opened = useRef(open);
+  useEffect(() => {
+    if (!startOpen || opened.current || matched.length === 0 || picked.length > 0) return;
+    opened.current = true;
+    setOpen(true);
+  }, [startOpen, matched.length, picked.length]);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<WatchTarget["kind"] | null>(null);
   const wrap = useRef<HTMLDivElement>(null);

@@ -118,6 +118,28 @@ describe("AJ-E3830 the Watches form pre-filled by Bot", () => {
     expect(screen.getByTestId("watch-lifetime-line").dataset.waits).toBeUndefined();
   });
 
+  it("0.5.2 G68: this Mac's lists read after the form opened: the picker opens on the matches then; the note follows the form (a removed pick is left again)", async () => {
+    const empty: TargetSources = { sessions: [], apps: [], projects: [], pools: [], accounts: [], now: WATCHES_NOW };
+    const page = (sources: TargetSources) => <WatchesPage sources={sources} onGoTo={() => undefined} onAskBot={() => undefined} onQuietHours={() => undefined} />;
+    const { rerender } = render(page(empty));
+    await waitFor(() => expect(screen.queryByTestId("watches-skeleton")).toBeNull());
+    const choices = [{ kind: "project" as const, id: "proj-shop" }, { kind: "session" as const, id: "s-api" }];
+    act(() => openWatches({ kind: "new", prefill: prefill({ draft: { ...prefill({}).draft, targets: [] }, left: ["target"], why: "several", choices }) }));
+    await screen.findByTestId("watch-form");
+    expect(screen.queryByTestId("watch-picker-matches")).toBeNull();
+    rerender(page(SOURCES));
+    const matches = await screen.findByTestId("watch-picker-matches");
+    expect(matches.querySelector("[data-key]")?.getAttribute("data-key")).toBe("session:s-api");
+    const note = () => screen.getByTestId("watch-bot-fill-line").textContent;
+    expect(note()).toBe("More than one matches that name: pick which one.");
+    fireEvent.click(matches.querySelector<HTMLElement>("[data-key='session:s-api']")!);
+    expect(note()).toBe("Bot read every part of your words. Check it, then click Watch.");
+    fireEvent.click(screen.getByTestId("watch-token-remove"));
+    expect(screen.queryAllByTestId("watch-token")).toHaveLength(0);
+    expect(note()).toBe("More than one matches that name: pick which one.");
+    expect(screen.getByTestId("watch-bot-fill").dataset.left).toBe("target");
+  });
+
   it("unread quiet hours: the switch stays off and the form says to check it, until it is set", async () => {
     Reflect.set(window, "__AIJ_NOTIFICATION_PREFS__", { quiet_start: 22, quiet_end: 7 });
     await open(prefill({ left: ["quiet_hours"], why: "unread", asked: "yes, even overnight" }));

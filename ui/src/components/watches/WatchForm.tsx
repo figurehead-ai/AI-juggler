@@ -334,7 +334,7 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
         <FormHead title={title} editing={editing} now={now} onBack={props.onCancel} />
         <div className="flex flex-col gap-[26px]">
           <FormAlerts atLimit={atLimit} limit={props.limit} ended={editing?.state === "ended"} failed={failed} />
-          {state.bot && <BotFillNote bot={state.bot} />}
+          <BotFillNote state={state} />
           <FormSection n={1} done={many > 0} title={FORM.what} help={helps.what} id={`${ids}-what`}>
             <WatchTargetPicker picked={state.targets} book={book} onChange={(targets) => set({ targets })} labelledBy={`${ids}-what`} suggested={choices} startOpen={choices.length > 0} />
             {many > 1 && <Matching state={state} set={set} />}

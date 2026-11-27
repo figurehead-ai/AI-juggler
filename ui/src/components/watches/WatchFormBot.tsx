@@ -8,7 +8,7 @@
  */
 import type { JSX } from "react";
 import { IconBot } from "../bot/bot-icons";
-import { botLeft, type BotFill, type FormState } from "./watch-form-state";
+import { botLeft, leftNow, type FormState } from "./watch-form-state";
 import { BOT_FILL, FORM } from "./watches-words";
 
 /** The lines beside Watch what and For what: Bot's "couldn't tell"
@@ -36,14 +36,17 @@ function leftWords(left: readonly string[]): string {
   return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
 }
 
-/** The note at the top of the form. */
-export function BotFillNote({ bot }: { bot: BotFill }): JSX.Element {
-  const all = bot.left.length === 0;
-  const none = bot.left.includes("target") && bot.left.includes("condition") && bot.left.length === 4;
-  const line = all ? BOT_FILL.all : none ? BOT_FILL.none : bot.why === "several" && bot.left.length === 1 ? BOT_FILL.several : BOT_FILL.some(leftWords(bot.left));
+/** The note at the top of the form, as the form stands now (0.5.2 G68). */
+export function BotFillNote({ state }: { state: FormState }): JSX.Element | null {
+  const bot = state.bot;
+  if (!bot) return null;
+  const left = leftNow(state);
+  const all = left.length === 0;
+  const none = left.includes("target") && left.includes("condition") && left.length === 4;
+  const line = all ? BOT_FILL.all : none ? BOT_FILL.none : bot.why === "several" && left.length === 1 && left[0] === "target" ? BOT_FILL.several : BOT_FILL.some(leftWords(left));
   const said = bot.asked ? (bot.why === "cant_watch" ? BOT_FILL.cant(bot.asked) : BOT_FILL.asked(bot.asked)) : null;
   return (
-    <div className="flex items-start gap-3 rounded-card bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] px-3.5 py-3 inset-ring-1 inset-ring-hairline/75" role="note" data-testid="watch-bot-fill" data-left={bot.left.join(" ")}>
+    <div className="flex items-start gap-3 rounded-card bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] px-3.5 py-3 inset-ring-1 inset-ring-hairline/75" role="note" data-testid="watch-bot-fill" data-left={left.join(" ")}>
       <span aria-hidden="true" className="flex size-[30px] shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-hi">
         <IconBot width={16} height={16} />
       </span>

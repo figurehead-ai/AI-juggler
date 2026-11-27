@@ -46,8 +46,12 @@ export interface FormState {
   bot?: BotFill;
 }
 
-export interface BotFill {
+interface BotFill {
+  /** The fields Bot left, as it opened the form. */
   left: PrefillField[];
+  /** 0.5.2 G68: the fields the user has set since (what is left now is
+   * worked out from these and the form: [`leftNow`]). */
+  set: PrefillField[];
   why: PrefillWhy;
   nearest: string | null;
   asked: string | null;
@@ -58,10 +62,10 @@ export interface BotFill {
 
 /** Bot's pre-fill as the form's state: its draft, with what it left. */
 export function stateFromPrefill(prefill: WatchPrefill, now: number): FormState {
-  return { ...stateFrom(prefill.draft, now), bot: { left: [...prefill.left], why: prefill.why, nearest: prefill.nearest ?? null, asked: prefill.asked ?? null, choices: [...(prefill.choices ?? [])] } };
+  return { ...stateFrom(prefill.draft, now), bot: { left: [...prefill.left], set: [], why: prefill.why, nearest: prefill.nearest ?? null, asked: prefill.asked ?? null, choices: [...(prefill.choices ?? [])] } };
 }
 
-/** The change, with each field it sets no longer left by Bot. */
+/** The change, with each field it sets marked as the user's. */
 export function touched(was: FormState, change: Partial<FormState>): FormState {
   const next = { ...was, ...change };
   if (!was.bot) return next;
@@ -70,12 +74,31 @@ export function touched(was: FormState, change: Partial<FormState>): FormState {
   if (change.codes || change.params) set.push("condition");
   if (change.life !== undefined || change.untilDay !== undefined || change.untilTime !== undefined) set.push("lifetime");
   if (change.quiet !== undefined) set.push("quiet_hours");
-  return { ...next, bot: { ...was.bot, left: was.bot.left.filter((f) => !set.includes(f)) } };
+  return { ...next, bot: { ...was.bot, set: [...new Set([...was.bot.set, ...set])] } };
 }
 
-/** Bot left `field` and the user hasn't set it yet. */
+const FIELDS: readonly PrefillField[] = ["target", "condition", "lifetime", "quiet_hours"];
+
+/** 0.5.2 G68 (RW1 S10): what is left for the user now, from the form as
+ * it stands: what to watch and what for while empty (removing the pick
+ * Bot couldn't make leaves it again; the note said "Bot read every part"
+ * over an empty field), how long while Bot left it and none is chosen,
+ * quiet hours while Bot left them and the user hasn't set them. */
+export function leftNow(state: FormState): PrefillField[] {
+  const bot = state.bot;
+  if (!bot) return [];
+  const open: Record<PrefillField, boolean> = {
+    target: state.targets.length === 0,
+    condition: state.codes.length === 0,
+    lifetime: bot.left.includes("lifetime") && state.life === null,
+    quiet_hours: bot.left.includes("quiet_hours") && !bot.set.includes("quiet_hours"),
+  };
+  return FIELDS.filter((field) => open[field] && (bot.left.includes(field) || bot.set.includes(field)));
+}
+
+/** Bot left `field` (or the user emptied it) and it is still to be set. */
 export function botLeft(state: FormState, field: PrefillField): boolean {
-  return state.bot?.left.includes(field) ?? false;
+  return leftNow(state).includes(field);
 }
 
 /** How long is still to be picked: Bot couldn't read it, so no choice is
