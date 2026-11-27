@@ -8,14 +8,12 @@
  * create command); Bot acts only through a card like this.
  */
 import { useEffect, useMemo, useRef, useState, type JSX, type SVGProps } from "react";
-import { IconClose } from "../icons-controls";
-import { IconShield } from "../icons";
-import { IconCheckCircle, IconEye, IconFail, IconHourglass, IconMessage, IconMoon } from "./bot-icons";
+import { IconCheckCircle, IconFail, IconHourglass, IconMessage } from "./bot-icons";
 import { RowMarkFor } from "./BotRowMark";
+import { ConfirmFoot, ConfirmNotes, ConfirmShell, EchoLine, WatchSet, useQuietLine } from "./BotConfirmParts";
 import { STATE_WORDS, WORDS, rowPlace } from "../../lib/bot-words";
 import { openWatches } from "../../lib/watches-open";
 import { watchesCatalogue, watchesCreate, watchesPreview, type CatalogueEntry, type WatchDraftInfo } from "../../lib/ipc/watches";
-import { notificationPrefsGet } from "../../lib/ipc/settings";
 import { errorText } from "../../lib/bridge";
 import type { BotRowInfo } from "../../types/generated/BotRowInfo";
 import type { LifetimeChoice } from "../../types/generated/LifetimeChoice";
@@ -37,10 +35,6 @@ const LIFETIMES: { choice: LifetimeChoice; label: string }[] = [
   { choice: { kind: "always" }, label: "Always" },
 ];
 
-function hour(h: number): string {
-  return `${String(h).padStart(2, "0")}:00`;
-}
-
 /** The way to the full form. */
 const WATCH_MORE = "More choices…";
 
@@ -59,7 +53,7 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
   const [changing, setChanging] = useState(false);
   const [words, setWords] = useState<string>("");
   const [problem, setProblem] = useState<string | null>(null);
-  const [quiet, setQuiet] = useState<string | null>(null);
+  const quiet = useQuietLine();
   const [done, setDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -73,9 +67,6 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
         setCodes(shown.some((e) => e.code === "finishes") ? ["finishes"] : shown.slice(0, 1).map((e) => e.code));
       })
       .catch((cause) => setError(errorText(cause)));
-    void notificationPrefsGet()
-      .then((prefs) => setQuiet(prefs.quiet_start === prefs.quiet_end ? null : `Between ${hour(prefs.quiet_start)} and ${hour(prefs.quiet_end)} it waits till morning.`))
-      .catch(() => setQuiet(null));
   }, [row.id]);
   const draft: WatchDraftInfo = useMemo(
     () => ({ targets: [{ kind: "session", id: row.id }], matching: "each", conditions: codes.map((code) => ({ code })), lifetime, evenInQuietHours: false, chatTurn: turnId }),
@@ -104,23 +95,10 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
       setError(errorText(cause));
     }
   };
-  if (done) {
-    return (
-      <output className="flex items-center gap-2.5 rounded-[14px] bg-surface px-3.5 py-3 text-body text-ink-2 inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2" data-testid="bot-watch-done">
-        <IconEye width={16} height={16} aria-hidden="true" className="shrink-0 text-accent-hi" />
-        {WORDS.watchSet(done)}
-      </output>
-    );
-  }
+  if (done) return <WatchSet words={done} />;
   const toggle = (code: string) => setCodes((now) => (now.includes(code) ? now.filter((c) => c !== code) : [...now, code]));
   return (
-    <section ref={card} aria-label="Confirm a new watch" className="flex flex-col gap-3 rounded-[14px] bg-[color-mix(in_srgb,var(--color-accent)_6%,var(--color-surface))] p-3.5 inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-[color-mix(in_srgb,var(--color-accent)_9%,var(--color-surface))]" data-testid="bot-watch-card">
-      <div className="flex items-center gap-2">
-        <span className="grow text-label font-semibold tracking-[.07em] text-accent-hi uppercase">{WORDS.confirmEyebrow}</span>
-        <button type="button" className="grid size-6 place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" title={WORDS.cancel} aria-label={WORDS.cancel} onClick={onClose}>
-          <IconClose width={14} height={14} aria-hidden="true" />
-        </button>
-      </div>
+    <ConfirmShell label="Confirm a new watch" testId="bot-watch-card" onClose={onClose} cardRef={(node) => (card.current = node)}>
       <div className="flex items-center gap-2.5">
         <RowMarkFor row={row} />
         <div className="flex min-w-0 flex-col">
@@ -161,33 +139,9 @@ export function BotWatchCard({ row, turnId, onClose }: { row: BotRowInfo; turnId
           </button>
         </div>
       )}
-      <p className="rounded-[10px] bg-surface px-3 py-2.5 text-[15px] leading-normal text-ink-2 inset-ring-1 inset-ring-hairline/75 [[data-theme=dark]_&]:bg-surface-2" aria-live="polite" data-testid="bot-watch-echo">
-        {(codes.length > 0 && words) || "Choose what to be told about."}
-      </p>
-      {problem && <p className="text-meta text-danger">{problem}</p>}
-      {quiet && (
-        <span className="flex items-center gap-2 text-meta text-muted">
-          <IconMoon width={14} height={14} aria-hidden="true" />
-          {quiet}
-        </span>
-      )}
-      {error && <p className="text-meta text-danger" role="alert">{error}</p>}
-      <div className="flex items-center gap-2">
-        <button type="button" disabled={codes.length === 0 || problem !== null} className="inline-flex h-7 items-center gap-1.5 rounded-lg bg-accent-fill px-2.5 text-meta font-medium text-white outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-50 disabled:shadow-none" onClick={() => void confirm()} data-testid="bot-watch-confirm">
-          <IconEye width={14} height={14} aria-hidden="true" />
-          {WORDS.watchButton}
-        </button>
-        <button type="button" aria-expanded={changing} className="inline-flex h-7 items-center rounded-lg bg-surface-2 px-2.5 text-meta font-medium text-ink inset-ring-1 inset-ring-hairline outline-none hover:bg-surface-3 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => setChanging((c) => !c)}>
-          {WORDS.change}
-        </button>
-        <button type="button" className="inline-flex h-7 items-center rounded-lg px-2.5 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" onClick={onClose} data-testid="bot-watch-cancel">
-          {WORDS.cancel}
-        </button>
-      </div>
-      <span className="flex items-center gap-1.5 text-label text-muted">
-        <IconShield width={13} height={13} aria-hidden="true" />
-        {WORDS.actsOnly}
-      </span>
-    </section>
+      <EchoLine words={(codes.length > 0 && words) || "Choose what to be told about."} />
+      <ConfirmNotes problem={problem} quiet={quiet} error={error} />
+      <ConfirmFoot canWatch={codes.length > 0 && problem === null} onWatch={() => void confirm()} onChange={() => setChanging((c) => !c)} changeExpanded={changing} onCancel={onClose} />
+    </ConfirmShell>
   );
 }

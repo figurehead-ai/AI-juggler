@@ -246,6 +246,15 @@ export function jobRowView(job: ModelJob, info: AiJobInfo | undefined, catalog: 
   const model = info.model_name ?? nameOf(info.pick ?? info.model_id, catalog, installed);
   const covers = info.state !== "off" && info.covers.length > 0 ? JOBS.covers(listWords(info.covers.map((tool) => toolSpec(tool).display_name))) : null;
   const row = (on: boolean, state: string, why: string | null) => ({ on, beta, picker, line: line(state, why), covers });
+  // AJ-E3830 (0.5.2): Watches rides Bot's AI (the backend says Bot's
+  // state): on while Bot's AI runs, its line the tests' note, and its Beta
+  // switch Bot's confirm card for a request read whole. Its verdict stays
+  // "not yet": Bot doesn't draft a whole watch unless the Beta is on.
+  if (job === "watches" && info.state !== "off") {
+    const on = info.state === "ready" || info.state === "waiting";
+    const note = noteFor(models, reference, job, () => true);
+    return { on, beta: on, picker: false, line: on ? line(JOBS.on, note) : line(JOBS.offLine, JOBS.watchesNeedBot), covers: on ? JOBS.watchesCard : null };
+  }
   switch (info.state) {
     case "off":
       return row(false, JOBS.offLine, info.why === "not_built" ? JOBS.notBuilt : JOBS.paused);

@@ -13,6 +13,9 @@ import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
 function draftOf(drafted: WatchDrafted | null): WatchDraftInfo | null {
   if (!drafted) return null;
   if (drafted.kind === "filled" || drafted.kind === "pick") return drafted.draft;
+  // AJ-E3830: the pre-fill's words only when every field was read (a
+  // partial draft's echo would say a default as if it were asked).
+  if (drafted.kind === "prefilled") return drafted.prefill.left.length === 0 && !drafted.prefill.card ? drafted.prefill.draft : null;
   if (drafted.kind === "cant_watch") return drafted.draft ?? null;
   return null;
 }

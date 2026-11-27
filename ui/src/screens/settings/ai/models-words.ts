@@ -290,6 +290,9 @@ export const JOBS = {
   /** AJ-E3820 R5: a job that covers only some tools (the turn review:
    * turns whose end AI Juggler sees). */
   covers: (tools: string) => `For ${tools} in the terminal, whose turn ends AI Juggler sees`,
+  /** AJ-E3830 (0.5.2): Watches uses Bot's AI; its Beta is Bot's card. */
+  watchesNeedBot: "Uses Bot’s AI: turn it on above",
+  watchesCard: "Beta: when Bot understands every part of a request, it asks you to confirm in its own card instead",
 };
 
 /** AJ-E3826 — Bot's AI: which model writes Bot's answers, whether it

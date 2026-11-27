@@ -64,7 +64,7 @@ const APPLE: CatalogModel = model({
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 75 % of blind checks."),
     v("digest", "beta", "Preferred over the plain roundup in 64 % of blind checks."),
-    v("watches", "not_yet", "Drafts are being made exact before Bot fills the form."),
+    v("watches", "not_yet", "Fills in what it understands from your words; you check the form and save."),
   ],
 });
 
@@ -81,7 +81,7 @@ const QWEN: CatalogModel = model({
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Answers in about half a second; preferred in 76 % of blind checks."),
     v("digest", "not_yet", "The plain roundup reads better for now."),
-    v("watches", "not_yet", "Drafts matched the request 81 % of the time; we want 95 %."),
+    v("watches", "not_yet", "Fills in what it understands from your words; you check the form and save."),
   ],
 });
 
@@ -98,7 +98,7 @@ const NEMOTRON: CatalogModel = model({
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 80 % of blind checks."),
     v("digest", "not_yet", "The plain roundup reads better for now."),
-    v("watches", "not_yet", "Drafts matched the request 85 % of the time; we want 95 %."),
+    v("watches", "not_yet", "Fills in what it understands from your words; you check the form and save."),
   ],
 });
 
@@ -115,7 +115,7 @@ const GRANITE: CatalogModel = model({
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 79 % of blind checks."),
     v("digest", "not_yet", "The plain roundup reads better for now."),
-    v("watches", "not_yet", "Drafts matched the request 85 % of the time; we want 95 %."),
+    v("watches", "not_yet", "Fills in what it understands from your words; you check the form and save."),
   ],
 });
 
@@ -132,7 +132,7 @@ export const GEMMA: CatalogModel = model({
     v("attention", "ships", "Built from the facts; no misses in testing."),
     v("chat", "beta", "Preferred over the plain answer in 89 % of blind checks."),
     v("digest", "not_yet", "The plain roundup reads better for now."),
-    v("watches", "not_yet", "Drafts matched the request 70 % of the time; we want 95 %."),
+    v("watches", "not_yet", "Fills in what it understands from your words; you check the form and save."),
   ],
 });
 
@@ -165,8 +165,8 @@ function installed(...rows: Array<[CatalogModel, number, "listed" | "withdrawn" 
 
 /** The AI jobs' answer as this version gives it (AJ-E3826, D-149): Bot,
  * the digest and the turn review (AJ-E3820, for the tools whose turn
- * ends AI Juggler sees) with their Beta switch; the feed line and
- * watches on their plain path by their verdicts. */
+ * ends AI Juggler sees) with their Beta switch; the feed line on its
+ * plain path by its verdict; watches on Bot's AI (AJ-E3830). */
 export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<AiJobInfo>>> = {}): AiJobInfo[] {
   const base = (job: AiJobInfo["job"], state: AiJobInfo["state"]): AiJobInfo => ({ job, state, beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null, covers: [] });
   return [
@@ -174,8 +174,15 @@ export function jobs(over: Partial<Record<"review" | "chat" | "digest", Partial<
     { ...base("review", "beta_off"), covers: ["claude-code", "codex"], ...over.review },
     { ...base("chat", "beta_off"), ...over.chat },
     { ...base("digest", "beta_off"), ...over.digest },
-    { ...base("watches", "no_engine") },
+    watchesOf({ ...base("chat", "beta_off"), ...over.chat }),
   ];
+}
+
+/** AJ-E3830 (0.5.2): Watches as the backend says it, on Bot's own state
+ * and model; its Beta (Bot's confirm card) offered while Bot's AI runs. */
+function watchesOf(chat: AiJobInfo): AiJobInfo {
+  const on = chat.state === "ready" || chat.state === "waiting";
+  return { job: "watches", state: chat.state, beta: on, beta_on: false, model_id: chat.model_id, model_name: chat.model_name, why: chat.why, pick: null, covers: [] };
 }
 
 /** Bot's engine as `ai_engine_status` gives it (AJ-E3825), for the

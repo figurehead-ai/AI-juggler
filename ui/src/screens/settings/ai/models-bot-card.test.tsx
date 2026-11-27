@@ -114,9 +114,12 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
     expect(lineOf("attention")).toBe("On · Built from the facts, so it needs no model");
     expect(lineOf("feed")).toBe("Off · The plain line reads better for now.");
     expect(lineOf("digest")).toBe("On · Beta with Apple's on-device model");
-    expect(lineOf("watches")).toBe("Off · Drafts are being made exact before Bot fills the form.");
+    // AJ-E3830 (0.5.2): Watches rides Bot's AI; its Beta is Bot's confirm card.
+    expect(lineOf("watches")).toBe("On · Fills in what it understands from your words; you check the form and save.");
+    expect(screen.getByTestId("models-beta-watches")).toBeTruthy();
+    expect(screen.getByTestId("models-job-covers-watches").textContent).toBe("Beta: when Bot understands every part of a request, it asks you to confirm in its own card instead");
     const lit = (job: string) => screen.getByTestId(`models-job-${job}`).querySelector("[data-on]") !== null;
-    expect(["review", "chat", "attention", "feed", "digest", "watches"].filter(lit)).toEqual(["chat", "attention", "digest"]);
+    expect(["review", "chat", "attention", "feed", "digest", "watches"].filter(lit)).toEqual(["chat", "attention", "digest", "watches"]);
     // Bot's model is chosen in the card: its row has its switch, no picker.
     expect(screen.getByTestId("models-beta-chat")).toBeTruthy();
     expect(screen.queryByTestId("models-pick-chat")).toBeNull();
@@ -169,7 +172,7 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
   it("a job's why is the notes of the model it would run on (Automatic's), not Bot's own pick", async () => {
     await show(STATES.installed!);
     expect(lineOf("chat")).toBe("On · Beta, your pick: Nemotron 3 Nano 4B");
-    expect(lineOf("watches")).toBe("Off · Drafts are being made exact before Bot fills the form.");
+    expect(lineOf("watches")).toBe("On · Fills in what it understands from your words; you check the form and save.");
   });
 
   it("never a bare Not yet; a job stopped by an update says so, not 'not built'", async () => {

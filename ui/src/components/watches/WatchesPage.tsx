@@ -23,6 +23,7 @@ import { onWatchesIntent, takeWatchesIntent, type WatchesIntent } from "../../li
 import { watchCreate, watchesPage, watchesSummary, watchPause, watchRemove, watchRestore, watchUpdate, type WatchDraftInfo, type WatchInfo, type WatchSummaryInfo } from "../../lib/ipc/watch-view";
 import type { NotificationPrefsInfo } from "../../types/generated/NotificationPrefsInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
+import type { WatchPrefill } from "../../types/generated/WatchPrefill";
 import { WatchForm } from "./WatchForm";
 import type { WatchRowActions } from "./WatchRow";
 import type { EndedActions } from "./WatchEndedRow";
@@ -31,11 +32,11 @@ import { LimitAlert, QuietLine, WatchesHead, type ToolbarState } from "./Watches
 import { watchesChanged } from "./WatchDoor";
 import { EndedSection, WatchingSection } from "./WatchesLists";
 import { RemindersSection } from "./RemindersSection";
-import { stateFrom } from "./watch-form-state";
+import { stateFrom, stateFromPrefill } from "./watch-form-state";
 import { draftOf, nextMidnight, pickerLists, quietHours, seenSessions, targetBook, type TargetOption, type TargetSources } from "./watches-view";
 import { PAGE, TOAST } from "./watches-words";
 
-type View = { kind: "list" } | { kind: "form"; mode: "new" | "edit"; draft: WatchDraftInfo | null; editing: WatchInfo | null };
+type View = { kind: "list" } | { kind: "form"; mode: "new" | "edit"; draft: WatchDraftInfo | null; editing: WatchInfo | null; prefill?: WatchPrefill };
 type Only = { target: WatchTarget; name: string } | null;
 
 const EMPTY_DRAFT: WatchDraftInfo = { targets: [], matching: "each", conditions: [], lifetime: { kind: "unsaid" }, evenInQuietHours: false };
@@ -86,6 +87,7 @@ const editOf = (info: WatchInfo): View => ({ kind: "form", mode: "edit", draft: 
 
 /** What a door asks for, as the page's view (a watch to edit is read first). */
 function viewOfIntent(intent: WatchesIntent | null): View | null {
+  if (intent?.kind === "new" && intent.prefill) return { kind: "form", mode: "new", draft: intent.prefill.draft, editing: null, prefill: intent.prefill };
   if (intent?.kind === "new") return { kind: "form", mode: "new", draft: intent.draft ?? (intent.target ? { ...EMPTY_DRAFT, targets: [intent.target] } : null), editing: null };
   if (intent?.kind === "list" || intent?.kind === "filter" || intent?.kind === "reminder") return { kind: "list" };
   return null;
@@ -153,15 +155,17 @@ function useWatchActions(input: { refresh: () => void; book: Map<string, TargetO
 
 /** New or Edit, in place of the list. */
 function FormView({ view, book, quiet, count, limit, now, onClose, onSaved, remove }: { view: Extract<View, { kind: "form" }>; book: Map<string, TargetOption>; quiet: { from: string; to: string } | null; count: number; limit: number; now: number; onClose: () => void; onSaved: () => void; remove: (info: WatchInfo) => void }): JSX.Element {
-  const initial = stateFrom(view.draft ?? EMPTY_DRAFT, now);
+  // AJ-E3830: Bot's pre-fill keeps what it left empty (no default is
+  // picked for the user where Bot couldn't tell).
+  const initial = view.prefill ? stateFromPrefill(view.prefill, now) : stateFrom(view.draft ?? EMPTY_DRAFT, now);
   // 0.5.2 G32: a new watch starts with the targets' default condition
   // (Its turn ends for a session, the mock's), which follows the targets
   // until the user picks one.
-  if (view.mode === "new" && initial.codes.length === 0) initial.auto = true;
+  if (view.mode === "new" && initial.codes.length === 0 && !view.prefill) initial.auto = true;
   const editing = view.editing;
   return (
     <WatchForm
-      key={editing?.watch.id ?? JSON.stringify(view.draft)}
+      key={editing?.watch.id ?? JSON.stringify([view.draft, view.prefill?.left])}
       mode={view.mode}
       initial={initial}
       editing={editing}

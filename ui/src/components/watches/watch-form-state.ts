@@ -12,10 +12,13 @@ import type { Matching } from "../../types/generated/Matching";
 import type { Param } from "../../types/generated/Param";
 import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
+import type { PrefillField } from "../../types/generated/PrefillField";
+import type { PrefillWhy } from "../../types/generated/PrefillWhy";
+import type { WatchPrefill } from "../../types/generated/WatchPrefill";
 import { whenWords } from "../../lib/time-words";
 import type { PreviewFacts } from "./WatchPreview";
 import { optionOf, suggestedLifetime, type TargetOption } from "./watches-view";
-import { NOUN, PREVIEW } from "./watches-words";
+import { BOT_FILL, NOUN, PREVIEW } from "./watches-words";
 
 export type LifeKind = "once" | "until_ends" | "today" | "until" | "always";
 
@@ -37,6 +40,45 @@ export interface FormState {
    * with "A new session starts", an account with its limit) until the
    * user picks one. */
   auto?: boolean;
+  /** AJ-E3830 (0.5.2): Bot pre-filled the form: the fields still left
+   * for the user (each leaves once the user sets it), the nearest
+   * condition offered beside the cards, and the words it couldn't read. */
+  bot?: BotFill;
+}
+
+export interface BotFill {
+  left: PrefillField[];
+  why: PrefillWhy;
+  nearest: string | null;
+  asked: string | null;
+}
+
+/** Bot's pre-fill as the form's state: its draft, with what it left. */
+export function stateFromPrefill(prefill: WatchPrefill, now: number): FormState {
+  return { ...stateFrom(prefill.draft, now), bot: { left: [...prefill.left], why: prefill.why, nearest: prefill.nearest ?? null, asked: prefill.asked ?? null } };
+}
+
+/** The change, with each field it sets no longer left by Bot. */
+export function touched(was: FormState, change: Partial<FormState>): FormState {
+  const next = { ...was, ...change };
+  if (!was.bot) return next;
+  const set: PrefillField[] = [];
+  if (change.targets) set.push("target");
+  if (change.codes || change.params) set.push("condition");
+  if (change.life !== undefined || change.untilDay !== undefined || change.untilTime !== undefined) set.push("lifetime");
+  if (change.quiet !== undefined) set.push("quiet_hours");
+  return { ...next, bot: { ...was.bot, left: was.bot.left.filter((f) => !set.includes(f)) } };
+}
+
+/** Bot left `field` and the user hasn't set it yet. */
+export function botLeft(state: FormState, field: PrefillField): boolean {
+  return state.bot?.left.includes(field) ?? false;
+}
+
+/** How long is still to be picked: Bot couldn't read it, so no choice is
+ * made for the user (Watch waits for one). */
+export function lifeAsked(state: FormState): boolean {
+  return state.life === null && botLeft(state, "lifetime");
 }
 
 /** 0.5.2 G32: the default condition for these targets, among what they
@@ -181,5 +223,8 @@ export function previewFacts(input: { state: FormState; offered: readonly Catalo
   // read as no time at all); only an "Until…" without one ends tonight.
   const ends =
     life === "once" ? PREVIEW.onceEnds : life === "until_ends" ? PREVIEW.untilEnds(state.targets.length) : life === "until" && at !== null ? PREVIEW.untilEndsAt(whenWords(at, input.now)) : life === "today" || life === "until" ? PREVIEW.todayEnds : PREVIEW.alwaysEnds;
+  // AJ-E3830: how long is the user's to pick (Bot couldn't read it): the
+  // preview says no lifetime for them.
+  if (lifeAsked(state)) return { echo: input.echo ? { ...input.echo, lifetime: "" } : null, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends: BOT_FILL.lifePick, endsKind: life };
   return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends, endsKind: life };
 }

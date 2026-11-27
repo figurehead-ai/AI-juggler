@@ -157,7 +157,7 @@ fn the_line_says_what_was_left() {
     ));
     assert_eq!(
         line,
-        "I couldn't read “bis ich es entferne”, so I left how long for you. The Watches form is open."
+        "I couldn't read “bis ich es entferne”. Left for you to pick: how long. The Watches form is open."
     );
     let line = prefill_line(&prefill_with(
         vec![

@@ -263,10 +263,20 @@ pub fn prefill_line(p: &WatchPrefill) -> String {
         (PrefillWhy::Verified, _) => {
             "I filled in the Watches form. Check it and click Watch.".to_owned()
         }
-        (PrefillWhy::Several, _) => format!(
-            "More than one matches that name, so the Watches form asks which one{}.",
-            if p.left.len() > 1 { format!("; I left {left} for you too") } else { String::new() }
-        ),
+        (PrefillWhy::Several, _) => {
+            let rest: Vec<PrefillField> = p
+                .left
+                .iter()
+                .copied()
+                .filter(|f| *f != PrefillField::Target)
+                .collect();
+            let also = left_words(&rest);
+            if also.is_empty() {
+                "More than one matches that name, so the Watches form asks which one.".to_owned()
+            } else {
+                format!("More than one matches that name, so the Watches form asks which one. Also left for you to pick: {also}.")
+            }
+        }
         (PrefillWhy::CantWatch, Some(asked)) => {
             let near = if p.nearest.is_some() {
                 " The nearest it can watch is marked."
@@ -281,10 +291,10 @@ pub fn prefill_line(p: &WatchPrefill) -> String {
         _ if !filled => {
             "I couldn't fill the form from your words. The Watches form is open.".to_owned()
         }
-        (_, Some(asked)) => {
-            format!("I couldn't read “{asked}”, so I left {left} for you. The Watches form is open.")
-        }
-        _ => format!("I left {left} for you. The Watches form is open."),
+        (_, Some(asked)) => format!(
+            "I couldn't read “{asked}”. Left for you to pick: {left}. The Watches form is open."
+        ),
+        _ => format!("Left for you to pick: {left}. The Watches form is open."),
     }
 }
 
