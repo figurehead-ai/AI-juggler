@@ -195,13 +195,17 @@ json.dump(seed, open(path, "w"), indent=2)' "$lab/scenario-seed.json" "$hermes"
       # folder (a build folder is trimmed to save the disk; a copy there
       # costs a whole target, about 25 GB): scripts/build_dev_app.sh lab
       # builds it in the shared target and copies the bundle here.
-      app="${AIJ_DEV_APP:-/tmp/aij-lab-dev/AI Juggler Dev.app}"
+      app="${AIJ_DEV_APP:-$(python3 -I "$root/scripts/qa/lab_dev_place.py" path)}"
       [ -d "$app" ] || { echo "lab-scenario: no lab Dev build (scripts/build_dev_app.sh lab, or set AIJ_DEV_APP)" >&2; exit 1; }
     else
       app="${AIJ_DEV_APP:-$root/target/release/bundle/macos/AI Juggler Dev.app}"
       [ -d "$app" ] || app="${CARGO_TARGET_DIR:-$root/target}/release/bundle/macos/AI Juggler Dev.app"
       [ -d "$app" ] || { echo "lab-scenario: no AI Juggler Dev build (just build-dev, or set AIJ_DEV_APP)" >&2; exit 1; }
     fi
+    # 0.5.2 G38 (RW1 V1): a copy where other users can write (/tmp) runs
+    # without its own juggler-agent (AJ-E3013), so no session reports
+    # through hooks and the walk's states are wrong: refused here.
+    python3 -I "$root/scripts/qa/lab_dev_place.py" check "$app/Contents/MacOS/juggler-agent" || exit 1
     # A bundle whose signature doesn't hold (a debug build's linker-only
     # signature: "code has no resources but signature indicates they must be
     # present") is what made macOS call a replica app damaged and offer the

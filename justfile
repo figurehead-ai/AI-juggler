@@ -442,6 +442,7 @@ qa-kit:
     python3 -I scripts/qa/account_oracle.py --selftest
     python3 -I scripts/qa/pairwise.py --selftest
     python3 -I scripts/qa/pairwise.py check
+    python3 -I scripts/qa/lab_dev_place.py --selftest
 
 # AJ-E3301: a scenario's lab: setup | open | teardown, e.g. `just lab-scenario setup P3`.
 lab-scenario cmd id:
