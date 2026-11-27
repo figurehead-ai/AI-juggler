@@ -530,5 +530,6 @@
 | AJ-E3830 | Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | E38-chat.md | P1 | M | AJ-E3709, AJ-E3825 |
 | AJ-E3831 | Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | E38-chat.md | P1 | M | AJ-E3709 |
 | AJ-E3832 | Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | E38-chat.md | P0 | XL | ADR-0037, ADR-0038 |
-Total: 528 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3833 | 0.5.2's walk polish carried to 0.5.3: Bot's found rows, the form's reply, a small untitled window, the edits turn's review lines | E38-chat.md | P2 | S | AJ-E3820, AJ-E3830 |
+Total: 529 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

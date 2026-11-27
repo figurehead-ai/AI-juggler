@@ -706,3 +706,14 @@ The bars are ≥ 60 % preference and ≤ 1 % critical. All three stay `not_yet` 
 5. **Dreaming and tiers:** merges, archive, salience, inside ADR-0037's maintenance batches.
 6. **The real-engine check:** fixed questions asked of Bot on the reference Mac, the answers read and judged (ai-features-tested-for-real); the 27-canary forget test reads 0.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3832/manifest.md`.
+
+### AJ-E3833 0.5.2's walk polish carried to 0.5.3: Bot's found rows, the form's reply, a small untitled window, the edits turn's review lines | Status: TODO (0.5.3) | Priority P2 | Effort S | Depends: AJ-E3820, AJ-E3830
+**Found**: the 0.5.2 release walk's last part (RW1 Part T, 2026-11-27), triaged by D-137's wrap-up (the coordinator, relaying the maintainer's "do the best we can, optimize for later"): not blockers, so not fixed in 0.5.2. Findings G74, G75, G76 and G62's leftover in `docs/qa/0.5.2-findings.md`.
+**UI**: yes (Bot's panel; the watch form's reply). The six usability answers are written before building, per PAT-USE.
+**Requirements**:
+1. G74: in Bot's "What Bot found" list a row's state text never overlaps its title. The title truncates before the state at every width; captures in both themes at 1755, 1280 and 1024.
+2. G75: after a watch request opens the Watches form by itself, Bot's reply says the form is open. "Open the form" is offered only when it didn't open.
+3. G76: identify the untitled 280×168 AXDialog window AI Juggler Dev shows (seen since the lab's dry run 3, at 2416,672 in Part T). A stray or blank window never shows (the no-stray-windows rule); a system panel by design is recorded with evidence.
+4. G62's leftover: the turn review's model lines on an edits turn the model writes as fragments ("moved the price sum out of"). They stay refused (the check is not loosened); find a prompt or shape that yields whole clauses on Apple's model, proven with `review/real_model_tests.rs`.
+**Quality gates**: verify-static; vitest for R1–R2; the RW1 rows that showed each, re-walked.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3833/manifest.md`.
