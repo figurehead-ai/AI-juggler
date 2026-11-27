@@ -588,9 +588,10 @@ fn a_post_names_its_session_as_the_rail_does() {
             .clone()
     };
     let untitled = subject("finished");
-    assert!(
-        untitled.starts_with("proj-web · started "),
-        "named by its facts, as the rail names it: {untitled}"
+    assert_eq!(
+        untitled,
+        crate::test_support::facts_name("proj-web", T0, crate::commands::now_millis()),
+        "named by its facts, as the rail names it"
     );
     assert_eq!(
         subject("failed"),
@@ -635,10 +636,9 @@ fn naming_a_page_s_sessions_stays_inside_the_page_budget() {
             .filter(|item| super::items::named_session(item).is_some())
             .collect();
         assert!(!about.is_empty(), "posts about sessions on every page");
+        let facts = crate::test_support::facts_name("proj-web", T0, crate::commands::now_millis());
         assert!(
-            about
-                .iter()
-                .all(|item| item.subject.starts_with("proj-web · started ")),
+            about.iter().all(|item| item.subject == facts),
             "every session post named by the rule"
         );
         cursor = page.next_cursor;

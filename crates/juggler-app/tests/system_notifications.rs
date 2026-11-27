@@ -27,6 +27,25 @@ use juggler_core::model::{
 };
 use tauri::Listener;
 
+/// 0.5.2 (PR #257 CI): the untitled session `id`'s name by its facts as
+/// this system says it (D-96, the rail's one rule): "<folder> · started
+/// <time>" where the system's clock gives the words (macOS), the folder
+/// alone where it can't (`juggler_platform::clock::started_words` is
+/// `None` there). Built from the same platform words the naming uses.
+fn facts_name(state: &Arc<AppState>, id: &str, folder: &str) -> String {
+    let started = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(id))
+        .unwrap()
+        .started_at
+        .millis();
+    juggler_platform::clock::started_words(started, Timestamp::now().millis())
+        .map_or_else(|| folder.to_owned(), |words| format!("{folder} · {words}"))
+}
+
 fn now_ms() -> i64 {
     Timestamp::now().millis()
 }
@@ -165,12 +184,8 @@ fn a_waiting_session_is_told_once_with_its_name_folder_and_account() {
     let list = list.lock().unwrap();
     assert_eq!(list.len(), 1, "{list:?}");
     // 0.5.2 G27: named by the rail's one rule; untitled, so by its facts
-    // ("<folder> · started <time>", D-96), its folder in its name.
-    assert!(
-        list[0].title.starts_with("payments-api · started "),
-        "{:?}",
-        list[0].title
-    );
+    // (D-96).
+    assert_eq!(list[0].title, facts_name(&state, &id, "payments-api"));
     assert_eq!(list[0].body, "Waiting for your reply · Work Max");
     assert_eq!(
         state.notifier.target_of(list[0].id),
@@ -202,11 +217,7 @@ fn a_session_that_left_processes_running_is_told_once() {
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "{told:?}");
     // 0.5.2 G27: the untitled session by its facts (D-96).
-    assert!(
-        told[0].title.starts_with("api · started "),
-        "{:?}",
-        told[0].title
-    );
+    assert_eq!(told[0].title, facts_name(&state, &other, "api"));
     assert_eq!(told[0].body, "Left 3 processes running · Personal");
     assert_eq!(
         state.notifier.target_of(told[0].id),

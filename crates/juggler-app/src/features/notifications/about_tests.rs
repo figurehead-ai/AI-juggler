@@ -42,10 +42,9 @@ fn a_notice_names_a_session_by_its_title_its_folder_only_as_in_folder() {
         },
         NOW,
     );
-    assert!(
-        untitled.name.starts_with("web · started "),
-        "{}",
-        untitled.name
+    assert_eq!(
+        untitled.name,
+        crate::test_support::facts_name("web", NOW - 60_000, NOW)
     );
     assert_eq!(untitled.place, None);
 }
@@ -78,11 +77,17 @@ fn a_bell_entry_names_its_session_as_it_is_called_now() {
             .unwrap()
     };
     let before = read();
-    assert!(
-        before.title.starts_with("“api · started "),
-        "{}",
-        before.title
-    );
+    let started = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new("s1"))
+            .unwrap()
+            .started_at
+            .millis()
+    };
+    let facts = crate::test_support::facts_name("api", started, crate::commands::now_millis());
+    assert_eq!(before.title, format!("“{facts}” finished"));
     {
         let storage = state.storage.lock().unwrap();
         storage

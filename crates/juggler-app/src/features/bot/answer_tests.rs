@@ -436,12 +436,33 @@ fn a_memory_is_a_record_an_answer_can_cite() {
     assert_eq!(row.kind, crate::features::bot::dto::BotRowKind::Memory);
     assert_eq!(row.title, "the payments agent");
     assert_eq!(row.about.as_deref(), Some("api"));
-    // 0.5.2 G57: "api" is the project's name (the session is named by its
-    // facts, "api · started …"), so the alias is the project's.
+    // 0.5.2 G57: the session "s-api" is untitled, so it is named by its
+    // facts as this system says them (D-96): "api · started …" where the
+    // system's clock gives the words (macOS), and "api" alone where it
+    // can't (`juggler_platform::clock::started_words` is `None`: Linux,
+    // PR #257's CI). With the words, "api" is the project's name alone and
+    // the alias is the project's; without them the session is called "api"
+    // too, and a session wins over its namesake project (resolve's rule).
+    let started = {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .get(&juggler_core::model::SessionId::new("s-api"))
+            .unwrap()
+            .started_at
+            .millis()
+    };
+    let session_is_api =
+        crate::test_support::facts_name("api", started, crate::commands::now_millis()) == "api";
+    let kind = if session_is_api {
+        "alias:session:"
+    } else {
+        "alias:project:"
+    };
     assert!(
         row.memory_key
             .as_deref()
-            .is_some_and(|k| k.starts_with("alias:project:")),
+            .is_some_and(|k| k.starts_with(kind)),
         "{:?}",
         row.memory_key
     );

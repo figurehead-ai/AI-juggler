@@ -496,3 +496,14 @@ pub(crate) fn live_look(
     )
     .expect("a live look");
 }
+
+/// 0.5.2 (PR #257 CI): the name an untitled session takes by its facts
+/// (D-96, the rail's one rule) as this system says it: "<folder> ·
+/// started <time>" where the system's clock gives the words (macOS), the
+/// folder alone where it can't (`juggler_platform::clock::started_words`
+/// is `None` there). Built from the same platform words the naming uses,
+/// so a test holds on every system.
+pub(crate) fn facts_name(folder: &str, started_ms: i64, now_ms: i64) -> String {
+    juggler_platform::clock::started_words(started_ms, now_ms)
+        .map_or_else(|| folder.to_owned(), |words| format!("{folder} · {words}"))
+}

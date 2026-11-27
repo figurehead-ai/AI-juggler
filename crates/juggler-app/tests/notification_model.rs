@@ -85,6 +85,25 @@ fn session(state: &Arc<AppState>, folder: &Path, id: &str, account: &str) -> Str
     id.to_owned()
 }
 
+/// 0.5.2 (PR #257 CI): the untitled session `id`'s name by its facts as
+/// this system says it (D-96, the rail's one rule): "<folder> · started
+/// <time>" where the system's clock gives the words (macOS), the folder
+/// alone where it can't (`juggler_platform::clock::started_words` is
+/// `None` there). Built from the same platform words the naming uses.
+fn facts_name(state: &Arc<AppState>, id: &str, folder: &str) -> String {
+    let started = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(id))
+        .unwrap()
+        .started_at
+        .millis();
+    juggler_platform::clock::started_words(started, Timestamp::now().millis())
+        .map_or_else(|| folder.to_owned(), |words| format!("{folder} · {words}"))
+}
+
 fn daytime(state: &Arc<AppState>) {
     state
         .notifier
@@ -135,14 +154,10 @@ fn a_finish_is_written_once_under_earlier() {
     notifications::session_status(&state, &id, "running");
     notifications::session_status(&state, &id, "finished");
     // 0.5.2 G27: a session is named by the rail's one rule. This one has no
-    // label, title or telling branch, so its name is its facts, "<folder> ·
-    // started <time>" (D-96), never the bare folder of the old second rule.
-    let titles = earlier_titles(&state);
-    assert_eq!(titles.len(), 1, "{titles:?}");
-    assert!(
-        titles[0].starts_with("“payments-api · started ") && titles[0].ends_with("” finished"),
-        "{titles:?}"
-    );
+    // label, title or telling branch, so its name is its facts (D-96),
+    // never a second rule.
+    let name = facts_name(&state, &id, "payments-api");
+    assert_eq!(earlier_titles(&state), [format!("“{name}” finished")]);
 }
 
 #[test]
@@ -173,16 +188,15 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
     sources::restarted(&state, &crashed, &again, 1, 3);
     sources::restarted(&state, &crashed, &again, 1, 3);
     // 0.5.2 G27: the untitled session is named by its facts (D-96, the
-    // rail's one rule), its folder in its name.
-    let restarted = |title: &str| {
-        title.starts_with("“nightly-fix · started ")
-            && title.ends_with("” crashed and was restarted (try 1 of 3)")
-    };
-    let titles = earlier_titles(&state);
-    assert!(titles.len() == 1 && restarted(&titles[0]), "{titles:?}");
+    // rail's one rule).
+    let restarted = format!(
+        "“{}” crashed and was restarted (try 1 of 3)",
+        facts_name(&state, &crashed, "nightly-fix")
+    );
+    assert_eq!(earlier_titles(&state), [restarted.clone()]);
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "told once");
-    assert!(restarted(&told[0].title), "{:?}", told[0].title);
+    assert_eq!(told[0].title, restarted);
     assert_eq!(
         state.notifier.target_of(told[0].id),
         Some(Opens::Target(Target::Session(again)))
