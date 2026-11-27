@@ -52,6 +52,17 @@ pub enum Slot {
     Other,
 }
 
+impl Slot {
+    /// Its name, as the labels and the harness write it.
+    #[must_use]
+    pub fn name(self) -> &'static str {
+        SLOTS
+            .iter()
+            .find(|(_, s)| *s == self)
+            .map_or("other", |(n, _)| n)
+    }
+}
+
 const SLOTS: [(&str, Slot); 8] = [
     ("target", Slot::Target),
     ("exclusion", Slot::Exclusion),
@@ -1103,13 +1114,31 @@ pub fn negated(r: &Reading) -> Option<usize> {
         if matches!(r.slots[i], Some(Slot::Target | Slot::QuietHours)) || neutral.contains(&i) {
             return false;
         }
-        is(NEGATION_WORDS, &w[i])
-            || w[i].starts_with("kein")
-            || (w[i] == "t" && i > 0 && is(NOT_STEMS, &w[i - 1]))
-            || NEGATION_PHRASES
-                .iter()
-                .any(|p| phrase_at(w, i, p).is_some())
+        leaves_out(r, i)
     })
+}
+
+/// A word for a time, a day or the night (the guard's time words and the
+/// quiet-hours core): the pre-fill reads it as possibly how long or quiet
+/// hours, whatever its label.
+#[must_use]
+pub fn time_word(w: &str) -> bool {
+    is(QUIET_CORE, w)
+        || labels::is_time_word(w)
+        || ["middle", "mitten", "sleep", "schlafe", "asleep"].contains(&w)
+}
+
+/// Word `i` leaves something out: a negation word, an "n't", or the start
+/// of a phrase that does (the guard's own lists; the pre-fill reads it).
+#[must_use]
+pub fn leaves_out(r: &Reading, i: usize) -> bool {
+    let w = &r.words;
+    is(NEGATION_WORDS, &w[i])
+        || w[i].starts_with("kein")
+        || (w[i] == "t" && i > 0 && is(NOT_STEMS, &w[i - 1]))
+        || NEGATION_PHRASES
+            .iter()
+            .any(|p| phrase_at(w, i, p).is_some())
 }
 
 /// The request's own words from word `from` to its clause's end (at most
@@ -1221,7 +1250,8 @@ fn retry_note(previous: &str, why: &str) -> String {
 /// The labels, word by word (v13), and code's checks on them.
 #[path = "labels.rs"]
 mod labels;
-pub use labels::{Labelled, label_shape, labelled};
+pub use labels::{Labelled, label_shape, labelled, labelled_with};
+pub(in crate::features::watches) use labels::{plain_filler, qualifies};
 
 #[cfg(test)]
 #[path = "cover_tests.rs"]

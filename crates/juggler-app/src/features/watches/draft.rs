@@ -36,6 +36,9 @@ use crate::features::observe::TaskState;
 /// Code reads every word first; the model only labels (harness v11).
 #[path = "cover.rs"]
 pub mod cover;
+/// Bot pre-fills the Watches form with what code verified (0.5.2).
+#[path = "prefill.rs"]
+pub mod prefill;
 /// Code's readings of the request's words: cue words, numbers, lifetimes.
 #[path = "readings.rs"]
 mod readings;
@@ -79,6 +82,84 @@ pub struct Candidate {
     pub project: Option<String>,
     /// The conditions on offer for it (the catalogue's codes, D-127).
     pub offered: Vec<String>,
+}
+
+impl Candidate {
+    /// A candidate as the harness writes one (`{kind, id, name, aliases,
+    /// app, project, offered}`, AJ-E3830's rounds), `None` for an unknown
+    /// kind.
+    #[must_use]
+    pub fn from_json(v: &Value) -> Option<Self> {
+        let s = |k: &str| v[k].as_str().map(str::to_owned);
+        let id = s("id").unwrap_or_default();
+        let target = match v["kind"].as_str()? {
+            "session" => WatchTarget::Session(id),
+            "app" => WatchTarget::App(id),
+            "project" => WatchTarget::Project(id),
+            "account" => WatchTarget::Account(id),
+            "pool" => WatchTarget::Pool(id),
+            _ => return None,
+        };
+        let list = |k: &str| {
+            v[k].as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|x| x.as_str().map(str::to_owned))
+                .collect::<Vec<_>>()
+        };
+        Some(Self {
+            target,
+            name: s("name").unwrap_or_default(),
+            aliases: list("aliases"),
+            app: s("app"),
+            project: s("project"),
+            offered: list("offered"),
+        })
+    }
+}
+
+/// A harness job (AJ-E3830's rounds): a request, its candidates and its
+/// clock, as the harness writes it (`{request, candidates, midnight_ms,
+/// now_ms}`).
+#[derive(Clone, Debug, Default)]
+pub struct Job {
+    /// The request.
+    pub request: String,
+    /// The targets.
+    pub candidates: Vec<Candidate>,
+    /// Local midnight, epoch ms.
+    pub midnight_ms: i64,
+    /// Now, epoch ms.
+    pub now_ms: i64,
+}
+
+impl Job {
+    /// The job a harness line describes.
+    #[must_use]
+    pub fn from_json(v: &Value) -> Self {
+        Self {
+            request: v["request"].as_str().unwrap_or_default().to_owned(),
+            candidates: v["candidates"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Candidate::from_json)
+                .collect(),
+            midnight_ms: v["midnight_ms"].as_i64().unwrap_or(0),
+            now_ms: v["now_ms"].as_i64().unwrap_or(0),
+        }
+    }
+
+    /// The job as an ask.
+    #[must_use]
+    pub fn ask(&self) -> Ask<'_> {
+        Ask {
+            request: &self.request,
+            candidates: &self.candidates,
+            midnight_ms: self.midnight_ms,
+            now_ms: self.now_ms,
+        }
+    }
 }
 
 /// One request to draft from.
@@ -125,6 +206,14 @@ pub enum WatchDrafted {
     Remind {
         /// The draft.
         reminder: crate::features::schedule::remind_draft::ReminderDraftInfo,
+    },
+    /// AJ-E3830 (0.5.2): Bot's answer to a watch request: the form
+    /// pre-filled with what code verified, each other field left for the
+    /// user ([`prefill`]); with the user's Beta on and every field
+    /// verified, Bot's confirm card.
+    Prefilled {
+        /// The pre-fill.
+        prefill: prefill::WatchPrefill,
     },
 }
 
@@ -802,6 +891,26 @@ fn target_of(
     }
 }
 
+/// What [`draft`] read on its way, for the pre-fill ([`prefill`], 0.5.2):
+/// the request as read, code's word slots, the model's labels for the
+/// words code couldn't place, and whether the model picked the target.
+#[derive(Debug, Clone, Default)]
+pub struct Trace {
+    /// The request as read (compounds split).
+    pub request: String,
+    /// Code's reading, word by word (`None`: not a watch request).
+    pub reading: Option<cover::Reading>,
+    /// What code made of the reading.
+    pub cover: Option<cover::Cover>,
+    /// The negation guard's word, when one stopped the draft.
+    pub negated: Option<usize>,
+    /// The model's label for each word code couldn't place, in order;
+    /// `None` when none was asked or no answer had the right shape.
+    pub labels: Option<Vec<cover::Slot>>,
+    /// The target was the model's pick among several (call 1), not code's.
+    pub picked: bool,
+}
+
 /// The draft for `ask`: code's readings, the model's picks only where code
 /// can't decide; `check` is the form's own check of a draft (its
 /// problem's words, or none). Returns the outcome and the calls made.
@@ -811,8 +920,23 @@ pub fn draft(
     stop: &Stop,
     check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
 ) -> (Outcome, u32) {
+    let (out, calls, _) = draft_traced(model, ask, stop, check);
+    (out, calls)
+}
+
+/// [`draft`], with what it read on its way ([`Trace`]).
+pub fn draft_traced(
+    model: &dyn JobModel,
+    ask: &Ask<'_>,
+    stop: &Stop,
+    check: &dyn Fn(&WatchDraftInfo) -> Option<String>,
+) -> (Outcome, u32, Trace) {
     // "die Fahrplan-Import-Sitzung" names "Fahrplan-Import" (v11's W28).
     let text = uncompound(ask.request);
+    let mut trace = Trace {
+        request: text.clone(),
+        ..Trace::default()
+    };
     let ask = &Ask {
         request: &text,
         candidates: ask.candidates,
@@ -820,12 +944,14 @@ pub fn draft(
         now_ms: ask.now_ms,
     };
     if !is_watch_request(ask.request) {
-        return (Outcome::NotAWatch, 0);
+        return (Outcome::NotAWatch, 0, trace);
     }
     let reading = cover::read(ask);
+    trace.reading = Some(reading.clone());
     // The negation guard (v12), whatever else is read: a word that leaves
     // something out makes the request one that can't be watched.
     if let Some(i) = cover::negated(&reading) {
+        trace.negated = Some(i);
         let (asked, end) = cover::clause_from(ask.request, i);
         return (
             Outcome::Drafted(WatchDrafted::CantWatch {
@@ -833,11 +959,16 @@ pub fn draft(
                 draft: Some(cover::nearest(ask, &reading, (i, end), (i, end))),
             }),
             0,
+            trace,
         );
     }
-    let (out, calls) = match reading.cover(ask) {
+    let covered = reading.cover(ask);
+    trace.cover = Some(covered.clone());
+    let (out, calls) = match covered {
         cover::Cover::Claimed => {
             let (out, calls) = claimed(model, ask, stop, check);
+            // The only call on this path is call 1, the model's pick.
+            trace.picked = calls > 0;
             (quiet_hours(out, reading.quiet_on), calls)
         }
         cover::Cover::NoCondition => (Outcome::Drafted(WatchDrafted::Form), 0),
@@ -849,10 +980,12 @@ pub fn draft(
             0,
         ),
         cover::Cover::Leftover(left) => {
-            let (out, labels) = cover::labelled(model, ask, &reading, &left, stop);
+            let (out, labels, slots) = cover::labelled_with(model, ask, &reading, &left, stop);
+            trace.labels = slots;
             let (out, calls) = match out {
                 cover::Labelled::Claimed => {
                     let (out, calls) = claimed(model, ask, stop, check);
+                    trace.picked = calls > 0;
                     (quiet_hours(out, reading.quiet_on), labels + calls)
                 }
                 other => (labelled_outcome(ask, other, check), labels),
@@ -870,7 +1003,7 @@ pub fn draft(
         }
         other => other,
     };
-    (out, calls)
+    (out, calls, trace)
 }
 
 /// What any session offers: every candidate's conditions, once each.

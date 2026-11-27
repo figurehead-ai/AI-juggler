@@ -458,6 +458,47 @@ impl JobModel for LiveJob<'_> {
     }
 }
 
+/// AJ-E3830, AJ-E3831: one engine and model as a job's model, for the
+/// harness rounds the examples run on the app's own engine code: every
+/// call's time kept; with no engine, every call refused (code alone).
+pub struct Timed<'a> {
+    engine: Option<&'a dyn super::engine::AiEngine>,
+    model: String,
+    took: std::cell::RefCell<Vec<Duration>>,
+}
+
+impl<'a> Timed<'a> {
+    /// `model` on `engine` (`None`: no model).
+    #[must_use]
+    pub fn new(engine: Option<&'a dyn super::engine::AiEngine>, model: &str) -> Self {
+        Self {
+            engine,
+            model: model.to_owned(),
+            took: std::cell::RefCell::new(Vec::new()),
+        }
+    }
+
+    /// Each call's time so far, in milliseconds.
+    #[must_use]
+    pub fn took_ms(&self) -> Vec<u64> {
+        self.took
+            .borrow()
+            .iter()
+            .map(|d| u64::try_from(d.as_millis()).unwrap_or(u64::MAX))
+            .collect()
+    }
+}
+
+impl JobModel for Timed<'_> {
+    fn generate(&self, request: &Request, stop: &Stop) -> Result<Draft, AiFailure> {
+        let engine = self.engine.ok_or(AiFailure::Refused)?;
+        let began = std::time::Instant::now();
+        let answer = engine.respond(&self.model, request, stop);
+        self.took.borrow_mut().push(began.elapsed());
+        answer.map_err(|_| AiFailure::TimedOut)
+    }
+}
+
 /// One generation for `job`, through its started engine.
 #[derive(Debug, Clone)]
 pub struct Generated {

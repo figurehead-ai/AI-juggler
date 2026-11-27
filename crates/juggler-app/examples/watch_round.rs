@@ -22,8 +22,7 @@ use std::time::{Duration, Instant};
 
 use juggler_app::features::ai::engine::{Draft, Finish, Request, Stop, Usage};
 use juggler_app::features::ai::run::{AiFailure, JobModel};
-use juggler_app::features::watches::draft::{self, Ask, Candidate, Outcome, cover};
-use juggler_app::features::watches::model::WatchTarget;
+use juggler_app::features::watches::draft::{self, Outcome, cover};
 use serde_json::{Value, json};
 
 /// The harness on the other end of stdin and stdout.
@@ -76,46 +75,8 @@ impl JobModel for Harness {
     }
 }
 
-fn candidate(v: &Value) -> Option<Candidate> {
-    let s = |k: &str| v[k].as_str().map(str::to_owned);
-    let id = s("id").unwrap_or_default();
-    let target = match v["kind"].as_str()? {
-        "session" => WatchTarget::Session(id),
-        "app" => WatchTarget::App(id),
-        "project" => WatchTarget::Project(id),
-        "account" => WatchTarget::Account(id),
-        "pool" => WatchTarget::Pool(id),
-        _ => return None,
-    };
-    let list = |k: &str| {
-        v[k].as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(|x| x.as_str().map(str::to_owned))
-            .collect::<Vec<_>>()
-    };
-    Some(Candidate {
-        target,
-        name: s("name").unwrap_or_default(),
-        aliases: list("aliases"),
-        app: s("app"),
-        project: s("project"),
-        offered: list("offered"),
-    })
-}
-
 fn slot_name(s: Option<cover::Slot>) -> &'static str {
-    match s {
-        Some(cover::Slot::Target) => "target",
-        Some(cover::Slot::Exclusion) => "exclusion",
-        Some(cover::Slot::Condition) => "condition",
-        Some(cover::Slot::ConditionParam) => "condition_param",
-        Some(cover::Slot::Lifetime) => "lifetime",
-        Some(cover::Slot::QuietHours) => "quiet_hours",
-        Some(cover::Slot::Filler) => "filler",
-        Some(cover::Slot::Other) => "other",
-        None => "unplaced",
-    }
+    s.map_or("unplaced", cover::Slot::name)
 }
 
 fn main() {
@@ -130,19 +91,8 @@ fn main() {
             say(&json!({ "op": "error", "error": "not JSON" }));
             continue;
         };
-        let request = job["request"].as_str().unwrap_or_default().to_owned();
-        let cands: Vec<Candidate> = job["candidates"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(candidate)
-            .collect();
-        let ask = Ask {
-            request: &request,
-            candidates: &cands,
-            midnight_ms: job["midnight_ms"].as_i64().unwrap_or(0),
-            now_ms: job["now_ms"].as_i64().unwrap_or(0),
-        };
+        let read = draft::Job::from_json(&job);
+        let ask = read.ask();
         let reading = cover::read(&ask);
         let covered = match reading.cover(&ask) {
             cover::Cover::Claimed => json!("claimed"),

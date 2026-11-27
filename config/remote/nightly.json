@@ -25,7 +25,7 @@
           "digest": "beta",
           "digest_note": "Preferred over the plain roundup in 64 % of blind checks.",
           "watches": "not_yet",
-          "watches_note": "Drafts are being made exact before Bot fills the form."
+          "watches_note": "Fills in what it understands from your words; you check the form and save."
         },
         {
           "id": "qwen3-1-7b-q8",
@@ -50,7 +50,7 @@
           "digest": "not_yet",
           "digest_note": "The plain roundup reads better for now.",
           "watches": "not_yet",
-          "watches_note": "Drafts matched the request 81 % of the time; we want 95 %."
+          "watches_note": "Fills in what it understands from your words; you check the form and save."
         },
         {
           "id": "nemotron-3-nano-4b-q4km",
@@ -75,7 +75,7 @@
           "digest": "not_yet",
           "digest_note": "The plain roundup reads better for now.",
           "watches": "not_yet",
-          "watches_note": "Drafts matched the request 85 % of the time; we want 95 %."
+          "watches_note": "Fills in what it understands from your words; you check the form and save."
         },
         {
           "id": "granite-4-1-3b-q4km",
@@ -100,7 +100,7 @@
           "digest": "not_yet",
           "digest_note": "The plain roundup reads better for now.",
           "watches": "not_yet",
-          "watches_note": "Drafts matched the request 85 % of the time; we want 95 %."
+          "watches_note": "Fills in what it understands from your words; you check the form and save."
         },
         {
           "id": "gemma-4-e2b-q4-0",
@@ -125,7 +125,7 @@
           "digest": "not_yet",
           "digest_note": "The plain roundup reads better for now.",
           "watches": "not_yet",
-          "watches_note": "Drafts matched the request 70 % of the time; we want 95 %."
+          "watches_note": "Fills in what it understands from your words; you check the form and save."
         }
       ]
     }

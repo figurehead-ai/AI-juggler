@@ -42,6 +42,19 @@ pub fn labelled(
     left: &[usize],
     stop: &Stop,
 ) -> (Labelled, u32) {
+    let (out, calls, _) = labelled_with(model, ask, r, left, stop);
+    (out, calls)
+}
+
+/// [`labelled`], with the labels themselves (`None` when no answer had
+/// the right shape): the pre-fill reads each field from them (0.5.2).
+pub fn labelled_with(
+    model: &dyn JobModel,
+    ask: &Ask<'_>,
+    r: &Reading,
+    left: &[usize],
+    stop: &Stop,
+) -> (Labelled, u32, Option<Vec<Slot>>) {
     let mut calls = 0;
     let mut note = String::new();
     for attempt in 0..=draft::RETRIES {
@@ -51,11 +64,14 @@ pub fn labelled(
             break;
         };
         match slots_of(&out.text, out.finish, left.len()) {
-            Ok(labels) => return (judge(ask, r, left, &labels), calls),
+            Ok(labels) => {
+                let judged = judge(ask, r, left, &labels);
+                return (judged, calls, Some(labels));
+            }
             Err(why) => note = retry_note(&out.text, &why),
         }
     }
-    (Labelled::Told(code_told_back(ask, r, left)), calls)
+    (Labelled::Told(code_told_back(ask, r, left)), calls, None)
 }
 
 /// The labels, word by word: other or exclusion, told back; filler, only
@@ -149,6 +165,23 @@ fn told_at(ask: &Ask<'_>, r: &Reading, i: usize, excludes: bool) -> WatchDrafted
 
 /// Number words, and words for how often.
 const COUNT_WORDS: &[&str] = &[
+    // Ordinals (0.5.2: "its third approval" is a count).
+    "third",
+    "fourth",
+    "fifth",
+    "sixth",
+    "tenth",
+    "last",
+    "zweite",
+    "zweiten",
+    "dritte",
+    "dritten",
+    "vierte",
+    "vierten",
+    "fünfte",
+    "fünften",
+    "letzte",
+    "letzten",
     "twice",
     "thrice",
     "zweimal",
@@ -289,6 +322,11 @@ const TIME_WORDS: &[&str] = &[
     "early",
     "früh",
 ];
+/// A time or date word (the pre-fill reads it, [`super::time_word`]).
+pub(super) fn is_time_word(w: &str) -> bool {
+    is(TIME_WORDS, w)
+}
+
 /// Words for how many or which.
 const SCOPE_WORDS: &[&str] = &[
     "only",
@@ -391,6 +429,16 @@ const PREPOSITIONS_BEFORE: &[&str] = &[
     "on", "in", "for", "with", "at", "from", "about", "after", "before", "during", "into", "of",
     "beim", "im", "mit", "bei", "für", "von", "nach", "über", "auf", "wegen", "an", "am", "aus",
 ];
+/// Words that turn a quiet-hours phrase around ("even if it's quiet
+/// hours", "selbst in den Ruhezeiten"): never filler (0.5.2).
+const QUIET_MODIFIERS: &[&str] = &[
+    "even",
+    "selbst",
+    "sogar",
+    "trotzdem",
+    "regardless",
+    "anyway",
+];
 /// Words that narrow how or why something happens.
 const QUALIFIERS: &[&str] = &[
     "almost",
@@ -455,6 +503,21 @@ const QUALIFIERS: &[&str] = &[
 /// a name or a part of one, a condition's cue word, a negation, a unit or
 /// a word for code work.
 fn meaning_bearing(ask: &Ask<'_>, r: &Reading, i: usize) -> bool {
+    let word = r.words[i].as_str();
+    let name_part = ask.candidates.iter().any(|c| {
+        super::every_name(c)
+            .flat_map(|n| tokens(n).into_iter().chain(resolve::spaced(n)))
+            .any(|t| t == word)
+    });
+    name_part || qualifies(r, i)
+}
+
+/// The second guard's reading of word `i`, names aside: the word says
+/// something of its own (a qualifier, a number, a time, how often or
+/// which, content, code work, a cue, a negation). The pre-fill (0.5.2)
+/// reads it too: such a word beside a condition may change what is
+/// asked, whatever its label.
+pub(in crate::features::watches) fn qualifies(r: &Reading, i: usize) -> bool {
     let w = &r.words;
     let word = w[i].as_str();
     let unplaced = |k: usize| r.slots.get(k) == Some(&None);
@@ -473,14 +536,10 @@ fn meaning_bearing(ask: &Ask<'_>, r: &Reading, i: usize) -> bool {
             })
     });
     let stem = |stems: &[&str]| stems.iter().any(|s| word.starts_with(s));
-    let name_part = ask.candidates.iter().any(|c| {
-        super::every_name(c)
-            .flat_map(|n| tokens(n).into_iter().chain(resolve::spaced(n)))
-            .any(|t| t == word)
-    });
     phrase
         || object
         || is(QUALIFIERS, word)
+        || is(QUIET_MODIFIERS, word)
         || word.chars().any(|c| c.is_ascii_digit())
         || number(word).is_some()
         || is(COUNT_WORDS, word)
@@ -490,12 +549,17 @@ fn meaning_bearing(ask: &Ask<'_>, r: &Reading, i: usize) -> bool {
         || stem(&[
             "test", "deploy", "merge", "push", "build", "releas", "kosten", "datei",
         ])
-        || name_part
         || !cue_conditions(word).is_empty()
         || is(COND_EXTRA, word)
         || is(NEGATION_WORDS, word)
         || word.starts_with("kein")
         || (word == "t" && i > 0 && is(NOT_STEMS, &w[i - 1]))
+}
+
+/// The second guard on word `i` as the model's filler: it bears no
+/// meaning code can see (the pre-fill's reading of a filler label).
+pub(in crate::features::watches) fn plain_filler(ask: &Ask<'_>, r: &Reading, i: usize) -> bool {
+    !meaning_bearing(ask, r, i)
 }
 
 /// The one entity the target spans resolve to (or any session), and what

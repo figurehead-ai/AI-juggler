@@ -367,6 +367,55 @@ fn profile_rejected(tool: &Path, program: &Path, dir: &Path) -> bool {
 }
 
 impl Local {
+    /// AJ-E3830, AJ-E3831: the engine for one listed model (`model`, an id
+    /// in `config`'s `models` section, read as a Nightly 0.5.2 Mac reads
+    /// it, targeting aside) whose file is at `<dir>/<sha256>.gguf`, as the
+    /// app's store keeps it; `program` the helper (`None`: the app's own).
+    /// The harness rounds run the app's own engine through it; nothing is
+    /// downloaded. `None` when no listed entry with a file reads.
+    #[must_use]
+    pub fn for_listed(
+        config: &serde_json::Value,
+        model: &str,
+        dir: PathBuf,
+        program: Option<PathBuf>,
+    ) -> Option<Self> {
+        use juggler_remote_config::{Channel, Facts, InstallId, Os, Version};
+        let mut section = config["sections"]["models"].clone();
+        for item in section["items"].as_array_mut().into_iter().flatten() {
+            if let Some(o) = item.as_object_mut() {
+                o.remove("when");
+            }
+        }
+        // Targeting is set aside above: any facts read the entries alike.
+        let facts = Facts {
+            install: InstallId::from_bytes([0; 16]),
+            tools: std::collections::BTreeMap::new(),
+            os_version: None,
+            os: Os::Macos,
+            channel: Channel::Nightly,
+            app_version: Version::new(0, 5, 2),
+        };
+        let entry = crate::features::ai::models::read_raw(&section, &facts)?
+            .into_iter()
+            .find(|e| e.id == model)?;
+        let download = entry.download.as_ref()?;
+        let (sha256, size_bytes) = (download.sha256.clone(), download.size_bytes);
+        Some(Self::with(Setup {
+            program,
+            models: Some((
+                dir,
+                vec![Installed {
+                    entry,
+                    sha256,
+                    size_bytes,
+                    installed_at_ms: 0,
+                }],
+            )),
+            ..Setup::default()
+        }))
+    }
+
     /// The engine over `setup`, nothing started.
     #[must_use]
     pub fn with(setup: Setup) -> Self {

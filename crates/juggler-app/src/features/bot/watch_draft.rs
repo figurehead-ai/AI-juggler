@@ -1,10 +1,12 @@
-//! AJ-E3830 (D-149): Bot's watch request fills the Watches form. When the
-//! words ask to be told and the router serves the Watches job (its
-//! verdict), the draft is made in two small calls
-//! ([`crate::features::watches::draft`]) and the turn carries it: the
-//! window opens the form filled in, and only the user's click adds the
-//! watch. Otherwise Bot answers as it would.
-
+//! AJ-E3830 (D-149; 0.5.2's ruling): Bot pre-fills the Watches form; the
+//! user saves. Every request Bot reads as a watch request opens the form
+//! with what code verified, from code's reading and the model's labels as
+//! code checks them ([`crate::features::watches::draft::prefill`]); a
+//! field nothing verified stays empty for the user, and only the user's
+//! click adds the watch. With every field verified and the user's
+//! Watches Beta on (Settings › AI › Models), Bot shows its confirm card
+//! instead. The labels ride Bot's own model; with no model served, code
+//! alone fills what it reads.
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -12,10 +14,12 @@ use super::dto::{BotRowKind, BotTurnInfo};
 use super::world::World;
 use crate::features::ai::dto::AiJob;
 use crate::features::ai::engine::Stop;
+use crate::features::ai::jobs;
 use crate::features::ai::run::LiveJob;
 use crate::features::schedule::remind_draft;
 use crate::features::watches::commands::{watches_catalogue_impl, watches_preview_impl};
-use crate::features::watches::draft::{self, Ask, Candidate, Outcome, WatchDrafted};
+use crate::features::watches::draft::prefill::{self, PrefillField, PrefillWhy, WatchPrefill};
+use crate::features::watches::draft::{self, Ask, Candidate, WatchDrafted};
 use crate::features::watches::model::WatchTarget;
 use crate::features::watches::words::Lang;
 use crate::state::AppState;
@@ -106,25 +110,75 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
 }
 
 /// The form to open for `question`, or `None` when Bot answers as usual
-/// (not a watch request, or the Watches job isn't served).
+/// (not a watch request, a question about when something happened, or the
+/// Watches job switched off by an update).
 pub fn drafted(state: &Arc<AppState>, world: &World, question: &str) -> Option<WatchDrafted> {
     // AJ-E2027: a reminder is code's alone (no model call): its time and
     // words from the request, what it is about from the user's names.
     if remind_draft::is_reminder_request(question) && state.schedules.registry().is_some() {
         return Some(reminder(state, world, question));
     }
-    if !draft::is_watch_request(question) {
+    if !draft::is_watch_request(question)
+        || asks_when_it_happened(question)
+        || !crate::features::flags::is_on(&jobs::WATCHES_ON)
+    {
         return None;
     }
     let live = LiveJob {
         service: crate::features::ai::service::shared(),
         state,
-        job: AiJob::Watches,
+        job: AiJob::Bot,
     };
-    if !live.served() {
-        return None;
+    let card = card_on(state);
+    if live.served() {
+        drafted_with(&live, state, world, question, card)
+    } else {
+        drafted_with(&NoModel, state, world, question, card)
     }
-    drafted_with(&live, state, world, question)
+}
+
+/// No model: every call fails, so code alone fills what it reads.
+struct NoModel;
+
+impl crate::features::ai::run::JobModel for NoModel {
+    fn generate(
+        &self,
+        _request: &crate::features::ai::engine::Request,
+        _stop: &Stop,
+    ) -> Result<crate::features::ai::engine::Draft, crate::features::ai::run::AiFailure> {
+        Err(crate::features::ai::run::AiFailure::Refused)
+    }
+}
+
+/// The user's Watches Beta: Bot's confirm card for a request code fully
+/// verified (off unless turned on in Settings › AI › Models).
+fn card_on(state: &AppState) -> bool {
+    state.storage.lock().is_ok_and(|storage| {
+        storage
+            .app_settings()
+            .get(&jobs::beta_key(crate::features::ai::models::Job::Watches))
+            .ok()
+            .flatten()
+            .as_deref()
+            == Some("1")
+    })
+}
+
+/// "When did api finish?", "tell me when it was started": a question about
+/// the past, answered as a question, never a watch.
+#[must_use]
+pub fn asks_when_it_happened(question: &str) -> bool {
+    let w = draft::words(question);
+    let pair = |a: &str, b: &[&str]| {
+        w.windows(2)
+            .any(|p| p[0] == a && b.contains(&p[1].as_str()))
+    };
+    pair("when", &["did", "was", "were", "had", "has", "have"])
+        || pair(
+            "wann",
+            &["hat", "war", "waren", "wurde", "wurden", "ist", "hatte"],
+        )
+        || pair("what", &["time"]) && w.iter().any(|x| x == "did")
 }
 
 /// The reminder draft for `question`: what it is about when the request
@@ -148,12 +202,14 @@ pub fn reminder(state: &Arc<AppState>, world: &World, question: &str) -> WatchDr
     }
 }
 
-/// [`drafted`] through `model` (a test's fake).
+/// [`drafted`] through `model` (a test's fake); `card`: the user's
+/// Watches Beta.
 pub fn drafted_with(
     model: &dyn crate::features::ai::run::JobModel,
     state: &Arc<AppState>,
     world: &World,
     question: &str,
+    card: bool,
 ) -> Option<WatchDrafted> {
     let cands = candidates(state, world);
     let day = 86_400_000;
@@ -170,9 +226,65 @@ pub fn drafted_with(
             .and_then(|p| p.problem)
     };
     let stop = Stop::at(Instant::now() + WAIT);
-    match draft::draft(model, &ask, &stop, &check).0 {
-        Outcome::NotAWatch => None,
-        Outcome::Drafted(d) => Some(d),
+    let (mut prefill, _) = prefill::prefill(model, &ask, &stop, &check)?;
+    prefill.card &= card;
+    Some(WatchDrafted::Prefilled { prefill })
+}
+
+/// The fields left, in words ("how long and quiet hours").
+fn left_words(left: &[PrefillField]) -> String {
+    let names: Vec<&str> = left
+        .iter()
+        .map(|f| match f {
+            PrefillField::Target => "what to watch",
+            PrefillField::Condition => "what to watch for",
+            PrefillField::Lifetime => "how long",
+            PrefillField::QuietHours => "quiet hours",
+        })
+        .collect();
+    match names.as_slice() {
+        [] => String::new(),
+        [one] => (*one).to_owned(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+
+/// The pre-fill's one line, in code's words (the window says it in the
+/// user's language from the same fields).
+#[must_use]
+pub fn prefill_line(p: &WatchPrefill) -> String {
+    let filled = p.left.len() < 4
+        && !(p.left.contains(&PrefillField::Target) && p.left.contains(&PrefillField::Condition));
+    let left = left_words(&p.left);
+    match (p.why, p.asked.as_deref()) {
+        (PrefillWhy::Verified, _) if p.card => {
+            "Here is the watch. Check it, then click Watch.".to_owned()
+        }
+        (PrefillWhy::Verified, _) => {
+            "I filled in the Watches form. Check it and click Watch.".to_owned()
+        }
+        (PrefillWhy::Several, _) => format!(
+            "More than one matches that name, so the Watches form asks which one{}.",
+            if p.left.len() > 1 { format!("; I left {left} for you too") } else { String::new() }
+        ),
+        (PrefillWhy::CantWatch, Some(asked)) => {
+            let near = if p.nearest.is_some() {
+                " The nearest it can watch is marked."
+            } else {
+                ""
+            };
+            format!("I can't watch for “{asked}”. The Watches form is open with what I could fill in.{near}")
+        }
+        (PrefillWhy::NoCondition, _) if filled => {
+            "Your words don't say what to watch for. The Watches form is open with the rest filled in.".to_owned()
+        }
+        _ if !filled => {
+            "I couldn't fill the form from your words. The Watches form is open.".to_owned()
+        }
+        (_, Some(asked)) => {
+            format!("I couldn't read “{asked}”, so I left {left} for you. The Watches form is open.")
+        }
+        _ => format!("I left {left} for you. The Watches form is open."),
     }
 }
 
@@ -199,6 +311,7 @@ pub fn shown(d: &WatchDrafted) -> String {
         WatchDrafted::Form => {
             "I couldn't fill the form from your words. The Watches form is open.".to_owned()
         }
+        WatchDrafted::Prefilled { prefill } => prefill_line(prefill),
         WatchDrafted::Remind { reminder } => {
             if reminder.at_ms.is_some() {
                 "I drafted the reminder. Check the time, then set it.".to_owned()
@@ -221,6 +334,7 @@ pub fn attach(info: &mut BotTurnInfo, mut d: WatchDrafted) {
             draft: Some(draft), ..
         } => draft.chat_turn = Some(turn),
         WatchDrafted::Remind { reminder } => reminder.chat_turn = Some(turn),
+        WatchDrafted::Prefilled { prefill } => prefill.draft.chat_turn = Some(turn),
         WatchDrafted::CantWatch { draft: None, .. } | WatchDrafted::Form => {}
     }
     info.watch_draft = Some(d);

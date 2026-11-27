@@ -18,7 +18,7 @@
       "digest": "beta",
       "digest_note": "Preferred over the plain roundup in 64 % of blind checks.",
       "watches": "not_yet",
-      "watches_note": "Drafts are being made exact before Bot fills the form."
+      "watches_note": "Fills in what it understands from your words; you check the form and save."
     }
   ]
 }

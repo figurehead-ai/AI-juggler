@@ -269,7 +269,33 @@ fn answer_now(state: &AppState, probe: Probe) -> AppResult<(Vec<AiJobInfo>, bool
     let snapshot = crate::features::remote_config::current();
     let (mut jobs, changed) = service().answer(&snapshot, &beta, &picks, &state.data_dir, probe);
     with_covers(state, &mut jobs);
+    with_watch_help(&mut jobs);
     Ok((jobs, changed))
+}
+
+/// AJ-E3830 (0.5.2): Bot pre-fills the Watches form on Bot's own model,
+/// whatever the Watches verdict (it stays `not_yet`: Bot doesn't draft a
+/// whole watch by default), so the Watches row says Bot's state and model;
+/// its Beta switch is Bot's confirm card, offered while Bot's AI runs. A
+/// Watches job switched off by an update stays off.
+fn with_watch_help(jobs: &mut [AiJobInfo]) {
+    let Some(bot) = jobs.iter().find(|info| info.job == AiJob::Bot).cloned() else {
+        return;
+    };
+    for info in jobs.iter_mut().filter(|info| info.job == AiJob::Watches) {
+        if info.state == super::dto::AiJobState::Off {
+            continue;
+        }
+        info.state = bot.state;
+        info.model_id.clone_from(&bot.model_id);
+        info.model_name.clone_from(&bot.model_name);
+        info.why = bot.why;
+        info.pick = None;
+        info.beta = matches!(
+            bot.state,
+            super::dto::AiJobState::Ready | super::dto::AiJobState::Waiting
+        );
+    }
 }
 
 /// AJ-E3820 R5: the query says which turns the review covers (only those
