@@ -10,7 +10,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use super::dto::{BotRowKind, BotTurnInfo};
+use super::dto::{BotRowKind, BotScope, BotScopeKind, BotTurnInfo};
 use super::world::World;
 use crate::features::ai::dto::AiJob;
 use crate::features::ai::engine::Stop;
@@ -109,17 +109,41 @@ fn candidates(state: &Arc<AppState>, world: &World) -> Vec<Candidate> {
     out
 }
 
+/// The one record a chip names, by its key (a session or an Account), and
+/// its name; none for a chip on a group (an App, a project, a pool).
+#[must_use]
+pub fn chip_record(scope: Option<&BotScope>) -> Option<(WatchTarget, String)> {
+    let scope = scope?;
+    let target = match scope.kind {
+        BotScopeKind::Session => WatchTarget::Session(scope.id.clone()),
+        BotScopeKind::Account => WatchTarget::Account(scope.id.clone()),
+        BotScopeKind::App | BotScopeKind::Project | BotScopeKind::Pool => return None,
+    };
+    (!scope.id.is_empty()).then(|| (target, scope.name.clone()))
+}
+
 /// The form to open for `question`, or `None` when Bot answers as usual
 /// (not a watch request, a question about when something happened, or the
-/// Watches job switched off by an update).
-pub fn drafted(state: &Arc<AppState>, world: &World, question: &str) -> Option<WatchDrafted> {
+/// Watches job switched off by an update). 0.5.2 G65: asked from a post,
+/// only the user's own words are read (never the post's sentence, whose
+/// names would be read as targets), and the chip's one record (a session,
+/// an Account), by its key, is what the request is about.
+pub fn drafted(
+    state: &Arc<AppState>,
+    world: &World,
+    question: &str,
+    scope: Option<&BotScope>,
+) -> Option<WatchDrafted> {
+    let asked = super::question::after_post(question);
+    let chip = chip_record(scope);
     // AJ-E2027: a reminder is code's alone (no model call): its time and
-    // words from the request, what it is about from the user's names.
-    if remind_draft::is_reminder_request(question) && state.schedules.registry().is_some() {
-        return Some(reminder(state, world, question));
+    // words from the request, what it is about from the user's names, or
+    // the chip's record.
+    if remind_draft::is_reminder_request(asked) && state.schedules.registry().is_some() {
+        return Some(reminder_about(state, world, asked, chip));
     }
-    if !draft::is_watch_request(question)
-        || asks_when_it_happened(question)
+    if !draft::is_watch_request(asked)
+        || asks_when_it_happened(asked)
         || !crate::features::flags::is_on(&jobs::WATCHES_ON)
     {
         return None;
@@ -130,10 +154,11 @@ pub fn drafted(state: &Arc<AppState>, world: &World, question: &str) -> Option<W
         job: AiJob::Bot,
     };
     let card = card_on(state);
+    let chip = chip.map(|(target, _)| target);
     if live.served() {
-        drafted_with(&live, state, world, question, card)
+        drafted_with(&live, state, world, asked, card, chip.as_ref())
     } else {
-        drafted_with(&NoModel, state, world, question, card)
+        drafted_with(&NoModel, state, world, asked, card, chip.as_ref())
     }
 }
 
@@ -184,14 +209,27 @@ pub fn asks_when_it_happened(question: &str) -> bool {
 /// The reminder draft for `question`: what it is about when the request
 /// names one target the resolver settles.
 pub fn reminder(state: &Arc<AppState>, world: &World, question: &str) -> WatchDrafted {
-    let cands = candidates(state, world);
-    let found = crate::features::watches::resolve::resolve(question, &cands);
-    let about = match found.candidates.as_slice() {
-        [one] if found.picker.is_empty() => {
-            cands.get(*one).map(|c| (c.target.clone(), c.name.clone()))
+    reminder_about(state, world, question, None)
+}
+
+/// [`reminder`], about the chip's record when one rides on the ask (0.5.2
+/// G65: a post's Ask Bot), else the one target the words settle.
+fn reminder_about(
+    state: &Arc<AppState>,
+    world: &World,
+    question: &str,
+    chip: Option<(WatchTarget, String)>,
+) -> WatchDrafted {
+    let about = chip.or_else(|| {
+        let cands = candidates(state, world);
+        let found = crate::features::watches::resolve::resolve(question, &cands);
+        match found.candidates.as_slice() {
+            [one] if found.picker.is_empty() => {
+                cands.get(*one).map(|c| (c.target.clone(), c.name.clone()))
+            }
+            _ => None,
         }
-        _ => None,
-    };
+    });
     WatchDrafted::Remind {
         reminder: remind_draft::draft(
             question,
@@ -203,13 +241,14 @@ pub fn reminder(state: &Arc<AppState>, world: &World, question: &str) -> WatchDr
 }
 
 /// [`drafted`] through `model` (a test's fake); `card`: the user's
-/// Watches Beta.
+/// Watches Beta; `chip`: the chip's one record, by its key.
 pub fn drafted_with(
     model: &dyn crate::features::ai::run::JobModel,
     state: &Arc<AppState>,
     world: &World,
     question: &str,
     card: bool,
+    chip: Option<&WatchTarget>,
 ) -> Option<WatchDrafted> {
     let cands = candidates(state, world);
     let day = 86_400_000;
@@ -227,8 +266,68 @@ pub fn drafted_with(
     };
     let stop = Stop::at(Instant::now() + WAIT);
     let (mut prefill, _) = prefill::prefill(model, &ask, &stop, &check)?;
+    if let Some(chip) = chip {
+        pinned(&mut prefill, chip, &offered(state, chip), &check);
+    }
     prefill.card &= card;
     Some(WatchDrafted::Prefilled { prefill })
+}
+
+/// 0.5.2 G65: the chip's record (a session or an Account, by its key, so
+/// verified) is the target. Words that named another target leave it for
+/// the user with both offered (never a guess); a condition the record
+/// can't report leaves, offered as the nearest; with every field verified
+/// the card may be offered as for any request.
+fn pinned(
+    p: &mut WatchPrefill,
+    chip: &WatchTarget,
+    offered: &[String],
+    check: &dyn Fn(&crate::features::watches::commands::WatchDraftInfo) -> Option<String>,
+) {
+    match p.draft.targets.as_slice() {
+        [] => {}
+        [one] if one == chip => {}
+        others => {
+            let mut choices = vec![chip.clone()];
+            choices.extend(others.iter().filter(|t| *t != chip).cloned());
+            p.draft.targets.clear();
+            if !p.left.contains(&PrefillField::Target) {
+                p.left.insert(0, PrefillField::Target);
+            }
+            p.choices = choices;
+            p.why = PrefillWhy::Several;
+            p.card = false;
+            return;
+        }
+    }
+    p.draft.targets = vec![chip.clone()];
+    p.left.retain(|f| *f != PrefillField::Target);
+    p.choices.clear();
+    let (kept, gone): (Vec<_>, Vec<_>) = std::mem::take(&mut p.draft.conditions)
+        .into_iter()
+        .partition(|c| offered.contains(&c.code));
+    p.draft.conditions = kept;
+    if !gone.is_empty() && p.draft.conditions.is_empty() {
+        p.nearest = None;
+        if !p.left.contains(&PrefillField::Condition) {
+            p.left.push(PrefillField::Condition);
+        }
+    }
+    if p.nearest.as_ref().is_some_and(|n| !offered.contains(n)) {
+        p.nearest = None;
+    }
+    // An unsaid "until it ends" is only for a session.
+    if !matches!(chip, WatchTarget::Session(_))
+        && p.draft.lifetime == crate::features::watches::model::LifetimeChoice::UntilEnds
+    {
+        p.draft.lifetime = crate::features::watches::model::LifetimeChoice::Unsaid;
+    }
+    if p.left.is_empty() {
+        p.why = PrefillWhy::Verified;
+    } else if p.why == PrefillWhy::Several {
+        p.why = PrefillWhy::Unread;
+    }
+    p.card = p.left.is_empty() && check(&p.draft).is_none();
 }
 
 /// The fields left, in words ("how long and quiet hours").

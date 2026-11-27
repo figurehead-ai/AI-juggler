@@ -1,6 +1,8 @@
 use super::*;
 use crate::features::ai::scripted::Scripted;
-use crate::features::bot::dto::{BotAskInput, BotOutcome, BotRowInfo, BotState};
+use crate::features::bot::dto::{
+    BotAskInput, BotOutcome, BotRowInfo, BotScope, BotScopeKind, BotState,
+};
 use crate::features::bot::world::tests_support::row;
 
 /// A session row of the App Work in `project` (its id `p-<project>`).
@@ -47,6 +49,7 @@ fn a_watch_request_pre_fills_the_form_and_adds_nothing() {
         &world(),
         "Let me know when api finishes.",
         false,
+        None,
     )
     .expect("a pre-fill");
     let WatchDrafted::Prefilled { prefill } = &got else {
@@ -84,6 +87,7 @@ fn the_card_needs_the_beta_and_the_form_s_check() {
         &world(),
         "Let me know when api finishes.",
         true,
+        None,
     );
     let Some(WatchDrafted::Prefilled { prefill }) = on else {
         unreachable!("{on:?}")
@@ -266,8 +270,15 @@ fn an_ambiguous_name_opens_the_picker_on_its_matches() {
             ),
         ]);
         let fake = Scripted::new(&["FAIL", "FAIL", "FAIL", "FAIL"]);
-        let got = drafted_with(&fake, &state, &world, "tell me when web finishes", false)
-            .expect("a pre-fill");
+        let got = drafted_with(
+            &fake,
+            &state,
+            &world,
+            "tell me when web finishes",
+            false,
+            None,
+        )
+        .expect("a pre-fill");
         let WatchDrafted::Prefilled { prefill } = &got else {
             unreachable!("{got:?}")
         };
@@ -301,4 +312,126 @@ fn an_ambiguous_name_opens_the_picker_on_its_matches() {
             "{wire}"
         );
     }
+}
+
+/// The RW1 lab's sessions: an open untitled one in web, a failed one in
+/// web, and api's titled one.
+fn rw1_world() -> World {
+    world_of(vec![
+        session("s-open", "web · started 3:23 AM", "web", BotState::Idle),
+        session(
+            "s-failed",
+            "Rewrite the date parser to accept two-digit years",
+            "web",
+            BotState::Failed,
+        ),
+        session(
+            "s-api",
+            "Add retries to the sync client",
+            "api",
+            BotState::Idle,
+        ),
+    ])
+}
+
+fn chip(kind: BotScopeKind, id: &str, name: &str) -> BotScope {
+    BotScope {
+        kind,
+        id: id.into(),
+        name: name.into(),
+        sessions: Vec::new(),
+    }
+}
+
+/// 0.5.2 G65: a watch asked from a post reads only the user's own words;
+/// the chip's session, by its key, is the target. The post's sentence
+/// names another session and project ("Add retries to the sync client" in
+/// api): none of it fills anything or is offered.
+#[test]
+fn a_post_scoped_watch_takes_its_target_from_the_chip_never_the_post() {
+    let (_dir, state) = crate::features::bot::tests::state();
+    let asked = "About this post: \u{201c}Claude Code CLI finished \u{201c}Add retries to the sync client\u{201d} in api, in under a minute.\u{201d} tell me when it finishes";
+    let scope = chip(BotScopeKind::Session, "s-open", "web · started 3:23 AM");
+    let got = drafted(&state, &rw1_world(), asked, Some(&scope)).expect("a pre-fill");
+    let WatchDrafted::Prefilled { prefill } = &got else {
+        unreachable!("{got:?}")
+    };
+    assert_eq!(
+        prefill.draft.targets,
+        vec![WatchTarget::Session("s-open".into())],
+        "{prefill:?}"
+    );
+    assert!(!prefill.left.contains(&PrefillField::Target), "{prefill:?}");
+    assert!(prefill.choices.is_empty(), "{prefill:?}");
+    for word in ["retries", "api", "Claude"] {
+        assert!(
+            !prefill.asked.as_deref().unwrap_or("").contains(word),
+            "the post's words were read: {prefill:?}"
+        );
+    }
+    // A reminder from the post is about the chip's session too.
+    assert!(
+        state
+            .schedules
+            .install(crate::features::schedule::handlers())
+    );
+    let remind = drafted(
+        &state,
+        &rw1_world(),
+        "About this post: \u{201c}Claude Code CLI finished in api.\u{201d} remind me in an hour",
+        Some(&scope),
+    );
+    let Some(WatchDrafted::Remind { reminder }) = remind else {
+        unreachable!("{remind:?}")
+    };
+    assert_eq!(reminder.about, Some(WatchTarget::Session("s-open".into())));
+}
+
+/// 0.5.2 G65: a post's sentence naming a project ("in web") never fills
+/// the target nor is offered, when the chip names no one record (a
+/// project's chip) and the user's words name nothing.
+#[test]
+fn a_post_s_sentence_never_fills_a_field() {
+    let (_dir, state) = crate::features::bot::tests::state();
+    let asked = "About this post: \u{201c}Claude Code CLI finished \u{201c}Rewrite the date parser to accept two-digit years\u{201d} in web.\u{201d} tell me when it finishes";
+    for scope in [None, Some(chip(BotScopeKind::Project, "p-api", "api"))] {
+        let got = drafted(&state, &rw1_world(), asked, scope.as_ref()).expect("a pre-fill");
+        let WatchDrafted::Prefilled { prefill } = &got else {
+            unreachable!("{got:?}")
+        };
+        assert!(prefill.draft.targets.is_empty(), "{prefill:?}");
+        assert!(prefill.choices.is_empty(), "{prefill:?}");
+        assert!(!prefill.card);
+    }
+}
+
+/// 0.5.2 G65: the user's own words naming another target than the chip:
+/// neither is guessed; the picker offers both, the chip's first.
+#[test]
+fn words_naming_another_target_than_the_chip_leave_the_target_with_both() {
+    let mut p = WatchPrefill {
+        draft: crate::features::watches::commands::WatchDraftInfo {
+            targets: vec![WatchTarget::Session("s-api".into())],
+            matching: crate::features::watches::model::Matching::Each,
+            conditions: vec![crate::features::watches::model::Condition {
+                code: "finishes".into(),
+                param: None,
+            }],
+            lifetime: crate::features::watches::model::LifetimeChoice::Unsaid,
+            even_in_quiet_hours: false,
+            chat_turn: None,
+        },
+        left: Vec::new(),
+        why: PrefillWhy::Verified,
+        asked: None,
+        nearest: None,
+        card: true,
+        choices: Vec::new(),
+    };
+    let open = WatchTarget::Session("s-open".into());
+    pinned(&mut p, &open, &["finishes".to_owned()], &|_| None);
+    assert!(p.draft.targets.is_empty());
+    assert_eq!(p.choices, vec![open, WatchTarget::Session("s-api".into())]);
+    assert_eq!(p.left, vec![PrefillField::Target]);
+    assert!(!p.card);
 }

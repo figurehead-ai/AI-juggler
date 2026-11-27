@@ -151,7 +151,9 @@ pub fn bot_ask_with(
         .is_some_and(|words| RedactionSecrets.finds_secret(&words));
     let question = RedactionSecrets.mask(&question);
     let world = gather(state)?;
-    if let Some(drafted) = super::watch_draft::drafted(state, &world, &question) {
+    if let Some(drafted) =
+        super::watch_draft::drafted(state, &world, &question, input.scope.as_ref())
+    {
         return watch_turn(state, &world, &question, drafted);
     }
     // 0.5.2 G59: from a post, the user's own words are asked (the turn
