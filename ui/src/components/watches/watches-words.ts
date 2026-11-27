@@ -133,7 +133,6 @@ export const EMPTY = {
   once: "Once",
   always: "Always",
   today: "Today",
-  workingNow: "working now",
   catchesMissed: "Catches a question you missed",
   illustration: "Three sessions, one watch, one bell rung once",
 } as const;

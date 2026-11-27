@@ -24,15 +24,17 @@ export interface Starter {
 }
 
 /** The starters the proposal names, offered only where this Mac can
- * report them: the most recently active open session, for Finishes;
+ * report them: the most recently active open session, for Finishes (its
+ * line says its state as the rail does, 0.5.2 G46: never "working now"
+ * for an idle one);
  * any session, asks you and waits 10 minutes; the account in use, runs
  * below 20 %. */
-export async function startersFor(openNow: readonly TargetOption[], accountInUse: TargetOption | null): Promise<Starter[]> {
+export async function startersFor(openNow: readonly TargetOption[], accountInUse: TargetOption | null, catalogueOf: typeof watchCatalogue = watchCatalogue): Promise<Starter[]> {
   const out: Starter[] = [];
-  const offers = async (option: TargetOption, code: string) => (await watchCatalogue(option.target).catch(() => [])).some((entry) => entry.code === code);
+  const offers = async (option: TargetOption, code: string) => (await catalogueOf(option.target).catch(() => [])).some((entry) => entry.code === code);
   const session = openNow[0];
   if (session && (await offers(session, "finishes"))) {
-    out.push({ id: "finishes", icon: IconCheckCircle, badge: EMPTY.once, line: `${session.line.replace(/ · [^·]+$/, "")} · ${EMPTY.workingNow}`, draft: { targets: [session.target], matching: "each", conditions: [{ code: "finishes" }], lifetime: { kind: "once" }, evenInQuietHours: false } });
+    out.push({ id: "finishes", icon: IconCheckCircle, badge: EMPTY.once, line: session.line /* 0.5.2 G46: its state in the rail's words, as the picker says it */, draft: { targets: [session.target], matching: "each", conditions: [{ code: "finishes" }], lifetime: { kind: "once" }, evenInQuietHours: false } });
   }
   const any: TargetOption = { target: { kind: "any" }, key: "any", kind: "any", name: "Any session", line: "", tool: null, open: false, at: 0 };
   if (await offers(any, "asks_you")) {

@@ -32,7 +32,7 @@ import { watchesChanged } from "./WatchDoor";
 import { EndedSection, WatchingSection } from "./WatchesLists";
 import { RemindersSection } from "./RemindersSection";
 import { stateFrom } from "./watch-form-state";
-import { appOfSession, draftOf, nextMidnight, pickerLists, quietHours, targetBook, type TargetOption, type TargetSources } from "./watches-view";
+import { draftOf, nextMidnight, pickerLists, quietHours, seenSessions, targetBook, type TargetOption, type TargetSources } from "./watches-view";
 import { PAGE, TOAST } from "./watches-words";
 
 type View = { kind: "list" } | { kind: "form"; mode: "new" | "edit"; draft: WatchDraftInfo | null; editing: WatchInfo | null };
@@ -250,8 +250,8 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
   const acts = useWatchActions({ refresh, book, onGoTo, openNew, setView: go });
   if (view.kind === "form") return <FormView view={view} book={book} quiet={quiet} count={count} limit={limit} now={now} onClose={() => go({ kind: "list" })} onSaved={refresh} remove={acts.remove} />;
   const appOf = (sessionId: string) => {
-    const session = sources.sessions.find((s) => s.id === sessionId);
-    const app = session ? appOfSession(session, sources.apps) : null;
+    // 0.5.2 G45: one AI Juggler didn't start too.
+    const app = seenSessions(sources).find((s) => s.id === sessionId)?.app ?? null;
     return app ? { id: app.id, name: app.name } : null;
   };
   return (
