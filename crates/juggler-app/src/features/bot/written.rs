@@ -711,9 +711,9 @@ pub fn cite_marks_out(text: &str, cites: &[u32]) -> String {
         {
             let inner: String = chars[i + 1..i + 1 + len].iter().collect();
             if cites_only(&inner, cites) {
-                while out.ends_with(' ') {
-                    out.pop();
-                }
+                // 0.5.2 G66: the mark whole: a "records" before its bracket
+                // and the comma before that go with it (", records [1]").
+                mark_word_out(&mut out);
                 i += len + 2;
                 continue;
             }
@@ -721,7 +721,59 @@ pub fn cite_marks_out(text: &str, cites: &[u32]) -> String {
         out.push(chars[i]);
         i += 1;
     }
-    out
+    unbracketed_mark_out(&out, cites)
+}
+
+/// The words a citation mark may open with ("records 1", "Eintrag 2").
+const MARK_WORDS: &[&str] = &["record", "records", "eintrag", "einträge"];
+
+/// 0.5.2 G66: the end of `out` without trailing spaces, then without a
+/// mark's word ("records") and the comma and spaces before it.
+fn mark_word_out(out: &mut String) {
+    let trimmed = out.trim_end().len();
+    out.truncate(trimmed);
+    if let Some(at) = out.rfind(|c: char| !c.is_alphanumeric()) {
+        let word = out[at..].trim_start_matches(|c: char| !c.is_alphanumeric());
+        if MARK_WORDS.contains(&word.to_lowercase().as_str()) {
+            let keep = out.len() - word.len();
+            out.truncate(keep);
+        }
+    } else if MARK_WORDS.contains(&out.to_lowercase().as_str()) {
+        out.clear();
+    }
+    let trimmed = out.trim_end_matches([' ', ',']).len();
+    out.truncate(trimmed);
+}
+
+/// 0.5.2 G66: a citation written at a sentence's end with no bracket
+/// (", records 1 and 2."), each number one of its cites: taken out whole,
+/// with the comma before it; the end's stop kept.
+fn unbracketed_mark_out(text: &str, cites: &[u32]) -> String {
+    let body = text.trim_end();
+    let stop = body
+        .chars()
+        .last()
+        .filter(|c| matches!(c, '.' | '!' | '?'))
+        .map_or(0, char::len_utf8);
+    let (head, end) = body.split_at(body.len() - stop);
+    let lower = head.to_lowercase();
+    let found = MARK_WORDS
+        .iter()
+        .filter_map(|w| {
+            lower
+                .rmatch_indices(w)
+                .find(|(at, _)| *at == 0 || !lower[..*at].ends_with(char::is_alphanumeric))
+                .map(|(at, _)| (at, w.len()))
+        })
+        .max_by_key(|(at, _)| *at);
+    if let Some((at, len)) = found
+        && cites_only(&head[at + len..], cites)
+        && head[at + len..].starts_with(' ')
+    {
+        let kept = head[..at].trim_end_matches([' ', ',']);
+        return format!("{kept}{end}");
+    }
+    text.to_owned()
 }
 
 /// Whether a bracket's words are only a citation of `cites`: an optional
@@ -1247,6 +1299,100 @@ mod tests {
                 assert_eq!(a, b, "the check decides both alike")
             }
             other => unreachable!("the check decided them differently: {other:?}"),
+        }
+    }
+
+    /// 0.5.2 G66 (RW1 Part S, S3 on Apple's model): shown "“Update the
+    /// summary cell…” is idle in “docs” and “Work · work”, records.": a
+    /// citation mark is taken out whole (its "records" and the comma
+    /// before it), and a draft still carrying a stray mark or an App
+    /// joined to the folder by "and" is refused, never shown.
+    #[test]
+    fn a_citation_mark_goes_whole_and_a_stray_one_or_a_joined_place_is_refused() {
+        let mut notebook = row(
+            BotRowKind::Session,
+            "Update the summary cell in the report notebook",
+            Some(BotState::Idle),
+        );
+        notebook.project = Some("docs".into());
+        notebook.app_label = Some("Work · work".into());
+        let mut parser = row(
+            BotRowKind::Session,
+            "Rewrite the date parser to accept two-digit years",
+            Some(BotState::Failed),
+        );
+        parser.project = Some("docs".into());
+        parser.app_label = Some("Personal · personal".into());
+        let mut codex = row(
+            BotRowKind::Session,
+            "Add a retry helper to the API client",
+            Some(BotState::Ended),
+        );
+        codex.project = Some("web".into());
+        let rows = vec![notebook, parser, codex];
+        for (written, shown) in [
+            (
+                "is idle in \u{201c}docs\u{201d}, records [1].",
+                "is idle in \u{201c}docs\u{201d}.",
+            ),
+            (
+                "is idle in \u{201c}docs\u{201d}, records (1)",
+                "is idle in \u{201c}docs\u{201d}",
+            ),
+            (
+                "is idle in \u{201c}docs\u{201d} (record 1).",
+                "is idle in \u{201c}docs\u{201d}.",
+            ),
+            (
+                "is idle in \u{201c}docs\u{201d}, records 1.",
+                "is idle in \u{201c}docs\u{201d}.",
+            ),
+            (
+                "is idle in \u{201c}docs\u{201d}, records 1 and 2.",
+                "is idle in \u{201c}docs\u{201d}.",
+            ),
+        ] {
+            assert_eq!(cite_marks_out(written, &[1, 2]), shown, "{written}");
+        }
+        // Not a mark: a number that isn't a cite, words that aren't one.
+        assert_eq!(
+            cite_marks_out("is idle in \u{201c}docs\u{201d}, records 7.", &[1]),
+            "is idle in \u{201c}docs\u{201d}, records 7."
+        );
+        assert_eq!(
+            cite_marks_out("Nothing in your records matches that.", &[1]),
+            "Nothing in your records matches that."
+        );
+        let decided = |text: &str| {
+            let json = serde_json::json!({"sentences": [{"text": text, "records": [1, 2]}]});
+            decide(
+                &draft(&json.to_string()),
+                &rows,
+                "what are my sessions",
+                &[],
+            )
+        };
+        // The walk's exact words: refused (the stray mark, the joined App).
+        for refused in [
+            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Work · work\u{201d}, records. \u{201c}Rewrite the date parser to accept two-digit years\u{201d} failed in \u{201c}docs\u{201d} and \u{201c}Personal · personal\u{201d}, records.",
+            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Work · work\u{201d}, records [1].",
+            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d}, records.",
+        ] {
+            assert!(
+                matches!(decided(refused), Decided::Records(_)),
+                "{refused}: {:?}",
+                decided(refused)
+            );
+        }
+        // A mark taken out whole: shown exactly as the check read it.
+        match decided(
+            "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d}, records [1].",
+        ) {
+            Decided::Shown(parts) => assert_eq!(
+                parts[0].text,
+                "\u{201c}Update the summary cell in the report notebook\u{201d} is idle in \u{201c}docs\u{201d}."
+            ),
+            other @ Decided::Records(_) => unreachable!("{other:?}"),
         }
     }
 

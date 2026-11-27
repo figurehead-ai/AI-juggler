@@ -820,6 +820,16 @@ fn fragment(text: &str) -> Option<String> {
     if trimmed.ends_with(['\u{201d}', '"', '\u{201c}', '\u{bb}']) {
         return None;
     }
+    // 0.5.2 G66: a citation mark's word left behind (", records."), its
+    // numbers gone: a stray mark, never a sentence's end.
+    if let Some(last) = all.last()
+        && matches!(last.as_str(), "record" | "records" | "eintrag" | "einträge")
+        && trimmed[..trimmed.len() - last.len()]
+            .trim_end()
+            .ends_with([',', '(', '['])
+    {
+        return Some(last.clone());
+    }
     all.last()
         .filter(|last| ENDS_ON.contains(&last.as_str()))
         .cloned()
@@ -842,25 +852,15 @@ fn is_place(before: &str) -> bool {
 
 /// 0.5.2 G57: which quoted names of a sentence (one flag per
 /// [`quote_segments`] segment, false for the first) are places: after a
-/// [`PLACE`] word, or joined to a place before them ("in “docs” and
-/// “Work”") when they are no cited record's own name (one that is starts
-/// its own clause: "in “docs” and “Fix the login” failed").
-fn place_flags(segments: &[(Option<String>, String)], cited: &[&BotRowInfo]) -> Vec<bool> {
+/// [`PLACE`] word.
+fn place_flags(segments: &[(Option<String>, String)]) -> Vec<bool> {
     let mut flags = Vec::with_capacity(segments.len());
     let mut before = "";
-    let mut last_place = false;
     for (name, after) in segments {
-        let place = name.as_ref().is_some_and(|name| {
-            let name = name.trim().to_lowercase();
-            let own = cited.iter().any(|row| row.title.to_lowercase() == name);
-            is_place(before)
-                || (last_place
-                    && !own
-                    && words(before).iter().all(|w| JOINERS.contains(&w.as_str())))
-        });
-        if name.is_some() {
-            last_place = place;
-        }
+        // 0.5.2 G66: a name joined to a place by "and" ("in “docs” and
+        // “Work · work”") is no second place: one record is in one place,
+        // so it stands as a name, and a place's name as a name is refused.
+        let place = name.is_some() && is_place(before);
         flags.push(place);
         before = after;
     }
@@ -876,7 +876,7 @@ fn place_flags(segments: &[(Option<String>, String)], cited: &[&BotRowInfo]) -> 
 /// own words ("You called “api” …") are its names.
 fn named_by_place(text: &str, cited: &[&BotRowInfo]) -> Option<String> {
     let segments = quote_segments(text);
-    let places = place_flags(&segments, cited);
+    let places = place_flags(&segments);
     for ((name, _), at_place) in segments.iter().zip(places) {
         if let Some(name) = name {
             let name = name.trim();
@@ -917,7 +917,7 @@ fn word_owners<'r>(text: &str, cited: &[&'r BotRowInfo], n: usize) -> Vec<Vec<&'
     let mut out = Vec::new();
     let mut group: Vec<&'r BotRowInfo> = Vec::new();
     let mut joined = false;
-    let places = place_flags(&segments, cited);
+    let places = place_flags(&segments);
     for (i, (name, after)) in segments.iter().enumerate() {
         let said = words(after);
         // The place words a place name follows ("in project “docs”") join
@@ -1698,7 +1698,6 @@ mod tests {
         for shown in [
             "\u{201c}Add retries to the sync client\u{201d} finished in \u{201c}api\u{201d}.",
             "\u{201c}Add retries to the sync client\u{201d} finished, in project \u{201c}api\u{201d}, in \u{201c}Work\u{201d}.",
-            "\u{201c}Add retries to the sync client\u{201d} finished in \u{201c}api\u{201d} and \u{201c}Work\u{201d}.",
         ] {
             assert_eq!(said(shown, &[1]), Ok(()), "{shown}");
         }

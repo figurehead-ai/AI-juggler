@@ -318,3 +318,36 @@ fn bot_answers_about_an_open_web_session_on_the_real_model() {
     service.engines().release();
     assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
 }
+
+/// 0.5.2 G66 (RW1 Part S, S3): "what are my sessions", asked again in a
+/// new topic over the four records (the outside session, the failed one,
+/// a Codex thread among them), was shown with a stray ", records." and the
+/// App joined to the folder by "and". Asked twice in new topics, three
+/// times: every answer is shown as the check passed it, no mark's word
+/// left behind, no App or project joined as a second place.
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G66"]
+fn bot_shows_no_stray_mark_or_joined_place_on_the_real_model() {
+    let (_dir, state, service) = rewalk_fixture(false);
+    let mut fails = Vec::new();
+    for _ in 0..3 {
+        for _ in 0..2 {
+            let a = ask_recorded(&state, &service, "what are my sessions", false);
+            let joined = ["work", "personal", "chatgpt", "docs", "web", "api"]
+                .iter()
+                .any(|place| a.words.contains(&format!("and \u{201c}{place}")));
+            expect(
+                &mut fails,
+                "what are my sessions",
+                &a,
+                a.outcome == BotOutcome::Answered
+                    && !a.cites.is_empty()
+                    && !a.words.contains("records")
+                    && !a.words.contains(",.")
+                    && !joined,
+            );
+        }
+    }
+    service.engines().release();
+    assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}
