@@ -23,11 +23,13 @@ use std::process::{Command, Stdio};
 ///
 /// - an `Info.plist` naming it "AIJ Test <stem>", id `test.aij-stand-in.…`
 ///   (never a real app's name or id, so the system never takes it for one);
-/// - the program copied by `/bin/cp -X` (no extended attributes; written
-///   by a child, so no writer of this process keeps it busy: AJ-E806);
-/// - an ad-hoc signature over the whole bundle (`identifier` names the
-///   code when a test needs it to, never the bundle's id), checked with
-///   `codesign --verify --strict` before anything runs from it.
+/// - the program copied by `/bin/cp` (with `-X` on macOS: no extended
+///   attributes; written by a child, so no writer of this process keeps it
+///   busy: AJ-E806);
+/// - on macOS, an ad-hoc signature over the whole bundle (`identifier`
+///   names the code when a test needs it to, never the bundle's id),
+///   checked with `codesign --verify --strict` before anything runs from
+///   it (other systems don't check a bundle's seal, and have no codesign).
 ///
 /// # Panics
 ///
@@ -42,8 +44,15 @@ pub fn make(bundle: &Path, exe: &str, program: &Path, identifier: Option<&str>) 
     let macos = bundle.join("Contents/MacOS");
     std::fs::create_dir_all(&macos).expect("the stand-in's Contents/MacOS");
     let target = macos.join(exe);
+    // `-X` (leave the extended attributes behind, so the signature below
+    // seals a clean file) is macOS's own flag: GNU cp has none (PR #257's
+    // Linux CI). Elsewhere a plain copy, still by a child (AJ-E806).
+    let mut copy = Command::new("/bin/cp");
+    if cfg!(target_os = "macos") {
+        copy.arg("-X");
+    }
     run(
-        Command::new("/bin/cp").arg("-X").arg(program).arg(&target),
+        copy.arg(program).arg(&target),
         "copy the stand-in's program",
     );
     let ident: String = stem
@@ -73,6 +82,12 @@ pub fn make(bundle: &Path, exe: &str, program: &Path, identifier: Option<&str>) 
         ),
     )
     .expect("the stand-in's Info.plist");
+    // Only macOS checks a bundle's seal before it runs its program (and
+    // calls it damaged when it fails, G56); other systems have no codesign
+    // and run the copied program as it is.
+    if !cfg!(target_os = "macos") {
+        return target;
+    }
     let mut sign = Command::new("/usr/bin/codesign");
     sign.args(["--force", "--sign", "-"]);
     if let Some(identifier) = identifier {
