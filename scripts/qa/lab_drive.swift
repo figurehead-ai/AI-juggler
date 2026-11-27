@@ -114,7 +114,9 @@
 //                                 inside the one part of the window named exactly NAME (a
 //                                 landmark such as the header's navigation "Main", a dialog,
 //                                 a row): the region's name and the title are the key, so the
-//                                 title may name other controls outside it
+//                                 title may name other controls outside it. Two controls of
+//                                 one title and no scope: refused (exit 4, nothing pressed),
+//                                 each named by the part it sits in, to scope with --region
 //   focus TITLE [--in TEXT]       puts the cursor in the field titled TITLE
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
@@ -1116,7 +1118,7 @@ func pickInRow(_ nodes: [Node], _ candidates: [Int], title: String, row: String)
         return (nil, rows.isEmpty ? "no row named exactly \"\(name)\"" : "\(rows.count) rows named \"\(name)\"")
     }
     guard candidates.count == 1, let c = candidates.first else {
-        return (nil, candidates.isEmpty ? "none titled exactly \"\(title)\"" : "\(candidates.count) controls titled exactly \"\(title)\": a title must name one")
+        return (nil, candidates.isEmpty ? "none titled exactly \"\(title)\"" : severalWhy(nodes, candidates))
     }
     guard ancestors(nodes, c).contains(r) else { return (nil, "the control \"\(title)\" isn't inside the row \"\(name)\"") }
     return (c, "")
@@ -1141,7 +1143,7 @@ func pickInRegion(_ nodes: [Node], _ candidates: [Int], title: String, region: S
     }
     let inside = candidates.filter { ancestors(nodes, $0).contains(r) }
     guard inside.count == 1, let c = inside.first else {
-        return (nil, inside.isEmpty ? "none titled exactly \"\(title)\" inside \"\(name)\"" : "\(inside.count) controls titled exactly \"\(title)\" inside \"\(name)\"")
+        return (nil, inside.isEmpty ? "none titled exactly \"\(title)\" inside \"\(name)\"" : "\(inside.count) controls titled exactly \"\(title)\" inside \"\(name)\" (\(placesOf(nodes, inside)))")
     }
     return (c, "")
 }
@@ -1171,6 +1173,26 @@ func controls(_ nodes: [Node], titled title: String, roles: Set<String>) -> [Int
     return found
 }
 
+/// Where each of `candidates` sits, by the nearest named part of the
+/// window around it (pure: the selftest), for a refusal to name them:
+/// `in "Main", in "Settings"`; a control in no named part, "in the window".
+/// 0.5.2 G64 (RW1 F-RW2-12): "2 controls have that title" named neither,
+/// so a sweep that went on past the refusal never knew which to scope to.
+func placesOf(_ nodes: [Node], _ candidates: [Int]) -> String {
+    candidates.map { c -> String in
+        let part = ancestors(nodes, c).dropFirst().first {
+            !leafRoles.contains(nodes[$0].role) && nodes[$0].role != "AXWindow" && !nodes[$0].label.isEmpty
+        }
+        return part.map { "in \"\(nodes[$0].label)\"" } ?? "in the window"
+    }.joined(separator: ", ")
+}
+
+/// The refusal for several controls of one title (pure: the selftest):
+/// each named by where it sits, and the way to press one.
+func severalWhy(_ nodes: [Node], _ candidates: [Int]) -> String {
+    "\(candidates.count) controls have that title (\(placesOf(nodes, candidates))): a title must name one (press with --region NAME, the part's name, or --row NAME, the row's own name)"
+}
+
 /// The one control of `candidates` (every control with the title in the
 /// window), in a region holding every one of `regions`' words. A title
 /// that names two controls is refused, words or not (AJ-E1612: the dry
@@ -1178,9 +1200,7 @@ func controls(_ nodes: [Node], titled title: String, roles: Set<String>) -> [Int
 /// boxes nested oddly): name a row with --row instead. None: nil, with
 /// the reason.
 func pick(_ nodes: [Node], _ candidates: [Int], within regions: [String]) -> (Int?, String) {
-    guard candidates.count <= 1 else {
-        return (nil, "\(candidates.count) controls have that title: a title must name one (press by --row NAME, the row's own name)")
-    }
+    guard candidates.count <= 1 else { return (nil, severalWhy(nodes, candidates)) }
     guard !regions.isEmpty else {
         if candidates.count == 1 { return (candidates[0], "") }
         return (nil, "none found")
@@ -2641,6 +2661,32 @@ func selftest() {
     if pickInRegion(usage, usages, title: "Usage", region: "Sidebar").0 != nil { failures.append("region: no such region, yet one chosen") }
     if pickInRegion(usage + [n("AXGroup", "Main", "", 0, 1)], usages, title: "Usage", region: "Main").0 != nil { failures.append("region: two regions of one name") }
     if pickInRegion(usage + [n("AXButton", "Usage", "", 1, 2)], usages + [7], title: "Usage", region: "Main").0 != nil { failures.append("region: two of the title inside it") }
+    // 0.5.2 G64 (RW1 F-RW2-12): Settings' "Accounts" beside the header's:
+    // refused, each named by where it sits, and --region scopes to one.
+    let settings: [Node] = [
+        n("AXWindow", "AI Juggler · Settings", "", nil, 0),
+        n("AXGroup", "Main", "", 0, 1),                                       // 1: the header's navigation
+        n("AXButton", "Accounts", "", 1, 2),                                  // 2
+        n("AXGroup", "Settings", "", 0, 1),                                   // 3: Settings' own sections
+        n("AXGroup", "", "", 3, 2),                                           // 4: an unnamed box in it
+        n("AXButton", "Accounts", "", 4, 3),                                  // 5
+        n("AXButton", "The Floor", "", 4, 3),                                 // 6
+        n("AXButton", "Accounts", "", 0, 1),                                  // 7: in no named part
+    ]
+    let sameTitle = controls(settings, titled: "Accounts", roles: pressRoles)
+    if sameTitle != [2, 5, 7] { failures.append("several: the three Accounts \(sameTitle)") }
+    let refused = pick(settings, sameTitle, within: [])
+    if refused.0 != nil { failures.append("several: a bare title chose one") }
+    if !refused.1.contains("3 controls have that title (in \"Main\", in \"Settings\", in the window)") || !refused.1.contains("--region NAME") {
+        failures.append("several: the refusal doesn't name the matches: \(refused.1)")
+    }
+    if pickInRegion(settings, sameTitle, title: "Accounts", region: "Settings").0 != 5 { failures.append("several: --region Settings missed Settings' Accounts") }
+    if pickInRegion(settings, sameTitle, title: "Accounts", region: "Main").0 != 2 { failures.append("several: --region Main missed the header's") }
+    let twoIn = pickInRegion(settings + [n("AXButton", "Accounts", "", 3, 2)], sameTitle + [8], title: "Accounts", region: "Settings")
+    if twoIn.0 != nil || !twoIn.1.contains("in \"Settings\"") { failures.append("several: two in a region, not named: \(twoIn.1)") }
+    let rowed = pickInRow(settings, sameTitle, title: "Accounts", row: "Settings")
+    if rowed.0 != nil || !rowed.1.contains("in \"Main\"") { failures.append("several: --row's refusal doesn't name them: \(rowed.1)") }
+    if pick(settings, controls(settings, titled: "The Floor", roles: pressRoles), within: []).0 != 6 { failures.append("several: the one The Floor") }
     // New session: the App's own row action is the key, not the shared title.
     if newSessionButton(" Kimi Code CLI ·  lab A") != "New session: Kimi Code CLI · lab A" || changeAppButton("Kimi Code CLI · lab A") != "Change app: Kimi Code CLI · lab A" {
         failures.append("the new-session names")
