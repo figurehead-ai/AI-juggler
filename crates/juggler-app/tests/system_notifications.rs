@@ -164,7 +164,13 @@ fn a_waiting_session_is_told_once_with_its_name_folder_and_account() {
 
     let list = list.lock().unwrap();
     assert_eq!(list.len(), 1, "{list:?}");
-    assert_eq!(list[0].title, "payments-api");
+    // 0.5.2 G27: named by the rail's one rule; untitled, so by its facts
+    // ("<folder> · started <time>", D-96), its folder in its name.
+    assert!(
+        list[0].title.starts_with("payments-api · started "),
+        "{:?}",
+        list[0].title
+    );
     assert_eq!(list[0].body, "Waiting for your reply · Work Max");
     assert_eq!(
         state.notifier.target_of(list[0].id),
@@ -195,7 +201,12 @@ fn a_session_that_left_processes_running_is_told_once() {
     notifications::left_behind(&state, &other, 3);
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "{told:?}");
-    assert_eq!(told[0].title, "api");
+    // 0.5.2 G27: the untitled session by its facts (D-96).
+    assert!(
+        told[0].title.starts_with("api · started "),
+        "{:?}",
+        told[0].title
+    );
     assert_eq!(told[0].body, "Left 3 processes running · Personal");
     assert_eq!(
         state.notifier.target_of(told[0].id),

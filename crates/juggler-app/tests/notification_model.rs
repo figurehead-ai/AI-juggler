@@ -134,7 +134,15 @@ fn a_finish_is_written_once_under_earlier() {
     notifications::session_status(&state, &id, "finished");
     notifications::session_status(&state, &id, "running");
     notifications::session_status(&state, &id, "finished");
-    assert_eq!(earlier_titles(&state), ["“payments-api” finished"]);
+    // 0.5.2 G27: a session is named by the rail's one rule. This one has no
+    // label, title or telling branch, so its name is its facts, "<folder> ·
+    // started <time>" (D-96), never the bare folder of the old second rule.
+    let titles = earlier_titles(&state);
+    assert_eq!(titles.len(), 1, "{titles:?}");
+    assert!(
+        titles[0].starts_with("“payments-api · started ") && titles[0].ends_with("” finished"),
+        "{titles:?}"
+    );
 }
 
 #[test]
@@ -164,16 +172,17 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
     );
     sources::restarted(&state, &crashed, &again, 1, 3);
     sources::restarted(&state, &crashed, &again, 1, 3);
-    assert_eq!(
-        earlier_titles(&state),
-        ["“nightly-fix” crashed and was restarted (try 1 of 3)"]
-    );
+    // 0.5.2 G27: the untitled session is named by its facts (D-96, the
+    // rail's one rule), its folder in its name.
+    let restarted = |title: &str| {
+        title.starts_with("“nightly-fix · started ")
+            && title.ends_with("” crashed and was restarted (try 1 of 3)")
+    };
+    let titles = earlier_titles(&state);
+    assert!(titles.len() == 1 && restarted(&titles[0]), "{titles:?}");
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "told once");
-    assert_eq!(
-        told[0].title,
-        "“nightly-fix” crashed and was restarted (try 1 of 3)"
-    );
+    assert!(restarted(&told[0].title), "{:?}", told[0].title);
     assert_eq!(
         state.notifier.target_of(told[0].id),
         Some(Opens::Target(Target::Session(again)))
