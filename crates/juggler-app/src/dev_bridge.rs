@@ -79,6 +79,8 @@ pub const FORWARDED_EVENTS: &[&str] = &[
     AppEvent::AiModelsProgress.name(),
     // ADR-0035 §9: the views reading remote values read them again.
     AppEvent::RemoteConfigChanged.name(),
+    // 0.5.2 G30: Scheduled work and the Reminders list follow each run.
+    AppEvent::SchedulesChanged.name(),
 ];
 
 /// Events the UI listens to that the bridge never forwards, each with its

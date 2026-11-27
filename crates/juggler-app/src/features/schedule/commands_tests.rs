@@ -183,3 +183,59 @@ fn a_bad_reminder_is_refused_in_plain_words() {
         .contains("about")
     );
 }
+
+/// 0.5.2 G30 (RW1 G2): after a relaunch a reminder's turn in Bot read
+/// "Bot filled in the Watches form for this." (its draft lives only on the
+/// turn just asked). Read back, the turn says it drafted a reminder, and
+/// once the user set it, which one (by id, no words kept with the turn).
+#[test]
+fn a_bot_reminder_turn_read_back_says_whether_it_was_set() {
+    use crate::features::bot::dto::{BotAskInput, BotOutcome};
+    let (_dir, state) = state();
+    let asked = crate::features::bot::commands::bot_ask_with(
+        &state,
+        &BotAskInput {
+            question: "remind me in 3 minutes to check api".into(),
+            scope: None,
+            again: None,
+        },
+        &crate::features::bot::fake::Fake::new(),
+    )
+    .unwrap();
+    assert_eq!(asked.outcome, BotOutcome::WatchDraft);
+    let page = || {
+        crate::features::bot::commands::bot_page_impl(&state, None, 10)
+            .unwrap()
+            .turns
+            .into_iter()
+            .find(|turn| turn.id == asked.id)
+            .unwrap()
+    };
+    let before = page();
+    assert!(
+        before.watch_draft.is_none(),
+        "a turn read back has no draft"
+    );
+    assert_eq!(
+        before.past_reminder,
+        Some(crate::features::bot::dto::BotPastReminder { set: None }),
+        "drafted, not set"
+    );
+    let made = schedule_remind_impl(
+        &state,
+        &RemindRequest {
+            at_ms: crate::commands::now_millis() + 180_000,
+            title: "Look at “api”".into(),
+            about: None,
+            chat_turn: Some(asked.id.clone()),
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        page().past_reminder.and_then(|past| past.set),
+        Some(made.id),
+        "read back, it opens the reminder it set"
+    );
+    // A turn that drafted no reminder is left as it is.
+    crate::features::bot::commands::reminder_set(&state, "no-such-turn", "s-x");
+}

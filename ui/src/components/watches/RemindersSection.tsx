@@ -11,14 +11,14 @@
  * AI Juggler's is shown read-only (ADR-0039 §6). One bounded read (the
  * newest 50), remembered between visits.
  */
-import { useCallback, useEffect, useState, type JSX, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type JSX, type MouseEvent } from "react";
 import { showToast } from "../Toast";
 import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "../RowMenu";
 import { refreshPaged, usePagedList } from "../../lib/paged";
 import { errorText } from "../../lib/bridge";
 import { clock, minutes as span, whenWords } from "../../lib/time-words";
 import { REMIND_CHOICES } from "../../lib/feed-watch";
-import { scheduleRemind, schedulePause, scheduleRemove, schedulesPage, schedulesPauseAll, schedulesSummary, scheduleUpdate, type ScheduleInfo, type SchedulesSummary } from "../../lib/ipc/schedules";
+import { onSchedulesChanged, scheduleRemind, schedulePause, scheduleRemove, schedulesPage, schedulesPauseAll, schedulesSummary, scheduleUpdate, type ScheduleInfo, type SchedulesSummary } from "../../lib/ipc/schedules";
 import { WatchChip, StateCell } from "./WatchParts";
 import { optionOf, type StateTone, type TargetOption } from "./watches-view";
 import { IconBin, IconClockFace, IconPause, IconPencil, IconPlay } from "./watch-icons";
@@ -87,8 +87,16 @@ function TimeMenu({ at, info, onPick, onClose }: { at: MenuAt; info: ScheduleInf
   );
 }
 
-function ReminderRow({ info, book, now, actions }: { info: ScheduleInfo; book: Map<string, TargetOption>; now: number; actions: RowActions }): JSX.Element {
+function ReminderRow({ info, book, now, actions, focused }: { info: ScheduleInfo; book: Map<string, TargetOption>; now: number; actions: RowActions; focused: boolean }): JSX.Element {
   const [menuAt, setMenuAt] = useState<MenuAt | null>(null);
+  const rowRef = useRef<HTMLLIElement | null>(null);
+  // 0.5.2 G23: opened on this reminder (Remind me's toast, Bot's card): it
+  // comes into view with the keyboard on it, marked as the selected row.
+  useEffect(() => {
+    if (!focused) return;
+    rowRef.current?.scrollIntoView?.({ block: "center" });
+    rowRef.current?.focus({ preventScroll: true });
+  }, [focused]);
   const ours = info.source === "ai_juggler";
   const ended = info.ended_ms !== null;
   const dim = info.paused || ended;
@@ -97,9 +105,12 @@ function ReminderRow({ info, book, now, actions }: { info: ScheduleInfo; book: M
   const open = (event: MouseEvent<HTMLElement>) => setMenuAt(menuPoint(event));
   return (
     <li
-      className={"relative grid grid-cols-[44px_minmax(0,1fr)_minmax(150px,200px)_236px] items-center gap-x-3.5 rounded-[10px] px-3 py-3 [&+&]:rounded-none [&+&]:border-t [&+&]:border-divider" + (menuAt ? " bg-selected" : "")}
+      ref={rowRef}
+      tabIndex={focused ? -1 : undefined}
+      className={"relative grid grid-cols-[44px_minmax(0,1fr)_minmax(150px,200px)_236px] items-center gap-x-3.5 rounded-[10px] px-3 py-3 outline-none [&+&]:rounded-none [&+&]:border-t [&+&]:border-divider" + (menuAt || focused ? " bg-selected" : "")}
       data-testid="reminder-row"
       data-schedule-id={info.id}
+      data-focused={focused ? "1" : undefined}
       data-state={ended ? "ended" : info.paused ? "paused" : "set"}
     >
       <span aria-hidden="true" className={"flex size-9 items-center justify-center rounded-[10px] " + (dim ? "bg-surface-3 text-faint" : "bg-accent-soft text-accent-hi")}>
@@ -160,7 +171,7 @@ function useSummary(): [SchedulesSummary | null, () => void] {
 }
 
 /** The section; nothing while there are no reminders. */
-export function RemindersSection({ book, now }: { book: Map<string, TargetOption>; now: number }): JSX.Element | null {
+export function RemindersSection({ book, now, focus = null }: { book: Map<string, TargetOption>; now: number; focus?: string | null }): JSX.Element | null {
   const list = usePagedList<ScheduleInfo>("schedules:yours", (request) => schedulesPage("yours", request), { pageSize: 50, keyOf: (row) => row.id });
   const [summary, readSummary] = useSummary();
   const refresh = () => {
@@ -168,6 +179,14 @@ export function RemindersSection({ book, now }: { book: Map<string, TargetOption
     list.refresh();
     readSummary();
   };
+  // 0.5.2 G30: a reminder told (a run) reads the list again: "In 1 h"
+  // becomes "Told 7:45 PM" without leaving the page.
+  const { refresh: reread } = list;
+  useEffect(() => onSchedulesChanged(() => {
+    refreshPaged("schedules:");
+    reread();
+    readSummary();
+  }), [reread, readSummary]);
   const failed = (error: unknown) => showToast({ message: REMINDERS.failed(errorText(error)), tone: "error" });
   const actions: RowActions = {
     move: (info, minutes) => {
@@ -221,7 +240,7 @@ export function RemindersSection({ book, now }: { book: Map<string, TargetOption
       <div className="rounded-card bg-surface p-1 inset-ring-1 inset-ring-hairline/75">
         <ul aria-labelledby="watches-reminders" data-testid="reminders-list">
           {list.items.map((info) => (
-            <ReminderRow key={info.id} info={info} book={book} now={now} actions={actions} />
+            <ReminderRow key={info.id} info={info} book={book} now={now} actions={actions} focused={info.id === focus} />
           ))}
         </ul>
       </div>

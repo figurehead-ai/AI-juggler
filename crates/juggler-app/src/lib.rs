@@ -1162,6 +1162,15 @@ pub fn run() {
             // AJ-E2027 (ADR-0039): the one scheduler; what came due while
             // AI Juggler was closed runs under its policy now.
             features::schedule::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // 0.5.2 G30: each run ends with the window's lists read again.
+            {
+                let handle = app.handle().clone();
+                tauri::Manager::state::<Arc<state::AppState>>(app)
+                    .schedules
+                    .on_ran(Box::new(move || {
+                        handle.emit_event(AppEvent::SchedulesChanged, ());
+                    }));
+            }
             // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
             // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
             // read model's first pass: a lab's scope (ADR-0027 conditions

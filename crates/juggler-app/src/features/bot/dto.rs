@@ -575,6 +575,22 @@ pub struct BotTurnInfo {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub watch_draft: Option<crate::features::watches::draft::WatchDrafted>,
+    /// 0.5.2 G30: a turn that drafted a reminder, read back (after a
+    /// relaunch its draft is gone): whether the user set it, and which.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub past_reminder: Option<BotPastReminder>,
+}
+
+/// 0.5.2 G30: a reminder turn as it ended: the reminder set from it (its
+/// schedule id), or none when it was never set.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotPastReminder {
+    /// The reminder set from it, by id (the Reminders list opens on it).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub set: Option<String>,
 }
 
 /// The languages the words cover.

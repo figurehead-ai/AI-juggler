@@ -105,11 +105,14 @@ pub enum AppEvent {
     OsPromptOutcome,
     /// AJ-E1553: the sign-ins changed (carries every `SignInInfo`).
     SignInsChanged,
+    /// 0.5.2 G30: a schedule ran (a reminder told, the app's own work
+    /// done): Scheduled work and the Reminders list read again.
+    SchedulesChanged,
 }
 
 impl AppEvent {
     /// Every event, in declaration order.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 41] = [
         Self::AppReady,
         Self::SessionsUpdated,
         Self::SessionsResources,
@@ -150,6 +153,7 @@ impl AppEvent {
         Self::OsPromptAsk,
         Self::OsPromptOutcome,
         Self::SignInsChanged,
+        Self::SchedulesChanged,
     ];
 
     /// The wire name the UI listens to.
@@ -196,6 +200,7 @@ impl AppEvent {
             Self::OsPromptAsk => "os-prompt://ask",
             Self::OsPromptOutcome => "os-prompt://outcome",
             Self::SignInsChanged => "sign-ins://changed",
+            Self::SchedulesChanged => "schedules://changed",
         }
     }
 }

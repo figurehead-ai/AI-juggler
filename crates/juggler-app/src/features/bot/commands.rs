@@ -10,8 +10,8 @@ use std::sync::Arc;
 use juggler_core::storage::memory::{Actor, NewEvent, NewTurn, SecretScan, Stream};
 
 use super::dto::{
-    BotAskInput, BotCountInfo, BotFoundInfo, BotOutcome, BotPageInfo, BotTopicInfo,
-    BotTopicUsageInfo, BotTurnInfo,
+    BotAskInput, BotCountInfo, BotFoundInfo, BotOutcome, BotPageInfo, BotPastReminder,
+    BotTopicInfo, BotTopicUsageInfo, BotTurnInfo,
 };
 use super::history::{Meta, cites_json, shown_text, turn_info};
 use super::question::read;
@@ -389,6 +389,12 @@ fn watch_turn(
     let shown = super::watch_draft::shown(&drafted);
     let meta = Meta {
         lang: read(question).lang,
+        // 0.5.2 G30: read back, it says it drafted (or set) a reminder.
+        remind: matches!(
+            drafted,
+            crate::features::watches::draft::WatchDrafted::Remind { .. }
+        )
+        .then(BotPastReminder::default),
         ..Meta::default()
     };
     let kept = keep_turn(
@@ -607,6 +613,30 @@ pub fn bot_wrong_impl(state: &Arc<AppState>, turn: &str, wrong: bool) -> AppResu
         .append(&event, None)
         .map_err(memory_error)?;
     Ok(())
+}
+
+/// 0.5.2 G30: the user set the reminder Bot's turn `turn` drafted: the
+/// turn keeps the reminder's id, so read back it says it set one and opens
+/// it. A turn that drafted none (or is gone) is left as it is.
+pub fn reminder_set(state: &Arc<AppState>, turn: &str, schedule: &str) {
+    let Ok(storage) = state.storage.lock() else {
+        return;
+    };
+    let chat = storage.chat();
+    let Ok(Some(kept)) = chat.turn(turn) else {
+        return;
+    };
+    let mut meta: Meta = serde_json::from_str(&kept.entities).unwrap_or_default();
+    if meta.remind.is_none() {
+        return;
+    }
+    meta.remind = Some(BotPastReminder {
+        set: Some(schedule.to_owned()),
+    });
+    let _ = chat.annotate(
+        turn,
+        &serde_json::to_string(&meta).unwrap_or_else(|_| "{}".to_owned()),
+    );
 }
 
 /// D-144: Bot is AI and conversation only. A question is taken only

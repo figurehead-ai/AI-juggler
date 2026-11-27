@@ -9,6 +9,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RemindersSection } from "./RemindersSection";
 import { BotReminderDraft } from "../bot/BotReminderDraft";
 import { forgetPaged } from "../../lib/paged";
+import { remindAt } from "../../lib/feed-watch";
+import { takeWatchesIntent } from "../../lib/watches-open";
 import type { ScheduleInfo } from "../../types/generated/ScheduleInfo";
 
 const NOW = Date.now();
@@ -74,6 +76,26 @@ describe("AJ-E2027 — Reminders beside the watches", () => {
     expect(window.__AIJ_SCHEDULES__.calls).toContainEqual(["schedule_remove", { id: "api" }]);
   });
 
+  /** 0.5.2 G23 (RW1 B7): Remind me's toast and Bot's card open the
+   * reminder they set: the list scrolls to it, the keyboard on it. */
+  it("opens on one reminder by its id, marked and focused", async () => {
+    window.__AIJ_SCHEDULES__ = { yours: [reminder("api", NOW + HOUR), reminder("web", NOW + 2 * HOUR)], calls: [] };
+    render(<RemindersSection book={new Map()} now={NOW} focus="web" />);
+    await screen.findAllByTestId("reminder-row");
+    const web = document.querySelector<HTMLElement>('[data-schedule-id="web"]')!;
+    await waitFor(() => expect(document.activeElement).toBe(web));
+    expect(web.dataset.focused).toBe("1");
+    expect(web.className).toContain("bg-selected");
+    expect(document.querySelector<HTMLElement>('[data-schedule-id="api"]')!.dataset.focused).toBeUndefined();
+  });
+
+  it("Remind me's reminder carries its id for the toast's Open reminder", async () => {
+    window.__AIJ_SCHEDULES__ = { yours: [], calls: [] };
+    const made = await remindAt({ kind: "session", id: "api" }, "api", 60);
+    expect(made.id).toBe("s-preview-1");
+    expect(made.due).toBeGreaterThan(NOW);
+  });
+
   it("Pause all pauses every reminder, then offers Resume all", async () => {
     window.__AIJ_SCHEDULES__ = { yours: [reminder("api", NOW + HOUR), reminder("web", NOW + 2 * HOUR)], calls: [] };
     render(<RemindersSection book={new Map()} now={NOW} />);
@@ -107,6 +129,11 @@ describe("AJ-E2027 — Bot's reminder card", () => {
     });
     expect(window.__AIJ_SCHEDULES__.calls).toEqual([["schedule_remind", { at_ms: NOW + HOUR, title: "Check the deploy", about: null, chat_turn: "t-1" }]]);
     expect(await screen.findByTestId("bot-reminder-set")).toBeTruthy();
+    // 0.5.2 G23: Open reminder opens the one just set.
+    takeWatchesIntent();
+    fireEvent.click(screen.getByTestId("bot-reminder-see"));
+    expect(screen.getByTestId("bot-reminder-see").textContent).toBe("Open reminder");
+    expect(takeWatchesIntent()).toEqual({ kind: "reminder", id: "s-preview-1" });
   });
 
   it("with no time said, Set waits for a time to be picked", async () => {

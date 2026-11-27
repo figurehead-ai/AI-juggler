@@ -2,7 +2,7 @@
  * AJ-E2027 R6 — Settings › Advanced › Scheduled work: the app's own
  * schedules, read-only, in plain words.
  */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { ScheduledWorkSection, whenOf } from "./ScheduledWorkSection";
 import type { ScheduleInfo } from "../../types/generated/ScheduleInfo";
@@ -46,6 +46,21 @@ describe("AJ-E2027 R6 — Settings › Advanced › Scheduled work", () => {
     expect(rows[1]!.textContent).toContain("When this computer is quiet");
     expect(rows[0]!.querySelector("button")).toBeNull();
     expect(whenOf({ ...backup, paused: true }, NOW)).toContain("Paused");
+  });
+
+  /** 0.5.2 G30 (RW1 G1: "next 7:00 PM" still at 7:00:36): a run is
+   * followed by a read, so the row says when it ran and what is next. */
+  it("follows each run: next and last read again", async () => {
+    const backup = app("b", "Check whether a cloud backup is due", "cloud_backup", { kind: "every", interval_ms: HOUR, anchor_ms: 0 });
+    window.__AIJ_SCHEDULES__ = { app: [{ ...backup, next_due_ms: NOW + 60_000 }], calls: [] };
+    render(<ScheduledWorkSection />);
+    const [row] = await screen.findAllByTestId("scheduled-row");
+    expect(row!.textContent).not.toContain("last ran");
+    window.__AIJ_SCHEDULES__ = { app: [{ ...backup, next_due_ms: NOW + HOUR, last_run_ms: NOW, last_outcome: "ok" }], calls: [] };
+    act(() => {
+      window.dispatchEvent(new Event("schedules://changed"));
+    });
+    await waitFor(() => expect(screen.getByTestId("scheduled-row").textContent).toContain("last ran"));
   });
 
   it("a read that fails says so with Retry, never that nothing is scheduled", async () => {

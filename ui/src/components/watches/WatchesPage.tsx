@@ -87,15 +87,16 @@ const editOf = (info: WatchInfo): View => ({ kind: "form", mode: "edit", draft: 
 /** What a door asks for, as the page's view (a watch to edit is read first). */
 function viewOfIntent(intent: WatchesIntent | null): View | null {
   if (intent?.kind === "new") return { kind: "form", mode: "new", draft: intent.draft ?? (intent.target ? { ...EMPTY_DRAFT, targets: [intent.target] } : null), editing: null };
-  if (intent?.kind === "list" || intent?.kind === "filter") return { kind: "list" };
+  if (intent?.kind === "list" || intent?.kind === "filter" || intent?.kind === "reminder") return { kind: "list" };
   return null;
 }
 
 /** The doors: the intent the page opened on, and any while it is open. */
-function useIntents(first: WatchesIntent | null, setView: (view: View) => void, setOnly: (only: Only) => void): void {
+function useIntents(first: WatchesIntent | null, setView: (view: View) => void, setOnly: (only: Only) => void, setReminder: (id: string | null) => void): void {
   const apply = useRef((intent: WatchesIntent | null) => {
     const view = viewOfIntent(intent);
     if (view) setView(view);
+    if (intent) setReminder(intent.kind === "reminder" ? intent.id : null);
     if (intent?.kind === "filter") setOnly({ target: intent.target, name: intent.name });
     if (intent?.kind === "edit")
       void watchesPage("all", { cursor: null, limit: 200 }).then((page) => {
@@ -223,7 +224,9 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
   const [first] = useState(takeWatchesIntent);
   const [view, setView] = useState<View>(() => viewOfIntent(first) ?? { kind: "list" });
   const [only, setOnly] = useState<Only>(() => (first?.kind === "filter" ? { target: first.target, name: first.name } : null));
-  useIntents(first, setView, setOnly);
+  // 0.5.2 G23: the reminder a door opened the page on (by its id).
+  const [reminder, setReminder] = useState<string | null>(() => (first?.kind === "reminder" ? first.id : null));
+  useIntents(first, setView, setOnly, setReminder);
   const [limitShown, setLimitShown] = useState(false);
   const [toolbar, setToolbar] = useState<ToolbarState>({ query: "", filter: "all", sort: "last" });
   const empty = !live.loading && live.items.length === 0 && countsOf(summary, []).ended === 0;
@@ -287,7 +290,7 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
             />
             {counts.ended > 0 && <EndedSection count={counts.ended} open={endedOpen} onToggle={() => setEndedOpen((open) => !open)} book={book} now={now} appOf={appOf} actions={acts.ended} />}
         </LoadingState>
-        <RemindersSection book={book} now={now} />
+        <RemindersSection book={book} now={now} focus={reminder} />
       </div>
     </div>
   );

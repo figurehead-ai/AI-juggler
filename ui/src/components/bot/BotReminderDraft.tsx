@@ -25,14 +25,14 @@ const REMIND_DRAFT = {
   change: "Change time",
   pick: "Pick a time",
   setFor: (when: string) => `Reminder set for ${when}.`,
-  see: "See reminders",
+  see: "Open reminder",
   failed: (why: string) => `The reminder couldn't be set: ${why}`,
 } as const;
 
 export function BotReminderDraft({ draft, line }: { draft: ReminderDraftInfo; line: string }): JSX.Element {
   const [at, setAt] = useState<number | null>(draft.at_ms);
   const [menu, setMenu] = useState<MenuAt | null>(null);
-  const [state, setState] = useState<{ kind: "draft" } | { kind: "busy" } | { kind: "set"; at: number } | { kind: "failed"; why: string }>({ kind: "draft" });
+  const [state, setState] = useState<{ kind: "draft" } | { kind: "busy" } | { kind: "set"; at: number; id: string } | { kind: "failed"; why: string }>({ kind: "draft" });
   const [opened] = useState(() => Date.now());
   const set = async () => {
     if (at === null) return;
@@ -41,7 +41,7 @@ export function BotReminderDraft({ draft, line }: { draft: ReminderDraftInfo; li
     await osPromptRequest("notifications").catch(() => undefined);
     try {
       const made = await scheduleRemind({ at_ms: at, title: draft.title, about: draft.about ?? null, chat_turn: draft.chat_turn ?? null });
-      setState({ kind: "set", at: made.next_due_ms ?? at });
+      setState({ kind: "set", at: made.next_due_ms ?? at, id: made.id });
     } catch (error: unknown) {
       setState({ kind: "failed", why: errorText(error) });
     }
@@ -69,7 +69,7 @@ export function BotReminderDraft({ draft, line }: { draft: ReminderDraftInfo; li
       {done ? (
         <p className="flex flex-wrap items-center gap-2 text-meta text-ink-2" data-testid="bot-reminder-set">
           {REMIND_DRAFT.setFor(whenWords(state.at, opened))}
-          <button type="button" className="font-medium text-accent-hi underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => openWatches({ kind: "list" })} data-testid="bot-reminder-see">
+          <button type="button" className="font-medium text-accent-hi underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60" onClick={() => state.kind === "set" && openWatches({ kind: "reminder", id: state.id })} data-testid="bot-reminder-see">
             {REMIND_DRAFT.see}
           </button>
         </p>

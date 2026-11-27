@@ -15,6 +15,9 @@ export type WatchesIntent =
   | { kind: "edit"; id: string }
   /** The list, showing only what watches one target. */
   | { kind: "filter"; target: WatchTarget; name: string }
+  /** The list, at one reminder (a Remind me toast's Open reminder, Bot's
+   * set reminder: 0.5.2 G23). */
+  | { kind: "reminder"; id: string }
   /** The list. */
   | { kind: "list" };
 

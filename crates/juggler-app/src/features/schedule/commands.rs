@@ -207,7 +207,12 @@ pub fn schedule_remind_impl(
         store::create(&storage, &registry, new, &ctx, now).map_err(refused)?
     };
     changed(state);
-    Ok(ScheduleInfo::of(&made))
+    let info = ScheduleInfo::of(&made);
+    // 0.5.2 G30: Bot's turn keeps which reminder came of its draft.
+    if let Some(turn) = &request.chat_turn {
+        crate::features::bot::commands::reminder_set(state, turn, &info.id);
+    }
+    Ok(info)
 }
 
 /// Core: a page of one list, newest first.

@@ -61,6 +61,24 @@ describe("Bot fills the Watches form", () => {
   });
 });
 
+/** 0.5.2 G30 (RW1 G2): after a relaunch a reminder's turn read "Bot
+ * filled in the Watches form for this."; read back it says what it did. */
+describe("a reminder turn read back", () => {
+  it("says it set a reminder and opens that one", () => {
+    render(<BotTurn turn={turn({ live: false, question: "remind me in 3 minutes to check web", past_reminder: { set: "s-7" } })} now={NOW} latest />);
+    expect(screen.getByTestId("bot-reminder-past").textContent).toBe("Bot set a reminder for this.");
+    expect(screen.queryByTestId("bot-watch-draft")).toBeNull();
+    fireEvent.click(screen.getByTestId("bot-reminder-past-open"));
+    expect(takeWatchesIntent()).toEqual({ kind: "reminder", id: "s-7" });
+  });
+
+  it("says a draft that was never set wasn't, with nothing to open", () => {
+    render(<BotTurn turn={turn({ live: false, question: "remind me at 5 pm", past_reminder: { set: null } })} now={NOW} latest />);
+    expect(screen.getByTestId("bot-reminder-past").textContent).toBe("Bot drafted a reminder for this; it wasn't set.");
+    expect(screen.queryByTestId("bot-reminder-past-open")).toBeNull();
+  });
+});
+
 describe("the drafted watch in plain words", () => {
   it("shows the preview's words, target included, before the user adds it", async () => {
     const ipc = await import("../../lib/ipc/watches");

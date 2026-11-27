@@ -66,11 +66,12 @@ export function REMIND_CHOICES(now: number): { label: string; minutes: number }[
   ];
 }
 
-/** A reminder about `target` (called `name`) in `minutes`; when it is due. */
-export async function remindAt(target: Exclude<WatchTarget, { kind: "any" }>, name: string, minutes: number): Promise<number> {
+/** A reminder about `target` (called `name`) in `minutes`: its id (the
+ * toast opens it, 0.5.2 G23) and when it is due. */
+export async function remindAt(target: Exclude<WatchTarget, { kind: "any" }>, name: string, minutes: number): Promise<{ id: string; due: number }> {
   await osPromptRequest("notifications").catch(() => undefined);
   const made = await scheduleRemind({ at_ms: Date.now() + minutes * 60_000, title: remindTitle(name), about: target, chat_turn: null });
-  return made.next_due_ms ?? made.created_ms + minutes * 60_000;
+  return { id: made.id, due: made.next_due_ms ?? made.created_ms + minutes * 60_000 };
 }
 
 /** A reminder's words: "Look at “api”". */

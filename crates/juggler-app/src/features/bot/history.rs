@@ -7,8 +7,9 @@
 use serde::{Deserialize, Serialize};
 
 use super::dto::{
-    BotDetails, BotGeneral, BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotRowKind,
-    BotScope, BotShortcut, BotTally, BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
+    BotDetails, BotGeneral, BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotPastReminder,
+    BotRowInfo, BotRowKind, BotScope, BotShortcut, BotTally, BotTurnInfo, BotUnknown, BotWritten,
+    BotWrittenPart,
 };
 use super::world::World;
 use crate::features::ai::run::AiFailure;
@@ -60,6 +61,10 @@ pub struct Meta {
     /// AJ-E3825: the answer's details (counts and sizes, no text).
     #[serde(default)]
     pub details: Option<BotDetails>,
+    /// 0.5.2 G30: the turn drafted a reminder; the id of the one set from
+    /// it once the user sets it (no words: the reminder keeps its own).
+    #[serde(default)]
+    pub remind: Option<BotPastReminder>,
 }
 
 /// A row as kept: no agent words, no then/now marks.
@@ -192,5 +197,6 @@ pub fn turn_info(
         failure: meta.failure,
         details: meta.details,
         watch_draft: None,
+        past_reminder: meta.remind,
     }
 }

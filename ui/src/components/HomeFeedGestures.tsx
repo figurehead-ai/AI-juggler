@@ -141,7 +141,8 @@ function RemindMenu({ at, item, name, onClose }: { at: MenuAt; item: FeedItemInf
     const target = followTarget(item);
     if (!target) return;
     void remindAt(target, name, minutes).then(
-      (when) => showToast({ message: `Reminder set for ${clock(when)}.`, detail: `About ${name}.`, action: { label: "Reminders", run: () => openWatches({ kind: "list" }) } }),
+      // 0.5.2 G23: its action opens this reminder in the Reminders list.
+      (made) => showToast({ message: `Reminder set for ${clock(made.due)}.`, detail: `About ${name}.`, action: { label: "Open reminder", run: () => openWatches({ kind: "reminder", id: made.id }) } }),
       (error: unknown) => showToast({ message: "The reminder couldn't be set.", detail: errorText(error), tone: "error" }),
     );
   };

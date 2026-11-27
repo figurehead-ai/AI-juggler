@@ -9,7 +9,7 @@
 import { useEffect, useState, type JSX } from "react";
 import { LoadingState } from "../../components/LoadingState";
 import { IconClockFace, IconMoon } from "../../components/watches/watch-icons";
-import { schedulesPage, type ScheduleInfo } from "../../lib/ipc/schedules";
+import { onSchedulesChanged, schedulesPage, type ScheduleInfo } from "../../lib/ipc/schedules";
 import { useRetriedRead } from "../../lib/loading";
 import { clock, whenWords } from "../../lib/time-words";
 import { openWatches } from "../../lib/watches-open";
@@ -39,7 +39,12 @@ export function whenOf(info: ScheduleInfo, now: number): string {
 
 export function ScheduledWorkSection(): JSX.Element {
   const [rows, setRows] = useState<ScheduleInfo[] | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const { state, slow, setFailed, round, retry } = useRetriedRead(rows, SCHEDULED.what);
+  // 0.5.2 G30 (RW1 G1: "next 7:00 PM" still at 7:00:36): each run is
+  // followed by a read, so next and last say what the run left.
+  const [ran, setRan] = useState(0);
+  useEffect(() => onSchedulesChanged(() => setRan((n) => n + 1)), []);
   useEffect(() => {
     let on = true;
     void schedulesPage("app", { cursor: null, limit: 50 }).then(
@@ -47,6 +52,7 @@ export function ScheduledWorkSection(): JSX.Element {
       (page) => {
         if (!on) return;
         setFailed(undefined);
+        setNow(Date.now());
         setRows(page.items.filter((s) => s.ended_ms === null && s.handler !== "watch.deadline"));
       },
       // A read that failed says so, with Retry: never "Nothing is scheduled".
@@ -55,10 +61,9 @@ export function ScheduledWorkSection(): JSX.Element {
     return () => {
       on = false;
     };
-    // `round` is a Retry: it reads again.
+    // `round` is a Retry and `ran` a run: each reads again.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round, setFailed]);
-  const [now] = useState(() => Date.now());
+  }, [round, ran, setFailed]);
   return (
     <PaneSection
       id="scheduled"

@@ -402,6 +402,8 @@ pub struct Scheduler {
     shared: Arc<Shared>,
     registry: OnceLock<Arc<Registry>>,
     thread: OnceLock<()>,
+    /// 0.5.2 G30: told after each run ends (the window's lists read again).
+    ran: OnceLock<Box<dyn Fn() + Send + Sync>>,
 }
 
 impl std::fmt::Debug for Scheduler {
@@ -429,6 +431,19 @@ impl Scheduler {
     /// were already.
     pub fn install(&self, registry: Registry) -> bool {
         self.registry.set(Arc::new(registry)).is_ok()
+    }
+
+    /// 0.5.2 G30: `tell` is called after each run ends, so what shows a
+    /// schedule's next and last time (Settings › Advanced › Scheduled work,
+    /// the Reminders list) reads it again; once, at start.
+    pub fn on_ran(&self, tell: Box<dyn Fn() + Send + Sync>) {
+        let _ = self.ran.set(tell);
+    }
+
+    fn ran(&self) {
+        if let Some(tell) = self.ran.get() {
+            tell();
+        }
     }
 
     /// Something changed (a schedule made, edited, paused, armed): look
@@ -689,6 +704,7 @@ fn supervise(shared: &Arc<Shared>, state: &Arc<AppState>, d: &Dispatch) {
     if let Ok(storage) = state.storage.lock() {
         finish(&storage, d, ended, ran_ms, took);
     }
+    state.schedules.ran();
     if let Ok(mut inner) = shared.lock() {
         inner.active = inner.active.saturating_sub(1);
     }

@@ -10,6 +10,7 @@
  */
 import { call } from "./transport";
 import { hasLiveBackend } from "../bridge";
+import { listenWhileShown } from "../shown-window";
 import type { Page } from "../../types/generated/Page";
 import type { PageRequest } from "../../types/generated/PageRequest";
 import type { RemindRequest } from "../../types/generated/RemindRequest";
@@ -63,6 +64,23 @@ function touched(id: string, change: (s: ScheduleInfo) => ScheduleInfo): Schedul
   const next = change(list[at]!);
   list[at] = next;
   return next;
+}
+
+/** 0.5.2 G30: a schedule ran (the backend's `schedules://changed`; the
+ * preview's window event of the same name). */
+const SCHEDULES_CHANGED = "schedules://changed";
+
+/** Calls `on` after each schedule's run (a reminder told, the app's own
+ * work done), and once when the window is shown again, so what shows a
+ * next or last time follows the runs. Returns the stop. */
+export function onSchedulesChanged(on: () => void): () => void {
+  const heard = () => on();
+  window.addEventListener(SCHEDULES_CHANGED, heard);
+  const stop = hasLiveBackend() ? listenWhileShown<null>(SCHEDULES_CHANGED, heard, heard) : null;
+  return () => {
+    window.removeEventListener(SCHEDULES_CHANGED, heard);
+    stop?.();
+  };
 }
 
 /** Sets a reminder; a time already past is due at once. */

@@ -6,6 +6,7 @@ import type { BotLang } from "./BotLang";
 import type { BotLooked } from "./BotLooked";
 import type { BotMemoryInfo } from "./BotMemoryInfo";
 import type { BotOutcome } from "./BotOutcome";
+import type { BotPastReminder } from "./BotPastReminder";
 import type { BotRowInfo } from "./BotRowInfo";
 import type { BotScope } from "./BotScope";
 import type { BotShortcut } from "./BotShortcut";
@@ -107,4 +108,9 @@ details?: BotDetails | null,
  * AJ-E3830: the Watches form to open, filled in (only on the turn
  * just asked: the form opens once; a past turn keeps its line).
  */
-watch_draft?: WatchDrafted | null, };
+watch_draft?: WatchDrafted | null, 
+/**
+ * 0.5.2 G30: a turn that drafted a reminder, read back (after a
+ * relaunch its draft is gone): whether the user set it, and which.
+ */
+past_reminder?: BotPastReminder | null, };
