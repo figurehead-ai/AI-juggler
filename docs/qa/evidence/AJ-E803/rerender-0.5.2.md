@@ -169,3 +169,10 @@ A compare run of the whole gate on HEAD b6af36f61 plus the uncommitted watches w
 
 - 44-settings: `signed-out-1280x800-dark`, `pairing-code-1280x800-dark`, `linking-1280x800-dark`; 60-cloud-backup: `panel-1280x800-dark`, `uploading-1280x800-dark`; 85-diagnostics: `saved-1280x800-dark`; 99-debug-mode: `section-1280x800-dark`: Settings › Advanced gains its Scheduled work section between Diagnostics and Debug mode (AJ-E2027 R6: "Nothing is scheduled." in the gate's fixture, which has no schedules, and its footer with Open reminders); everything below it moves down by its height.
 - 84-notifications: `settings-off-1280x800-dark`, `settings-chosen-1280x800-dark`; 99-when-to-tell: `section-1280x800-dark`: the last kind reads "Watches and reminders" ("A watch you set was met, or a reminder came due. Quiet hours hold a watch unless it is set to tell you even then; a reminder comes at the time you picked.") where it read "Watches" (AJ-E2027); its row grows by a line and the sections below move down.
+
+### G21's settings words (2026-11-26): 2 re-rendered
+
+A compare run of the whole gate after fix batches A, B and C (HEAD 136d204dc) failed exactly these 2 of 348; rendered with `scripts/visual_gate.sh --update` in the pinned container, by name; each opened at full size.
+
+- 99-when-to-tell: `section-1280x800-dark`: the Notifications kind "The digest" now reads "A notification when Home's digest is ready. Finished sessions are told in it, not one each." (G21: the kind is only the notification; Home's item is Agent digest's), one line where it was two, so the rows above move up; the switches are unchanged (Watches and reminders on, The digest off).
+- 99-settings-search: `opened-1280x800-dark`: Agent digest's hint, "Write a digest of what your agents did", now says "On Home, every 15 to 30 minutes while agents work, and a minute after one finishes or needs you: a line per agent, what needs you first. Made on this computer from what AI Juggler records; nothing leaves it." (G21).
