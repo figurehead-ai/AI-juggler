@@ -360,6 +360,68 @@ pub fn parse(draft: &Draft) -> Option<Vec<BotWrittenPart>> {
     (!parts.is_empty()).then_some(parts)
 }
 
+/// The kind a record line opens with ("1. session “…”"), as a word.
+fn kind_named(word: &str) -> Option<BotRowKind> {
+    match word.to_lowercase().as_str() {
+        "session" | "sitzung" => Some(BotRowKind::Session),
+        "task" | "aufgabe" => Some(BotRowKind::Task),
+        "account" | "konto" => Some(BotRowKind::Account),
+        _ => None,
+    }
+}
+
+/// 0.5.2 G19: a quoted kind word ("“session” failed") names no record:
+/// the model read the record line's kind (`1. session “…”`) as the name.
+/// It is the record of that kind the sentence cites, when it cites one,
+/// so its name is put there; else the word stands unquoted. Then the
+/// check reads the sentence as it reads any other. A record really named
+/// "session" keeps its quotes.
+#[must_use]
+pub fn kind_quotes(part: BotWrittenPart, rows: &[BotRowInfo]) -> BotWrittenPart {
+    let cited: Vec<&BotRowInfo> = part
+        .cites
+        .iter()
+        .filter_map(|&c| rows.get((c as usize).checked_sub(1)?))
+        .collect();
+    let mut out = String::with_capacity(part.text.len());
+    let mut open: Option<(char, String)> = None;
+    for c in part.text.chars() {
+        match (&mut open, c) {
+            (None, '\u{201c}' | '"' | '\u{201e}' | '\u{ab}') => open = Some((c, String::new())),
+            (Some((start, inner)), '\u{201d}' | '"' | '\u{201c}' | '\u{bb}') => {
+                let word = inner.trim();
+                let named = cited.iter().any(|r| r.title.eq_ignore_ascii_case(word));
+                if let Some(kind) = kind_named(word).filter(|_| !named) {
+                    let of_kind: Vec<&&BotRowInfo> =
+                        cited.iter().filter(|r| r.kind == kind).collect();
+                    if let [row] = of_kind.as_slice() {
+                        out.push(*start);
+                        out.push_str(&row.title);
+                        out.push(c);
+                    } else {
+                        out.push_str(word);
+                    }
+                } else {
+                    out.push(*start);
+                    out.push_str(inner);
+                    out.push(c);
+                }
+                open = None;
+            }
+            (Some((_, inner)), c) => inner.push(c),
+            (None, c) => out.push(c),
+        }
+    }
+    if let Some((start, inner)) = open {
+        out.push(start);
+        out.push_str(&inner);
+    }
+    BotWrittenPart {
+        text: out,
+        cites: part.cites,
+    }
+}
+
 /// What became of a draft.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Decided {
@@ -395,6 +457,7 @@ pub fn decide_with(
     let Some(parts) = parse(draft) else {
         return Decided::Records("shape");
     };
+    let parts: Vec<BotWrittenPart> = parts.into_iter().map(|p| kind_quotes(p, rows)).collect();
     // ADR-0034 §7.2 step 8: the secret-hiding pass leaves it unchanged.
     let all: String = parts
         .iter()
@@ -543,6 +606,46 @@ mod tests {
                 "a separator reached the frame: {framed:?}"
             );
         }
+    }
+
+    /// 0.5.2 G19: a quoted kind word is the cited record of that kind
+    /// (its name put there, then checked); with two of that kind cited it
+    /// stands unquoted; a record really named "session" keeps its quotes.
+    #[test]
+    fn a_quoted_kind_word_is_the_cited_record_of_that_kind() {
+        let shown = |d: &Draft, rows: &[BotRowInfo]| match decide(d, rows, "what failed?", &[]) {
+            Decided::Shown(parts) => parts.first().map(|p| p.text.clone()),
+            Decided::Records(_) => None,
+        };
+        let mut failed = row(
+            BotRowKind::Session,
+            "Rewrite the date parser",
+            Some(BotState::Failed),
+        );
+        failed.app_label = Some("Work".into());
+        let rows = [failed.clone()];
+        let said = draft(
+            r#"{"sentences":[{"records":[1],"text":"“session” in “Work” is failed and stopped with an error."}]}"#,
+        );
+        assert_eq!(
+            shown(&said, &rows).as_deref(),
+            Some("“Rewrite the date parser” in “Work” is failed and stopped with an error.")
+        );
+        let two = [
+            failed.clone(),
+            row(BotRowKind::Session, "Fix the login", Some(BotState::Failed)),
+        ];
+        let said = draft(r#"{"sentences":[{"records":[1,2],"text":"Each “session” failed."}]}"#);
+        assert_eq!(shown(&said, &two).as_deref(), Some("Each session failed."));
+        // A wrong state is still refused once the name is put there.
+        let said = draft(r#"{"sentences":[{"records":[1],"text":"“session” finished."}]}"#);
+        assert!(matches!(
+            decide(&said, &rows, "what failed?", &[]),
+            Decided::Records(_)
+        ));
+        let named = [row(BotRowKind::Session, "session", Some(BotState::Failed))];
+        let said = draft(r#"{"sentences":[{"records":[1],"text":"“session” failed."}]}"#);
+        assert_eq!(shown(&said, &named).as_deref(), Some("“session” failed."));
     }
 
     /// I4: an answer holding something that looks like a key is never shown.

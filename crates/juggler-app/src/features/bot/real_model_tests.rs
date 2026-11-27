@@ -345,6 +345,11 @@ fn verdicts(
                 written::parse(&draft).map_or_else(
                     || "shape".to_owned(),
                     |parts| {
+                        // As decide reads it: a quoted kind word first (G19).
+                        let parts: Vec<_> = parts
+                            .into_iter()
+                            .map(|p| written::kind_quotes(p, &turn.rows))
+                            .collect();
                         format!(
                             "{:?}",
                             check::check_with(
@@ -420,17 +425,19 @@ fn ask_recorded(
 /// checking out, and "3+5" asked next in the same topic was refused too
 /// (in a fresh topic it answered 8). Each question three times (the model
 /// samples): every grounded answer cites records, none is refused, 3+5 is
-/// Bot's own 8 in the same topic.
+/// Bot's own 8 in the same topic. G18, G19: "what needs me" and "what
+/// failed?" name the failed session.
 #[test]
 #[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G15 and G16"]
 fn bot_answers_the_rw1_labs_questions_on_the_real_model() {
     let (_dir, state, service) = lab_fixture();
     let mut fails = Vec::new();
     for _ in 0..3 {
-        for question in ["what are my sessions", "what needs me"] {
+        for question in ["what are my sessions", "what needs me", "what failed?"] {
             let a = ask_recorded(&state, &service, question, false);
-            // G18: "what needs me" names the failure, as Home's Needs you does.
-            let named = question != "what needs me" || a.words.contains("date parser");
+            // G18, G19: "what needs me" and "what failed?" name the failure,
+            // as Home's Needs you does.
+            let named = question == "what are my sessions" || a.words.contains("date parser");
             if a.outcome != BotOutcome::Answered || a.cites.is_empty() || !named {
                 fails.push(format!("{question}: {:?} {:?}", a.outcome, a.words));
             }
