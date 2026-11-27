@@ -106,7 +106,7 @@
 //   guard                         the guard's verdict at Dev's window, nothing sent
 //   texts [--in TEXT]             the words Dev shows (role, label, value), read only
 //   buttons [--in TEXT]           the controls that can be pressed, with their exact titles
-//   press TITLE [--row NAME | --region NAME] [--in TEXT …]
+//   press TITLE [--row NAME | --region NAME] [--index N] [--in TEXT …]
 //                                 presses the one control titled exactly TITLE; with --row,
 //                                 TITLE must name one control in the whole window, inside
 //                                 the one row named NAME (each --in adds words its region
@@ -116,7 +116,11 @@
 //                                 a row): the region's name and the title are the key, so the
 //                                 title may name other controls outside it. Two controls of
 //                                 one title and no scope: refused (exit 4, nothing pressed),
-//                                 each named by the part it sits in, to scope with --region
+//                                 each numbered and named by the part it sits in, to scope
+//                                 with --region; --index N presses the N-th of them (in the
+//                                 window's order, as numbered; inside --region/--row when
+//                                 given, every part of that name), for two in parts that
+//                                 share a name (Home's two New session)
 //   focus TITLE [--in TEXT]       puts the cursor in the field titled TITLE
 //   focus-terminal [--in TEXT]    puts the cursor in AI Juggler's terminal (its input)
 //   type TEXT                     types TEXT where the cursor is (keys posted to Dev's pid)
@@ -124,7 +128,7 @@
 //                                 escape, tab, space, ctrl-c, or a chord: cmd+k, cmd+shift+p,
 //                                 shift+tab (modifiers cmd, shift, alt, ctrl; a letter needs
 //                                 one; cmd+q, cmd+h, cmd+m, cmd+w are refused: by hand)
-//   hover TITLE [--row NAME | --region NAME] [--in TEXT …] | hover --at X,Y
+//   hover TITLE [--row NAME | --region NAME] [--index N] [--in TEXT …] | hover --at X,Y
 //                                 moves the pointer onto the one element titled TITLE (picked
 //                                 as press picks) or to the screen point X,Y in Dev's main
 //                                 window, behind the guard there; nothing is clicked; the
@@ -1139,7 +1143,7 @@ func pickInRegion(_ nodes: [Node], _ candidates: [Int], title: String, region: S
     let name = squash(region)
     let parts = nodes.indices.filter { !leafRoles.contains(nodes[$0].role) && nodes[$0].label == name }
     guard parts.count == 1, let r = parts.first else {
-        return (nil, parts.isEmpty ? "no part of the window named exactly \"\(name)\"" : "\(parts.count) parts of the window named \"\(name)\"")
+        return (nil, parts.isEmpty ? "no part of the window named exactly \"\(name)\"" : "\(parts.count) parts of the window named \"\(name)\" (\(severalWhy(nodes, candidates.filter { c in ancestors(nodes, c).contains { parts.contains($0) } })))")
     }
     let inside = candidates.filter { ancestors(nodes, $0).contains(r) }
     guard inside.count == 1, let c = inside.first else {
@@ -1179,18 +1183,43 @@ func controls(_ nodes: [Node], titled title: String, roles: Set<String>) -> [Int
 /// 0.5.2 G64 (RW1 F-RW2-12): "2 controls have that title" named neither,
 /// so a sweep that went on past the refusal never knew which to scope to.
 func placesOf(_ nodes: [Node], _ candidates: [Int]) -> String {
-    candidates.map { c -> String in
+    candidates.enumerated().map { (n, c) -> String in
+        // 0.5.2 G69 (RW1 F-S-1): the page itself (its web area carries the
+        // window's title) is no part to scope to: Home's two New session
+        // were both "in \"AI Juggler · Home\"".
         let part = ancestors(nodes, c).dropFirst().first {
-            !leafRoles.contains(nodes[$0].role) && nodes[$0].role != "AXWindow" && !nodes[$0].label.isEmpty
+            !leafRoles.contains(nodes[$0].role) && !pageRoles.contains(nodes[$0].role) && !nodes[$0].label.isEmpty
         }
-        return part.map { "in \"\(nodes[$0].label)\"" } ?? "in the window"
+        return "\(n + 1) " + (part.map { "in \"\(nodes[$0].label)\"" } ?? "in the page")
     }.joined(separator: ", ")
 }
 
+/// The window and its page: never a part to scope to.
+let pageRoles: Set<String> = ["AXWindow", "AXWebArea", "AXScrollArea"]
+
 /// The refusal for several controls of one title (pure: the selftest):
-/// each named by where it sits, and the way to press one.
+/// each numbered and named by where it sits, and the ways to press one.
 func severalWhy(_ nodes: [Node], _ candidates: [Int]) -> String {
-    "\(candidates.count) controls have that title (\(placesOf(nodes, candidates))): a title must name one (press with --region NAME, the part's name, or --row NAME, the row's own name)"
+    "\(candidates.count) controls have that title (\(placesOf(nodes, candidates))): a title must name one (press with --region NAME, the part's name, --row NAME, the row's own name, or --index N, its number here)"
+}
+
+/// 0.5.2 G69: the `index`-th (from 1, in the window's order, as a refusal
+/// numbers them) of the controls of the title, inside `region` or `row`
+/// when given (every part of that name: two parts may share one). Else nil
+/// and why.
+func pickIndexed(_ nodes: [Node], _ candidates: [Int], index: Int, row: String?, region: String?) -> (Int?, String) {
+    var pool = candidates
+    if let scope = row ?? region {
+        let name = squash(scope)
+        let roles: (String) -> Bool = row != nil ? { rowRoles.contains($0) } : { !leafRoles.contains($0) }
+        let parts = nodes.indices.filter { roles(nodes[$0].role) && nodes[$0].label == name }
+        if parts.isEmpty { return (nil, "no part of the window named exactly \"\(name)\"") }
+        pool = candidates.filter { c in ancestors(nodes, c).contains { parts.contains($0) } }
+    }
+    guard index >= 1, index <= pool.count else {
+        return (nil, pool.isEmpty ? "none of that title there" : "--index \(index): there are \(pool.count) (\(placesOf(nodes, pool)))")
+    }
+    return (pool[index - 1], "")
 }
 
 /// The one control of `candidates` (every control with the title in the
@@ -1476,11 +1505,12 @@ func hoverAt(_ pid: pid_t, _ given: CGPoint?, element: AXUIElement? = nil) {
     say("  the pointer is at \(Int(point.x)),\(Int(point.y)) (it was at \(Int(was.x)),\(Int(was.y)): `hover --at \(Int(was.x)),\(Int(was.y))` puts it back)")
 }
 
-func hover(_ pid: pid_t, _ title: String, within: [String], row: String?, region: String?) {
+func hover(_ pid: pid_t, _ title: String, within: [String], row: String?, region: String?, index: Int? = nil) {
     if row != nil && region != nil { stop(2, "hover takes --row or --region, not both") }
     let nodes = tree(pid)
     let candidates = controls(nodes, titled: title, roles: hoverRoles)
-    let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) }
+    let (chosen, why) = index.map { pickIndexed(nodes, candidates, index: $0, row: row, region: region) }
+        ?? row.map { pickInRow(nodes, candidates, title: title, row: $0) }
         ?? region.map { pickInRegion(nodes, candidates, title: title, region: $0) }
         ?? pick(nodes, candidates, within: within)
     guard let i = chosen else { stop(4, "nothing single titled exactly \"\(title)\": \(why). Nothing sent. (`texts` lists the words.)") }
@@ -1660,6 +1690,8 @@ struct Opts {
     var within: [String] = []
     var row: String?
     var region: String?
+    /// 0.5.2 G69: the N-th control of the title (from 1, as a refusal numbers them).
+    var index: Int?
     var timeout: Double = 30
     var ocr = false
     var gone = false
@@ -1685,6 +1717,9 @@ func parse(_ raw: [String]) -> Opts {
         case "--in": o.within.append(value())
         case "--row": o.row = value()
         case "--region": o.region = value()
+        case "--index":
+            guard let n = Int(value()), n >= 1 else { stop(2, "--index needs a number from 1") }
+            o.index = n
         case "--timeout": o.timeout = Double(value()) ?? 30
         case "--ocr": o.ocr = true
         case "--gone": o.gone = true
@@ -1704,16 +1739,17 @@ func parse(_ raw: [String]) -> Opts {
 /// Presses it; with `soft`, a control that is there but disabled is
 /// reported (false) instead of stopping.
 @discardableResult
-func press(_ pid: pid_t, _ title: String, within: [String], row: String? = nil, region: String? = nil, soft: Bool = false) -> Bool {
+func press(_ pid: pid_t, _ title: String, within: [String], row: String? = nil, region: String? = nil, index: Int? = nil, soft: Bool = false) -> Bool {
     say("» press \"\(title)\"" + (row.map { " --row \"\($0)\"" } ?? "") + (region.map { " --region \"\($0)\"" } ?? "")
-        + within.map { " --in \"\($0)\"" }.joined())
+        + (index.map { " --index \($0)" } ?? "") + within.map { " --in \"\($0)\"" }.joined())
     if row != nil && region != nil { stop(2, "press takes --row or --region, not both") }
     // One atomic action: after a pause, found again from the start (the
     // page may have changed meanwhile).
     while true {
         let nodes = tree(pid)
         let candidates = controls(nodes, titled: title, roles: pressRoles)
-        let (chosen, why) = row.map { pickInRow(nodes, candidates, title: title, row: $0) }
+        let (chosen, why) = index.map { pickIndexed(nodes, candidates, index: $0, row: row, region: region) }
+            ?? row.map { pickInRow(nodes, candidates, title: title, row: $0) }
             ?? region.map { pickInRegion(nodes, candidates, title: title, region: $0) }
             ?? pick(nodes, candidates, within: within)
         guard let i = chosen else { stop(4, "no single control titled exactly \"\(title)\": \(why). Nothing pressed. (`buttons` lists them.)") }
@@ -2677,7 +2713,7 @@ func selftest() {
     if sameTitle != [2, 5, 7] { failures.append("several: the three Accounts \(sameTitle)") }
     let refused = pick(settings, sameTitle, within: [])
     if refused.0 != nil { failures.append("several: a bare title chose one") }
-    if !refused.1.contains("3 controls have that title (in \"Main\", in \"Settings\", in the window)") || !refused.1.contains("--region NAME") {
+    if !refused.1.contains("3 controls have that title (1 in \"Main\", 2 in \"Settings\", 3 in the page)") || !refused.1.contains("--region NAME") {
         failures.append("several: the refusal doesn't name the matches: \(refused.1)")
     }
     if pickInRegion(settings, sameTitle, title: "Accounts", region: "Settings").0 != 5 { failures.append("several: --region Settings missed Settings' Accounts") }
@@ -2687,6 +2723,31 @@ func selftest() {
     let rowed = pickInRow(settings, sameTitle, title: "Accounts", row: "Settings")
     if rowed.0 != nil || !rowed.1.contains("in \"Main\"") { failures.append("several: --row's refusal doesn't name them: \(rowed.1)") }
     if pick(settings, controls(settings, titled: "The Floor", roles: pressRoles), within: []).0 != 6 { failures.append("several: the one The Floor") }
+    // 0.5.2 G69 (RW1 F-S-1): Home's two New session (the header's, the
+    // rail's foot), the page's web area carrying the window's title and
+    // two boxes of one name: refused, numbered, and --index presses one.
+    let home: [Node] = [
+        n("AXWindow", "AI Juggler · Home", "", nil, 0),
+        n("AXWebArea", "AI Juggler · Home", "", 0, 1),                        // 1: the page
+        n("AXGroup", "Header", "", 1, 2),                                     // 2
+        n("AXButton", "New session", "", 2, 3),                               // 3
+        n("AXGroup", "Header", "", 1, 2),                                     // 4: a second part of that name
+        n("AXButton", "New session", "", 4, 3),                               // 5
+        n("AXButton", "New session", "", 1, 2),                               // 6: in the page itself
+    ]
+    let news = controls(home, titled: "New session", roles: pressRoles)
+    let homeWhy = pick(home, news, within: []).1
+    if !homeWhy.contains("(1 in \"Header\", 2 in \"Header\", 3 in the page)") || !homeWhy.contains("--index N") {
+        failures.append("index: the refusal doesn't number them: \(homeWhy)")
+    }
+    if pickIndexed(home, news, index: 2, row: nil, region: nil).0 != 5 { failures.append("index: --index 2 missed the second") }
+    if pickIndexed(home, news, index: 3, row: nil, region: nil).0 != 6 { failures.append("index: --index 3 missed the page's own") }
+    if pickIndexed(home, news, index: 2, row: nil, region: "Header").0 != 5 { failures.append("index: --region Header --index 2 (two parts of one name)") }
+    if pickIndexed(home, news, index: 3, row: nil, region: "Header").0 != nil { failures.append("index: --index past the region's count chose one") }
+    if pickIndexed(home, news, index: 4, row: nil, region: nil).0 != nil { failures.append("index: --index past the count chose one") }
+    let twoParts = pickInRegion(home, news, title: "New session", region: "Header")
+    if twoParts.0 != nil || !twoParts.1.contains("--index N") { failures.append("index: two parts of one name don't point at --index: \(twoParts.1)") }
+    if parse(["New session", "--index", "2"]).index != 2 { failures.append("parse --index") }
     // New session: the App's own row action is the key, not the shared title.
     if newSessionButton(" Kimi Code CLI ·  lab A") != "New session: Kimi Code CLI · lab A" || changeAppButton("Kimi Code CLI · lab A") != "Change app: Kimi Code CLI · lab A" {
         failures.append("the new-session names")
@@ -2801,7 +2862,7 @@ case "guard":
     exit(v == .clear ? 0 : 3)
 case "texts": listTexts(pid, within: o.within, pressable: false)
 case "buttons": listTexts(pid, within: o.within, pressable: true)
-case "press": need(1, "press TITLE [--row NAME | --region NAME] [--in TEXT]"); press(pid, o.positional[0], within: o.within, row: o.row, region: o.region)
+case "press": need(1, "press TITLE [--row NAME | --region NAME] [--index N] [--in TEXT]"); press(pid, o.positional[0], within: o.within, row: o.row, region: o.region, index: o.index)
 case "focus": need(1, "focus TITLE [--in TEXT]"); focusField(pid, o.positional[0], within: o.within)
 case "focus-terminal": focusTerminal(pid, within: o.within)
 case "type": need(1, "type TEXT"); say("» type \"\(o.positional.joined(separator: " "))\""); typeText(pid, o.positional.joined(separator: " "))
@@ -2815,10 +2876,10 @@ case "hover":
         say("» hover --at \(raw)")
         hoverAt(pid, point)
     } else {
-        need(1, "hover TITLE [--row NAME | --region NAME] [--in TEXT] | hover --at X,Y")
+        need(1, "hover TITLE [--row NAME | --region NAME] [--index N] [--in TEXT] | hover --at X,Y")
         say("» hover \"\(o.positional[0])\"" + (o.row.map { " --row \"\($0)\"" } ?? "") + (o.region.map { " --region \"\($0)\"" } ?? "")
             + o.within.map { " --in \"\($0)\"" }.joined())
-        hover(pid, o.positional[0], within: o.within, row: o.row, region: o.region)
+        hover(pid, o.positional[0], within: o.within, row: o.row, region: o.region, index: o.index)
     }
 case "scroll":
     need(1, "scroll down|up [N] [--at X,Y]")
