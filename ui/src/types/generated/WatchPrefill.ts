@@ -2,6 +2,7 @@
 import type { PrefillField } from "./PrefillField";
 import type { PrefillWhy } from "./PrefillWhy";
 import type { WatchDraftInfo } from "./WatchDraftInfo";
+import type { WatchTarget } from "./WatchTarget";
 
 /**
  * The Watches form as Bot pre-fills it.
@@ -34,4 +35,10 @@ nearest?: string | null,
  * Bot offers its confirm card (every field verified by code, the
  * form's own check passed, and the user's Beta on).
  */
-card: boolean, };
+card: boolean, 
+/**
+ * 0.5.2 G60: with the target left, what the request's names match
+ * (a project and a session in it both called "web"): the picker opens
+ * on them, the user picks one; none is ever filled.
+ */
+choices?: Array<WatchTarget>, };

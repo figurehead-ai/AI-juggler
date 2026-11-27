@@ -51,11 +51,14 @@ export interface BotFill {
   why: PrefillWhy;
   nearest: string | null;
   asked: string | null;
+  /** 0.5.2 G60: what the request's names match, the target left: the
+   * picker opens on them (none is chosen for the user). */
+  choices: WatchTarget[];
 }
 
 /** Bot's pre-fill as the form's state: its draft, with what it left. */
 export function stateFromPrefill(prefill: WatchPrefill, now: number): FormState {
-  return { ...stateFrom(prefill.draft, now), bot: { left: [...prefill.left], why: prefill.why, nearest: prefill.nearest ?? null, asked: prefill.asked ?? null } };
+  return { ...stateFrom(prefill.draft, now), bot: { left: [...prefill.left], why: prefill.why, nearest: prefill.nearest ?? null, asked: prefill.asked ?? null, choices: [...(prefill.choices ?? [])] } };
 }
 
 /** The change, with each field it sets no longer left by Bot. */
@@ -79,6 +82,18 @@ export function botLeft(state: FormState, field: PrefillField): boolean {
  * made for the user (Watch waits for one). */
 export function lifeAsked(state: FormState): boolean {
   return state.life === null && botLeft(state, "lifetime");
+}
+
+/** 0.5.2 G60 (RW1 R31): Bot left what to watch or what for, and how long
+ * is unsaid: the form's suggestion follows them (Once for a session that
+ * finishes, Today for a project), so none is shown chosen until both are
+ * picked; a chosen-looking "Today" read as Bot's fill and changed under
+ * the user once they picked the session. The field still to pick, or
+ * null when the suggestion stands. */
+export function lifeWaits(state: FormState): "target" | "condition" | null {
+  if (state.bot === undefined || state.life !== null || lifeAsked(state)) return null;
+  if (state.targets.length === 0) return "target";
+  return state.codes.length === 0 ? "condition" : null;
 }
 
 /** 0.5.2 G32: the default condition for these targets, among what they
@@ -226,5 +241,7 @@ export function previewFacts(input: { state: FormState; offered: readonly Catalo
   // AJ-E3830: how long is the user's to pick (Bot couldn't read it): the
   // preview says no lifetime for them.
   if (lifeAsked(state)) return { echo: input.echo ? { ...input.echo, lifetime: "" } : null, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends: BOT_FILL.lifePick, endsKind: life };
+  const waits = lifeWaits(state);
+  if (waits) return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends: BOT_FILL.lifeFollows(waits), endsKind: life };
   return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends, endsKind: life };
 }

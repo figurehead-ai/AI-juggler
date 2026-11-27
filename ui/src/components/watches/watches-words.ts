@@ -215,6 +215,8 @@ export const BOT_FILL = {
   nearestWhy: "The nearest to what you asked that this can watch",
   lifeLeft: "Bot couldn't tell how long from your words. Pick one.",
   lifePick: "How long is yours to pick.",
+  lifeFollows: (what: "target" | "condition") => `How long is suggested once you pick ${what === "target" ? "what to watch" : "what to watch for"}.`,
+  choices: "Your words match",
   quietLeft: "Bot couldn't tell whether this should wake you. Check it.",
 } as const;
 

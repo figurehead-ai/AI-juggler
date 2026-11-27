@@ -3,27 +3,36 @@ use crate::features::ai::scripted::Scripted;
 use crate::features::bot::dto::{BotAskInput, BotOutcome, BotRowInfo, BotState};
 use crate::features::bot::world::tests_support::row;
 
-fn world() -> World {
-    let session = |id: &str, title: &str, project: &str| BotRowInfo {
+/// A session row of the App Work in `project` (its id `p-<project>`).
+fn session(id: &str, title: &str, project: &str, state: BotState) -> BotRowInfo {
+    BotRowInfo {
         id: id.into(),
         project: Some(project.into()),
         project_id: Some(format!("p-{project}")),
         app_label: Some("Work".into()),
         app_id: Some("work".into()),
         at_ms: Some(1_000),
-        ..row(BotRowKind::Session, title, Some(BotState::Working))
-    };
+        ..row(BotRowKind::Session, title, Some(state))
+    }
+}
+
+/// A world of these sessions, nothing else.
+fn world_of(sessions: Vec<BotRowInfo>) -> World {
     World {
         now_ms: 10_000,
         offset_hours: 0,
-        sessions: vec![
-            session("s-web", "web", "shop"),
-            session("s-api", "api", "shop"),
-        ],
+        sessions,
         tasks: Vec::new(),
         accounts: Vec::new(),
         removed: Vec::new(),
     }
+}
+
+fn world() -> World {
+    world_of(vec![
+        session("s-web", "web", "shop", BotState::Working),
+        session("s-api", "api", "shop", BotState::Working),
+    ])
 }
 
 /// AJ-E3830 (0.5.2): the request pre-fills the form with what code read;
@@ -144,6 +153,7 @@ fn prefill_with(left: Vec<PrefillField>, why: PrefillWhy, asked: Option<&str>) -
         asked: asked.map(str::to_owned),
         nearest: None,
         card: false,
+        choices: Vec::new(),
     }
 }
 
@@ -225,4 +235,70 @@ fn the_draft_carries_its_turn_and_one_plain_line() {
         })
         .contains("“tests pass”")
     );
+}
+
+/// 0.5.2 G60 (RW1 R31), Bot's own path: the request goes through the
+/// candidates Bot's world makes (its rows, their projects and Apps), as
+/// the window asks it. "web" names the project and the open session in it
+/// (the session not titled yet, named by its folder or by its facts): the
+/// form opens with the target left and the picker on both, never a
+/// guess (the lifetime unsaid: the form's suggestion, labelled so, once a
+/// target is picked). This test store holds no App, so nothing is on
+/// offer and the condition is left too; the window's pre-fill (the
+/// condition kept) is the prefill tests' and the window's vitest.
+#[test]
+fn an_ambiguous_name_opens_the_picker_on_its_matches() {
+    let (_dir, state) = crate::features::bot::tests::state();
+    for open in ["web", "web · started 3:23 AM"] {
+        let world = world_of(vec![
+            session("s-open", open, "web", BotState::Idle),
+            session(
+                "s-failed",
+                "Rewrite the date parser to accept two-digit years",
+                "web",
+                BotState::Failed,
+            ),
+            session(
+                "s-api",
+                "Add retries to the sync client",
+                "api",
+                BotState::Idle,
+            ),
+        ]);
+        let fake = Scripted::new(&["FAIL", "FAIL", "FAIL", "FAIL"]);
+        let got = drafted_with(&fake, &state, &world, "tell me when web finishes", false)
+            .expect("a pre-fill");
+        let WatchDrafted::Prefilled { prefill } = &got else {
+            unreachable!("{got:?}")
+        };
+        assert!(prefill.draft.targets.is_empty(), "{open}: {prefill:?}");
+        assert!(
+            prefill.left.contains(&PrefillField::Target),
+            "{open}: {prefill:?}"
+        );
+        assert!(
+            prefill
+                .choices
+                .contains(&WatchTarget::Session("s-open".into())),
+            "{open}: {prefill:?}"
+        );
+        assert!(
+            prefill
+                .choices
+                .contains(&WatchTarget::Project("p-web".into())),
+            "{open}: {prefill:?}"
+        );
+        assert_eq!(
+            prefill.draft.lifetime,
+            crate::features::watches::model::LifetimeChoice::Unsaid
+        );
+        // What the window receives: the choices ride the turn over IPC.
+        let wire = serde_json::to_value(&got).unwrap();
+        assert!(
+            wire["prefill"]["choices"]
+                .as_array()
+                .is_some_and(|c| !c.is_empty()),
+            "{wire}"
+        );
+    }
 }

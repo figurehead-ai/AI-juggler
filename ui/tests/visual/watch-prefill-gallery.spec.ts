@@ -43,6 +43,9 @@ const CASES: Record<string, BotTurnInfo> = {
   "form-left": turn("Tell me every time api finishes, until I remove it, yes even overnight", { draft: DRAFT, left: ["lifetime", "quiet_hours"], why: "unread", asked: "until I remove it, yes even overnight", nearest: null, card: false }),
   // v13's W28: "wants something from me" isn't a condition code reads.
   "form-nearest": turn("Let me know when api wants something from me", { draft: { ...DRAFT, conditions: [] }, left: ["condition"], why: "unread", asked: "wants something from me", nearest: "asks_you", card: false }),
+  // 0.5.2 G60 (RW1 R31): "shop" names the project and sessions in it: the
+  // target left, the picker open on what the words match.
+  "form-several": turn("Tell me when shop finishes", { draft: { ...DRAFT, targets: [] }, left: ["target"], why: "several", asked: null, nearest: null, card: false, choices: [{ kind: "project", id: "proj-shop" }, { kind: "session", id: "s-api" }, { kind: "session", id: "s-login" }] }),
   // Read whole, Watches Beta on: Bot's card.
   card: turn("Let me know when api finishes", { draft: DRAFT, left: [], why: "verified", asked: null, nearest: null, card: true }),
 };
@@ -116,6 +119,19 @@ for (const theme of ["dark", "light"] as const) {
     await page.mouse.move(0, 0);
     if (OUT) await page.screenshot({ path: `${OUT}/form-nearest-1280-${theme}.png` });
     await axeClean(page, `form nearest ${theme}`);
+  });
+
+  test(`pre-filled form, an ambiguous name: the picker open on its matches — ${theme}`, async ({ page }) => {
+    await open(page, theme, CASES["form-several"]!);
+    await expect(page.getByTestId("watch-form")).toBeVisible();
+    const matches = page.getByTestId("watch-picker-matches");
+    await expect(matches).toBeVisible();
+    await expect(matches.getByTestId("watch-pick-option").first()).toHaveAttribute("data-key", /^session:/);
+    await expect(page.getByTestId("watch-lifetime-line")).toHaveAttribute("data-waits", "target");
+    await wholeForm(page);
+    await page.mouse.move(0, 0);
+    if (OUT) await page.screenshot({ path: `${OUT}/form-several-1280-${theme}.png` });
+    await axeClean(page, `form several ${theme}`);
   });
 
   test(`Bot's confirm card (Watches Beta) — ${theme}`, async ({ page }) => {

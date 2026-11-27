@@ -672,3 +672,101 @@ fn clauses_split_at_punctuation_and_dashes() {
     assert_eq!(clauses("yo, shout when it is done"), vec![0, 1, 1, 1, 1, 1]);
     assert_eq!(clauses("tell me - api: done"), vec![0, 0, 1, 2]);
 }
+
+/// The RW1 re-walk's lab, as Bot's candidates hold it: the project web,
+/// an open session in it not titled yet (named by its folder, or by the
+/// one rule's facts), a failed one in it, and a session in api.
+fn rw1_context(open_name: &str) -> Vec<Candidate> {
+    let one = |kind: &str, id: &str, name: &str, project: Option<&str>| {
+        Candidate::from_json(&serde_json::json!({
+            "kind": kind, "id": id, "name": name, "app": project.map(|_| "Work"), "project": project,
+            "offered": if kind == "session" { SESSION } else { GROUP },
+        }))
+        .unwrap()
+    };
+    vec![
+        one("session", "s-open", open_name, Some("web")),
+        one(
+            "session",
+            "s-failed",
+            "Rewrite the date parser to accept two-digit years",
+            Some("web"),
+        ),
+        one(
+            "session",
+            "s-api",
+            "Add retries to the sync client",
+            Some("api"),
+        ),
+        one("app", "work", "Work", None),
+        one("project", "p-web", "web", None),
+        one("project", "p-api", "api", None),
+    ]
+}
+
+/// 0.5.2 G60 (RW1 R31): "web" names the project and the open session in
+/// it: the target is left, never guessed, and the picker opens on both,
+/// the open session among them; the rest is as read (the lifetime unsaid:
+/// the form's suggestion once a target is picked).
+#[test]
+fn an_ambiguous_name_leaves_the_target_with_its_choices() {
+    for open in ["web", "web · started 3:23 AM"] {
+        let p = prefill_of(
+            "tell me when web finishes",
+            &rw1_context(open),
+            &by_meaning(&[]),
+        )
+        .unwrap();
+        assert!(p.draft.targets.is_empty(), "{open}: {p:?}");
+        assert!(p.left.contains(&PrefillField::Target), "{open}: {p:?}");
+        assert!(
+            p.choices.contains(&WatchTarget::Session("s-open".into())),
+            "{open}: {p:?}"
+        );
+        assert!(
+            p.choices.contains(&WatchTarget::Project("p-web".into())),
+            "{open}: {p:?}"
+        );
+        assert!(
+            !p.choices.contains(&WatchTarget::Session("s-api".into())),
+            "{open}: {p:?}"
+        );
+        assert_eq!(p.draft.lifetime, LifetimeChoice::Unsaid, "{open}");
+        assert!(!p.card);
+    }
+}
+
+/// 0.5.2 G60 (RW1 R32): words code couldn't read beside the condition
+/// leave it, and the condition its own cue words name is offered beside
+/// the cards as the nearest, never chosen; the name before the negation
+/// still opens the picker on its matches.
+#[test]
+fn an_unread_qualifier_leaves_the_condition_with_its_cue_as_nearest() {
+    let p = prefill_of(
+        "tell me when web finishes unless it's after dark",
+        &rw1_context("web · started 3:23 AM"),
+        &by_meaning(&[]),
+    )
+    .unwrap();
+    assert!(p.draft.conditions.is_empty(), "{p:?}");
+    assert!(p.left.contains(&PrefillField::Condition), "{p:?}");
+    assert_eq!(p.nearest.as_deref(), Some("finishes"), "{p:?}");
+    assert!(p.draft.targets.is_empty(), "{p:?}");
+    assert!(
+        p.choices.contains(&WatchTarget::Project("p-web".into())),
+        "{p:?}"
+    );
+}
+
+/// A filled target opens no picker: no choices beside it.
+#[test]
+fn a_filled_target_has_no_choices() {
+    let p = prefill_of(
+        "Tell me when the flaky tests session ends, today",
+        &v13_context(),
+        &by_meaning(&[]),
+    )
+    .unwrap();
+    assert!(!p.draft.targets.is_empty());
+    assert!(p.choices.is_empty(), "{p:?}");
+}

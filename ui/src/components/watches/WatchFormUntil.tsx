@@ -9,7 +9,7 @@ import { DateField, Segmented, TimeField, type Segment } from "../controls";
 import { IconCalendar } from "../icons-controls";
 import { whenWords } from "../../lib/time-words";
 import type { CatalogueEntry } from "../../lib/ipc/watch-view";
-import { lifeAsked, lifeOf, untilMs, type FormState, type LifeKind } from "./watch-form-state";
+import { lifeAsked, lifeOf, lifeWaits, untilMs, type FormState, type LifeKind } from "./watch-form-state";
 import { targetKey, untilEndsOffered, type TargetOption } from "./watches-view";
 import { BOT_FILL, FORM, LIFE } from "./watches-words";
 import { LIFETIME_ICONS } from "./watch-icons";
@@ -29,6 +29,9 @@ export function UntilChoice({ state, set, offered, book, now }: { state: FormSta
   const life = lifeOf(state);
   // AJ-E3830: Bot couldn't read how long: nothing is chosen for the user.
   const asked = lifeAsked(state);
+  // 0.5.2 G60: Bot left what to watch (or what for) and how long is
+  // unsaid: the suggestion waits for them (none shown chosen until then).
+  const waits = lifeWaits(state);
   // AJ-E1558 (D-126): each lifetime with its icon, as the watch list shows it.
   const segments: Segment<LifeKind>[] = [
     { value: "once", label: LIFE.once, icon: LIFETIME_ICONS.once },
@@ -47,7 +50,7 @@ export function UntilChoice({ state, set, offered, book, now }: { state: FormSta
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Segmented label={FORM.until} value={asked ? null : life} onChange={(next) => set({ life: next })} segments={segments} testId="watch-lifetime-choice" className="w-fit" />
+        <Segmented label={FORM.until} value={asked || waits !== null ? null : life} onChange={(next) => set({ life: next })} segments={segments} testId="watch-lifetime-choice" className="w-fit" />
         {state.life === null && !asked && first && <span className="text-label text-muted">{LIFE.suggested(first)}</span>}
       </div>
       {life === "until" && (
@@ -56,8 +59,8 @@ export function UntilChoice({ state, set, offered, book, now }: { state: FormSta
           <TimeField value={state.untilTime} onCommit={(time) => set({ untilTime: time })} ariaLabel={LIFE.time} testId="watch-until-time" />
         </div>
       )}
-      <p className={"text-meta " + (past ? "text-danger" : asked ? "text-ink-2" : "text-muted")} data-testid="watch-lifetime-line" data-past={past} data-asked={asked || undefined}>
-        {asked ? BOT_FILL.lifeLeft : lifeLine(life, at, past, names, now)}
+      <p className={"text-meta " + (past ? "text-danger" : asked ? "text-ink-2" : "text-muted")} data-testid="watch-lifetime-line" data-past={past} data-asked={asked || undefined} data-waits={waits ?? undefined}>
+        {asked ? BOT_FILL.lifeLeft : waits !== null ? BOT_FILL.lifeFollows(waits) : lifeLine(life, at, past, names, now)}
       </p>
     </>
   );

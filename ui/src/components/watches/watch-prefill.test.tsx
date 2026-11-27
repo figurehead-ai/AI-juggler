@@ -83,14 +83,39 @@ describe("AJ-E3830 the Watches form pre-filled by Bot", () => {
     expect(screen.getByTestId("watch-condition-asks_you").querySelector("[data-testid=watch-condition-nearest]")?.textContent).toBe("Nearest");
     expect(screen.getAllByTestId("watch-condition-nearest")).toHaveLength(1);
     expect(screen.getByTestId("watch-form-save").hasAttribute("disabled")).toBe(true);
+    // How long waits for the condition: nothing shown chosen yet.
+    expect(screen.getByTestId("watch-lifetime-choice").querySelectorAll("[aria-checked=true]")).toHaveLength(0);
+    expect(screen.getByTestId("watch-lifetime-line").textContent).toBe("How long is suggested once you pick what to watch for.");
     fireEvent.click(screen.getByTestId("watch-condition-asks_you").querySelector("input")!);
     expect(screen.queryByTestId("watch-condition-nearest")).toBeNull();
+    await waitFor(() => expect(screen.getByTestId("watch-lifetime-choice").querySelectorAll("[aria-checked=true]")).toHaveLength(1));
   });
 
   it("an unread target: the picker is empty and asks; nothing is guessed", async () => {
     await open(prefill({ draft: { ...prefill({}).draft, targets: [] }, left: ["target"], why: "several" }));
     expect(screen.getByTestId("watch-bot-fill-line").textContent).toBe("More than one matches that name: pick which one.");
     expect(screen.getByTestId("watch-form-section-1").textContent).toContain("Bot couldn't tell which one");
+  });
+
+  it("0.5.2 G60: an ambiguous name opens the picker on its matches, the open session first; nothing picked, how long waits for the target", async () => {
+    const choices = [{ kind: "project" as const, id: "proj-shop" }, { kind: "session" as const, id: "s-api" }];
+    await open(prefill({ draft: { ...prefill({}).draft, targets: [] }, left: ["target"], why: "several", choices }));
+    const matches = await screen.findByTestId("watch-picker-matches");
+    const keys = [...matches.querySelectorAll<HTMLElement>("[data-testid=watch-pick-option]")].map((o) => o.dataset.key);
+    expect(keys).toEqual(["session:s-api", "project:proj-shop"]);
+    expect(matches.textContent).toContain("Your words match");
+    // Listed once: the open session isn't repeated under Open now.
+    expect(screen.getAllByTestId("watch-pick-option").filter((o) => o.dataset.key === "session:s-api")).toHaveLength(1);
+    expect(screen.queryAllByTestId("watch-token")).toHaveLength(0);
+    // How long follows the target: nothing shown chosen, and Watch waits.
+    expect(screen.getByTestId("watch-lifetime-choice").querySelectorAll("[aria-checked=true]")).toHaveLength(0);
+    expect(screen.getByTestId("watch-lifetime-line").textContent).toBe("How long is suggested once you pick what to watch.");
+    expect(screen.getByTestId("watch-form-save").hasAttribute("disabled")).toBe(true);
+    // Picking the open session: the suggestion for it (Once), labelled.
+    fireEvent.click(matches.querySelector<HTMLElement>("[data-key='session:s-api']")!);
+    expect(screen.getByTestId("watch-bot-fill").dataset.left).toBe("");
+    await waitFor(() => expect(screen.getByTestId("watch-lifetime-choice").querySelector("[aria-checked=true]")?.textContent).toContain("Once"));
+    expect(screen.getByTestId("watch-lifetime-line").dataset.waits).toBeUndefined();
   });
 
   it("unread quiet hours: the switch stays off and the form says to check it, until it is set", async () => {

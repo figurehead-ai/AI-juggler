@@ -303,6 +303,9 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
   const asked = lifeAsked(state);
   const canSave = savable({ loading, past, saving, atLimit, words }) && !asked;
   const helps = sectionHelps(state);
+  // 0.5.2 G60: Bot left what to watch: the picker opens on what the
+  // words matched (kept as opened: the list doesn't move as the user picks).
+  const [choices] = useState(() => (props.initial.bot && botLeft(props.initial, "target") ? props.initial.bot.choices : []));
   const save = async () => {
     setSaving(true);
     setFailed(null);
@@ -333,7 +336,7 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
           <FormAlerts atLimit={atLimit} limit={props.limit} ended={editing?.state === "ended"} failed={failed} />
           {state.bot && <BotFillNote bot={state.bot} />}
           <FormSection n={1} done={many > 0} title={FORM.what} help={helps.what} id={`${ids}-what`}>
-            <WatchTargetPicker picked={state.targets} book={book} onChange={(targets) => set({ targets })} labelledBy={`${ids}-what`} />
+            <WatchTargetPicker picked={state.targets} book={book} onChange={(targets) => set({ targets })} labelledBy={`${ids}-what`} suggested={choices} startOpen={choices.length > 0} />
             {many > 1 && <Matching state={state} set={set} />}
           </FormSection>
           <FormSection n={2} done={state.codes.length > 0} title={FORM.forWhat} help={helps.forWhat} id={`${ids}-for`}>

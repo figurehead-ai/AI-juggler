@@ -111,6 +111,12 @@ pub struct WatchPrefill {
     /// Bot offers its confirm card (every field verified by code, the
     /// form's own check passed, and the user's Beta on).
     pub card: bool,
+    /// 0.5.2 G60: with the target left, what the request's names match
+    /// (a project and a session in it both called "web"): the picker opens
+    /// on them, the user picks one; none is ever filled.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[ts(as = "Option<Vec<WatchTarget>>", optional)]
+    pub choices: Vec<WatchTarget>,
 }
 
 /// The pre-fill for `ask`, and the calls made; `None` when the words don't
@@ -151,8 +157,9 @@ pub fn from_trace(ask: &Ask<'_>, out: Outcome, trace: &Trace) -> Option<WatchPre
         asked: None,
         nearest: None,
         card: false,
+        choices: Vec::new(),
     };
-    match drafted {
+    let mut got = match drafted {
         WatchDrafted::Filled { mut draft } if trace.picked => {
             draft.targets.clear();
             Some(done(draft, vec![PrefillField::Target], PrefillWhy::Several))
@@ -175,8 +182,95 @@ pub fn from_trace(ask: &Ask<'_>, out: Outcome, trace: &Trace) -> Option<WatchPre
         WatchDrafted::Form => Some(fields(ask, r, trace, None, None)),
         // A reminder isn't drafted here (Bot's own path reads it first).
         WatchDrafted::Remind { .. } | WatchDrafted::Prefilled { .. } => None,
+    }?;
+    // 0.5.2 G60: the target left, the picker opens on what the names
+    // match (RW1 R31: "tell me when web finishes" with the project web and
+    // a session in it left an empty picker to search).
+    if got.left.contains(&PrefillField::Target) {
+        got.choices = choices_of(ask, r, trace);
     }
+    Some(got)
 }
+
+/// 0.5.2 G60: the targets the request's names match, for the picker to
+/// offer first when the target is left (never filled): what the clause
+/// that asks names, every namesake said whole, and the sessions in a
+/// project or App named; without what it excludes, and nothing named
+/// after a negation (that is what it leaves out). "Any session" is never
+/// one.
+fn choices_of(ask: &Ask<'_>, r: &Reading, trace: &Trace) -> Vec<WatchTarget> {
+    let said = match trace.negated {
+        Some(n) => r.words.get(..n).map(|w| w.join(" ")).unwrap_or_default(),
+        None => fail_closed::watch_clause(ask).unwrap_or_else(|| ask.request.to_owned()),
+    };
+    let found = resolve::resolve(&said, ask.candidates);
+    // Every target whose own name is said whole as well: the resolver
+    // keeps one of namesakes ("web" the session's folder name and "web"
+    // the project), the user may mean either.
+    let words = match trace.negated {
+        Some(n) => r.words.get(..n).unwrap_or_default(),
+        None => &r.words[..],
+    };
+    let whole = (0..ask.candidates.len()).filter(|&i| {
+        ask.candidates.get(i).is_some_and(|c| {
+            std::iter::once(c.name.as_str())
+                .chain(c.aliases.iter().map(String::as_str))
+                .filter(|n| n.chars().count() >= 2)
+                .any(|n| !said_at(words, n).is_empty())
+        })
+    });
+    let mut out: Vec<WatchTarget> = Vec::new();
+    let named: Vec<usize> = found
+        .candidates
+        .iter()
+        .chain(&found.picker)
+        .copied()
+        .chain(whole)
+        .collect();
+    for i in named {
+        if found.excluded.contains(&i) {
+            continue;
+        }
+        if let Some(c) = ask.candidates.get(i)
+            && c.target != WatchTarget::Any
+            && !out.contains(&c.target)
+        {
+            out.push(c.target.clone());
+        }
+    }
+    // A project or an App named: the sessions in it too (the open one in
+    // "web" is likely what "when web finishes" means; the picker puts open
+    // sessions first).
+    let groups: Vec<(TargetKind, String)> = out
+        .iter()
+        .filter_map(|t| {
+            let c = ask.candidates.iter().find(|c| &c.target == t)?;
+            matches!(t.kind(), TargetKind::Project | TargetKind::App)
+                .then(|| (t.kind(), c.name.clone()))
+        })
+        .collect();
+    for (i, c) in ask.candidates.iter().enumerate() {
+        let inside = groups.iter().any(|(kind, name)| {
+            let owner = match kind {
+                TargetKind::Project => c.project.as_deref(),
+                _ => c.app.as_deref(),
+            };
+            owner == Some(name.as_str())
+        });
+        if c.target.kind() == TargetKind::Session
+            && inside
+            && !found.excluded.contains(&i)
+            && !out.contains(&c.target)
+        {
+            out.push(c.target.clone());
+        }
+    }
+    out.truncate(CHOICES_MAX);
+    out
+}
+
+/// The most targets the picker is opened on.
+const CHOICES_MAX: usize = 6;
 
 // ============================================================================ the words code couldn't place
 
@@ -419,9 +513,14 @@ fn fields(
         })
     };
     let quiet = (!s.quiet).then_some(r.quiet_on);
+    // The told-back draft's condition, else (0.5.2 G60, RW1 R32: "tell me
+    // when web finishes unless it's after dark" tagged nothing) the one
+    // the request's own cue words name, before any negation: tagged
+    // beside the cards, never chosen.
     let nearest = told
         .and_then(|d| d.conditions.first())
         .map(|c| c.code.clone())
+        .or_else(|| cue_nearest(ask, r, trace))
         .filter(|c| conditions.is_empty() && offered.contains(c));
     let mut left = Vec::new();
     if target.is_none() {
@@ -456,7 +555,26 @@ fn fields(
         asked,
         nearest,
         card: false,
+        choices: Vec::new(),
     }
+}
+
+/// The first condition the request's cue words name in the clause that
+/// asks, its exclusions out and nothing after a negation; none when the
+/// words name none.
+fn cue_nearest(ask: &Ask<'_>, r: &Reading, trace: &Trace) -> Option<String> {
+    let said = match trace.negated {
+        Some(n) => r.words.get(..n).map(|w| w.join(" ")).unwrap_or_default(),
+        None => fail_closed::watch_clause(ask).unwrap_or_else(|| ask.request.to_owned()),
+    };
+    let part = Ask {
+        request: &said,
+        candidates: ask.candidates,
+        midnight_ms: ask.midnight_ms,
+        now_ms: ask.now_ms,
+    };
+    let (kept, _) = resolve::split_exclusions(&masked(&part));
+    cue_conditions(&kept.join(" ")).into_iter().next()
 }
 
 const SESSION_WORDS: &[&str] = &[
