@@ -299,15 +299,38 @@ fn stem(name: &str) -> String {
     last.split('.').next().unwrap_or(&last).to_owned()
 }
 
-/// Whether the sentence names the file: its name, its last part, or its
-/// stem as a word.
+/// Whether the sentence names the file by its name or its last part
+/// ("src/locale.ts", "locale.ts").
 fn names_file(sentence: &str, name: &str) -> bool {
     let low = sentence.to_lowercase();
-    let last = last_part(name);
+    low.contains(&name.to_lowercase()) || low.contains(&last_part(name))
+}
+
+/// Whether the sentence names the file by its stem as a word ("the CSV
+/// quoting" for quoting.py).
+fn names_stem(sentence: &str, name: &str) -> bool {
     let stem = stem(name);
-    low.contains(&name.to_lowercase())
-        || low.contains(&last)
-        || (stem.chars().count() >= 3 && words_of(sentence).contains(&stem))
+    stem.chars().count() >= 3 && words_of(sentence).contains(&stem)
+}
+
+/// The files an undo sentence names: those it names by name; only when it
+/// names none of them, those it names by stem (0.5.2 G25: "I reverted the
+/// change to locale.ts because the German invoices still need their own
+/// format." undid locale.ts, never format.ts by its stem).
+fn undone_by<'a>(sentence: &str, names: &[&'a str]) -> Vec<&'a str> {
+    let by_name: Vec<&str> = names
+        .iter()
+        .copied()
+        .filter(|name| names_file(sentence, name))
+        .collect();
+    if !by_name.is_empty() {
+        return by_name;
+    }
+    names
+        .iter()
+        .copied()
+        .filter(|name| names_stem(sentence, name))
+        .collect()
 }
 
 /// The reply's sentences, trimmed, none empty.
@@ -329,31 +352,40 @@ pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
         .iter()
         .filter(|s| undone(s) || says_undone(s))
         .collect();
+    // 0.5.2 G26: the post's diff stat's numbers. A turn whose calls don't
+    // all count lines shows its files only, here as on its post: a file's
+    // own count beside a stat that says none would read as two readings.
+    let counted = facts.changes.is_some_and(|changes| changes.lines.is_some());
     let files: Vec<ReviewFileInfo> = facts
         .changes
         .map(|changes| {
             changes
                 .per_file
                 .iter()
-                .map(|file| ReviewFileInfo {
-                    name: file.name.clone(),
-                    added: file
-                        .lines
-                        .map(|l| u32::try_from(l.added).unwrap_or(u32::MAX)),
-                    removed: file
-                        .lines
-                        .map(|l| u32::try_from(l.removed).unwrap_or(u32::MAX)),
-                    about: None,
+                .map(|file| {
+                    let lines = file.lines.filter(|_| counted);
+                    ReviewFileInfo {
+                        name: file.name.clone(),
+                        added: lines.map(|l| u32::try_from(l.added).unwrap_or(u32::MAX)),
+                        removed: lines.map(|l| u32::try_from(l.removed).unwrap_or(u32::MAX)),
+                        about: None,
+                    }
                 })
                 .collect()
         })
         .unwrap_or_default();
     let whole = undo.iter().any(|s| holds_phrase(&s.to_lowercase(), WHOLE))
         || (files.len() == 1 && !undo.is_empty());
+    let names: Vec<&str> = files.iter().map(|file| file.name.as_str()).collect();
+    let undone: Vec<String> = undo
+        .iter()
+        .flat_map(|s| undone_by(s, &names))
+        .map(str::to_owned)
+        .collect();
     let mut changed = Vec::new();
     let mut reverted = Vec::new();
     for file in files {
-        if whole || undo.iter().any(|s| names_file(s, &file.name)) {
+        if whole || undone.contains(&file.name) {
             reverted.push(file.name);
         } else {
             changed.push(file);
@@ -396,6 +428,7 @@ pub fn review(facts: &Facts<'_>) -> TurnReviewInfo {
     TurnReviewInfo {
         state: "shown".to_owned(),
         turn: facts.turn.to_owned(),
+        files: facts.changes.map_or(0, |changes| changes.files),
         changed,
         reverted,
         undone_unclear,

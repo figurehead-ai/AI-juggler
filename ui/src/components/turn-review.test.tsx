@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
-  for (const key of ["__AIJ_FEED__", "__AIJ_REVIEWS__", "__AIJ_REVIEWS_AI__", "__AIJ_REVIEW_WRONG__", "__AIJ_AI_JOBS__"]) Reflect.deleteProperty(window, key);
+  for (const key of ["__AIJ_FEED__", "__AIJ_REVIEWS__", "__AIJ_REVIEWS_AI__", "__AIJ_REVIEW_WRONG__", "__AIJ_AI_JOBS__", "__AIJ_REVIEWS_AI_MS__"]) Reflect.deleteProperty(window, key);
 });
 
 describe("AJ-E3820 R3 — on a finished turn's feed post", () => {
@@ -55,7 +55,8 @@ describe("AJ-E3820 R3 — on a finished turn's feed post", () => {
     window.__AIJ_REVIEWS__ = { "s-stream": STREAMED };
     feed();
     const toggle = await screen.findByTestId("turn-review-toggle");
-    expect(toggle.textContent).toBe("Turn review · 2 files · Medium risk");
+    // The post's count: the two changed and the reverted one (G25).
+    expect(toggle.textContent).toBe("Turn review · 3 files · Medium risk");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect(screen.queryByTestId("turn-review-panel")).toBeNull();
     fireEvent.click(toggle);
@@ -133,6 +134,30 @@ describe("AJ-E3820 R2 — the Beta's lines", () => {
     expect(window.__AIJ_REVIEW_WRONG__).toEqual([]);
   });
 
+  it("0.5.2 G28: the code-only review at once, a cue while the lines are written, and a refused draft never shows", async () => {
+    window.__AIJ_AI_JOBS__ = [job({ state: "ready", beta: true, beta_on: true, model_id: "apple-on-device", model_name: "Apple’s on-device model" })];
+    window.__AIJ_REVIEWS__ = { c1: STREAMED };
+    window.__AIJ_REVIEWS_AI__ = { c1: STREAMED_AI };
+    window.__AIJ_REVIEWS_AI_MS__ = 60;
+    render(<TurnReview ask={{ account_id: "work", conversation_id: "c1", until_ms: NOW }} quote />);
+    fireEvent.click(await screen.findByTestId("turn-review-toggle"));
+    // The facts are there at once; the cue says the lines are coming.
+    expect(screen.getByTestId("turn-review-changed")).toBeTruthy();
+    expect(screen.getByTestId("turn-review-writing").textContent).toBe("AIApple’s on-device model is writing lines on this turn…");
+    await waitFor(() => expect(screen.getAllByTestId("turn-review-about")).toHaveLength(2));
+    expect(screen.queryByTestId("turn-review-writing")).toBeNull();
+    cleanup();
+    // Every draft refused: the backend answers the code-only review; the
+    // cue goes and nothing else changes.
+    window.__AIJ_REVIEWS_AI__ = { c1: STREAMED };
+    render(<TurnReview ask={{ account_id: "work", conversation_id: "c1", until_ms: NOW }} quote />);
+    fireEvent.click(await screen.findByTestId("turn-review-toggle"));
+    expect(screen.getByTestId("turn-review-writing")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByTestId("turn-review-writing")).toBeNull());
+    expect(screen.queryByTestId("turn-review-about")).toBeNull();
+    expect(screen.queryByTestId("turn-review-ai")).toBeNull();
+  });
+
   it("are never asked for while the Beta is off", async () => {
     seedFeed([done("s-stream")]);
     window.__AIJ_REVIEWS__ = { "s-stream": STREAMED };
@@ -153,6 +178,12 @@ describe("AJ-E3820 R3 — under the session page's last turn", () => {
     expect(screen.getByTestId("turn-review-tests").textContent).toBe("TestsNot run, as it says");
     expect(screen.getByTestId("turn-review-question").textContent).toBe("Asks youYes · its question is above");
     expect(screen.getByTestId("turn-review-reverted").textContent).toBe("Revertedexport/quoting.py");
+  });
+
+  it("0.5.2 G25: a turn whose files were all undone still counts them, as its post does", async () => {
+    window.__AIJ_REVIEWS__ = { c3: review({ turn: "t-undo", reverted: ["src/locale.ts"], reverted_words: "I reverted the change to locale.ts.", risk: "medium", risk_why: ["reverted"] }) };
+    render(<TurnReview ask={{ account_id: "work", conversation_id: "c3", until_ms: NOW }} quote={false} />);
+    expect((await screen.findByTestId("turn-review-toggle")).textContent).toBe("Turn review · 1 file · Medium risk");
   });
 
   it("says an undo that names no file as edited, files only for a tool that doesn't count lines", async () => {

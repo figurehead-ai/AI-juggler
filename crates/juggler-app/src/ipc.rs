@@ -27,17 +27,26 @@ pub enum Wait {
     /// The call waits for the person (a priming sheet, the system's
     /// dialog after it): their time is theirs, never a slow call.
     Person,
+    /// A background job the screen doesn't wait on (0.5.2 G28: a turn
+    /// review's model lines come after the code-only review, with a cue),
+    /// held to its own budget instead of [`BUDGET`].
+    Job(Duration),
 }
 
 /// The app log's line for a command that took `took`, if any: one over
 /// [`BUDGET`] that waited only on the machine.
 #[must_use]
 pub fn budget_line(context: &str, took: Duration, wait: Wait) -> Option<String> {
-    (wait == Wait::Machine && over_budget(took)).then(|| {
+    let budget = match wait {
+        Wait::Machine => BUDGET,
+        Wait::Person => return None,
+        Wait::Job(budget) => budget,
+    };
+    (took > budget).then(|| {
         format!(
             "{context}: took {} ms, over its {} ms budget",
             took.as_millis(),
-            BUDGET.as_millis()
+            budget.as_millis()
         )
     })
 }
@@ -125,6 +134,21 @@ mod tests {
         assert!(!over_budget(Duration::from_millis(40)));
         assert!(!over_budget(BUDGET));
         assert!(over_budget(BUDGET + Duration::from_millis(1)));
+    }
+
+    /// 0.5.2 G28: a background job is held to its own budget, not the
+    /// screen's.
+    #[test]
+    fn a_background_job_is_held_to_its_own_budget() {
+        let job = Wait::Job(Duration::from_secs(6));
+        assert_eq!(
+            budget_line("turn review lines", Duration::from_millis(4_300), job),
+            None
+        );
+        assert_eq!(
+            budget_line("turn review lines", Duration::from_millis(6_100), job).as_deref(),
+            Some("turn review lines: took 6100 ms, over its 6000 ms budget")
+        );
     }
 
     /// 0.5.1 F30: a call marked as waiting for the person is never a slow

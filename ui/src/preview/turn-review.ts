@@ -7,13 +7,15 @@
 import type { TurnReviewInfo } from "../types/generated/TurnReviewInfo";
 
 const BASE: TurnReviewInfo = {
-  state: "shown", turn: "", changed: [], reverted: [], undone_unclear: false, reverted_words: null, failures: [], question: null,
+  state: "shown", turn: "", files: 0, changed: [], reverted: [], undone_unclear: false, reverted_words: null, failures: [], question: null,
   tests: null, tests_words: null, risk: "low", risk_why: [], ai: null,
 };
 
 /** A review with the defaults the backend fills. */
 export function review(over: Partial<TurnReviewInfo>): TurnReviewInfo {
-  return { ...BASE, ...over };
+  // The post's count: every file its calls touched, reverted ones too.
+  const files = over.files ?? (over.changed ?? []).length + (over.reverted ?? []).length;
+  return { ...BASE, ...over, files };
 }
 
 /** The export streamed, its quoting reverted, untested, and a question. */
@@ -81,4 +83,32 @@ export const UNCLEAR: TurnReviewInfo = review({
   reverted_words: "I also tried a longer backoff and reverted it.",
   risk: "medium",
   risk_why: ["untested", "reverted"],
+});
+
+/** 0.5.2 G25: one file changed, the other reverted by name (its words
+ * echo the first file's stem, "their own format", which names nothing);
+ * the review counts both, as the post's diff stat does. */
+export const REVERT: TurnReviewInfo = review({
+  turn: "t-dates",
+  changed: [{ name: "src/format.ts", added: 1, removed: 1, about: null }],
+  reverted: ["src/locale.ts"],
+  reverted_words: "I reverted the change to locale.ts because the German invoices still need their own format.",
+  tests: "not_run",
+  tests_words: "I have not run the tests yet.",
+  risk: "medium",
+  risk_why: ["tests_not_run", "reverted"],
+});
+
+/** 0.5.2 G26: a deleted file's lines aren't in its patch, so the post
+ * says files only; so does its review, every file. */
+export const DELETED: TurnReviewInfo = review({
+  turn: "t-handlers",
+  changed: [
+    { name: "src/old_handlers.py", added: null, removed: null, about: null },
+    { name: "src/routes.py", added: null, removed: null, about: null },
+  ],
+  tests: "not_run",
+  tests_words: "I have not run the tests.",
+  risk: "medium",
+  risk_why: ["tests_not_run"],
 });

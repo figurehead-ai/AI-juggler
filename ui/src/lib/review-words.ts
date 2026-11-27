@@ -47,6 +47,8 @@ export const REVIEW = {
   yes: "Yes",
   aiTag: "AI",
   aiBy: (model: string) => `Lines by ${model}`,
+  /** 0.5.2 G28: while the model's lines are written (after the facts). */
+  writing: (model: string | null) => `${model ?? "The model"} is writing lines on this turn…`,
   beta: "Beta",
   showWords: "Show its words",
   hideWords: "Hide its words",
@@ -63,9 +65,11 @@ export function riskKey(review: TurnReviewInfo): Risk {
 }
 
 /** The folded row's words: "Turn review · 2 files · Medium risk" (the
- * risk is said apart, in its colour). */
+ * risk is said apart, in its colour). The files are the post's diff
+ * stat's count, reverted ones too (0.5.2 G25: the post said 2 files, its
+ * review "no files"). */
 export function foldWords(review: TurnReviewInfo): string {
-  const files = review.changed.length;
+  const files = review.files;
   return `${REVIEW.title} · ${files > 0 ? REVIEW.files(files) : REVIEW.noFiles}`;
 }
 

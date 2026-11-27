@@ -19,8 +19,16 @@ use crate::features::ai::run::LiveJob;
 use crate::features::ai::service;
 use crate::state::AppState;
 
-/// The most time the model's lines take, every attempt included.
-pub const LINES_WAIT: Duration = Duration::from_secs(45);
+/// The most time the model's lines take, from the ask to the lines,
+/// every attempt included (0.5.2 G28): the router's line budget, ADR-0033
+/// §7's "≤ 6 s cold" for a line on Apple's model (warm, ≤ 3 s p95), well
+/// inside ADR-0034 §4.3's 15 s a job. The code-only review is on screen
+/// first and a cue says lines are coming, so nothing waits on them; a
+/// regeneration is asked for only when it can end in time
+/// ([`super::lines::write`]). Measured on Apple's model (the real-model
+/// test's fixture turns, 2026-11-26): one draft 1.7–2.3 s warm, 3.1 s
+/// with the engine's start.
+pub const LINES_WAIT: Duration = Duration::from_secs(6);
 /// Model results kept (a turn's lines are written once).
 const KEPT_MAX: usize = 128;
 /// How long a "This is wrong" keeps the lines it was about.
@@ -53,6 +61,7 @@ pub fn review_turn_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReviewInf
 /// code-only review unchanged.
 #[must_use]
 pub fn review_turn_ai_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReviewInfo {
+    let asked = Instant::now();
     let read = read(state, ask);
     let mut review = read.review;
     if review.state != "shown" || read.reply.is_empty() {
@@ -73,7 +82,7 @@ pub fn review_turn_ai_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReview
             let Ok(routed) = service::route_on(service, state, Job::Review) else {
                 return review;
             };
-            let stop = Stop::at(Instant::now() + LINES_WAIT);
+            let stop = Stop::at(asked + LINES_WAIT);
             let (written, attempts) = write(
                 &live,
                 &review,
@@ -86,7 +95,8 @@ pub fn review_turn_ai_impl(state: &Arc<AppState>, ask: &ReviewAsk) -> TurnReview
                 tracing::info!(
                     target: "review",
                     attempt = n,
-                    refused = attempt.refused.as_deref().unwrap_or("passed"),
+                    took_ms = u64::try_from(attempt.took.as_millis()).unwrap_or(u64::MAX),
+                    verdict = attempt.refused.as_deref().unwrap_or("kept"),
                     "turn review lines"
                 );
             }
@@ -172,9 +182,13 @@ pub async fn review_turn_ai(
     state: tauri::State<'_, Arc<AppState>>,
     ask: ReviewAsk,
 ) -> AppResult<TurnReviewInfo> {
-    crate::ipc::blocking(state.inner(), "turn review lines", move |state| {
-        Ok(review_turn_ai_impl(state, &ask))
-    })
+    // Nothing waits on it: the code-only review shows first, with a cue.
+    crate::ipc::blocking_with(
+        state.inner(),
+        "turn review lines",
+        crate::ipc::Wait::Job(LINES_WAIT),
+        move |state| Ok(review_turn_ai_impl(state, &ask)),
+    )
     .await
 }
 

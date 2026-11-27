@@ -24,6 +24,7 @@
 //! measures); a test keeps the rules equal.
 
 use std::fmt::Write as _;
+use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
@@ -412,7 +413,13 @@ pub struct Attempt {
     pub draft: String,
     /// Why it was refused; none when it passed.
     pub refused: Option<String>,
+    /// How long the model took on it.
+    pub took: Duration,
 }
+
+/// Why no further draft was asked for (0.5.2 G28): the next one, taking
+/// as long as the slowest so far, would end past the stop.
+pub const NO_TIME: &str = "budget: no time left for another draft";
 
 /// The model's lines on `review`, or `None` (a failing engine, or every
 /// draft refused: the code-only review stays, with no note). `reply` is
@@ -428,15 +435,33 @@ pub fn write(
     let said = super::facts::said(reply);
     let mut attempts = Vec::new();
     let mut note = String::new();
+    let mut slowest = Duration::ZERO;
     for attempt in 0..=RETRIES {
+        // 0.5.2 G28: a regeneration only when it can end before the stop
+        // (the slowest draft so far as its measure); the code-only review
+        // stands otherwise, as when every draft is refused.
+        if attempt > 0 && Instant::now() + slowest > stop.deadline() {
+            attempts.push(Attempt {
+                draft: String::new(),
+                refused: Some(NO_TIME.to_owned()),
+                took: Duration::ZERO,
+            });
+            return (None, attempts);
+        }
         let req = request(review, reply, failed, &note, attempt);
-        let draft = match model.generate(&req, stop) {
+        let began = Instant::now();
+        let answer = model.generate(&req, stop);
+        let took = began.elapsed();
+        slowest = slowest.max(took);
+        let draft = match answer {
             Ok(draft) => draft,
             Err(failure) => {
-                // The engine failed: the code-only review, no regeneration.
+                // The engine failed (or the stop came): the code-only
+                // review, no regeneration.
                 attempts.push(Attempt {
                     draft: String::new(),
                     refused: Some(format!("engine: {failure:?}")),
+                    took,
                 });
                 return (None, attempts);
             }
@@ -449,6 +474,7 @@ pub fn write(
                     attempts.push(Attempt {
                         draft: draft.text,
                         refused: None,
+                        took,
                     });
                     return (Some(written), attempts);
                 }
@@ -459,6 +485,7 @@ pub fn write(
         attempts.push(Attempt {
             draft: draft.text,
             refused: Some(why),
+            took,
         });
     }
     (None, attempts)

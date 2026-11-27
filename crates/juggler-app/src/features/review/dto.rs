@@ -57,6 +57,9 @@ pub struct TurnReviewInfo {
     pub state: String,
     /// The turn, as a key: the same turn read twice is one turn.
     pub turn: String,
+    /// The files its edit and write calls touched, reverted ones too: the
+    /// post's diff stat's count (0.5.2 G25: one count for both).
+    pub files: u32,
     /// The files its edit and write calls changed, reverts left out.
     pub changed: Vec<ReviewFileInfo>,
     /// The files its own words say it undid.

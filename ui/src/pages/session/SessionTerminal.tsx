@@ -15,6 +15,10 @@
  * skeleton while that's asked, never a blank terminal (the 0.4.6 RC walk
  * K2, F-K2-6: black for about a second under load), and the answer is
  * kept, so opening it again shows what it kept at once.
+ * 0.5.2 G28: under a replayed terminal, its last turn's review (AJ-E3820),
+ * as the conversation shows it under its last turn: the terminal is this
+ * page's conversation, so the review is there too (the RW1 walk found
+ * none on a Claude Code session's page whose output was kept).
  */
 import { useEffect, useState, type JSX, type ReactNode } from "react";
 import { Button, Card } from "../../components/primitives";
@@ -22,6 +26,8 @@ import { terminalKept } from "../../lib/ipc/terminal-io";
 import { providerDisplayName } from "../../lib/providers";
 import { pastWhen, since } from "../../lib/time-words";
 import { endedCause } from "../../lib/ended-how";
+import { TurnReview } from "../../components/TurnReview";
+import { useAiJob } from "../../lib/ai-availability";
 import { logLoadFailure, useReadState, withDeadline } from "../../lib/loading";
 import { LoadingState } from "../../components/LoadingState";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
@@ -118,6 +124,25 @@ function startAgain(session: InstanceInfo): void {
   window.dispatchEvent(new CustomEvent("aij:new-session", { detail: { accountId: session.account_id, dir: session.cwd } }));
 }
 
+/** An ended session's last turn's review, when the review covers its
+ * tool (the AI query's `covers`, R5): the transcript's last turn, as its
+ * feed post's review reads it; nothing when there is none (D-127). */
+function LastTurnReview({ session }: { session: InstanceInfo }): JSX.Element | null {
+  const covers = useAiJob("review")?.covers;
+  if (!session.conversation_id || !covers?.includes(session.provider)) return null;
+  const how = session.ending?.how;
+  return (
+    <div data-testid="ended-terminal-review">
+      <TurnReview
+        key={`${session.id}@${session.last_activity_ms ?? session.started_at_ms}`}
+        ask={{ session_id: session.id, until_ms: null, ended: how === "error" || how === "crashed" ? "failed" : null }}
+        quote
+        card
+      />
+    </div>
+  );
+}
+
 export function SessionTerminal({ session, live, terminal, now }: { session: InstanceInfo; live: boolean; terminal: ReactNode; now: number }): JSX.Element {
   const { kept, error, round, retry } = useKept(live ? null : session.id, live ? null : `${session.id}@${session.last_activity_ms ?? session.started_at_ms}`);
   // Seen running here: its terminal stays while what it kept is asked.
@@ -129,6 +154,7 @@ export function SessionTerminal({ session, live, terminal, now }: { session: Ins
       <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid={live ? undefined : kept ? "ended-terminal-kept" : "ended-terminal-asked-live"}>
         {terminal}
         {!live && kept && <p className="text-meta text-ink-2">{`ran ${since(session.started_at_ms, now)} · scrollback replayed`}</p>}
+        {!live && kept && <LastTurnReview session={session} />}
       </div>
     );
   }

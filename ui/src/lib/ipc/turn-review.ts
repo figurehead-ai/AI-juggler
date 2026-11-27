@@ -21,12 +21,15 @@ declare global {
     __AIJ_REVIEWS__?: Record<string, TurnReviewInfo>;
     __AIJ_REVIEWS_AI__?: Record<string, TurnReviewInfo>;
     __AIJ_REVIEW_WRONG__?: string[];
+    /** How long the preview's model takes over its lines (0.5.2 G28's
+     * cue); never answered when `Infinity`. */
+    __AIJ_REVIEWS_AI_MS__?: number;
   }
 }
 
 /** No review: what a turn with no transcript here answers. */
 const NO_REVIEW: TurnReviewInfo = {
-  state: "none", turn: "", changed: [], reverted: [], undone_unclear: false, reverted_words: null, failures: [], question: null,
+  state: "none", turn: "", files: 0, changed: [], reverted: [], undone_unclear: false, reverted_words: null, failures: [], question: null,
   tests: null, tests_words: null, risk: "low", risk_why: [], ai: null,
 };
 
@@ -44,7 +47,14 @@ export async function reviewTurn(ask: ReviewAsk): Promise<TurnReviewInfo> {
 /** The review with the model's lines, when its Beta runs (else the
  * code-only review, unchanged). */
 export async function reviewTurnAi(ask: ReviewAsk): Promise<TurnReviewInfo> {
-  if (!hasLiveBackend()) return seeded(window.__AIJ_REVIEWS_AI__ ?? window.__AIJ_REVIEWS__, ask);
+  if (!hasLiveBackend()) {
+    const got = seeded(window.__AIJ_REVIEWS_AI__ ?? window.__AIJ_REVIEWS__, ask);
+    const ms = window.__AIJ_REVIEWS_AI_MS__;
+    if (!ms) return got;
+    return new Promise((resolve) => {
+      if (Number.isFinite(ms)) setTimeout(() => resolve(got), ms);
+    });
+  }
   return call("review_turn_ai", { ask });
 }
 

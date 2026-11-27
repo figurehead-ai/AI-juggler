@@ -10,7 +10,9 @@
  * review's Beta on and its model ready, opening it asks for the model's
  * lines after the facts are on screen (never blocking them): a short
  * description per changed file, each tagged AI, with whose lines they
- * are, the source one tap away (on the feed) and "This is wrong".
+ * are, the source one tap away (on the feed) and "This is wrong". While
+ * they are written (a draft takes Apple's model about 2 s, the router's
+ * budget at most 6 s, 0.5.2 G28) a quiet line says so.
  *
  * Nothing shows when there is no review (Last messages off, an App whose
  * turn ends aren't seen, no transcript here) or nothing in it (D-127).
@@ -150,9 +152,22 @@ function AiFoot({ review, quote }: { review: TurnReviewInfo; quote: boolean }): 
   );
 }
 
+/** 0.5.2 G28: the model's lines are on their way (they come after the
+ * code-only review, never in its place; a refused draft never shows, so
+ * this goes without a word when none passes). */
+function Writing({ model }: { model: string | null }): JSX.Element {
+  return (
+    <output className="flex items-center gap-2 border-t border-divider pt-2 text-label text-faint" data-testid="turn-review-writing">
+      <AiTag />
+      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent motion-safe:animate-pulse" />
+      <span>{REVIEW.writing(model)}</span>
+    </output>
+  );
+}
+
 /** The opened review. `quote`: the agent's sentences are quoted (the
  * feed); on the session page the reply is right above, so they're named. */
-function Panel({ review, quote }: { review: TurnReviewInfo; quote: boolean }): JSX.Element {
+function Panel({ review, quote, writing }: { review: TurnReviewInfo; quote: boolean; /** The model's lines are on their way, by this model. */ writing: string | false | null }): JSX.Element {
   const risk = riskKey(review);
   const tests = review.tests ? TESTS_LOOK[review.tests] : undefined;
   const why = whyWords(review);
@@ -208,6 +223,7 @@ function Panel({ review, quote }: { review: TurnReviewInfo; quote: boolean }): J
         </Row>
       )}
       </dl>
+      {writing !== false && !review.ai && <Writing model={writing} />}
       <AiFoot review={review} quote={quote} />
     </div>
   );
@@ -218,7 +234,7 @@ function keyOf(ask: ReviewAsk): string {
   return [ask.session_id, ask.account_id, ask.conversation_id, ask.until_ms, ask.ended].join("\u0000");
 }
 
-export function TurnReview({ ask, quote }: { ask: ReviewAsk; quote: boolean }): JSX.Element | null {
+export function TurnReview({ ask, quote, card = false }: { ask: ReviewAsk; quote: boolean; /** On a card of its own (under a replayed terminal, G28), only once there is a review. */ card?: boolean }): JSX.Element | null {
   const key = keyOf(ask);
   const [ref, near] = useNear();
   const [review, setReview] = useState<TurnReviewInfo | null>(null);
@@ -227,6 +243,8 @@ export function TurnReview({ ask, quote }: { ask: ReviewAsk; quote: boolean }): 
   const job = useAiJob("review");
   const aiReady = job?.state === "ready";
   const asked = useRef<string | null>(null);
+  // G28: the turn whose lines are being written, while they are.
+  const [writing, setWriting] = useState<string | null>(null);
   useEffect(() => {
     let live = near;
     if (live) {
@@ -245,10 +263,16 @@ export function TurnReview({ ask, quote }: { ask: ReviewAsk; quote: boolean }): 
   useEffect(() => {
     let live = open && aiReady && review?.state === "shown" && !review.ai && asked.current !== review.turn;
     if (live && review) {
-      asked.current = review.turn;
+      const turn = review.turn;
+      asked.current = turn;
+      setWriting(turn);
+      const done = () => setWriting((was) => (was === turn ? null : was));
       reviewTurnAi(ask).then(
-        (got) => live && got.ai && got.turn === review.turn && setReview(got),
-        () => undefined,
+        (got) => {
+          if (live && got.ai && got.turn === turn) setReview(got);
+          done();
+        },
+        done,
       );
     }
     return () => {
@@ -261,11 +285,11 @@ export function TurnReview({ ask, quote }: { ask: ReviewAsk; quote: boolean }): 
   if (!shown) return <span ref={ref} aria-hidden="true" className="block h-0" data-testid="turn-review-probe" />;
   const risk = riskKey(review);
   return (
-    <div className="flex flex-col" data-testid="turn-review" data-risk={risk} data-ai={review.ai ? "yes" : undefined}>
+    <div className={"flex flex-col" + (card ? " rounded-card border border-frame bg-surface px-4 py-2" : "")} data-testid="turn-review" data-risk={risk} data-ai={review.ai ? "yes" : undefined}>
       <FoldRow open={open} onToggle={() => setOpen((was) => !was)} testId="turn-review-toggle">
         {foldWords(review)} · <span className={"font-semibold " + RISK_LOOK[risk].words}>{REVIEW.risk[risk]}</span>
       </FoldRow>
-      {open && <Panel review={review} quote={quote} />}
+      {open && <Panel review={review} quote={quote} writing={writing === review.turn ? job?.model_name ?? null : false} />}
     </div>
   );
 }

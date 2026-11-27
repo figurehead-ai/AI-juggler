@@ -17,6 +17,11 @@ state: string,
  */
 turn: string, 
 /**
+ * The files its edit and write calls touched, reverted ones too: the
+ * post's diff stat's count (0.5.2 G25: one count for both).
+ */
+files: number, 
+/**
  * The files its edit and write calls changed, reverts left out.
  */
 changed: Array<ReviewFileInfo>, 

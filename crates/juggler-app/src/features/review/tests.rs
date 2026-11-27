@@ -32,11 +32,20 @@ fn changes(files: &[(&str, Option<(u64, u64)>)]) -> TurnChanges {
             lines: lines.map(|(added, removed)| LinesChanged { added, removed }),
         })
         .collect();
+    // As the reader sums them: none when one file's calls don't count.
+    let lines = per_file
+        .iter()
+        .map(|file| file.lines)
+        .collect::<Option<Vec<LinesChanged>>>()
+        .map(|all| LinesChanged {
+            added: all.iter().map(|l| l.added).sum(),
+            removed: all.iter().map(|l| l.removed).sum(),
+        });
     TurnChanges {
         start: 7,
         files: u32::try_from(files.len()).unwrap(),
         names: files.iter().map(|(n, _)| (*n).to_owned()).collect(),
-        lines: None,
+        lines,
         per_file,
     }
 }
@@ -201,6 +210,68 @@ fn a_fixed_failure_is_not_a_failure_and_a_large_turn_is_medium() {
     );
     assert_eq!(large.risk, "medium");
     assert_eq!(large.risk_why, ["large"]);
+}
+
+/// 0.5.2 G25 (the RW1 lab's `lab: revert`): the undo sentence names
+/// locale.ts; "their own format" is no undo of format.ts by its stem. The
+/// review counts the post's two files, lists format.ts as changed and
+/// locale.ts as reverted, and its risk says both why's.
+#[test]
+fn an_undo_naming_a_file_reverts_only_that_file_never_one_its_words_echo() {
+    let r = of(
+        &[
+            ("src/format.ts", Some((1, 1))),
+            ("src/locale.ts", Some((2, 2))),
+        ],
+        "I switched the API dates to ISO 8601 in format.ts. I reverted the change to locale.ts because the German invoices still need their own format. I have not run the tests yet.",
+        false,
+    );
+    assert_eq!(names(&r), ["src/format.ts"]);
+    assert_eq!(r.reverted, ["src/locale.ts"]);
+    assert_eq!(r.files, 2, "the post's count: reverted files too");
+    assert_eq!(r.tests.as_deref(), Some("not_run"));
+    assert_eq!(r.risk, "medium");
+    assert_eq!(r.risk_why, ["tests_not_run", "reverted"]);
+    // A stem still names a file when the sentence names none by name.
+    let stem = of(
+        &[
+            ("export/dunnock.py", Some((4, 1))),
+            ("export/quoting.py", Some((6, 6))),
+        ],
+        "I changed the CSV quoting, then reverted that.",
+        false,
+    );
+    assert_eq!(stem.reverted, ["export/quoting.py"]);
+}
+
+/// 0.5.2 G26 (the RW1 lab's Codex delete thread): a deleted file's lines
+/// aren't in its patch, so its post says files only; the review says the
+/// same, never routes.py's own +1 −1 beside it.
+#[test]
+fn a_turn_its_post_counts_no_lines_for_counts_none_in_its_review_either() {
+    let r = of(
+        &[
+            ("src/old_handlers.py", None),
+            ("src/routes.py", Some((1, 1))),
+        ],
+        "I removed the old handlers module and pointed routes.py at the new one. I have not run the tests.",
+        false,
+    );
+    assert_eq!(r.files, 2);
+    assert!(
+        r.changed
+            .iter()
+            .all(|f| f.added.is_none() && f.removed.is_none())
+    );
+    let counted = of(
+        &[("src/routes.py", Some((1, 1)))],
+        "Pointed routes.py at the new module. The tests pass.",
+        false,
+    );
+    assert_eq!(
+        (counted.changed[0].added, counted.changed[0].removed),
+        (Some(1), Some(1))
+    );
 }
 
 /// A tool whose calls carry no line counts shows the files only.
@@ -402,6 +473,51 @@ fn a_failing_engine_keeps_the_code_only_review() {
             .as_deref()
             .unwrap()
             .starts_with("engine")
+    );
+}
+
+/// A model that takes `each` over every draft (Apple's took 1.7–2.3 s).
+struct Slow {
+    inner: Scripted,
+    each: Duration,
+}
+
+impl crate::features::ai::run::JobModel for Slow {
+    fn generate(
+        &self,
+        request: &crate::features::ai::engine::Request,
+        stop: &Stop,
+    ) -> Result<crate::features::ai::engine::Draft, crate::features::ai::run::AiFailure> {
+        std::thread::sleep(self.each);
+        self.inner.generate(request, stop)
+    }
+}
+
+/// 0.5.2 G28 (the RW1 failed turn: three refused drafts took 7.9 s): a
+/// regeneration is asked for only when it can end before the stop, so
+/// the lines keep the router's budget; the code-only review stays and
+/// nothing refused is shown.
+#[test]
+fn a_regeneration_that_cannot_end_in_time_is_not_asked_for() {
+    let model = Slow {
+        inner: Scripted::new(&[
+            r#"{"notes":[{"path":"export/quoting.py","says":"changed the CSV quoting"}],"risk_reason":"none","risk":"medium"}"#,
+        ]),
+        each: Duration::from_millis(120),
+    };
+    let began = Instant::now();
+    let stop = Stop::at(began + Duration::from_millis(300));
+    let (written, attempts) = write(&model, &base(), REPLY, &[], false, &stop);
+    assert!(written.is_none(), "a refused draft never shows");
+    assert_eq!(model.inner.calls(), 2, "the third would end past the stop");
+    assert_eq!(
+        attempts.last().unwrap().refused.as_deref(),
+        Some(lines::NO_TIME)
+    );
+    assert!(attempts[0].took >= Duration::from_millis(120));
+    assert!(
+        began.elapsed() < Duration::from_millis(300),
+        "inside the budget"
     );
 }
 

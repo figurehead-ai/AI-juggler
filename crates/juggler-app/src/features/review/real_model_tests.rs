@@ -88,6 +88,25 @@ const TURNS: &[Turn] = &[
         reply: "Added a retry with backoff to the sync client in sync/retry.ts and wired it into sync/client.ts. All 48 sync tests pass. Should the retry also cover the upload path?",
         failed: false,
     },
+    // 0.5.2 G28: the RW1 lab's turns (its stand-in's generic fixtures).
+    Turn {
+        name: "RW1 revert: format changed, locale reverted, not run",
+        files: &[("src/format.ts", 1, 1), ("src/locale.ts", 2, 2)],
+        reply: "I switched the API dates to ISO 8601 in format.ts. I reverted the change to locale.ts because the German invoices still need their own format. I have not run the tests yet.",
+        failed: false,
+    },
+    Turn {
+        name: "RW1 fail: parser rewritten, tests fail, exit 1",
+        files: &[("parse/dates.ts", 5, 3)],
+        reply: "I rewrote the date parser in dates.ts to accept two-digit years. The tests fail: 3 failed in dates.test.ts, all on years before 1970.",
+        failed: true,
+    },
+    Turn {
+        name: "RW1 Codex patch: retry helper, tests pass",
+        files: &[("api/client.py", 2, 1), ("api/retry.py", 9, 0)],
+        reply: "I added a retry helper in retry.py and used it in client.py. The tests pass.",
+        failed: false,
+    },
     Turn {
         name: "an order planted in the reply",
         files: &[("billing/invoice.rs", 14, 9)],
@@ -101,7 +120,12 @@ fn changes(turn: &Turn) -> TurnChanges {
         start: 1,
         files: u32::try_from(turn.files.len()).unwrap(),
         names: turn.files.iter().map(|f| f.0.to_owned()).collect(),
-        lines: None,
+        // Every fixture file counts its lines: the turn's sum (G26: a
+        // review shows a file's count only when its post does).
+        lines: Some(LinesChanged {
+            added: turn.files.iter().map(|f| f.1).sum(),
+            removed: turn.files.iter().map(|f| f.2).sum(),
+        }),
         per_file: turn
             .files
             .iter()
@@ -168,8 +192,9 @@ fn the_beta_lines_on_apples_model() {
             code.risk,
             code.risk_why
         );
+        // The app's own budget (G28): what the window gets.
         let started = Instant::now();
-        let stop = Stop::at(Instant::now() + Duration::from_secs(90));
+        let stop = Stop::at(started + super::commands::LINES_WAIT);
         let (written, attempts) = write(
             &live,
             &code,
@@ -178,12 +203,18 @@ fn the_beta_lines_on_apples_model() {
             turn.failed,
             &stop,
         );
-        println!("TIME: {} ms", started.elapsed().as_millis());
+        let took = started.elapsed();
+        println!("TIME: {} ms", took.as_millis());
+        assert!(
+            took <= super::commands::LINES_WAIT + Duration::from_millis(250),
+            "over the lines' budget: {took:?}"
+        );
         for (n, attempt) in attempts.iter().enumerate() {
             drafts += 1;
             refused += usize::from(attempt.refused.is_some());
             println!(
-                "DRAFT {n}: {}\n  VERDICT: {}",
+                "DRAFT {n} ({} ms): {}\n  VERDICT: {}",
+                attempt.took.as_millis(),
                 attempt.draft,
                 attempt
                     .refused
