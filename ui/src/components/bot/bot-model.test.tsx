@@ -10,7 +10,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BotDetailsLine, BotFailedAnswer, BotGeneralAnswer } from "./BotAnswerParts";
 import { BotUsageBar } from "./BotUsageBar";
-import { BotEngineBadge } from "./BotHead";
+import { BotEngineBadge, BotHead } from "./BotHead";
+import { STATES } from "../../preview/bot";
 import { GENERAL_LABEL, SCOPE_LINE, countWords, engineStateWords, failureWords, startingLine } from "../../lib/bot-engine-words";
 import { refreshEngine, resetEngineView } from "../../lib/bot-engine";
 import { newTopic, resetBot } from "../../lib/bot-store";
@@ -173,6 +174,29 @@ describe("the header", () => {
     expect(line.textContent).toBe("Apple on-device · Running");
     expect(line.getAttribute("title")).toBe("Apple on-device · Running");
     expect(line.className).toContain("pl-[26px]");
+  });
+
+  /** 0.5.2 G61 (RW1 R31, F-RW2-7): with the watch count among the head's
+   * buttons the model's line read "Apple on-device · Runn…" at 1755 wide:
+   * it now spans the head's whole width under the title and the buttons,
+   * never in a column beside them. */
+  it("in the panel's head, draws the model's line across it, under the buttons and the watch count", async () => {
+    window.__AIJ_AI_ENGINE__ = status({ state: "running" });
+    window.__AIJ_BOT__ = structuredClone(STATES.clear!.bot);
+    await act(async () => refreshEngine());
+    const job = STATES.clear!.jobs.find((info) => info.job === "chat") ?? null;
+    render(<BotHead job={job} onClear={vi.fn()} onMemories={vi.fn()} />);
+    const count = await screen.findByTestId("bot-watch-count");
+    const head = screen.getByTestId("bot-head");
+    const line = screen.getByTestId("bot-engine");
+    expect(line.textContent).toBe("Apple on-device · Running");
+    const row = line.parentElement!;
+    expect(row.parentElement).toBe(head);
+    expect(row.className).toContain("col-span-2");
+    expect(row.contains(count)).toBe(false);
+    expect(row.contains(screen.getByTestId("bot-close"))).toBe(false);
+    expect(head.querySelector("h2")?.parentElement?.contains(line)).toBe(false);
+    delete window.__AIJ_BOT__;
   });
 
   it("says Starting…, Idle and Failed: why", () => {

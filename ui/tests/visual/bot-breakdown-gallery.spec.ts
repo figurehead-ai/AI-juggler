@@ -59,10 +59,25 @@ const LATEST = {
   ],
 };
 
+/** Apple's model running, as Bot's head names it. */
+const ENGINE = {
+  state: "running",
+  failure: null,
+  model_id: "apple-on-device",
+  model_name: "Apple's on-device model",
+  short_name: "Apple on-device",
+  engine: "apple_builtin",
+  version: "26.1",
+  context_tokens: 4096,
+  started_ms: 1,
+  answered_ms: null,
+  today: { answers: 0, tokens_in: count(0, false), tokens_out: count(0, false) },
+};
+
 async function open(page: Page, theme: "dark" | "light", width: number, memoryRow: boolean): Promise<void> {
   const state = STATES.full!;
   await page.addInitScript(
-    ({ fixture, theme: t, now, bot, jobs, latest, memoryRow: withMemory }) => {
+    ({ fixture, theme: t, now, bot, jobs, latest, memoryRow: withMemory, engine }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       const seeded = JSON.parse(JSON.stringify(bot)) as { turns: { rows: unknown[] }[]; usage?: unknown };
@@ -75,12 +90,15 @@ async function open(page: Page, theme: "dark" | "light", width: number, memoryRo
       }
       w.__AIJ_BOT__ = seeded;
       w.__AIJ_AI_JOBS__ = jobs;
+      // 0.5.2 G61: the engine as the walk saw it, so the head's model line
+      // reads its real length ("Apple on-device · Running").
+      w.__AIJ_AI_ENGINE__ = engine;
       localStorage.setItem("aij.theme", t);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => now;
     },
-    { fixture: allStatuses, theme, now: BOT_NOW, bot: state.bot, jobs: state.jobs, latest: LATEST, memoryRow },
+    { fixture: allStatuses, theme, now: BOT_NOW, bot: state.bot, jobs: state.jobs, latest: LATEST, memoryRow, engine: ENGINE },
   );
   await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize({ width, height: 860 });
@@ -97,6 +115,23 @@ async function axeClean(page: Page, what: string): Promise<void> {
 }
 
 for (const theme of ["dark", "light"] as const) {
+  /** 0.5.2 G61 (RW1 R31, F-RW2-7): with the watch count up, the head's
+   * model line read "Apple on-device · Runn…" at 1755 wide; it is whole at
+   * every width now (the line spans the head under its buttons). */
+  for (const width of [1755, 1280, 1024]) {
+    test(`the head's model line with the watch count — ${theme} — ${width}`, async ({ page }) => {
+      await open(page, theme, width, false);
+      await expect(page.getByTestId("bot-watch-count")).toBeVisible();
+      const line = page.getByTestId("bot-engine");
+      await expect(line).toHaveText("Apple on-device · Running");
+      const whole = await line.locator(".truncate").evaluate((el) => el.scrollWidth <= el.clientWidth);
+      expect(whole, "the model line isn't cut").toBe(true);
+      await page.waitForTimeout(150);
+      if (OUT && width === 1755) await page.screenshot({ path: `${OUT}/head-${theme}-1755.png` });
+      if (width === 1755) await axeClean(page, `head ${theme} ${width}`);
+    });
+  }
+
   for (const width of [1280, 1024]) {
     test(`context breakdown — ${theme} — ${width}`, async ({ page }) => {
       await open(page, theme, width, false);

@@ -1,4 +1,4 @@
-<!-- captures: 8ef066efbb91 -->
+<!-- captures: 8f9bc4743030 -->
 <!-- captures: pending -->
 # 99-bot-breakdown: Bot's context and memory breakdown, and a memory as a record
 
@@ -88,3 +88,35 @@ All twelve re-captured from a clean export of HEAD (`bot-breakdown-gallery.spec.
 
 Lowest: 4.
 
+
+## 0.5.2 G61: the model's line across the head (Opus, 2026-11-27)
+
+All twelve re-captured, plus `head-{light,dark}-1755.png` (new): `bot-breakdown-gallery.spec.ts` on the working tree at 1755, 1280 and 1024, both themes; every one opened. The spec now gives the preview the engine as the walk saw it ("Apple on-device · Running"), so every capture shows the line at its real length, and a new test asserts the line isn't cut with the watch count up at all three widths.
+
+**What changed.** RW1 R31 saw "Apple on-device · Runn…" at 1755 with the watch count among the head's buttons: the line under "Bot" only had the room left of the buttons. Now the head is a grid: "Bot" and Beta, then the buttons (watch count, New topic, Search, Expand, ⋯, Close) on the first row, and the model line spans the whole head under both, whole in all fourteen captures. The head is a few pixels taller (about 52 px against 48); the ⋯ menu opens under it.
+
+**Weak.** The line now runs under the buttons, so at a glance it reads as the head's subtitle more than "Bot"'s; its left edge still lines up with "Bot", which keeps the pairing.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | Which model answers and how it stands, whole, whatever chips are up. |
+| 2 | Prominence | 4 | Muted, under the title, as before. |
+| 3 | Default | 5 | Nothing to choose. |
+| 4 | Mode | 5 | Calm: no new surface. |
+| 5 | Mock-up | 4 | D-136's panel head; the engine line under the title (G35), now the head's width. |
+| 6 | Areas | 5 | Title and buttons on one row, the model line under them. |
+| 7 | Colour | 4 | Unchanged: ink title, Beta's soft pill, muted line. |
+| 8 | Type | 4 | Unchanged. |
+| 9 | Actions | 4 | Unchanged; the ⋯ menu placed under the taller head. |
+| 10 | Serious | n/a | Nothing destructive here. |
+| 11 | Doors | 5 | Unchanged. |
+| 12 | Words | 4 | "Apple on-device · Running", whole. |
+| 13 | States | 4 | Running here; starting, idle and failed as before (vitest). |
+| 14 | Consistency | 4 | Title over a muted line, as the Bot page. |
+| 15 | Accessibility | 4 | axe clean on all fourteen; the line keeps its title attribute. |
+| 16 | Hand walk | 4 | Driven by the spec in a built app with fixture data at the walk's 1755. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 5 | The walk's cut line can't happen at the panel's widths with the count up (asserted). |
+| 19 | Rich-mode colour | 4 | Not a create, edit or settings surface; calm colour, the accent only on Beta. |
+
+Lowest: 4.

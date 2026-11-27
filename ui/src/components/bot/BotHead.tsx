@@ -206,40 +206,47 @@ export function BotEngineBadge({ beta, under = false }: { beta: boolean; under?:
 export function BotHead({ job, onClear, onMemories, setup = false }: { job: AiJobInfo | null; onClear: () => void; onMemories: () => void; setup?: boolean }): JSX.Element {
   const bot = useBot();
   const [menu, setMenu] = useState(false);
+  const ready = job?.state === "ready" && !setup;
   return (
-    <div className="relative flex h-12 shrink-0 items-center gap-0.5 border-b border-divider pr-2 pl-4 whitespace-nowrap">
-      {/* 0.5.2 G35: the model and its state on the line under "Bot", with
-          the head's whole width up to its buttons; Beta beside the title. */}
-      <div className="flex min-w-0 grow flex-col justify-center">
-        <div className="flex items-center gap-2">
-          <h2 className="flex items-center gap-2 text-section leading-5 font-semibold text-ink">
-            <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
-            {WORDS.title}
-          </h2>
-          {job?.state === "ready" && !setup && job.beta && <BetaPill>Beta</BetaPill>}
-        </div>
-        {job?.state === "ready" && !setup && <BotEngineBadge beta={false} under />}
+    <div className="relative grid min-h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] content-center items-center border-b border-divider pt-1 pr-2 pb-1.5 pl-4 whitespace-nowrap" data-testid="bot-head">
+      {/* 0.5.2 G35: the model and its state on the line under "Bot"; Beta
+          beside the title. G61 (RW1 R31): that line spans the head's whole
+          width, under the buttons too, so a chip among them (the watch
+          count) never cuts it ("Apple on-device · Runn…" at 1755 wide). */}
+      <div className="flex min-w-0 items-center gap-2">
+        <h2 className="flex items-center gap-2 text-section leading-5 font-semibold text-ink">
+          <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
+          {WORDS.title}
+        </h2>
+        {ready && job?.beta && <BetaPill>Beta</BetaPill>}
       </div>
-      {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
-      {!setup && (
-        <>
-          <WatchCount />
-          <TopicButton compact={job?.state === "ready" && job.beta} />
-          <button type="button" className={ICON_BUTTON + (bot.find ? " bg-surface-3 text-ink" : "")} title={`${WORDS.searchLabel} (⌘F)`} aria-label={WORDS.searchLabel} aria-pressed={bot.find !== null} onClick={() => (bot.find ? closeFind() : openFind())} data-testid="bot-search">
-            <IconSearch width={16} height={16} aria-hidden="true" />
-          </button>
-        </>
+      <div className="flex items-center gap-0.5">
+        {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
+        {!setup && (
+          <>
+            <WatchCount />
+            <TopicButton compact={job?.state === "ready" && job.beta} />
+            <button type="button" className={ICON_BUTTON + (bot.find ? " bg-surface-3 text-ink" : "")} title={`${WORDS.searchLabel} (⌘F)`} aria-label={WORDS.searchLabel} aria-pressed={bot.find !== null} onClick={() => (bot.find ? closeFind() : openFind())} data-testid="bot-search">
+              <IconSearch width={16} height={16} aria-hidden="true" />
+            </button>
+          </>
+        )}
+        <button type="button" className={ICON_BUTTON} title={WORDS.expandLabel} aria-label={WORDS.expandLabel} onClick={expandBot} data-testid="bot-expand">
+          <IconExpand width={15} height={15} aria-hidden="true" />
+        </button>
+        <button type="button" className={ICON_BUTTON + (menu ? " bg-surface-3 text-ink" : "")} title={WORDS.moreLabel} aria-label={WORDS.moreLabel} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)} data-testid="bot-more">
+          <IconMore width={16} height={16} aria-hidden="true" />
+        </button>
+        <button type="button" className={ICON_BUTTON} title={`${WORDS.closeLabel} (Esc)`} aria-label={WORDS.closeLabel} onClick={closeBot} data-testid="bot-close">
+          <IconClose width={16} height={16} aria-hidden="true" />
+        </button>
+      </div>
+      {ready && (
+        <div className="col-span-2 -mt-1 min-w-0">
+          <BotEngineBadge beta={false} under />
+        </div>
       )}
-      <button type="button" className={ICON_BUTTON} title={WORDS.expandLabel} aria-label={WORDS.expandLabel} onClick={expandBot} data-testid="bot-expand">
-        <IconExpand width={15} height={15} aria-hidden="true" />
-      </button>
-      <button type="button" className={ICON_BUTTON + (menu ? " bg-surface-3 text-ink" : "")} title={WORDS.moreLabel} aria-label={WORDS.moreLabel} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)} data-testid="bot-more">
-        <IconMore width={16} height={16} aria-hidden="true" />
-      </button>
-      <button type="button" className={ICON_BUTTON} title={`${WORDS.closeLabel} (Esc)`} aria-label={WORDS.closeLabel} onClick={closeBot} data-testid="bot-close">
-        <IconClose width={16} height={16} aria-hidden="true" />
-      </button>
-      {menu && <BotMenu job={job} onClose={() => setMenu(false)} onClear={onClear} onMemories={onMemories} setup={setup} />}
+      {menu && <BotMenu job={job} onClose={() => setMenu(false)} onClear={onClear} onMemories={onMemories} setup={setup} at="right-2.5 top-[calc(100%-2px)]" />}
     </div>
   );
 }
