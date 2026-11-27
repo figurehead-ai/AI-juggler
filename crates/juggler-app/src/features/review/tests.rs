@@ -424,8 +424,9 @@ fn a_line_that_changes_the_meaning_or_claims_more_is_refused() {
 
 /// 0.5.2 G43 (the RW1 revert and failed turns): a note repeating a number
 /// the agent's own words say ("ISO 8601", "two-digit") is kept; one they
-/// don't say is still refused, and so is a time word ("years": G43 moved
-/// no other rule).
+/// don't say is still refused. A time word they say ("years") is kept, one
+/// they don't ("hour") is not, and the number beside it is checked on its
+/// own ("7 years").
 #[test]
 fn a_number_the_agent_said_may_be_repeated_and_no_other() {
     let reply = "I switched the API dates to ISO 8601 in format.ts. I rewrote the date parser in dates.ts to accept two-digit codes and two-digit years.";
@@ -459,6 +460,21 @@ fn a_number_the_agent_said_may_be_repeated_and_no_other() {
         kept.notes[1].1,
         "rewrote the date parser to accept two-digit codes"
     );
+    // The RW1 failed turn's note: its time word is the agent's too.
+    let years = lines::decide(
+        &draft(
+            "switched the API dates to ISO 8601",
+            "rewrote the date parser to accept two-digit years",
+        ),
+        &r,
+        &said,
+        &[],
+    )
+    .unwrap();
+    assert_eq!(
+        years.notes[1].1,
+        "rewrote the date parser to accept two-digit years"
+    );
     for (format, dates, why) in [
         (
             "switched the API dates to ISO 8602",
@@ -477,8 +493,13 @@ fn a_number_the_agent_said_may_be_repeated_and_no_other() {
         ),
         (
             "switched the API dates",
-            "rewrote the date parser to accept two-digit years",
-            "time (\"years\")",
+            "rewrote the date parser, it took 7 years",
+            "number (\"7\")",
+        ),
+        (
+            "switched the API dates",
+            "rewrote the date parser in an hour",
+            "time (\"hour\")",
         ),
     ] {
         let refused = lines::decide(&draft(format, dates), &r, &said, &[]).unwrap_err();

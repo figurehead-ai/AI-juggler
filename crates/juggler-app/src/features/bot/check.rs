@@ -1214,6 +1214,12 @@ fn check_part(
         }
     }
     let name_words: Vec<String> = names.iter().flat_map(|n| words(n)).collect();
+    // 0.5.2 G43: the cited records' own words (an agent's, `quote`).
+    let own_words: Vec<String> = cited
+        .iter()
+        .filter_map(|r| r.quote.as_deref())
+        .flat_map(words)
+        .collect();
     // 0.5.2 G15: the words a cited record's own state is written in
     // ("asks you (waiting on the user)", "failed (stopped with an error)")
     // say that state, so a sentence repeating them says what it holds.
@@ -1231,7 +1237,10 @@ fn check_part(
             return Err(refused);
         }
         if TIME.contains(&word.as_str()) {
-            if question_words.contains(word) {
+            // 0.5.2 G43: a time word a cited record's own words say
+            // ("two-digit years"), never one only in a name; the number
+            // beside it is checked on its own (check_numbers).
+            if question_words.contains(word) || own_words.contains(word) {
                 continue;
             }
             return Err(Refused::Time(word.clone()));
@@ -1417,7 +1426,7 @@ mod tests {
                 .into(),
         );
         let rows = [said];
-        let q = "what did api do with the iso dates?";
+        let q = "what did api do with the iso dates, digit by digit?";
         let ok = |text: &str| check(&[part(text, &[1])], &rows, q, &[]);
         assert_eq!(ok("“api” finished: iso 8601."), Ok(()));
         assert_eq!(ok("“api” finished with two sessions."), Ok(()));
@@ -1434,6 +1443,27 @@ mod tests {
             ok("“api” finished with a million sessions."),
             Err(Refused::Number(_))
         ));
+        // A time word its own words say; the number beside it on its own.
+        assert_eq!(ok("“api” finished: two-digit years."), Ok(()));
+        assert_eq!(
+            ok("“api” finished: took 3 years."),
+            Err(Refused::Number("3".into()))
+        );
+        assert_eq!(
+            ok("“api” finished in an hour."),
+            Err(Refused::Time("hour".into()))
+        );
+        // A time word only in a name stays refused.
+        let named = [row("years of api", BotState::Finished, None)];
+        assert_eq!(
+            check(
+                &[part("“years of api” finished in years.", &[1])],
+                &named,
+                q,
+                &[]
+            ),
+            Err(Refused::Time("years".into()))
+        );
         // Another record's words never count for a sentence not citing it.
         let other = [row("web", BotState::Finished, None), rows[0].clone()];
         assert_eq!(
