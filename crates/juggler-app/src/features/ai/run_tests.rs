@@ -20,6 +20,9 @@ use crate::features::ai::dto::AiJob;
 use crate::features::ai::engine::{EngineError, Reason, Stop};
 use crate::features::ai::engines::Registry;
 use crate::features::ai::engines::apple::Apple;
+// The Apple engine's fake helper is a shell script: unix only (the
+// build-windows job, PR #257).
+#[cfg(unix)]
 use crate::features::ai::engines::apple::tests::{fake, hello, request, soon};
 use crate::features::ai::engines::local::Local;
 use crate::features::ai::models::{Engine as ModelEngine, Job};

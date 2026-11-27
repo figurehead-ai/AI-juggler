@@ -39,7 +39,10 @@ pub(crate) fn by_root<T: Clone>(
 #[cfg(test)]
 mod by_root_tests {
     /// 0.5.2 G24: a project kept under a folder reached through a link is
-    /// found under the folder the link resolves to as well.
+    /// found under the folder the link resolves to as well. A folder link
+    /// is made by unix's `symlink` (Windows needs a privilege for one: the
+    /// build-windows job, PR #257).
+    #[cfg(unix)]
     #[test]
     fn a_project_is_found_by_its_resolved_folder_too() {
         let dir = tempfile::tempdir().unwrap();
