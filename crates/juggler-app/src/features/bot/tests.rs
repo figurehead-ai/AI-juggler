@@ -731,3 +731,167 @@ fn a_scope_goes_with_its_ask_and_a_follow_up_that_refers_back() {
     let fresh = ask(&state, "And what about it?");
     assert_eq!(fresh.scope, None, "a New topic asks about everything");
 }
+
+/// 0.5.2 G45 (RW1 W3, G15's bound): "what are my sessions" names the open
+/// ones first (an idle one is open), then the most recent others, a few;
+/// with none open, none (G15's nearest records answer instead).
+#[test]
+fn what_are_my_sessions_names_the_open_ones_first_then_the_recent_ones() {
+    let world = World {
+        now_ms: NOW,
+        offset_hours: 0,
+        sessions: vec![
+            session(
+                "s-cart",
+                "Split the cart total",
+                BotState::Finished,
+                "web",
+                NOW - 20 * MIN,
+            ),
+            session(
+                "conversation:a:c1",
+                "Update the summary cell",
+                BotState::Idle,
+                "docs",
+                NOW - MIN,
+            ),
+            session(
+                "conversation:b:x1",
+                "Add a retry helper",
+                BotState::Ended,
+                "web",
+                NOW - 90 * MIN,
+            ),
+            session(
+                "conversation:b:x2",
+                "Remove the old handlers module",
+                BotState::Ended,
+                "api",
+                NOW - 240 * MIN,
+            ),
+            session(
+                "s-old",
+                "Old work",
+                BotState::Finished,
+                "web",
+                NOW - 30 * 60 * MIN,
+            ),
+        ],
+        tasks: Vec::new(),
+        accounts: Vec::new(),
+        removed: Vec::new(),
+    };
+    let mine = look_up(&read("what are my sessions"), &world, None);
+    assert_eq!(
+        titles(&mine.rows),
+        [
+            "Update the summary cell",
+            "Split the cart total",
+            "Add a retry helper",
+            "Remove the old handlers module"
+        ]
+    );
+    let mut closed = world.clone();
+    closed.sessions.retain(|r| r.state != Some(BotState::Idle));
+    assert!(
+        look_up(&read("what are my sessions"), &closed, None)
+            .rows
+            .is_empty()
+    );
+    // "Nothing is running or waiting" is never true beside an open one.
+    let absent = super::answer::absent(&world);
+    assert!(!absent.states.contains(&BotState::Idle));
+}
+
+/// 0.5.2 G45 (RW1 W3): Bot's records hold the sessions AI Juggler didn't
+/// start (one in the user's own terminal, open and idle; two closed Codex
+/// threads), each by its key where a session id goes, in its rail state
+/// and project, beside AI Juggler's own; an own session between turns
+/// reads Idle by its tool's own word, never "working" by its status.
+#[test]
+fn the_records_hold_the_sessions_ai_juggler_didnt_start_in_their_rail_state() {
+    use crate::features::conversations::scan::State;
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("data"));
+    seed_session(&state, dir.path(), "s-web", "web", "main");
+    let docs = dir.path().join("docs");
+    std::fs::create_dir_all(docs.join(".git")).unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&crate::test_support::account(
+                "acc-codex",
+                "codex",
+                "Codex",
+                dir.path().join("codex"),
+            ))
+            .unwrap();
+        storage.projects().ensure(&docs).unwrap();
+    }
+    let now = crate::commands::now_millis();
+    let outside = |account: &str, tool: &str, id: &str, title: &str, at: i64| {
+        crate::test_support::outside_conversation(&state, (account, tool), id, title, &docs, at);
+    };
+    outside(
+        "acc-1",
+        "claude-code",
+        "c-docs",
+        "Update the summary cell in the report notebook",
+        now - MIN,
+    );
+    outside(
+        "acc-codex",
+        "codex",
+        "x-retry",
+        "Add a retry helper to the API client",
+        now - 90 * MIN,
+    );
+    outside(
+        "acc-codex",
+        "codex",
+        "x-old",
+        "Remove the old handlers module",
+        now - 240 * MIN,
+    );
+    crate::test_support::live_look(&state, &[("acc-1", "claude-code", "c-docs", State::Idle)]);
+    let world = super::world::gather(&state).unwrap();
+    let by_id = |id: &str| world.sessions.iter().find(|r| r.id == id).cloned();
+    let docs_row = by_id("conversation:acc-1:c-docs").expect("the outside session");
+    assert_eq!(docs_row.state, Some(BotState::Idle));
+    assert_eq!(
+        docs_row.title,
+        "Update the summary cell in the report notebook"
+    );
+    assert!(docs_row.project_id.is_some());
+    assert_eq!(docs_row.app_id.as_deref(), Some("cli:acc-1"));
+    for id in [
+        "conversation:acc-codex:x-retry",
+        "conversation:acc-codex:x-old",
+    ] {
+        assert_eq!(
+            by_id(id).map(|r| r.state),
+            Some(Some(BotState::Ended)),
+            "{id}"
+        );
+    }
+    assert!(by_id("s-web").is_some(), "AI Juggler's own beside them");
+    // An own session between turns: Idle by its tool's word.
+    let mut row = {
+        let storage = state.storage.lock().unwrap();
+        crate::features::sessions::read_model::session_infos_snapshot(&storage)
+            .unwrap()
+            .into_iter()
+            .find(|r| r.id == "s-web")
+            .unwrap()
+    };
+    let read = |row: &crate::features::sessions::dto::InstanceInfo| {
+        super::world::session_row(row, &std::collections::HashMap::new(), &mut Vec::new()).state
+    };
+    assert_eq!(read(&row), Some(BotState::Working), "running, nothing said");
+    row.runtime = Some(crate::features::runtime::dto::RuntimeInfo {
+        state: Some("idle".into()),
+        ..Default::default()
+    });
+    assert_eq!(read(&row), Some(BotState::Idle));
+}

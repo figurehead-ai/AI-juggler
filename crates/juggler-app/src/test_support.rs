@@ -421,3 +421,78 @@ pub(crate) fn work_and_home(root: &std::path::Path, native: &str) -> WorkAndHome
         home_recipe: home_recipe.id,
     }
 }
+
+/// 0.5.2 G45: conversation `id` of `tool` on `account`'s folder in the
+/// index of `state`, as a pass reads it from its file, run in `cwd` and
+/// last active at `last_ms` (a minute after it started); no AI Juggler
+/// session is on it (one started in the user's own terminal, or by
+/// another app).
+pub(crate) fn outside_conversation(
+    state: &std::sync::Arc<crate::state::AppState>,
+    (account, tool): (&str, &str),
+    id: &str,
+    title: &str,
+    cwd: &std::path::Path,
+    last_ms: i64,
+) {
+    state
+        .conversations
+        .put_for_test(crate::features::conversations::Conversation {
+            summary: juggler_adapter::conversation::ConversationSummary {
+                id: id.into(),
+                cwd: Some(cwd.to_path_buf()),
+                title: Some(title.into()),
+                started_ms: Some(last_ms - 60_000),
+                last_ms: Some(last_ms),
+                ..Default::default()
+            },
+            account_id: account.into(),
+            tool: tool.into(),
+            path: cwd.join(".lab-transcripts").join(format!("{id}.jsonl")),
+            folder: Some(cwd.to_path_buf()),
+        });
+}
+
+/// 0.5.2 G45: one live look, as the live thread makes one: these
+/// conversations open in a terminal (`(account, tool, id, state)`, each on
+/// its own made-up pid), every other one closed.
+pub(crate) fn live_look(
+    state: &std::sync::Arc<crate::state::AppState>,
+    open: &[(
+        &str,
+        &str,
+        &str,
+        crate::features::conversations::scan::State,
+    )],
+) {
+    use crate::features::conversations::scan::{LiveEntry, LiveModel, Place};
+    let entries = open
+        .iter()
+        .zip(990_201_u32..)
+        .map(|(&(account, tool, id, state), pid)| LiveEntry {
+            tool: tool.into(),
+            account_id: Some(account.into()),
+            session_id: id.into(),
+            places: vec![Place {
+                pid,
+                start: None,
+                host: None,
+                profile: None,
+                app_session: None,
+            }],
+            state: Some(state),
+            probably: false,
+            viewed_ms: None,
+            app_title: None,
+            background: false,
+        })
+        .collect();
+    crate::features::conversations::ConversationIndex::look_for_test(
+        state,
+        LiveModel {
+            entries,
+            ..LiveModel::default()
+        },
+    )
+    .expect("a live look");
+}

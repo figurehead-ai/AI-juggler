@@ -596,3 +596,132 @@ fn bot_batch_b_on_the_real_model() {
     assert!(orders >= 3, "the task in review named {orders} times in 6");
     assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
 }
+
+/// 0.5.2 G45 (RW1 W3): RW1's quick pass as Bot reads it: one session
+/// started in the user's own terminal, open and idle in docs (not AI
+/// Juggler's, so no row of its own), two Codex CLI threads AI Juggler
+/// didn't start (closed), and one of AI Juggler's own that finished.
+fn outside_fixture() -> (tempfile::TempDir, Arc<crate::state::AppState>, Service) {
+    use crate::features::conversations::scan::State;
+    let dir = tempfile::tempdir().unwrap();
+    let state: Arc<crate::state::AppState> =
+        crate::test_support::bare_state(dir.path().join("data"));
+    let now = crate::commands::now_millis();
+    let docs = dir.path().join("docs");
+    let web = dir.path().join("web");
+    let api = dir.path().join("api");
+    for folder in [&docs, &web, &api] {
+        std::fs::create_dir_all(folder.join(".git")).unwrap();
+    }
+    {
+        let storage = state.storage.lock().unwrap();
+        for (account, harness, label) in [
+            ("acc-work", "claude-code", "cc-work"),
+            ("acc-chatgpt", "codex", "ChatGPT"),
+        ] {
+            storage
+                .accounts()
+                .insert(&crate::test_support::account(
+                    account,
+                    harness,
+                    label,
+                    dir.path().join(account),
+                ))
+                .unwrap();
+        }
+        storage
+            .profiles()
+            .insert(&crate::test_support::launch_settings(
+                "rec-work", "cc-work", "acc-work",
+            ))
+            .unwrap();
+        for folder in [&docs, &web, &api] {
+            storage.projects().ensure(folder).unwrap();
+        }
+        storage
+            .sessions()
+            .insert(&crate::test_support::instance(
+                "s-edits",
+                "rec-work",
+                juggler_core::model::SessionStatus::Finished,
+                web.clone(),
+            ))
+            .unwrap();
+        storage
+            .sessions()
+            .set_label(
+                &juggler_core::model::SessionId::new("s-edits"),
+                Some("Split the cart total into its own module and test it"),
+            )
+            .unwrap();
+        beta_on(&storage);
+    }
+    let outside = |account: &str, tool: &str, id: &str, title: &str, cwd: &std::path::Path, at| {
+        crate::test_support::outside_conversation(&state, (account, tool), id, title, cwd, at);
+    };
+    outside(
+        "acc-work",
+        "claude-code",
+        "c-notebook",
+        "Update the summary cell in the report notebook",
+        &docs,
+        now - 60_000,
+    );
+    outside(
+        "acc-chatgpt",
+        "codex",
+        "x-patch",
+        "Add a retry helper to the API client",
+        &web,
+        now - 90 * 60_000,
+    );
+    outside(
+        "acc-chatgpt",
+        "codex",
+        "x-delete",
+        "Remove the old handlers module",
+        &api,
+        now - 240 * 60_000,
+    );
+    crate::test_support::live_look(
+        &state,
+        &[("acc-work", "claude-code", "c-notebook", State::Idle)],
+    );
+    (dir, state, service())
+}
+
+/// 0.5.2 G45 (RW1 W3): with a session started outside AI Juggler open
+/// and idle, "what are my sessions" names it first (never "Nothing is
+/// running or waiting on you right now." citing only the finished one),
+/// then the recent ones (the Codex threads among them); "what needs me"
+/// is answered from the records, never refused. Each three times.
+#[test]
+#[ignore = "needs the built helper and Apple Intelligence on; 0.5.2 G45"]
+fn bot_names_a_session_started_outside_and_other_apps_threads_on_the_real_model() {
+    let (_dir, state, service) = outside_fixture();
+    let world = crate::features::bot::world::gather(&state).unwrap();
+    assert_eq!(world.sessions.len(), 4, "{:?}", world.sessions);
+    let mut fails = Vec::new();
+    for _ in 0..3 {
+        let mine = ask_recorded(&state, &service, "what are my sessions", false);
+        if mine.outcome != BotOutcome::Answered
+            || mine.cites.is_empty()
+            || !(mine.words.contains("summary cell") || mine.words.contains("notebook"))
+            || mine.words.contains("nothing is running")
+        {
+            fails.push(format!(
+                "what are my sessions: {:?} {:?}",
+                mine.outcome, mine.words
+            ));
+        }
+        let needs = ask_recorded(&state, &service, "what needs me", false);
+        if needs.outcome != BotOutcome::Answered || needs.cites.is_empty() {
+            fails.push(format!(
+                "what needs me: {:?} {:?}",
+                needs.outcome, needs.words
+            ));
+        }
+    }
+    service.engines().release();
+    assert!(fails.is_empty(), "not real answers:\n{}", fails.join("\n"));
+}

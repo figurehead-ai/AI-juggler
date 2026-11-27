@@ -47,6 +47,8 @@ pub enum BotState {
     InReview,
     /// It is working (a task: in progress).
     Working,
+    /// 0.5.2 G45: the session is open, between turns (the rail's Idle).
+    Idle,
     /// The session finished.
     Finished,
     /// The session was ended (stopped, handed over).
@@ -83,6 +85,7 @@ impl BotState {
             Self::Blocked => "blocked",
             Self::InReview => "in_review",
             Self::Working => "working",
+            Self::Idle => "idle",
             Self::Finished => "finished",
             Self::Ended => "ended",
             Self::Done => "done",

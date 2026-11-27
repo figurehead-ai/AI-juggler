@@ -29,7 +29,7 @@ export interface Piece {
 type Kind = BotRowInfo["kind"];
 
 /** The order clauses and rows come in: what needs you first. */
-const ORDER: BotState[] = ["asks_you", "stuck", "limit", "failed", "blocked", "in_review", "working", "finished", "done", "ended", "ready", "todo", "cancelled"];
+const ORDER: BotState[] = ["asks_you", "stuck", "limit", "failed", "blocked", "in_review", "working", "idle", "finished", "done", "ended", "ready", "todo", "cancelled"];
 
 const NOUN: Record<BotLang, Record<Kind, [string, string]>> = {
   en: { session: ["session", "sessions"], task: ["task", "tasks"], account: ["account", "accounts"], memory: ["memory", "memories"] },
@@ -45,6 +45,8 @@ const VERB_EN: Record<BotState, [string, string]> = {
   blocked: ["is blocked", "are blocked"],
   in_review: ["waits for review", "wait for review"],
   working: ["is working", "are working"],
+  // 0.5.2 G45: open, between turns (the rail's Idle).
+  idle: ["is idle", "are idle"],
   finished: ["finished", "finished"],
   ended: ["ended", "ended"],
   done: ["is done", "are done"],
@@ -60,6 +62,7 @@ const VERB_DE: Record<BotState, [string, string]> = {
   blocked: ["ist blockiert", "sind blockiert"],
   in_review: ["wartet auf Prüfung", "warten auf Prüfung"],
   working: ["arbeitet", "arbeiten"],
+  idle: ["ist inaktiv", "sind inaktiv"],
   finished: ["ist fertig", "sind fertig"],
   ended: ["wurde beendet", "wurden beendet"],
   done: ["ist erledigt", "sind erledigt"],
@@ -136,6 +139,7 @@ export const STATE_WORDS: Record<BotState, string> = {
   blocked: "Blocked",
   in_review: "Waits for review",
   working: "Working",
+  idle: "Idle",
   finished: "Finished",
   ended: "Ended",
   done: "Done",

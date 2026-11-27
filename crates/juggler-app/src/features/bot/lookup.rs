@@ -136,10 +136,11 @@ const fn rank(state: Option<BotState>) -> u8 {
         Some(BotState::Blocked) => 4,
         Some(BotState::InReview) => 5,
         Some(BotState::Working) => 6,
-        Some(BotState::Finished) => 7,
-        Some(BotState::Done) => 8,
-        Some(BotState::Ended) => 9,
-        _ => 10,
+        Some(BotState::Idle) => 7,
+        Some(BotState::Finished) => 8,
+        Some(BotState::Done) => 9,
+        Some(BotState::Ended) => 10,
+        _ => 11,
     }
 }
 
@@ -404,20 +405,28 @@ fn narrow<'w>(
         && !accounts_only
     {
         // "What's going on?": what is open now, never every past session.
-        answer.retain(|row| {
+        let open = |row: &&BotRowInfo| {
             row.kind == BotRowKind::Account
-                || row.state.is_some_and(|s| {
-                    matches!(
-                        s,
-                        BotState::AsksYou
-                            | BotState::Stuck
-                            | BotState::Limit
-                            | BotState::Working
-                            | BotState::Blocked
-                            | BotState::InReview
-                    )
-                })
-        });
+                || row.state.is_some_and(|s| super::check::OPEN.contains(&s))
+        };
+        let mut recent: Vec<&BotRowInfo> = answer
+            .iter()
+            .copied()
+            .filter(|row| row.kind == BotRowKind::Session && !open(row) && row.state.is_some())
+            .collect();
+        answer.retain(open);
+        // 0.5.2 G45 (G15's bound): "what are my sessions" names the open
+        // ones first, then the most recent others, a few (none open: the
+        // nearest records, G15's note).
+        if reading.kinds.sessions && !answer.is_empty() {
+            recent.sort_by_key(|row| std::cmp::Reverse(row.at_ms.unwrap_or(0)));
+            let room = SHOWN.saturating_sub(answer.len()).min(NEAREST);
+            let mut open_first: Vec<&BotRowInfo> = std::mem::take(&mut answer);
+            open_first
+                .sort_by_key(|row| (rank(row.state), std::cmp::Reverse(row.at_ms.unwrap_or(0))));
+            open_first.extend(recent.into_iter().take(room));
+            return open_first;
+        }
     }
     if reading.most_room || accounts_only {
         answer.sort_by_key(|row| (row.used_percent.unwrap_or(101), row.title.to_lowercase()));

@@ -12,7 +12,7 @@ use juggler_core::storage::memory::Writers;
 
 use super::*;
 use crate::features::ai::memory::RedactionSecrets;
-use crate::features::conversations::scan::{LiveEntry, LiveModel, Place, State};
+use crate::features::conversations::scan::State;
 use crate::features::sessions::seen;
 use crate::features::watches::commands;
 use crate::features::watches::runtime::Facts;
@@ -49,58 +49,32 @@ fn lab(dir: &Path) -> (Arc<AppState>, String) {
             .unwrap();
         storage.projects().ensure(&docs).unwrap().id.to_string()
     };
-    state
-        .conversations
-        .put_for_test(crate::features::conversations::Conversation {
-            summary: juggler_adapter::conversation::ConversationSummary {
-                id: CONVERSATION.into(),
-                cwd: Some(docs.clone()),
-                title: Some(TITLE.into()),
-                started_ms: Some(crate::commands::now_millis() - 60_000),
-                last_ms: Some(crate::commands::now_millis() - 30_000),
-                ..Default::default()
-            },
-            account_id: ACCOUNT.into(),
-            tool: juggler_adapters::CLAUDE_CODE_ID.into(),
-            path: dir
-                .join("work/projects/docs")
-                .join(format!("{CONVERSATION}.jsonl")),
-            folder: Some(docs),
-        });
+    crate::test_support::outside_conversation(
+        &state,
+        (ACCOUNT, juggler_adapters::CLAUDE_CODE_ID),
+        CONVERSATION,
+        TITLE,
+        &docs,
+        crate::commands::now_millis() - 30_000,
+    );
     (state, project)
 }
 
 /// One live look: the conversation open in a terminal in `state`, or
 /// (`None`) nothing open.
-fn look(state: &Arc<AppState>, dir: &Path, open: Option<State>) {
-    let entries = open
-        .map(|state| LiveEntry {
-            tool: juggler_adapters::CLAUDE_CODE_ID.into(),
-            account_id: Some(ACCOUNT.into()),
-            session_id: CONVERSATION.into(),
-            places: vec![Place {
-                pid: 990_201,
-                start: None,
-                host: None,
-                profile: Some(dir.join("work")),
-                app_session: None,
-            }],
-            state: Some(state),
-            probably: false,
-            viewed_ms: None,
-            app_title: None,
-            background: false,
+fn look(state: &Arc<AppState>, open: Option<State>) {
+    let open: Vec<_> = open
+        .map(|state| {
+            (
+                ACCOUNT,
+                juggler_adapters::CLAUDE_CODE_ID,
+                CONVERSATION,
+                state,
+            )
         })
         .into_iter()
         .collect();
-    crate::features::conversations::ConversationIndex::look_for_test(
-        state,
-        LiveModel {
-            entries,
-            ..LiveModel::default()
-        },
-    )
-    .unwrap();
+    crate::test_support::live_look(state, &open);
 }
 
 fn offered(state: &Arc<AppState>, target: &WatchTarget) -> Vec<String> {
@@ -122,10 +96,10 @@ fn a_session_started_outside_is_open_in_its_project_and_app_and_a_target_of_its_
     let app = WatchTarget::App(juggler_core::storage::cli_app_id(ACCOUNT));
     let docs = WatchTarget::Project(project.clone());
     // Not open: the group targets can't count idle from it.
-    look(&state, dir.path(), None);
+    look(&state, None);
     assert!(!offered(&state, &docs).contains(&"idle_for".to_owned()));
     // Open and idle, as Open now lists it.
-    look(&state, dir.path(), Some(State::Idle));
+    look(&state, Some(State::Idle));
     let open = seen::outside_open(&state);
     assert_eq!(open.len(), 1, "{open:?}");
     assert_eq!(seen::key_of(&open[0]), key());
@@ -174,7 +148,7 @@ fn what_the_live_look_sees_it_do_reaches_a_watch_on_it_and_is_told_by_its_name()
     let dir = tempfile::tempdir().unwrap();
     let (state, _) = lab(dir.path());
     // The look at the start: what was open all along is told nothing.
-    look(&state, dir.path(), Some(State::Idle));
+    look(&state, Some(State::Idle));
     let writers = Writers::for_tests();
     let now = crate::commands::now_millis();
     {
@@ -198,8 +172,8 @@ fn what_the_live_look_sees_it_do_reaches_a_watch_on_it_and_is_told_by_its_name()
             )
             .unwrap();
     }
-    look(&state, dir.path(), Some(State::Working));
-    look(&state, dir.path(), Some(State::Idle));
+    look(&state, Some(State::Working));
+    look(&state, Some(State::Idle));
     let started = Instant::now();
     let told = loop {
         let told: Vec<(String, String)> = {

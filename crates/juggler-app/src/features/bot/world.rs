@@ -1,6 +1,7 @@
 //! What Bot looks things up in (ADR-0034 §6.2): AI Juggler's own read
-//! models, read once per question into rows: sessions (their state from
-//! the sessions read model), tasks (the tasks store, with their pools)
+//! models, read once per question into rows: sessions (AI Juggler's, their
+//! state as the rail reads it; and, 0.5.2 G45, the ones it didn't start,
+//! from the conversation index, `sessions::seen`), tasks (the tasks store, with their pools)
 //! and Accounts (the room the usage pipeline shows). Read-only: nothing
 //! here writes, sends, switches or stops anything, and no transcript is
 //! read. Agent-written names pass the guard ([`super::guard`]).
@@ -24,7 +25,9 @@ pub struct World {
     pub now_ms: i64,
     /// Local time minus UTC, hours.
     pub offset_hours: i64,
-    /// Every session the sessions read model holds.
+    /// Every session the sessions read model holds, then (0.5.2 G45) the
+    /// sessions AI Juggler didn't start that the window's working set
+    /// holds (`sessions::seen::outside`).
     pub sessions: Vec<BotRowInfo>,
     /// The tasks, newest first.
     pub tasks: Vec<BotRowInfo>,
@@ -170,12 +173,24 @@ pub fn session_row<S: BuildHasher>(
     // G18: D-117's one rule, Home's Needs you: what it needs names its
     // state ("may be stuck" while its status still reads running).
     let need = crate::features::notifications::needs::session_kind(row);
+    let status = session_state(&row.status);
+    // 0.5.2 G45 (G34's rule): while it runs, the state its tool itself
+    // reports (its hooks, its protocol), as the rail reads it: an idle
+    // session between turns is Idle, never "working" by its status.
+    let exact = row
+        .runtime
+        .as_ref()
+        .and_then(|runtime| runtime.state.as_deref())
+        .filter(|_| status == Some(BotState::Working));
     let state = match need {
         Some("asks") => Some(BotState::AsksYou),
         Some("stuck") => Some(BotState::Stuck),
         Some("limit") => Some(BotState::Limit),
         Some("failed") => Some(BotState::Failed),
-        _ => session_state(&row.status),
+        _ => match exact {
+            Some("idle" | "done_review") => Some(BotState::Idle),
+            _ => status,
+        },
     };
     let at_ms = match state {
         Some(BotState::AsksYou | BotState::Stuck) => row
@@ -219,6 +234,57 @@ pub fn session_row<S: BuildHasher>(
     }
 }
 
+/// 0.5.2 G45 (RW1 W3): a session AI Juggler didn't start (`sessions::seen`:
+/// one started in the user's own terminal, a Codex thread, a Claude app's
+/// session), by its key where a session id goes, named and in the state
+/// its rail row says: open, working, idle or asking (its need, Home's
+/// Needs you: an ask); closed, ended (how isn't known).
+#[must_use]
+pub fn outside_row<S: BuildHasher>(
+    row: &crate::features::conversations::dto::ConversationInfo,
+    projects: &HashMap<String, String, S>,
+    now_ms: i64,
+    removed: &mut Vec<String>,
+) -> BotRowInfo {
+    use crate::features::sessions::seen;
+    let raw = crate::features::notifications::needs::conversation_name(row, now_ms);
+    let (title, name_hidden) = guarded_into(&raw, removed);
+    let state = if seen::open(row) {
+        match row.state.as_deref() {
+            Some("working") => BotState::Working,
+            Some("asks_you") => BotState::AsksYou,
+            _ => BotState::Idle,
+        }
+    } else {
+        BotState::Ended
+    };
+    BotRowInfo {
+        name_hidden,
+        state: Some(state),
+        need: (state == BotState::AsksYou).then_some("asks"),
+        at_ms: row.last_activity_ms.or(row.started_ms),
+        started_ms: row.started_ms,
+        provider: Some(row.tool.clone()),
+        app_id: row.app.clone(),
+        app_label: Some(guarded_into(&row.account_label, removed).0).filter(|l| !l.is_empty()),
+        desktop: row
+            .app
+            .as_deref()
+            .is_some_and(|app| !app.starts_with("cli:")),
+        project: row
+            .project_id
+            .as_ref()
+            .and_then(|id| projects.get(id).cloned()),
+        project_id: row.project_id.clone(),
+        branch: row
+            .git_branch
+            .as_deref()
+            .map(|b| guarded_into(b, removed).0)
+            .filter(|b| !b.is_empty()),
+        ..empty_row(BotRowKind::Session, seen::key_of(row), title)
+    }
+}
+
 /// 0.5.2 G37: each task that waits on the user by Home's Needs you
 /// (`tasks::needs::needs`, the one rule Home and the bell read): `review`,
 /// `ask` or `launch`, by task id.
@@ -253,6 +319,9 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
         crate::features::sessions::read_model::session_infos_snapshot(&storage).unwrap_or_default()
     };
     let rows = crate::features::conversations::titled(state, rows).unwrap_or_default();
+    // 0.5.2 G45: and the sessions AI Juggler didn't start (the window's
+    // other list), read before the store's lock below.
+    let outside = crate::features::sessions::seen::outside(state, now_ms);
     // 0.5.2 G37: a task's need by Home's one rule (its Needs you:
     // a task in review, an agent's change or new session held for the
     // user), never Bot's own waiting states.
@@ -287,10 +356,15 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
             )
         })
         .collect();
-    let sessions = rows
+    let mut sessions: Vec<BotRowInfo> = rows
         .iter()
         .map(|row| session_row(row, &projects, &mut removed))
         .collect();
+    sessions.extend(
+        outside
+            .iter()
+            .map(|row| outside_row(row, &projects, now_ms, &mut removed)),
+    );
     let tasks = tasks
         .into_iter()
         .map(|task| {

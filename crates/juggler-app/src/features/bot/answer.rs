@@ -99,7 +99,7 @@ fn not_recorded(unknown: BotUnknown) -> &'static str {
 }
 
 /// Every state, for [`absent`].
-const STATES: [BotState; 13] = [
+const STATES: [BotState; 14] = [
     BotState::AsksYou,
     BotState::Stuck,
     BotState::Limit,
@@ -107,6 +107,7 @@ const STATES: [BotState; 13] = [
     BotState::Blocked,
     BotState::InReview,
     BotState::Working,
+    BotState::Idle,
     BotState::Finished,
     BotState::Ended,
     BotState::Done,

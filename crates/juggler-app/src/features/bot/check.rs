@@ -194,6 +194,8 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
         "working" | "running" | "arbeitet" | "läuft" | "progress" | "active" | "aktiv" => {
             &[BotState::Working]
         }
+        // 0.5.2 G45: open, between turns (the rail's Idle).
+        "idle" | "inaktiv" | "leerlauf" => &[BotState::Idle],
         "review" => &[BotState::InReview],
         "limit" | "reached" | "reaching" | "erreicht" => &[BotState::Limit],
         "stopped" | "gestoppt" => &[BotState::Ended, BotState::Failed],
@@ -213,13 +215,15 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
 
 /// The states of work that isn't over (what "open" says, and what a
 /// question naming no state asks about: [`super::lookup`]'s "open now").
-pub const OPEN: [BotState; 6] = [
+pub const OPEN: [BotState; 7] = [
     BotState::AsksYou,
     BotState::Stuck,
     BotState::Limit,
     BotState::Blocked,
     BotState::InReview,
     BotState::Working,
+    // 0.5.2 G45: an open session between turns isn't over.
+    BotState::Idle,
 ];
 
 /// What no record is in now, read by code from every session and task
@@ -291,7 +295,6 @@ const UNHELD: &[&str] = &[
     "hung",
     "hangs",
     "paused",
-    "idle",
     "aborted",
     "killed",
     "timed",
@@ -732,23 +735,92 @@ fn held_numbers(row: &BotRowInfo) -> Vec<u64> {
 fn split_quotes(text: &str) -> (Vec<String>, String) {
     let mut quoted = Vec::new();
     let mut rest = String::new();
+    for (i, (name, after)) in quote_segments(text).into_iter().enumerate() {
+        if i > 0 {
+            rest.push(' ');
+        }
+        quoted.extend(name);
+        rest.push_str(&after);
+    }
+    (quoted, rest)
+}
+
+/// A sentence as its runs of own text, each with the quoted span before
+/// it (none for the first); an unclosed quote's text is the last run's.
+fn quote_segments(text: &str) -> Vec<(Option<String>, String)> {
+    let mut segments: Vec<(Option<String>, String)> = vec![(None, String::new())];
     let mut open: Option<String> = None;
     for c in text.chars() {
         match (&mut open, c) {
             (None, '“' | '"' | '„' | '«') => open = Some(String::new()),
             (Some(inner), '”' | '"' | '“' | '»') => {
-                quoted.push(std::mem::take(inner));
+                segments.push((Some(std::mem::take(inner)), String::new()));
                 open = None;
-                rest.push(' ');
             }
             (Some(inner), c) => inner.push(c),
-            (None, c) => rest.push(c),
+            (None, c) => {
+                if let Some((_, after)) = segments.last_mut() {
+                    after.push(c);
+                }
+            }
         }
     }
-    if let Some(inner) = open {
-        rest.push_str(&inner);
+    if let (Some(inner), Some((_, after))) = (open, segments.last_mut()) {
+        after.push_str(&inner);
     }
-    (quoted, rest)
+    segments
+}
+
+/// The words joining names that share what follows them ("“web” and
+/// “api” are working"); a comma joins too (it leaves no word).
+const JOINERS: &[&str] = &["and", "or", "und", "oder"];
+
+/// 0.5.2 G45: the cited records each word of a sentence's own text (its
+/// words outside quotes, as [`split_quotes`] leaves them, in order) is
+/// said of: the records the quoted names before it name (names joined
+/// only by [`JOINERS`] share what follows), else every cited record. So
+/// "“A” is idle and “B” is ended." says idle of A and ended of B, as the
+/// grounded instructions' own example does ("“web” is working and “api”
+/// is waiting on you."), and a state said of several holds for each (R1).
+/// One list per word (`n` of them); unaligned, every cited record for each.
+fn word_owners<'r>(text: &str, cited: &[&'r BotRowInfo], n: usize) -> Vec<Vec<&'r BotRowInfo>> {
+    let segments = quote_segments(text);
+    let named = |name: &str| -> Vec<&'r BotRowInfo> {
+        let name = name.trim().to_lowercase();
+        cited
+            .iter()
+            .copied()
+            .filter(|row| names_of(row).any(|n| n.to_lowercase() == name))
+            .collect()
+    };
+    let mut out = Vec::new();
+    let mut group: Vec<&'r BotRowInfo> = Vec::new();
+    let mut joined = false;
+    for (name, after) in &segments {
+        if let Some(name) = name {
+            if !joined {
+                group.clear();
+            }
+            for row in named(name) {
+                if !group.iter().any(|g| std::ptr::eq(*g, row)) {
+                    group.push(row);
+                }
+            }
+        }
+        let said = words(after);
+        let owners = if group.is_empty() {
+            cited.to_vec()
+        } else {
+            group.clone()
+        };
+        joined = said.iter().all(|w| JOINERS.contains(&w.as_str()));
+        out.extend(said.iter().map(|_| owners.clone()));
+    }
+    if out.len() == n {
+        out
+    } else {
+        vec![cited.to_vec(); n]
+    }
 }
 
 /// Whether a sentence states a fact: a name, a number or a state.
@@ -1229,7 +1301,9 @@ fn check_part(
         .flat_map(|s| words(super::written::state_words(s)))
         .collect();
     check_numbers(&cited, &rest, &sentence, question_numbers)?;
-    for word in &sentence {
+    // G45: each state word of the records it is said of.
+    let owners = word_owners(&part.text, &cited, sentence.len());
+    for (i, word) in sentence.iter().enumerate() {
         if word.chars().all(|c| c.is_ascii_digit()) || number_word(word).is_some() {
             continue;
         }
@@ -1255,7 +1329,8 @@ fn check_part(
                     r.state.is_some_and(|s| claim.contains(&s))
                 }
             };
-            if cited.is_empty() || !cited.iter().all(holds) {
+            let of = owners.get(i).map_or(cited.as_slice(), Vec::as_slice);
+            if of.is_empty() || !of.iter().all(holds) {
                 return Err(Refused::State(word.clone()));
             }
             continue;
@@ -1301,6 +1376,59 @@ mod tests {
 
     fn one(text: &str, rows: &[BotRowInfo]) -> Result<(), Refused> {
         check(&[part(text, &[1])], rows, "what is going on in shop?", &[])
+    }
+
+    /// 0.5.2 G45: a sentence naming several records says each state of
+    /// the record named before it, as the instructions' own example does;
+    /// a state said of names joined by "and" holds for each (R1), and one
+    /// said before any name holds for every record cited.
+    #[test]
+    fn each_state_is_said_of_the_record_named_before_it() {
+        let rows = [
+            row("web", BotState::Working, None),
+            row("api", BotState::AsksYou, None),
+            row("Update the summary cell", BotState::Idle, None),
+            row("Add a retry helper", BotState::Ended, None),
+        ];
+        let two = |text: &str, cites: &[u32]| {
+            check(&[part(text, cites)], &rows, "what are my sessions", &[])
+        };
+        assert_eq!(
+            two("“web” is working and “api” is waiting on you.", &[1, 2]),
+            Ok(())
+        );
+        assert_eq!(
+            two(
+                "“Update the summary cell” is idle and “Add a retry helper” is ended.",
+                &[3, 4]
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            two("“Update the summary cell” is idle in “shop”.", &[3]),
+            Ok(())
+        );
+        assert_eq!(
+            two(
+                "“Update the summary cell” is ended and “Add a retry helper” is idle.",
+                &[3, 4]
+            ),
+            Err(Refused::State("ended".into()))
+        );
+        assert_eq!(
+            two(
+                "“Update the summary cell” and “Add a retry helper” are idle.",
+                &[3, 4]
+            ),
+            Err(Refused::State("idle".into()))
+        );
+        assert_eq!(
+            two(
+                "Idle: “Update the summary cell” and “Add a retry helper”.",
+                &[3, 4]
+            ),
+            Err(Refused::State("idle".into()))
+        );
     }
 
     /// G11: a cause, benefit or outcome traces to a cited record's own

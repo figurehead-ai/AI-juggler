@@ -58,6 +58,7 @@ pub(crate) const fn state_words(state: BotState) -> &'static str {
         BotState::Blocked => "blocked",
         BotState::InReview => "waiting for review",
         BotState::Working => "working",
+        BotState::Idle => "idle (open, between turns)",
         BotState::Finished => "finished",
         BotState::Ended => "ended",
         BotState::Done => "done",

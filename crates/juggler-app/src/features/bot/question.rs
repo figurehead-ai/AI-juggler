@@ -537,6 +537,8 @@ const STATE_CUES: &[(&[&str], &[BotState])] = &[
         &["review", "reviews", "prüfung", "überprüfung"],
         &[BotState::InReview],
     ),
+    // 0.5.2 G45: open, between turns (the rail's Idle).
+    (&["idle", "inaktiv", "leerlauf"], &[BotState::Idle]),
 ];
 
 const HELP: &[&str] = &[

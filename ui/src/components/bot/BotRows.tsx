@@ -18,6 +18,8 @@ import type { BotRowInfo } from "../../types/generated/BotRowInfo";
 
 const DOT: Partial<Record<string, string>> = {
   working: "bg-live",
+  // 0.5.2 G45: the rail's Idle dot (STATE_TONE).
+  idle: "bg-faint",
   finished: "bg-success",
   done: "bg-success",
   blocked: "bg-faint",

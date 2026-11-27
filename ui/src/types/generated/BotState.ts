@@ -4,4 +4,4 @@
  * A row's state, from the owning module's facts. Never merged: each row
  * says its own (the lead is built from these, one clause per state).
  */
-export type BotState = "asks_you" | "stuck" | "limit" | "failed" | "blocked" | "in_review" | "working" | "finished" | "ended" | "done" | "ready" | "todo" | "cancelled";
+export type BotState = "asks_you" | "stuck" | "limit" | "failed" | "blocked" | "in_review" | "working" | "idle" | "finished" | "ended" | "done" | "ready" | "todo" | "cancelled";
