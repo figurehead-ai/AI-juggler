@@ -11,6 +11,8 @@ import { BotTurn } from "./BotTurn";
 import { onWatchesIntent, takeWatchesIntent } from "../../lib/watches-open";
 import type { BotTurnInfo } from "../../types/generated/BotTurnInfo";
 import type { WatchPrefill } from "../../types/generated/WatchPrefill";
+import { quietHours } from "../watches/watches-view";
+import { clocksWhole } from "../../lib/time-words";
 
 const NOW = 1_800_000_000_000;
 
@@ -35,8 +37,11 @@ function turn(p: WatchPrefill, over: Partial<BotTurnInfo> = {}): BotTurnInfo {
   };
 }
 
+const twelveHour = new Intl.DateTimeFormat([], { hour: "numeric" }).resolvedOptions().hourCycle?.startsWith("h1");
+
 afterEach(() => {
   cleanup();
+  Reflect.deleteProperty(window, "__AIJ_NOTIFICATION_PREFS__");
   takeWatchesIntent();
   vi.restoreAllMocks();
 });
@@ -112,5 +117,29 @@ describe("Bot's confirm card (Watches Beta)", () => {
     render(<BotTurn turn={turn(prefill({ card: true }))} now={NOW} latest />);
     await screen.findByText("50 watches is the most.");
     expect(screen.getByTestId("bot-watch-confirm-confirm").hasAttribute("disabled")).toBe(true);
+  });
+
+  // 0.5.2 G51: the card said "Between 22:00 and 07:00" beside the form's "10:00 PM".
+  it("writes quiet hours as the Watches form does, by the system's clock", async () => {
+    Reflect.set(window, "__AIJ_NOTIFICATION_PREFS__", { quiet_start: 22, quiet_end: 7 });
+    const ipc = await import("../../lib/ipc/watches");
+    vi.spyOn(ipc, "watchesPreview").mockResolvedValue({ words: "Tell you when “api” finishes. Once.", problem: null });
+    render(<BotTurn turn={turn(prefill({ card: true }))} now={NOW} latest />);
+    const line = (await screen.findByTestId("bot-watch-quiet")).textContent;
+    const form = quietHours({ quiet_start: 22, quiet_end: 7 });
+    expect(line).toBe(clocksWhole(`Between ${form?.from} and ${form?.to} it waits till morning.`));
+    if (twelveHour) {
+      expect(line).toMatch(/^Between 10:00\s?PM and 7:00\s?AM /u);
+      expect(line).not.toContain("22:00");
+    }
+  });
+
+  it("says no quiet hours when there are none", async () => {
+    Reflect.set(window, "__AIJ_NOTIFICATION_PREFS__", { quiet_start: 0, quiet_end: 0 });
+    const ipc = await import("../../lib/ipc/watches");
+    vi.spyOn(ipc, "watchesPreview").mockResolvedValue({ words: "Tell you when “api” finishes. Once.", problem: null });
+    render(<BotTurn turn={turn(prefill({ card: true }))} now={NOW} latest />);
+    await screen.findByTestId("bot-watch-echo");
+    expect(screen.queryByTestId("bot-watch-quiet")).toBeNull();
   });
 });

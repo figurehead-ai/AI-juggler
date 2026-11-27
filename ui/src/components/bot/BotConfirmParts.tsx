@@ -11,18 +11,21 @@ import { IconShield } from "../icons";
 import { IconEye, IconMoon } from "./bot-icons";
 import { WORDS } from "../../lib/bot-words";
 import { notificationPrefsGet } from "../../lib/ipc/settings";
+import { clocksWhole } from "../../lib/time-words";
+import { quietHours } from "../watches/watches-view";
 
-function hour(h: number): string {
-  return `${String(h).padStart(2, "0")}:00`;
-}
-
-/** The user's quiet hours in one line ("Between 22:00 and 07:00 it waits
- * till morning."), or null with none. */
+/** The user's quiet hours in one line ("Between 10:00 PM and 7:00 AM it
+ * waits till morning."), or null with none: the times as the Watches form
+ * writes them (its `quietHours`, the system's own clock; 0.5.2 G51, the
+ * card said "22:00" beside the form's "10:00 PM"), each kept whole. */
 export function useQuietLine(): string | null {
   const [quiet, setQuiet] = useState<string | null>(null);
   useEffect(() => {
     void notificationPrefsGet()
-      .then((prefs) => setQuiet(prefs.quiet_start === prefs.quiet_end ? null : `Between ${hour(prefs.quiet_start)} and ${hour(prefs.quiet_end)} it waits till morning.`))
+      .then((prefs) => {
+        const hours = quietHours(prefs);
+        setQuiet(hours ? clocksWhole(`Between ${hours.from} and ${hours.to} it waits till morning.`) : null);
+      })
       .catch(() => setQuiet(null));
   }, []);
   return quiet;
@@ -58,7 +61,7 @@ export function ConfirmNotes({ problem, quiet, error }: { problem: string | null
     <>
       {problem && <p className="text-meta text-danger">{problem}</p>}
       {quiet && (
-        <span className="flex items-center gap-2 text-meta text-muted">
+        <span className="flex items-center gap-2 text-meta text-muted" data-testid="bot-watch-quiet">
           <IconMoon width={14} height={14} aria-hidden="true" />
           {quiet}
         </span>
