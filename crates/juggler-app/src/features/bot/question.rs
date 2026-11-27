@@ -561,6 +561,37 @@ const CODE_WORK: &[&str] = &[
 /// "My …": the user's own things (AJ-E3825: the grounded route).
 const MINE: &[&str] = &["my", "mine", "mein", "meine", "meinen", "meiner", "meinem"];
 
+/// Words that point back at the conversation (0.5.2 G16): "it", "that
+/// one", "why", "what about …", "and …", "more". English and German.
+const BACK: &[&str] = &[
+    "it", "its", "it's", "that", "this", "those", "these", "they", "them", "their", "theirs",
+    "then", "one", "ones", "same", "again", "more", "else", "too", "other", "others", "another",
+    "instead", "why", "previous", "last", "earlier", "before", "above", "just", "former", "latter",
+    "first", "second", "es", "das", "dies", "diese", "dieser", "dieses", "denen", "dort", "dann",
+    "ihn", "ihm", "warum", "wieso", "weshalb", "nochmal", "wieder", "mehr", "sonst", "andere",
+    "anderen", "erste", "letzte", "vorhin", "oben", "beide",
+];
+
+/// 0.5.2 G16: whether a question refers back to the conversation, so the
+/// topic's last exchanges and what it connects to go with it. One that
+/// doesn't ("3+5" after a question about sessions) is read on its own:
+/// its grounding is decided by its own words, never inherited from the
+/// topic's last answer.
+#[must_use]
+pub fn refers_back(text: &str) -> bool {
+    let words = tokens(text);
+    words.iter().any(|w| BACK.contains(&w.as_str()))
+        || words
+            .first()
+            .is_some_and(|w| matches!(w.as_str(), "and" | "und" | "or" | "oder" | "also" | "so"))
+        || words
+            .windows(2)
+            .any(|pair| matches!(pair, [a, b] if (a == "what" || a == "how") && b == "about"))
+        || words
+            .windows(2)
+            .any(|pair| matches!(pair, [a, b] if a == "und" && b == "was"))
+}
+
 /// A model, as "which model are you" names it.
 const MODEL_WORDS: &[&str] = &[
     "model",
@@ -776,6 +807,34 @@ pub fn read(text: &str) -> Reading {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 0.5.2 G16: a question is a follow-up only when its words point back
+    /// at the conversation; "3+5" after a question about sessions isn't.
+    #[test]
+    fn a_follow_up_is_known_by_its_own_words() {
+        for standalone in [
+            "3+5",
+            "what is 3+5",
+            "what needs me",
+            "what are my sessions",
+            "Is the front agent working?",
+            "Welche Sitzungen laufen gerade?",
+        ] {
+            assert!(!refers_back(standalone), "{standalone}");
+        }
+        for follow_up in [
+            "and api?",
+            "what about api?",
+            "why is it waiting?",
+            "tell me more",
+            "which one?",
+            "And is the front agent working?",
+            "und was ist mit api?",
+            "warum hängt es?",
+        ] {
+            assert!(refers_back(follow_up), "{follow_up}");
+        }
+    }
 
     #[test]
     fn states_kinds_and_time_come_from_the_question_s_own_words() {

@@ -20,14 +20,15 @@
 //! "Remember …" stays code (ADR-0037 §2.3: no model is involved), and is
 //! the only reply made without the model.
 
+use std::fmt::Write as _;
 use std::time::Instant;
 
 use super::dto::{
-    BotContext, BotContextPart, BotContextShare, BotDetails, BotGeneral, BotMemoryInfo,
-    BotMemoryShare, BotOutcome, BotScope, BotUnknown, BotWritten,
+    BotContext, BotContextPart, BotContextShare, BotDetails, BotGeneral, BotLang, BotMemoryInfo,
+    BotMemoryShare, BotOutcome, BotScope, BotState, BotUnknown, BotWritten,
 };
 use super::general;
-use super::lookup::{Found, look_up};
+use super::lookup::{Found, look_up, nearest};
 use super::model::BotModel;
 use super::question::Reading;
 use super::world::World;
@@ -95,6 +96,143 @@ fn not_recorded(unknown: BotUnknown) -> &'static str {
         BotUnknown::Authors => "AI Juggler doesn't record who wrote what.",
         BotUnknown::Unverified => "",
     }
+}
+
+/// Every state, for [`absent`].
+const STATES: [BotState; 13] = [
+    BotState::AsksYou,
+    BotState::Stuck,
+    BotState::Limit,
+    BotState::Failed,
+    BotState::Blocked,
+    BotState::InReview,
+    BotState::Working,
+    BotState::Finished,
+    BotState::Ended,
+    BotState::Done,
+    BotState::Ready,
+    BotState::Todo,
+    BotState::Cancelled,
+];
+
+/// 0.5.2 G15: the states no session or task holds now, read by code from
+/// every record (none when a record's state is unknown: it could be any).
+#[must_use]
+pub fn absent(world: &World) -> Vec<BotState> {
+    let rows = || world.sessions.iter().chain(&world.tasks);
+    if rows().any(|row| row.state.is_none()) {
+        return Vec::new();
+    }
+    STATES
+        .into_iter()
+        .filter(|state| !rows().any(|row| row.state == Some(*state)))
+        .collect()
+}
+
+/// G15: a sentence saying nothing is in the states asked about, in the
+/// question's language, offered to the model only when the check passes
+/// it (it is true of every record now).
+fn none_sentence(asked: &[BotState], lang: BotLang, absent: &[BotState]) -> Option<&'static str> {
+    let named = |states: &[BotState]| {
+        asked.len() == states.len() && states.iter().all(|s| asked.contains(s))
+    };
+    let (en, de) = if asked.is_empty() || named(&super::check::OPEN) {
+        (
+            "Nothing is running or waiting on you right now.",
+            "Gerade läuft oder wartet nichts.",
+        )
+    } else if asked.contains(&BotState::AsksYou) {
+        (
+            "Nothing needs you right now.",
+            "Gerade braucht dich nichts.",
+        )
+    } else if named(&[BotState::Stuck]) {
+        ("Nothing is stuck right now.", "Gerade hängt nichts.")
+    } else if named(&[BotState::Failed]) {
+        ("Nothing failed.", "Nichts ist fehlgeschlagen.")
+    } else if named(&[BotState::Working]) {
+        ("Nothing is running right now.", "Gerade läuft nichts.")
+    } else if named(&[BotState::Finished, BotState::Done]) {
+        ("Nothing has finished.", "Nichts ist fertig.")
+    } else {
+        return None;
+    };
+    let sentence = match lang {
+        BotLang::En => en,
+        BotLang::De => de,
+    };
+    super::check::says_none_in(sentence, absent, &[]).then_some(sentence)
+}
+
+/// G15: a sentence about the first nearest record in its own state
+/// ("“api” failed."), for the note's example; only one the check passes.
+fn nearest_example(rows: &[super::dto::BotRowInfo], lang: BotLang) -> Option<String> {
+    let row = rows.first()?;
+    let said = match (row.state?, lang) {
+        (BotState::Failed, BotLang::En) => "failed",
+        (BotState::Ended, BotLang::En) => "ended",
+        (BotState::Finished, BotLang::En) => "finished",
+        (BotState::Failed, BotLang::De) => "ist fehlgeschlagen",
+        (BotState::Ended, BotLang::De) => "ist beendet",
+        (BotState::Finished, BotLang::De) => "ist fertig",
+        _ => return None,
+    };
+    let text = format!(
+        "\u{201c}{}\u{201d} {said}.",
+        super::written::neutral(&row.title)
+    );
+    let part = super::dto::BotWrittenPart {
+        text: text.clone(),
+        cites: vec![1],
+    };
+    super::check::check(&[part], rows, "", &[])
+        .is_ok()
+        .then_some(text)
+}
+
+/// G15's note: nothing is in the state asked about (or nothing is open),
+/// so the rows are the most recent records, each in its own state; with a
+/// sentence saying so and an example, both true now and passed by the
+/// check, never a sentence to copy that the records don't back.
+fn nearest_note(
+    asked: &Reading,
+    scoped: bool,
+    rows: &[super::dto::BotRowInfo],
+    absent: &[BotState],
+) -> String {
+    let mut note = String::from(match (asked.states.is_empty(), scoped) {
+        (true, false) => {
+            "Nothing is open right now: no session or task is working, waiting on the user, stuck or blocked (AI Juggler checked every one)."
+        }
+        (false, false) => {
+            "No session or task is in the state the question asks about right now (AI Juggler checked every one)."
+        }
+        (true, true) => {
+            "Nothing in what the question is about is open right now (AI Juggler checked every one)."
+        }
+        (false, true) => {
+            "Nothing in what the question is about is in the state it asks about right now (AI Juggler checked every one)."
+        }
+    });
+    note.push_str(
+        " The records below are the user's most recent ones instead, each in its own state.",
+    );
+    if let Some(none) = none_sentence(&asked.states, asked.lang, absent) {
+        let _ = write!(note, " Say so first: \u{201c}{none}\u{201d}");
+    }
+    note.push_str(
+        " Then name the records by their names in quotation marks, each with its own state and its number",
+    );
+    match nearest_example(rows, asked.lang) {
+        Some(example) => {
+            let _ = write!(
+                note,
+                ", for example: \u{201c}{example}\u{201d} with the record 1."
+            );
+        }
+        None => note.push('.'),
+    }
+    note
 }
 
 fn memory_lines(memory: &[BotMemoryInfo]) -> Vec<String> {
@@ -289,19 +427,37 @@ fn uncited(
 }
 
 /// The grounded route: the look-up's rows as data the answer must cite.
-fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut Answer) {
+fn grounded(model: &dyn BotModel, asked: &Asked<'_>, mut found: Found, answer: &mut Answer) {
+    let absent = absent(asked.world);
+    // G15: states that matched nothing ("what needs me" with nothing
+    // waiting) get the most recent records to cite, never none.
+    let mut note = None;
+    if found.rows.is_empty()
+        && found.unknown.is_none()
+        && let Some(near) = nearest(asked.reading, asked.world, asked.scope)
+    {
+        note = Some(nearest_note(
+            asked.reading,
+            asked.scope.is_some(),
+            &near.rows,
+            &absent,
+        ));
+        found = near;
+    }
     let extras = Extras {
-        note: found
-            .unknown
-            .map(not_recorded)
-            .filter(|line| !line.is_empty())
-            .map(str::to_owned)
-            .or_else(|| {
-                found
-                    .rows
-                    .is_empty()
-                    .then(|| not_recorded(BotUnknown::NothingFound).to_owned())
-            }),
+        note: note.or_else(|| {
+            found
+                .unknown
+                .map(not_recorded)
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned)
+                .or_else(|| {
+                    found
+                        .rows
+                        .is_empty()
+                        .then(|| not_recorded(BotUnknown::NothingFound).to_owned())
+                })
+        }),
         memory: memory_lines(asked.memory),
         history: asked.history.to_vec(),
         world: asked.connected.text.clone(),
@@ -318,11 +474,12 @@ fn grounded(model: &dyn BotModel, asked: &Asked<'_>, found: Found, answer: &mut 
         Err(failure) => failed(answer, failure),
         Ok((generated, ms)) => {
             answer.details = Some(details(&generated, &request, &parts, asked, records, ms));
-            match written::decide(
+            match written::decide_with(
                 &generated.draft,
                 &found.rows,
                 asked.question,
                 &asked.world.removed,
+                &absent,
             ) {
                 Decided::Shown(parts) => {
                     answer.outcome = Some(BotOutcome::Answered);

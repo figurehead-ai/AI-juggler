@@ -310,7 +310,8 @@ fn history_and_memory_go_with_a_follow_up_and_are_counted() {
     let fake = Fake::new();
     let first = ask_with(&state, &fake, "what is 3+5");
     ask_with(&state, &fake, "Remember: call web the front agent");
-    let follow = ask_with(&state, &fake, "Is the front agent working?");
+    // A follow-up (G16): it refers back ("And …"), so the history goes.
+    let follow = ask_with(&state, &fake, "And is the front agent working?");
     let sent = fake.requests.borrow().last().unwrap().clone();
     assert!(
         sent.prompt.contains("Earlier in this conversation"),
@@ -461,4 +462,152 @@ fn a_memory_is_a_record_an_answer_can_cite() {
     }));
     let acted = ask_with(&state, &acting, "what did I ask you to remember about api?");
     assert!(acted.written.is_none(), "{acted:?}");
+}
+
+/// RW1's lab as Bot reads it (0.5.2 G15): sessions that ended, one with an
+/// error, nothing open and nothing waiting on the user.
+fn ended_lab() -> (tempfile::TempDir, Arc<AppState>) {
+    use juggler_core::model::SessionStatus;
+    let (dir, state) = state();
+    let storage = state.storage.lock().unwrap();
+    storage
+        .accounts()
+        .insert(&crate::test_support::account(
+            "acc-1",
+            "claude-code",
+            "Work",
+            dir.path().join("acc"),
+        ))
+        .unwrap();
+    storage
+        .profiles()
+        .insert(&crate::test_support::launch_settings(
+            "rec-1", "fixture", "acc-1",
+        ))
+        .unwrap();
+    for (id, title, status) in [
+        ("s-cart", "Split the cart total", SessionStatus::Finished),
+        ("s-fail", "Rewrite the date parser", SessionStatus::Failed),
+        (
+            "cx-delete",
+            "Remove the old handlers module",
+            SessionStatus::Stopped,
+        ),
+    ] {
+        let cwd = dir.path().join(id);
+        std::fs::create_dir_all(&cwd).unwrap();
+        storage
+            .sessions()
+            .insert(&crate::test_support::instance(id, "rec-1", status, cwd))
+            .unwrap();
+        storage
+            .sessions()
+            .set_label(&juggler_core::model::SessionId::new(id), Some(title))
+            .unwrap();
+    }
+    drop(storage);
+    (dir, state)
+}
+
+/// 0.5.2 G15: with nothing open or waiting, "what needs me" and "what
+/// are my sessions" get the most recent records (the failure first) and a
+/// note saying nothing is in the state asked about, never "no record
+/// matched"; an answer saying so and naming them stands, and one that
+/// invents a count is still refused.
+#[test]
+fn nothing_open_gives_the_nearest_records_and_a_true_note() {
+    let (_dir, state) = ended_lab();
+    let honest = Fake::with(Box::new(
+        |request: &crate::features::ai::engine::Request| {
+            Ok(if grounded(request) {
+                r#"{"sentences":[{"text":"Nothing needs you right now.","records":[]},{"text":"“Rewrite the date parser” failed.","records":[1]}]}"#.to_owned()
+            } else {
+                default_rule(request)?
+            })
+        },
+    ));
+    for question in ["what needs me", "what are my sessions"] {
+        let turn = ask_with(&state, &honest, question);
+        let sent = honest.requests.borrow().last().unwrap().clone();
+        assert!(
+            sent.prompt
+                .contains("1. session “Rewrite the date parser”; state: failed"),
+            "{question}: the failure first: {}",
+            sent.prompt
+        );
+        assert!(
+            !sent.prompt.contains("No record matched"),
+            "{}",
+            sent.prompt
+        );
+        assert!(sent.prompt.contains("most recent ones"), "{}", sent.prompt);
+        assert_eq!(turn.outcome, BotOutcome::Answered, "{question}");
+        assert!(
+            turn.rows.len() >= 2 && turn.rows.len() <= 3,
+            "{:?}",
+            turn.rows
+        );
+    }
+    let needs = honest.requests.borrow()[0].clone();
+    assert!(
+        needs.prompt.contains("“Nothing needs you right now.”"),
+        "the true sentence offered: {}",
+        needs.prompt
+    );
+    let invents = Fake::with(Box::new(
+        |request: &crate::features::ai::engine::Request| {
+            Ok(if grounded(request) {
+                r#"{"sentences":[{"text":"You have two sessions","records":[1]}]}"#.to_owned()
+            } else {
+                default_rule(request)?
+            })
+        },
+    ));
+    let turn = ask_with(&state, &invents, "what needs me");
+    assert_eq!(
+        turn.outcome,
+        BotOutcome::DontKnow,
+        "a count of rows cited is 1"
+    );
+}
+
+/// G15: Search (⌘K) shows only what matched: the nearest records are
+/// Bot's, for its answer to cite.
+#[test]
+fn search_keeps_showing_only_what_matched() {
+    let (_dir, state) = ended_lab();
+    let found = crate::features::bot::lookup::find_records(&state, "what needs me", None).unwrap();
+    assert!(found.rows.is_empty(), "{:?}", found.rows);
+}
+
+/// 0.5.2 G16: a question that doesn't refer back is read on its own: "3+5"
+/// after a refused grounded question gets no history and none of the
+/// topic's earlier questions, so it stays Bot's own answer; a follow-up
+/// still gets them.
+#[test]
+fn a_question_that_doesn_t_refer_back_inherits_nothing_from_its_topic() {
+    let (_dir, state) = ended_lab();
+    let fake = Fake::new();
+    ask_with(&state, &fake, "what is 4+4");
+    ask_with(&state, &fake, "what needs me");
+    let sum = ask_with(&state, &fake, "3+5");
+    assert_eq!(sum.outcome, BotOutcome::General);
+    let sent = fake.requests.borrow().last().unwrap().clone();
+    assert!(
+        !sent.prompt.contains("Earlier in this conversation"),
+        "{}",
+        sent.prompt
+    );
+    assert!(
+        !sent.prompt.contains("earlier you asked"),
+        "{}",
+        sent.prompt
+    );
+    ask_with(&state, &fake, "and 2+2?");
+    let sent = fake.requests.borrow().last().unwrap().clone();
+    assert!(
+        sent.prompt.contains("Earlier in this conversation"),
+        "{}",
+        sent.prompt
+    );
 }

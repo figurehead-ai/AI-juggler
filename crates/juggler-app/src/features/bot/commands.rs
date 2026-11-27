@@ -160,10 +160,20 @@ pub fn bot_ask_with(
         return remember_turn(state, &world, &question, words, secret, meta);
     }
     let memory: Vec<_> = used.iter().map(|(info, _)| info.clone()).collect();
-    let history = history(state)?;
+    // 0.5.2 G16: the topic's last exchanges, and the topic's seed for the
+    // world model, go only with a question that refers back to them; one
+    // that doesn't is read on its own, so a refusal or a grounded answer
+    // before it never makes it grounded ("3+5" after "what needs me").
+    let follow_up = super::question::refers_back(&question);
+    let history = if follow_up {
+        history(state)?
+    } else {
+        Vec::new()
+    };
     // ADR-0038 §5: the world model's section, rebuilt for this question,
-    // seeded from what the look-up finds, the words and this topic.
-    let topic = current_topic(state);
+    // seeded from what the look-up finds, the words and (for a follow-up)
+    // this topic.
+    let topic = current_topic(state).filter(|_| follow_up);
     let looked = super::lookup::look_up(&reading, &world, scope.as_ref());
     let connected = crate::features::ai::world::assemble::assemble(
         state,

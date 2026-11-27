@@ -275,6 +275,56 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
     }
 }
 
+/// The most nearest records an answer gets when nothing is in the state
+/// asked about (G15): few, so a short answer can name each one.
+pub const NEAREST: usize = 3;
+
+/// 0.5.2 G15: a question naming no record, no time and nothing unrecorded
+/// whose states matched nothing ("what needs me", or "what are my
+/// sessions" with nothing open): the most recent records it asks about,
+/// what needs a look first, each with its own state, so Bot's answer
+/// cites what is there instead of nothing. `None` when the look-up found
+/// rows, the question names a subject or time, or there are no records.
+/// Bot's only: Search (⌘K) keeps showing just what matched.
+#[must_use]
+pub fn nearest(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Option<Found> {
+    let accounts_only = reading.kinds.accounts && !reading.kinds.sessions && !reading.kinds.tasks;
+    if !reading.subject.is_empty()
+        || reading.when != When::Any
+        || reading.unknown.is_some()
+        || accounts_only
+    {
+        return None;
+    }
+    let mut pool: Vec<&BotRowInfo> = candidates(reading, world, scope)
+        .into_iter()
+        .filter(|row| row.kind != BotRowKind::Account && row.state.is_some())
+        .collect();
+    if pool.is_empty() {
+        return None;
+    }
+    // What is worth a look (a failure) first, then the most recent.
+    pool.sort_by_key(|row| {
+        (
+            std::cmp::Reverse(row.state.map_or(0, BotState::level)),
+            std::cmp::Reverse(row.at_ms.unwrap_or(0)),
+        )
+    });
+    let reach = if scope.is_some() {
+        "scope"
+    } else {
+        "everything"
+    };
+    Some(Found {
+        total: u32::try_from(pool.len()).unwrap_or(u32::MAX),
+        tallies: tally(&pool),
+        rows: pool.into_iter().take(NEAREST).cloned().collect(),
+        unknown: None,
+        shortcut: Some(shortcut_for(reading)),
+        looked: looked(reach, scope.cloned()),
+    })
+}
+
 /// Every matched row counted by kind and state, in first-seen order.
 fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
     let mut out: Vec<BotTally> = Vec::new();

@@ -188,7 +188,10 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
             &[BotState::AsksYou, BotState::Blocked, BotState::InReview]
         }
         "blocked" | "blockiert" => &[BotState::Blocked],
-        "working" | "running" | "arbeitet" | "läuft" | "progress" => &[BotState::Working],
+        // "active" is working too, as the question's own cue reads it.
+        "working" | "running" | "arbeitet" | "läuft" | "progress" | "active" | "aktiv" => {
+            &[BotState::Working]
+        }
         "review" => &[BotState::InReview],
         "limit" | "reached" | "reaching" | "erreicht" => &[BotState::Limit],
         "stopped" | "gestoppt" => &[BotState::Ended, BotState::Failed],
@@ -200,9 +203,22 @@ fn state_word(word: &str) -> Option<&'static [BotState]> {
             BotState::InReview,
         ],
         "ready" | "bereit" => &[BotState::Ready],
+        // 0.5.2 G15: "open" is every state that isn't over yet.
+        "open" | "offen" => &OPEN,
         _ => return None,
     })
 }
+
+/// The states of work that isn't over (what "open" says, and what a
+/// question naming no state asks about: [`super::lookup`]'s "open now").
+pub const OPEN: [BotState; 6] = [
+    BotState::AsksYou,
+    BotState::Stuck,
+    BotState::Limit,
+    BotState::Blocked,
+    BotState::InReview,
+    BotState::Working,
+];
 
 /// Outcomes and states the records never hold as they are said: claiming
 /// one is claiming what no row backs, whatever a name holds (M1).
@@ -447,6 +463,12 @@ const NEGATION: &[&str] = &[
     "ohne",
 ];
 
+/// The negations a sentence saying that no record is in a state may use
+/// (G15): one of them, once.
+const NONE_WORDS: &[&str] = &[
+    "nothing", "no", "none", "not", "isn't", "aren't", "nichts", "kein", "keine", "keiner", "nicht",
+];
+
 const FIRST_PERSON: &[&str] = &[
     "i", "i'm", "i've", "i'll", "i'd", "me", "my", "mine", "myself", "we", "we're", "we've",
     "we'll", "our", "ours", "us", "ich", "mich", "mir", "mein", "meine", "wir", "uns", "unser",
@@ -596,6 +618,7 @@ const VOCAB: &[&str] = &[
     "found",
     "show",
     "shows",
+    "attention",
     "der",
     "die",
     "das",
@@ -752,6 +775,24 @@ pub fn check(
     question: &str,
     removed: &[String],
 ) -> Result<(), Refused> {
+    check_with(parts, rows, question, removed, &[])
+}
+
+/// [`check`], with the states no record holds now (`absent`, read by code
+/// from every session and task): a sentence may say that nothing is in
+/// one of them ("Nothing needs you right now.", 0.5.2 G15),
+/// and nothing else ([`says_none_in`]).
+///
+/// # Errors
+///
+/// The first rule it breaks.
+pub fn check_with(
+    parts: &[BotWrittenPart],
+    rows: &[BotRowInfo],
+    question: &str,
+    removed: &[String],
+    absent: &[BotState],
+) -> Result<(), Refused> {
     let all = shape(parts)?;
     let all_words = words(&all).join(" ");
     for gone in removed {
@@ -767,7 +808,98 @@ pub fn check(
     let question_words = words(question);
     let question_numbers = numbers_in(question);
     for part in parts {
+        // A sentence saying nothing is in a state no record holds is true
+        // of every record, so of any it cites too (each cite still real).
+        if says_none_in(&part.text, absent, &question_words) {
+            if let Some(&cite) = part
+                .cites
+                .iter()
+                .find(|&&c| c == 0 || c as usize > rows.len())
+            {
+                return Err(Refused::UnknownCite(cite));
+            }
+            continue;
+        }
         check_part(part, rows, &question_words, &question_numbers)?;
+    }
+    Ok(())
+}
+
+/// G15: whether a sentence says only that no record is in
+/// states code read as held by none (`absent`): one negation, at least one
+/// state word, every state it names absent, and otherwise only the check's
+/// own words or the question's; no name, no number, no quantifier, time,
+/// cause or outcome. "Nothing needs you right now." passes when nothing
+/// asks, is stuck, blocked, in review or at its limit; "You have no
+/// sessions." never does (it names no state: a count no row backs).
+#[must_use]
+pub fn says_none_in(text: &str, absent: &[BotState], question_words: &[String]) -> bool {
+    let (quoted, rest) = split_quotes(text);
+    if absent.is_empty() || !quoted.is_empty() || !numbers_in(text).is_empty() {
+        return false;
+    }
+    let sentence = words(&rest);
+    let negations = sentence
+        .iter()
+        .filter(|w| NEGATION.contains(&w.as_str()))
+        .count();
+    if negations != 1 || !sentence.iter().any(|w| NONE_WORDS.contains(&w.as_str())) {
+        return false;
+    }
+    let mut stated = false;
+    for word in &sentence {
+        let w = word.as_str();
+        if NONE_WORDS.contains(&w) {
+            continue;
+        }
+        if FIRST_PERSON.contains(&w)
+            || QUANTIFIERS.contains(&w)
+            || number_word(w).is_some()
+            || unheld_or_claimed(w, &[]).is_some()
+            || (TIME.contains(&w) && !question_words.contains(word))
+        {
+            return false;
+        }
+        if let Some(claim) = state_word(w) {
+            if !claim.iter().all(|s| absent.contains(s)) {
+                return false;
+            }
+            stated = true;
+            continue;
+        }
+        if !(VOCAB.contains(&w) || question_words.contains(word)) {
+            return false;
+        }
+    }
+    stated
+}
+
+/// Numbers: digits and number words, each a measured fact of a cited
+/// row, a number the question says, or a count of the cited rows. A count
+/// is of the cited rows, never of every row found (R1).
+fn check_numbers(
+    cited: &[&BotRowInfo],
+    rest: &str,
+    sentence: &[String],
+    question_numbers: &[u64],
+) -> Result<(), Refused> {
+    let mut counts = vec![cited.len() as u64];
+    for kind in [
+        BotRowKind::Session,
+        BotRowKind::Task,
+        BotRowKind::Account,
+        BotRowKind::Memory,
+    ] {
+        counts.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
+    }
+    let held: Vec<u64> = cited.iter().flat_map(|r| held_numbers(r)).collect();
+    for n in numbers_in(rest)
+        .into_iter()
+        .chain(sentence.iter().filter_map(|w| number_word(w)))
+    {
+        if !(held.contains(&n) || question_numbers.contains(&n) || counts.contains(&n)) {
+            return Err(Refused::Number(n.to_string()));
+        }
     }
     Ok(())
 }
@@ -832,27 +964,15 @@ fn check_part(
         }
     }
     let name_words: Vec<String> = names.iter().flat_map(|n| words(n)).collect();
-    // Numbers: digits and number words, each a measured fact of a cited
-    // row, a number the question says, or a count of the cited rows.
-    // A count is of the cited rows, never of every row found (R1).
-    let mut counts = vec![cited.len() as u64];
-    for kind in [
-        BotRowKind::Session,
-        BotRowKind::Task,
-        BotRowKind::Account,
-        BotRowKind::Memory,
-    ] {
-        counts.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
-    }
-    let held: Vec<u64> = cited.iter().flat_map(|r| held_numbers(r)).collect();
-    for n in numbers_in(&rest)
-        .into_iter()
-        .chain(sentence.iter().filter_map(|w| number_word(w)))
-    {
-        if !(held.contains(&n) || question_numbers.contains(&n) || counts.contains(&n)) {
-            return Err(Refused::Number(n.to_string()));
-        }
-    }
+    // 0.5.2 G15: the words a cited record's own state is written in
+    // ("asks you (waiting on the user)", "failed (stopped with an error)")
+    // say that state, so a sentence repeating them says what it holds.
+    let state_said: Vec<String> = cited
+        .iter()
+        .filter_map(|r| r.state)
+        .flat_map(|s| words(super::written::state_words(s)))
+        .collect();
+    check_numbers(&cited, &rest, &sentence, question_numbers)?;
     for word in &sentence {
         if word.chars().all(|c| c.is_ascii_digit()) || number_word(word).is_some() {
             continue;
@@ -880,6 +1000,7 @@ fn check_part(
         if VOCAB.contains(&word.as_str())
             || (of_memory && TOLD.contains(&word.as_str()))
             || name_words.contains(word)
+            || state_said.contains(word)
             || question_words.contains(word)
         {
             continue;
@@ -1195,6 +1316,129 @@ mod tests {
             ),
             Ok(())
         );
+    }
+
+    /// 0.5.2 G15: "nothing needs you" is said only when code read that no
+    /// record is in those states; a sentence that says more (a name, a
+    /// number, a count, a cause, another state, two negations) or whose
+    /// states a record holds is refused as before.
+    #[test]
+    fn nothing_in_a_state_is_said_only_when_no_record_holds_it() {
+        let rows = [
+            row("Rewrite the date parser", BotState::Failed, None),
+            row("Remove the old handlers", BotState::Ended, None),
+        ];
+        let absent = [
+            BotState::AsksYou,
+            BotState::Stuck,
+            BotState::Limit,
+            BotState::Blocked,
+            BotState::InReview,
+            BotState::Working,
+        ];
+        let say = |text: &str, cites: &[u32], absent: &[BotState]| {
+            check_with(&[part(text, cites)], &rows, "what needs me", &[], absent)
+        };
+        for ok in [
+            "Nothing needs you right now.",
+            "Nothing is running or waiting on you right now.",
+            "No session is stuck.",
+            "None of your sessions is working.",
+            "Nothing needs your attention.",
+        ] {
+            assert_eq!(say(ok, &[], &absent), Ok(()), "{ok}");
+        }
+        // True of every record, so of the ones it cites; a cite stays real.
+        assert_eq!(
+            say("Nothing needs you right now.", &[1, 2], &absent),
+            Ok(())
+        );
+        assert_eq!(
+            say("Nothing needs you right now.", &[3], &absent),
+            Err(Refused::UnknownCite(3))
+        );
+        // Without the states read as absent, it is the negation it was.
+        assert_eq!(
+            say("Nothing needs you right now.", &[1], &[]),
+            Err(Refused::Negation)
+        );
+        assert_eq!(
+            check(
+                &[part("Nothing needs you right now.", &[1])],
+                &rows,
+                "q",
+                &[]
+            ),
+            Err(Refused::Negation)
+        );
+        // A state a record holds, or one not read as absent.
+        for refused in [
+            "Nothing failed.",
+            "Nothing has stopped.",
+            "Nothing is finished or ended.",
+        ] {
+            assert!(say(refused, &[], &absent).is_err(), "{refused}");
+        }
+        // More than "nothing is in that state".
+        for refused in [
+            "You have no sessions.",
+            "No sessions exist.",
+            "Nothing needs you, so it is calm.",
+            "Nothing needs you today.",
+            "No one session needs you.",
+            "Not all sessions need you.",
+            "Nothing needs you and nothing is stuck.",
+            "Nothing in \u{201c}Rewrite the date parser\u{201d} needs you.",
+            "No 2 sessions need you.",
+            "I see nothing that needs you.",
+            "Nothing needs you; it was deployed.",
+        ] {
+            assert!(!says_none_in(refused, &absent, &[]), "{refused}");
+            assert!(say(refused, &[], &absent).is_err(), "{refused}");
+        }
+        // "open" and "active" are states too, checked like any other.
+        assert_eq!(
+            check(
+                &[part(
+                    "\u{201c}Rewrite the date parser\u{201d} is open.",
+                    &[1]
+                )],
+                &rows,
+                "q",
+                &[]
+            ),
+            Err(Refused::State("open".into()))
+        );
+        assert_eq!(
+            check(
+                &[part("\u{201c}api\u{201d} is active.", &[1])],
+                &[row("api", BotState::Working, None)],
+                "q",
+                &[]
+            ),
+            Ok(())
+        );
+    }
+
+    /// G15: the words a record's own state is written in are its state's
+    /// words: "waiting on the user" for a record that asks you, never for
+    /// one in another state.
+    #[test]
+    fn a_record_s_own_state_words_say_its_state() {
+        let asks = [row("api", BotState::AsksYou, None)];
+        assert_eq!(
+            one("“api” is asking you (waiting on the user).", &asks),
+            Ok(())
+        );
+        let finished = [row("api", BotState::Finished, None)];
+        assert_eq!(
+            one("“api” finished for the user.", &finished),
+            Err(Refused::Name("user".into()))
+        );
+        assert!(matches!(
+            one("“api” is waiting on the user.", &finished),
+            Err(Refused::State(_))
+        ));
     }
 
     /// MUT-C1: the echo check on its own (no other rule refuses this one).
