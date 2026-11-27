@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R23-tip-newtopic-1024-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "76c5ca6d3869f265d9aa5620baeb70f6800a5d25bd60a22047403504093f5d1d",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R23-tip-newtopic-1024-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "76c5ca6d3869f265d9aa5620baeb70f6800a5d25bd60a22047403504093f5d1d",
+  "size": [
     1024,
     700
   ]

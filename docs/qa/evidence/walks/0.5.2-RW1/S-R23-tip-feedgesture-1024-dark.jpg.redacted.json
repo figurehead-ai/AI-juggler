@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R23-tip-feedgesture-1024-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "bb53fa7dec0ce55799421553e3db72e06334732aa38c1d551f1845a19eb5866c",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R23-tip-feedgesture-1024-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "bb53fa7dec0ce55799421553e3db72e06334732aa38c1d551f1845a19eb5866c",
+  "size": [
     1024,
     700
   ]

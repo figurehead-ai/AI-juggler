@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R3-diffstat-tip-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "fe38d80359748a82ba12fb975deff3c0cafc9383a6348540c0e40f58971ed59a",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R3-diffstat-tip-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "fe38d80359748a82ba12fb975deff3c0cafc9383a6348540c0e40f58971ed59a",
+  "size": [
     1755,
     1348
   ]

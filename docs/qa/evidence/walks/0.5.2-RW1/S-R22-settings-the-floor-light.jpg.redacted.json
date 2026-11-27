@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R22-settings-the-floor-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "d4294fa64ee758eb2a492649c9fda310867a5b3a8451b6d4c65f2cd4d6f04c56",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R22-settings-the-floor-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "d4294fa64ee758eb2a492649c9fda310867a5b3a8451b6d4c65f2cd4d6f04c56",
+  "size": [
     1755,
     1348
   ]

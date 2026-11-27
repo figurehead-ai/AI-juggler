@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R2b-digest-and-post-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "1f05f7935573bd28fb974cdb4a2ff3e661aae4868ac71fde7f0bd253be7bbb56",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R2b-digest-and-post-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "1f05f7935573bd28fb974cdb4a2ff3e661aae4868ac71fde7f0bd253be7bbb56",
+  "size": [
     1755,
     1348
   ]

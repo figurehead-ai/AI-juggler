@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R22-remind-me-menu-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "4f26d2191a8fd4a61ca2fe2cf2a63a391ba01c8e1421c6d7a677f4c315674e26",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R22-remind-me-menu-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "4f26d2191a8fd4a61ca2fe2cf2a63a391ba01c8e1421c6d7a677f4c315674e26",
+  "size": [
     1755,
     1348
   ]

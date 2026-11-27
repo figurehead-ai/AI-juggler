@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R22-settings-desktop-apps-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "284aeb90ac782d101a42432c6a0ac9c135029ee3a779be6fdedaf01348ddd6f7",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R22-settings-desktop-apps-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "284aeb90ac782d101a42432c6a0ac9c135029ee3a779be6fdedaf01348ddd6f7",
+  "size": [
     1755,
     1348
   ]

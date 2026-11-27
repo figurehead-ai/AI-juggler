@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R23-tip-thismac-1024-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "dfb0fcb84a5db91f4e871c5e8e91666a594c9ed974acc4219b389233bd93d9f9",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R23-tip-thismac-1024-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "dfb0fcb84a5db91f4e871c5e8e91666a594c9ed974acc4219b389233bd93d9f9",
+  "size": [
     1024,
     700
   ]

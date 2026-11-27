@@ -1,14 +1,12 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-B3-finished-post-tip-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "note" : "B3 stat tip",
-  "sha256" : "65e4140f09883a2a5e20cfc69198fc365e97755e059a0412b9be2f7bcb8e79bb",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-B3-finished-post-tip-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "note": "B3 stat tip",
+  "sha256": "65e4140f09883a2a5e20cfc69198fc365e97755e059a0412b9be2f7bcb8e79bb",
+  "size": [
     1755,
     1348
   ]

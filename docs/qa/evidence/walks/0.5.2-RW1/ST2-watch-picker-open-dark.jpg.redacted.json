@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "ST2-watch-picker-open-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "85fcc2df9ef08feac66aef8552b80ebad9365d3900a10a7525012f3d18749485",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "ST2-watch-picker-open-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "85fcc2df9ef08feac66aef8552b80ebad9365d3900a10a7525012f3d18749485",
+  "size": [
     1755,
     1348
   ]

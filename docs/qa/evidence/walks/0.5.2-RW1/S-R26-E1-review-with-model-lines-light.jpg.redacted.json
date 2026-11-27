@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R26-E1-review-with-model-lines-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "a629c260b1ad6e8cf147b409e57a12039cfb8db9a5fd314bc93580f63c12657f",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R26-E1-review-with-model-lines-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "a629c260b1ad6e8cf147b409e57a12039cfb8db9a5fd314bc93580f63c12657f",
+  "size": [
     1755,
     1348
   ]

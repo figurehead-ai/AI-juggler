@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "ST5-watches-beta-off-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "3b91be273d1e2640547ab3770f4aea0ba1caa5cdc8e9df6ade5eafef1f0a2e58",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "ST5-watches-beta-off-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "3b91be273d1e2640547ab3770f4aea0ba1caa5cdc8e9df6ade5eafef1f0a2e58",
+  "size": [
     1755,
     1348
   ]

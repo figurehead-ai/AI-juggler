@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "ST8-home-chips-idle-dark.jpg",
-  "no_real_data" : "generic lab fixture",
-  "sha256" : "17db679f6085a03c38edc608bbbaada450241b5a0deb99c02788c42b24d1e83b",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "ST8-home-chips-idle-dark.jpg",
+  "no_real_data": "generic lab fixture",
+  "sha256": "17db679f6085a03c38edc608bbbaada450241b5a0deb99c02788c42b24d1e83b",
+  "size": [
     1755,
     1348
   ]

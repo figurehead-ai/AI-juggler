@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S10-form-picker-open-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "07e2c759935770f442cd4b65395329c7ec51ce1bae0353f2ca52567fab8f72ac",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S10-form-picker-open-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "07e2c759935770f442cd4b65395329c7ec51ce1bae0353f2ca52567fab8f72ac",
+  "size": [
     1755,
     1348
   ]

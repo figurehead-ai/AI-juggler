@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R22-settings-keyboard-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "0c29cc915a05d38e5a86bbc8dc92562944a763172e04bf781dbd1cd2fd05c043",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R22-settings-keyboard-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "0c29cc915a05d38e5a86bbc8dc92562944a763172e04bf781dbd1cd2fd05c043",
+  "size": [
     1755,
     1348
   ]

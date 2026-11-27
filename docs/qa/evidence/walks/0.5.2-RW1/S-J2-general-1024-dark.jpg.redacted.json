@@ -1,14 +1,12 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-J2-general-1024-dark.jpg",
-  "no_real_data" : "Settings General at 1024",
-  "note" : "J2",
-  "sha256" : "bb587ac1380dafa8778e21df1b2ef8dbd1bc3f9324bc186b2dfd99c5399d0722",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-J2-general-1024-dark.jpg",
+  "no_real_data": "Settings General at 1024",
+  "note": "J2",
+  "sha256": "bb587ac1380dafa8778e21df1b2ef8dbd1bc3f9324bc186b2dfd99c5399d0722",
+  "size": [
     1024,
     700
   ]

@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "ST4-what-is-web-doing-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "a8e1651d30d2d7854dfcc8dc747fb86707a5fda43b203678adb16d0f008b60f8",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "ST4-what-is-web-doing-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "a8e1651d30d2d7854dfcc8dc747fb86707a5fda43b203678adb16d0f008b60f8",
+  "size": [
     1300,
     736
   ]

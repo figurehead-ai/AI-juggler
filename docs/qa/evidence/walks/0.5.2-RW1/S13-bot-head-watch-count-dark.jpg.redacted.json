@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S13-bot-head-watch-count-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "3b409d39fdf2abf2e537959166f8338df16c2227de85a3a96f48ab7408d6bca0",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S13-bot-head-watch-count-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "3b409d39fdf2abf2e537959166f8338df16c2227de85a3a96f48ab7408d6bca0",
+  "size": [
     1755,
     1348
   ]

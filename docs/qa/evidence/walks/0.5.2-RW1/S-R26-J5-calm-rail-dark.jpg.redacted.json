@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R26-J5-calm-rail-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "d66c1d408cf3a617a88e99610b6613a3913d8a54079695046710dea7d3c08f14",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R26-J5-calm-rail-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "d66c1d408cf3a617a88e99610b6613a3913d8a54079695046710dea7d3c08f14",
+  "size": [
     1755,
     1348
   ]

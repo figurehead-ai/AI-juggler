@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R22-settings-general-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "27667b9f7befb50ba17bcccfcf6d179dd217e70481a593c782d49d547b964aad",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R22-settings-general-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "27667b9f7befb50ba17bcccfcf6d179dd217e70481a593c782d49d547b964aad",
+  "size": [
     1755,
     1348
   ]

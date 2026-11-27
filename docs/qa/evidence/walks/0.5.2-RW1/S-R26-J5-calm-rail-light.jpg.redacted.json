@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S-R26-J5-calm-rail-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "30910e9482349647e3f266f8182d8971acb7c97891f0334dc3b76edec4eadaaf",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S-R26-J5-calm-rail-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "30910e9482349647e3f266f8182d8971acb7c97891f0334dc3b76edec4eadaaf",
+  "size": [
     1755,
     1348
   ]

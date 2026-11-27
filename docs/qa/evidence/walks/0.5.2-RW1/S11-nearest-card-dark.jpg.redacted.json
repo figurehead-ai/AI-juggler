@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S11-nearest-card-dark.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "5d55149fb940a6bad26e33293503946bf681f136034b2e11f55048ef7c0d1617",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S11-nearest-card-dark.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "5d55149fb940a6bad26e33293503946bf681f136034b2e11f55048ef7c0d1617",
+  "size": [
     1755,
     1348
   ]

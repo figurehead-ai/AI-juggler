@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "S15-new-updates-pill-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "9d96b3721364dd17ffd94cedd0fd77d394db59dfa1a97a17efe145cd6063cf78",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "S15-new-updates-pill-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "9d96b3721364dd17ffd94cedd0fd77d394db59dfa1a97a17efe145cd6063cf78",
+  "size": [
     1755,
     1348
   ]

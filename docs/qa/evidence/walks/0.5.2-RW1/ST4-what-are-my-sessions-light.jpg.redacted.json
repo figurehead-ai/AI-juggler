@@ -1,13 +1,11 @@
 {
-  "account_name_lines" : 0,
-  "boxes" : [
-
-  ],
-  "checked_by_eye" : false,
-  "file" : "ST4-what-are-my-sessions-light.jpg",
-  "no_real_data" : "lab fixtures only",
-  "sha256" : "20b767f7dbb4dd2659b78ad8b0c04e1d8de71e02689c1c395c417d57796e4928",
-  "size" : [
+  "account_name_lines": 0,
+  "boxes": [],
+  "checked_by_eye": true,
+  "file": "ST4-what-are-my-sessions-light.jpg",
+  "no_real_data": "lab fixtures only",
+  "sha256": "20b767f7dbb4dd2659b78ad8b0c04e1d8de71e02689c1c395c417d57796e4928",
+  "size": [
     1300,
     736
   ]
