@@ -11,6 +11,7 @@
  */
 import { useState, type JSX } from "react";
 import { Picker, type PickerOption } from "./controls";
+import { SELECTED } from "./controls/selected";
 import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
 import { IconProfiles, IconProjects, IconSessions } from "./icons";
 import { IconPool } from "./icons-actions";
@@ -132,7 +133,9 @@ export function HomeFeedFilters({ filters, onChange, facets, seen = new Map(), c
               type="button"
               aria-pressed={tab === one.value}
               onClick={() => setTab(one.value)}
-              className={TAB + (tab === one.value ? " bg-accent-soft font-semibold text-accent-hi" : " text-muted hover:bg-surface-2 hover:text-ink")}
+              // PAT-SURF-3: the chosen tab wears the selected look (the
+              // attention budget's rule: a selection is never a loud fill).
+              className={TAB + (tab === one.value ? ` ${SELECTED}` : " text-muted hover:bg-surface-2 hover:text-ink")}
               data-testid={`feed-chip-${one.value}`}
             >
               {one.label}
