@@ -1,4 +1,4 @@
-<!-- captures: ed2cd3250517 -->
+<!-- captures: 7ddff16adefb -->
 <!-- captures: pending -->
 # 99-bot-breakdown: Bot's context and memory breakdown, and a memory as a record
 
@@ -138,3 +138,20 @@ Captured from a clean export of e5f44de9c (`bot-breakdown-gallery.spec.ts`): fou
 | 19 | Rich-mode colour | 4 | Unchanged: the rows' calm tones, the state's dot and word. |
 
 The other lines are as the sections above scored them (lowest 4).
+
+## 0.5.2 PR #257: the feed's chosen tab in the selected look (Opus, 2026-11-27)
+
+Re-captured from a clean export of 246225b97, both themes; every changed frame differs from the one before only in the feed's chosen tab ("All", a 38×29 px box, checked pixel by pixel), and a frame of each width and theme was opened. The a11y gate's attention budget (PAT-SURF-3) refused the tab's old look: the accent's soft fill is a loud fill for a selection.
+
+**What changed.** The chosen tab wore the accent's soft fill with accent words ("All" in violet on lilac); it now wears the shared selected look the rail's lens and the other chips wear: the neutral selected fill, its words semibold in ink. Unchosen tabs, the state chips and the Showing picker are unchanged.
+
+**Weak.** The chosen tab is quieter than before, its cue weight and a neutral step; the page's one accent (its primary action) reads more clearly for it.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 7 | Colour | 4 | Selection neutral, never the accent: focus and selection no longer look alike. |
+| 14 | Consistency | 5 | The shared SELECTED, as every other tab, chip and segment. |
+| 15 | Accessibility | 4 | Two cues (fill step and weight), never colour alone (WCAG 1.4.1); aria-pressed as before. |
+| 19 | Rich-mode colour | 4 | Not a create or settings surface; the tab row is calm, the accent kept for actions. |
+
+The other lines are as the sections above scored them.
