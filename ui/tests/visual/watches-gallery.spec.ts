@@ -16,6 +16,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { STATES, WATCHES_CATALOGUE, WATCHES_FIXTURE, WATCHES_JOBS, WATCHES_NOW, WATCHES_POOLS, WATCHES_STORED_APPS, watchesTools, type WatchesPreviewState } from "../../src/preview/watches";
+import { STATES as BOT } from "../../src/preview/bot";
+import { STORY_T0, storyHome } from "./fixtures/home-feed";
 
 const OUT = process.env.AIJ_WATCHES_OUT ? resolve(process.env.AIJ_WATCHES_OUT) : null;
 
@@ -252,6 +254,18 @@ const SCHEDULES = {
   calls: [],
 };
 
+/** The reminders moved to the story's clock (its posts are relative to
+ * it), so "In 1 h" reads as it does on the list's own capture. */
+function atStoryTime(seam: typeof SCHEDULES): typeof SCHEDULES {
+  const by = STORY_T0 - WATCHES_NOW;
+  const at = (ms: unknown) => (typeof ms === "number" ? ms + by : ms);
+  const moved = (row: Record<string, unknown>) => {
+    const trigger = row.trigger as Record<string, unknown>;
+    return { ...row, trigger: trigger.kind === "at" ? { ...trigger, at_ms: at(trigger.at_ms) } : trigger, next_due_ms: at(row.next_due_ms), last_run_ms: at(row.last_run_ms), ended_ms: at(row.ended_ms), created_ms: at(row.created_ms) };
+  };
+  return { ...seam, yours: seam.yours.map(moved), app: seam.app.map(moved) };
+}
+
 for (const theme of ["dark", "light"] as const) {
   for (const width of [1280, 1024]) {
     test(`reminders list — ${theme} — ${width}`, async ({ page }) => {
@@ -267,6 +281,59 @@ for (const theme of ["dark", "light"] as const) {
       if (width === 1280) await axeClean(page, `reminders ${theme}`);
     });
   }
+  /** 0.5.2 G23 (RW1 B7): Home's Remind me, its toast's Open reminder,
+   * and the Reminders list opened on that reminder (in view, marked, the
+   * keyboard on it). */
+  test(`reminder opened from Remind me — ${theme}`, async ({ page }) => {
+    const story = storyHome(STORY_T0);
+    await page.addInitScript(
+      ({ story: st, schedules, theme: t, now, jobs, sessions }) => {
+        const w = window as unknown as Record<string, unknown>;
+        // The story's posts about "Login refactor" are about a session
+        // this Mac holds, as the reminders' "api" and "web" are.
+        const login = { ...sessions[0]!, id: "login", label: "Login refactor" };
+        w.__AIJ_FIXTURE__ = { ...st.fixture, sessions: [...sessions, login] };
+        w.__AIJ_FEED__ = st.feed;
+        w.__AIJ_SUMMARY__ = st.summary;
+        w.__AIJ_QUOTA_DISPLAY__ = st.quota;
+        w.__AIJ_PLACES__ = st.places;
+        w.__AIJ_MESSAGES__ = st.messages;
+        w.__AIJ_NOTICES__ = st.notices;
+        w.__AIJ_WATCH_VIEW__ = st.watchView;
+        w.__AIJ_AI_JOBS__ = jobs;
+        w.__AIJ_SCHEDULES__ = schedules;
+        localStorage.setItem("aij.theme", t);
+        localStorage.setItem("aij.onboarding.dismissed", "1");
+        sessionStorage.setItem("aij.ready.skipped", "1");
+        const real = Date.now;
+        const start = real();
+        Date.now = () => now + (real() - start);
+      },
+      { story, schedules: atStoryTime(SCHEDULES), theme, now: STORY_T0, jobs: BOT.empty!.jobs, sessions: WATCHES_FIXTURE.sessions },
+    );
+    await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const post = page.getByTestId("feed-card").first();
+    await post.getByTestId("feed-remind").click();
+    await page.getByTestId("feed-remind-choice").nth(1).click();
+    const toast = page.getByTestId("toast");
+    await expect(toast).toContainText("Reminder set for");
+    await expect(toast.getByTestId("toast-action")).toHaveText("Open reminder");
+    await page.mouse.move(0, 0);
+    if (OUT) {
+      mkdirSync(REMINDERS_GALLERY, { recursive: true });
+      await page.screenshot({ path: `${REMINDERS_GALLERY}/remind-toast-1280-${theme}.png` });
+    }
+    await toast.getByTestId("toast-action").click();
+    const opened = page.locator("[data-testid=reminder-row][data-focused='1']");
+    await expect(opened).toBeVisible();
+    await expect(opened).toBeFocused();
+    await expect(page.getByTestId("reminder-row")).toHaveCount(4);
+    if (OUT) await page.screenshot({ path: `${REMINDERS_GALLERY}/list-opened-1280-${theme}.png` });
+    await axeClean(page, `reminder opened ${theme}`);
+  });
+
   test(`scheduled work — ${theme}`, async ({ page }) => {
     await open(page, STATES.list!, theme, 1280, { __AIJ_SCHEDULES__: SCHEDULES });
     await page.evaluate(() => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section: "scheduled" } })));

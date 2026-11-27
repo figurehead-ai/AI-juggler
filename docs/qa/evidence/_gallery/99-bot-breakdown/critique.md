@@ -1,4 +1,4 @@
-<!-- captures: aa5dd9c5d014 -->
+<!-- captures: 8ef066efbb91 -->
 <!-- captures: pending -->
 # 99-bot-breakdown: Bot's context and memory breakdown, and a memory as a record
 
@@ -55,3 +55,36 @@ Design critique (D-57, Opus, 2026-11-26) of AJ-E3832's breakdown (AJ-E3825 R9 re
 | 19 | Rich-mode colour | 4 | Not a create, edit or settings surface; its colour is the calm bar's: values in ink, why-words faint, the record's bookmark on the rows' tile tone, the accent only on focus and the Manage link. |
 
 Lowest: 4 (lines 2, 5, 7, 8, 9, 12, 13, 14, 15, 16, 18, 19). Fixed in this round: the breakdown ran past the window's right edge in the docked panel (it opens leftwards now); the linked lines' names and reasons truncated each other (each truncates in its own room); the memory record showed no time (it says "you said, 2 d ago").
+
+## 0.5.2 G35: the model's name under "Bot" (Opus, 2026-11-26)
+
+All twelve re-captured from a clean export of HEAD (`bot-breakdown-gallery.spec.ts`), both themes, 1280 and 1024; every one opened. Nothing in the breakdowns or the record changed; only Bot's panel head did.
+
+**What changed.** The head read "Bot · Bot’… · Beta" (the model and its state between "Bot" and the head's buttons, cut to a few letters; RW1 F-RW1-17 saw "Apple on-d…" at 1755 wide). Now "Bot" with its Beta pill on the first line and the model with its state on the line under it ("Bot’s AI" here: the preview has no engine; on a Mac "Apple on-device · Running"), the whole head's width up to the buttons, the whole words as its title when cut.
+
+**Weak.** At the panel's narrowest (340 px, not captured) with Beta, the watch count and every button, a long model name with its state can still be cut; its title then holds it whole.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 1 | Job | 5 | Which model answers, and how it stands, at a glance. |
+| 2 | Prominence | 4 | Muted, under the title; the title stays the head's one strong word. |
+| 3 | Default | 5 | Nothing to choose. |
+| 4 | Mode | 5 | Calm: a muted second line, no new surface. |
+| 5 | Mock-up | 4 | The panel head of D-136, its engine line moved under the title. |
+| 6 | Areas | 5 | One head, two lines, the buttons where they were. |
+| 7 | Colour | 4 | Ink title, the Beta pill's accent soft step, the engine line muted (a failure keeps its danger word). |
+| 8 | Type | 4 | The section title over a label-size line. |
+| 9 | Actions | 4 | Unchanged. |
+| 10 | Serious | n/a | Nothing destructive here. |
+| 11 | Doors | 5 | Unchanged. |
+| 12 | Words | 4 | The engine's own short name and its state word. |
+| 13 | States | 4 | Running, starting, idle, failed: one line each (vitest). |
+| 14 | Consistency | 4 | Title over a muted line, as the Bot page's head. |
+| 15 | Accessibility | 4 | axe clean on all 12; the title attribute carries the whole line. |
+| 16 | Hand walk | 4 | Driven by the spec in a built app with fixture data; the re-walk reads it at 1755 in Dev. |
+| 17 | System prompts | 5 | None. |
+| 18 | Usability | 4 | "Which model is answering me?" answered without hovering or widening the panel. |
+| 19 | Rich-mode colour | 4 | Not a create, edit or settings surface; the head's colour is calm: ink, muted, and the accent only on Beta's soft pill. |
+
+Lowest: 4.
+
