@@ -38,8 +38,10 @@
 #   UI build. Its base, unless --base names one, is the branch's upstream
 #   (what the push adds), else origin/main.
 # - `--full`: the old whole-of-CI run on this Mac: `just verify` (every
-#   test), vitest, the UI build, Linux clippy in a container, and the
-#   visual and a11y gates when ui/ changed against the base.
+#   test), vitest, the UI build, the world model's exact budgets
+#   (`just gyrus-budgets`, ADR-0038 §3: CI gates them at a runner factor),
+#   Linux clippy in a container, and the visual and a11y gates when ui/
+#   changed against the base.
 # - The log folder (target/preflight/<sha>/) gets one log per step and
 #   summary.txt. On success HEAD is stamped (any mode); scripts/hooks/pre-push
 #   lets a stamped commit through to main and release/*.
@@ -267,6 +269,9 @@ elif step "ui: install" bash -c 'cd ui && pnpm install --frozen-lockfile --prefe
 fi
 
 if [ "$MODE" = full ]; then
+  # ADR-0038 §3: the world model's exact budgets, here on the reference Mac
+  # (CI gates them at a runner factor): every release checks them.
+  step "the world model's budgets (just gyrus-budgets)" just gyrus-budgets
   step "Linux clippy (3 variants)" ./scripts/linux_clippy.sh
   if [ "$UI" = true ]; then
     step "visual gate (pinned container)" ./scripts/visual_gate.sh --reporter=line

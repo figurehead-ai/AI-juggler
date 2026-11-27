@@ -92,6 +92,12 @@ verify-tests:
     just dev-bridge-check
     just floor-harness-check
 
+# ADR-0038 §3: the world model's exact budgets (factor 1) at 10k, 100k and
+# 1M links, in a release build, one size at a time, on the reference Mac.
+# CI runs the same at a stated runner factor (AIJ_BUDGET_FACTOR=4).
+gyrus-budgets:
+    AIJ_BUDGET_FACTOR=1 cargo test -p gyrus --release --test budgets -- --include-ignored --nocapture --test-threads=1
+
 # The test bridge's own tests (docs/qa/DEV-BRIDGE.md), read-only and with
 # the lab write mode (ADR-0027).
 dev-bridge-tests:

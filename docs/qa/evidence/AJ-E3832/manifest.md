@@ -26,6 +26,11 @@ world model's budgets" in `build-macos`). Measured p95 at 1M links (budget): see
 a busier run); 10k and 100k well inside: `crates/gyrus/BUDGETS.md`. To fit: vectors packed 64 to a
 row (an exact scan of 10,000 384-dim vectors 5 → 2 ms), stop words (> 2 % of labels) left out of
 keyword search, the keyword index in 32 buckets so a forget rebuilds one.
+R2 note (2026-11-27, PR #257): CI's shared macOS runner measured seed p95 16.2 ms (100k) and 8.3
+(1M) against 5, forget 21.5 (100k) and 40.4 (1M) against 20; ADR-0038 §3 is amended: CI gates at
+`AIJ_BUDGET_FACTOR=4` (`tests/budgets.rs` multiplies each budget and names the factor), and the
+exact budgets run on the reference Mac (`just gyrus-budgets`, a step of `scripts/preflight.sh
+--full`). Measured here at factor 1 that day: see `crates/gyrus/BUDGETS.md`'s note below its table.
 R3: PASS — commit 2c35d593a. `features/ai/world/pack.rs` (17 kinds, 15 link kinds with their ends,
 walk rules, decay, tiers, reasoning questions), `link.rs` (records as `memory` nodes; aliases on the
 memory node so they are forgotten with it; entity pointers; turns), `resolve.rs` (live lines);

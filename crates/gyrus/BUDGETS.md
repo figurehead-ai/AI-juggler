@@ -67,3 +67,27 @@ follow:
   indexed pays it.
 - The index's build at 1M links took about 1 s (ADR-0038's estimate:
   0.5–1 s), which is why a host builds it lazily, in the background.
+
+## 2026-11-27: CI's runner, and the exact budgets here again (ADR-0038 §3, amended)
+
+GitHub's shared macOS runner (PR #257, build-macos) measured seed p95 16.2 ms at
+100k links and 8.3 at 1M against 5, forget 21.5 at 100k and 40.4 at 1M against
+20: noisy (slower at 100k than at 1M), up to about 4× this Mac. CI now gates at
+`AIJ_BUDGET_FACTOR=4`; the exact budgets (factor 1) run here through
+`just gyrus-budgets`, a step of `scripts/preflight.sh --full`.
+
+Three runs at factor 1 on this Mac the same afternoon, with the machine busy
+with other sessions' work (load average 12, against about 5 on 2026-11-26),
+p95 in ms:
+
+| Links | seed | expand | touch | forget | Result |
+|---|---|---|---|---|---|
+| 10,000 | 1.29–1.54 | 0.06 | 0.40 | 1.64–2.28 | within, 3 of 3 |
+| 100,000 | 3.31–4.41 | 0.33 | 0.46 | 3.27–3.96 | within, 3 of 3 |
+| 1,000,000 | 4.97, 5.03, 6.42 | 1.25 | 0.40 | 15.8, 17.7, 20.2 | within 1 of 3; seed and forget past their budget by up to 1.4 and 0.2 ms in the other two |
+
+At 10k and 100k links every operation stays well inside its budget. At 1M
+links seed and forget sit at their budgets' edge on a loaded machine (on
+2026-11-26, load 5: seed 3.9, forget 10.4–19.3), so `just gyrus-budgets`
+belongs on a quiet Mac, as preflight runs it, one heavy run at a time. The
+budgets are unchanged.

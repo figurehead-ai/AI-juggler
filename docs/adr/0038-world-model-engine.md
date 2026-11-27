@@ -160,6 +160,11 @@ The crate exposes a small, typed API rather than Cypher or SQL. Each operation i
 
 These budgets are tests: a benchmark suite runs at 10,000, 100,000 and 1,000,000 links in the crate's CI, and a regression past a budget fails the build.
 
+**Amended 2026-11-27 (PR #257): the budgets are the reference Mac's; CI gates them at a stated runner factor.** GitHub's shared macOS runner measured the same release build at up to four times the reference Mac's numbers, and noisily: seed p95 16.2 ms at 100k links against 5, and 8.3 at 1M (slower at 100k than at 1M); forget 21.5 at 100k and 40.4 at 1M against 20. So:
+- CI (build-macos, "The world model's budgets") runs the suite with `AIJ_BUDGET_FACTOR=4`: `crates/gyrus/tests/budgets.rs` multiplies each budget by it (default 1) and names the factor in its failure, so a gross regression still fails the build there.
+- The exact budgets (factor 1) run on the reference Mac: `just gyrus-budgets`, a step of the full local preflight (`scripts/preflight.sh --full`), so every release checks them there, one heavy run at a time at low priority as preflight runs every step.
+- The budgets in the table above are unchanged.
+
 ### 4. Tiers, dreaming and the bounded top-K (extends ADR-0037 §2)
 
 - **Four tiers.** Short, mid and long are ADR-0037's, and nodes and links use them too. **Immediate** is new: the working set of the current request, held only in memory and never stored.
