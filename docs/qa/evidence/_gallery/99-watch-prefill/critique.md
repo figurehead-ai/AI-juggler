@@ -1,4 +1,4 @@
-<!-- captures: 3e2f04e2dc10 -->
+<!-- captures: c30fba0cc2e9 -->
 # 99-watch-prefill: the Watches form as Bot pre-filled it, Bot's confirm card, the Watches row
 
 Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured on the host from the working tree at the UI commit (`watch-prefill-gallery.spec.ts`: Bot docked at 1280, its turn opening the form; the card; Settings › AI › Models' jobs card), both themes; every capture opened. Mock-ups: the Watches form's approved mock and the d126 kit (`~/Dev/AIJuggler-design-refs/`), Bot's confirm card as the row's Watch… card (`bot` gallery's `watch`).
@@ -74,3 +74,20 @@ Captured from a clean checkout of 28aae623b (no other session's uncommitted work
 | 19 | Rich-mode colour | 4 | The matches lead with each target's own mark and the project's folder icon; the open field keeps the accent ring; no bright border, AA in both themes (axe). |
 
 The other lines are as the first section scored them (lowest 3: line 16).
+
+## 0.5.2 G61: Bot's head in the docked panel (Opus, 2026-11-27)
+
+Re-captured from a clean export of 195dc384e with `AIJ_PREFILL_OUT`, both themes; every frame opened. Eight captures changed (`card-*`, `form-left-*`, `form-nearest-*`, `form-several-*`), all for the docked Bot panel's head only; `models-row-*` came out byte-equal and is unchanged.
+
+**What changed.** Bot's head is a grid now (G61, 5c4005c0c): "Bot" with Beta and the buttons on the first row, the model line ("Bot's AI" in the preview) under them across the head's whole width, so a chip among the buttons (the watch count) never cuts it. Here the line reads the same and sits a few pixels lower; the conversation starts that much lower. Nothing in the form, the card or the picker moved.
+
+**Weak.** None new: the preview's engine is unnamed ("Bot's AI"), so these frames don't show the long line; `99-bot-breakdown/head-*-1755` does.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 6 | Areas | 4 | The panel's head two rows, the form and picker unchanged. |
+| 14 | Consistency | 4 | The head as in every Bot capture since G61. |
+| 15 | Accessibility | 4 | axe clean on all ten (the spec). |
+| 19 | Rich-mode colour | 4 | Unchanged: the form's icons, the accent's soft step on the chosen card, Bot chip and Nearest; Beta's soft pill in the head; no bright border, AA in both themes (axe). |
+
+The other lines are as the sections above scored them (lowest 3: line 16).
