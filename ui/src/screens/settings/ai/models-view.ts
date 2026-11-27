@@ -253,7 +253,10 @@ export function jobRowView(job: ModelJob, info: AiJobInfo | undefined, catalog: 
   if (job === "watches" && info.state !== "off") {
     const on = info.state === "ready" || info.state === "waiting";
     const note = noteFor(models, reference, job, () => true);
-    return { on, beta: on, picker: false, line: on ? line(JOBS.on, note) : line(JOBS.offLine, JOBS.watchesNeedBot), covers: on ? JOBS.watchesCard : null };
+    // 0.5.2 G72: the row says its Beta's state, as the other Beta rows do
+    // ("On · Beta with …"), and what the switch does in that state.
+    const card = info.beta_on;
+    return { on, beta: on, picker: false, line: on ? line(JOBS.on, card ? JOBS.watchesBetaOn : note) : line(JOBS.offLine, JOBS.watchesNeedBot), covers: on ? (card ? JOBS.watchesCardOn : JOBS.watchesCard) : null };
   }
   switch (info.state) {
     case "off":

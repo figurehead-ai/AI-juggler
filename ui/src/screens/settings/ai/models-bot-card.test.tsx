@@ -107,6 +107,15 @@ describe("AJ-E3826 R2: Recommended for this Mac only while no model is set up", 
 });
 
 describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
+  it("0.5.2 G72: the Watches row says its Beta's state, on and off", async () => {
+    const state = structuredClone(STATES.inuse!);
+    state.jobs = state.jobs.map((one) => (one.job === "watches" ? { ...one, beta_on: true } : one));
+    await show(state);
+    expect(lineOf("watches")).toBe("On · Beta with Bot’s own card");
+    expect(screen.getByTestId("models-job-covers-watches").textContent).toBe("Beta on: when Bot understands every part of a request, it asks you to confirm in its own card instead of the form");
+    expect(screen.getByTestId("models-beta-watches").getAttribute("aria-checked")).toBe("true");
+  });
+
   it("in use: on with its model, Beta, or off and why, the notes from the models section; the chip lit while on", async () => {
     await show(STATES.inuse!);
     expect(lineOf("review")).toBe("Off · Preferred over the plain review in 81 % of blind checks.");
@@ -117,7 +126,7 @@ describe("AJ-E3826 R3: each AI job's row says its real state (D-149)", () => {
     // AJ-E3830 (0.5.2): Watches rides Bot's AI; its Beta is Bot's confirm card.
     expect(lineOf("watches")).toBe("On · Fills in what it understands from your words; you check the form and save.");
     expect(screen.getByTestId("models-beta-watches")).toBeTruthy();
-    expect(screen.getByTestId("models-job-covers-watches").textContent).toBe("Beta: when Bot understands every part of a request, it asks you to confirm in its own card instead");
+    expect(screen.getByTestId("models-job-covers-watches").textContent).toBe("Beta off: Bot opens the Watches form for you to check. Turn it on and, when Bot understands every part of a request, it asks you to confirm in its own card instead");
     const lit = (job: string) => screen.getByTestId(`models-job-${job}`).querySelector("[data-on]") !== null;
     expect(["review", "chat", "attention", "feed", "digest", "watches"].filter(lit)).toEqual(["chat", "attention", "digest", "watches"]);
     // Bot's model is chosen in the card: its row has its switch, no picker.

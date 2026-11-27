@@ -292,7 +292,10 @@ export const JOBS = {
   covers: (tools: string) => `For ${tools} in the terminal, whose turn ends AI Juggler sees`,
   /** AJ-E3830 (0.5.2): Watches uses Bot's AI; its Beta is Bot's card. */
   watchesNeedBot: "Uses Bot’s AI: turn it on above",
-  watchesCard: "Beta: when Bot understands every part of a request, it asks you to confirm in its own card instead",
+  /** 0.5.2 G72: the Beta's state, said (it read the same on and off). */
+  watchesBetaOn: "Beta with Bot’s own card",
+  watchesCard: "Beta off: Bot opens the Watches form for you to check. Turn it on and, when Bot understands every part of a request, it asks you to confirm in its own card instead",
+  watchesCardOn: "Beta on: when Bot understands every part of a request, it asks you to confirm in its own card instead of the form",
 };
 
 /** AJ-E3826 — Bot's AI: which model writes Bot's answers, whether it
