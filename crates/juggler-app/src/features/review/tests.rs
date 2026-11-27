@@ -508,6 +508,59 @@ fn a_number_the_agent_said_may_be_repeated_and_no_other() {
     }
 }
 
+/// 0.5.2 G62 (RW1 R27 on Apple's model): a line is a whole clause or it
+/// isn't shown. The edits turn's reply split across two files ("moved the
+/// price sum out of", "and added totals.test.ts for it") is refused, with
+/// a retry note saying why; the whole clauses are kept.
+#[test]
+fn a_line_that_is_a_fragment_is_refused() {
+    let reply = "I moved the price sum out of cart.ts into a new totals.ts and added totals.test.ts for it. The tests pass: 12 passed, 0 failed.";
+    let r = of(
+        &[
+            ("src/checkout/cart.ts", Some((3, 1))),
+            ("src/checkout/totals.ts", Some((5, 0))),
+        ],
+        reply,
+        false,
+    );
+    let said = super::facts::said(reply);
+    let draft = |cart: &str, totals: &str| {
+        format!(
+            r#"{{"notes":[{{"path":"src/checkout/cart.ts","says":"{cart}"}},{{"path":"src/checkout/totals.ts","says":"{totals}"}}],"risk_reason":"none","risk":"unknown"}}"#
+        )
+    };
+    for (cart, totals, why) in [
+        (
+            "moved the price sum out of",
+            "the price sum, moved into a new totals.ts",
+            "fragment (\"of\")",
+        ),
+        (
+            "moved the price sum out of cart.ts",
+            "and added totals.test.ts for it",
+            "fragment (\"and\")",
+        ),
+    ] {
+        let refused = lines::decide(&draft(cart, totals), &r, &said, &[]).unwrap_err();
+        assert!(refused.contains(why), "{refused}");
+        assert!(
+            refused.contains("whole"),
+            "the retry note says why: {refused}"
+        );
+    }
+    let kept = lines::decide(
+        &draft(
+            "moved the price sum out of cart.ts",
+            "the price sum, moved into a new totals.ts",
+        ),
+        &r,
+        &said,
+        &[],
+    )
+    .unwrap();
+    assert_eq!(kept.notes.len(), 2);
+}
+
 #[test]
 fn a_risk_below_the_facts_is_refused_and_a_raised_one_is_kept() {
     let said = super::facts::said(REPLY);

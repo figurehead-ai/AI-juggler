@@ -151,24 +151,21 @@ fn guarded_into(name: &str, removed: &mut Vec<String>) -> (String, bool) {
     (guarded.cleaned, hidden)
 }
 
-/// A session row from the read model's row.
+/// A session row from the read model's row, at `now_ms`.
+///
+/// 0.5.2 G57: named by the one naming rule (`needs::session_name`, the
+/// rail's: its label, its title's words, a telling branch, else its facts,
+/// "web · started 2:54 AM"), never by its folder alone: an untitled
+/// session was "web", its project's name, and Bot's answers read
+/// "“web” is ended in project “web”".
 #[must_use]
 pub fn session_row<S: BuildHasher>(
     row: &crate::features::sessions::dto::InstanceInfo,
     projects: &HashMap<String, String, S>,
+    now_ms: i64,
     removed: &mut Vec<String>,
 ) -> BotRowInfo {
-    let folder = std::path::Path::new(&row.cwd)
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| !name.is_empty());
-    let raw = row
-        .label
-        .clone()
-        .filter(|l| !l.trim().is_empty())
-        .or_else(|| row.title.clone().filter(|t| !t.trim().is_empty()))
-        .or(folder)
-        .unwrap_or_default();
+    let raw = crate::features::notifications::needs::session_name(row, now_ms);
     let (title, name_hidden) = guarded_into(&raw, removed);
     // G18: D-117's one rule, Home's Needs you: what it needs names its
     // state ("may be stuck" while its status still reads running).
@@ -358,7 +355,7 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
         .collect();
     let mut sessions: Vec<BotRowInfo> = rows
         .iter()
-        .map(|row| session_row(row, &projects, &mut removed))
+        .map(|row| session_row(row, &projects, now_ms, &mut removed))
         .collect();
     sessions.extend(
         outside

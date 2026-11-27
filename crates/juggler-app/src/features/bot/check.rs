@@ -49,6 +49,10 @@ pub enum Refused {
     /// "because", "faster", "ensures") no cited record says: support is
     /// required, not only the absence of a contradiction.
     Claim(String),
+    /// 0.5.2 G62: not a whole clause: it opens with a joining word ("and
+    /// added totals.test.ts for it") or ends on one that leads on ("moved
+    /// the price sum out of", "your session in").
+    Fragment(String),
 }
 
 impl Refused {
@@ -68,6 +72,7 @@ impl Refused {
             Self::Acting => "acting",
             Self::Echo => "echo",
             Self::Claim(_) => "claim",
+            Self::Fragment(_) => "fragment",
         }
     }
 }
@@ -780,6 +785,117 @@ fn quote_segments(text: &str) -> Vec<(Option<String>, String)> {
 /// “api” are working"); a comma joins too (it leaves no word).
 const JOINERS: &[&str] = &["and", "or", "und", "oder"];
 
+/// 0.5.2 G62: words a whole clause never opens with: it joins a clause
+/// before it. English and German.
+const OPENS_ON: &[&str] = &["and", "or", "but", "nor", "und", "oder", "aber", "sondern"];
+
+/// 0.5.2 G62: words a whole clause never ends on: an article, a
+/// preposition, a joining or leading word, a possessive. Words that do end
+/// one are not among them: German's separable prefixes ("stellt … um",
+/// "hört auf"), "out", "up", "off" and "over" ("timed out", "is over"),
+/// a demonstrative ("matches that") or an object ("asked her").
+const ENDS_ON: &[&str] = &[
+    "a", "an", "the", "of", "to", "for", "with", "from", "by", "at", "in", "on", "into", "onto",
+    "under", "about", "as", "than", "via", "and", "or", "but", "nor", "because", "while", "if",
+    "whose", "its", "their", "your", "our", "is", "are", "was", "were", "der", "die", "den", "dem",
+    "des", "ein", "eine", "einen", "einem", "einer", "und", "oder", "aber", "mit", "von", "für",
+    "im", "bei", "nach", "über", "unter", "dass", "weil", "wenn", "seine", "ihre",
+];
+
+/// 0.5.2 G62: a part that is no whole clause, the word that shows it: one
+/// opening on a joining word, or ending, outside a quoted name, on a word
+/// that leads on. Fail closed: a line that may be a fragment isn't shown.
+fn fragment(text: &str) -> Option<String> {
+    let trimmed = text.trim().trim_end_matches(|c: char| {
+        c.is_whitespace() || matches!(c, '.' | ',' | ';' | ':' | '!' | '?' | '\u{2026}')
+    });
+    let all = words(trimmed);
+    if let Some(first) = all.first()
+        && !trimmed.starts_with(['\u{201c}', '"', '\u{201e}', '\u{ab}'])
+        && OPENS_ON.contains(&first.as_str())
+    {
+        return Some(first.clone());
+    }
+    // A sentence ending on a quoted name ends on that name.
+    if trimmed.ends_with(['\u{201d}', '"', '\u{201c}', '\u{bb}']) {
+        return None;
+    }
+    all.last()
+        .filter(|last| ENDS_ON.contains(&last.as_str()))
+        .cloned()
+}
+
+/// 0.5.2 G57: the words a quoted name is a place after ("in “web”", "in
+/// project “web”", "on branch “main”", "held by “Ana”"): where a record is,
+/// never the record it names. English and German.
+const PLACE: &[&str] = &[
+    "in", "im", "on", "auf", "at", "from", "von", "by", "project", "projekt", "pool", "branch",
+    "zweig", "app", "account", "konto",
+];
+
+/// Whether the own text before a quote ends with a [`PLACE`] word.
+fn is_place(before: &str) -> bool {
+    words(before)
+        .last()
+        .is_some_and(|w| PLACE.contains(&w.as_str()))
+}
+
+/// 0.5.2 G57: which quoted names of a sentence (one flag per
+/// [`quote_segments`] segment, false for the first) are places: after a
+/// [`PLACE`] word, or joined to a place before them ("in “docs” and
+/// “Work”") when they are no cited record's own name (one that is starts
+/// its own clause: "in “docs” and “Fix the login” failed").
+fn place_flags(segments: &[(Option<String>, String)], cited: &[&BotRowInfo]) -> Vec<bool> {
+    let mut flags = Vec::with_capacity(segments.len());
+    let mut before = "";
+    let mut last_place = false;
+    for (name, after) in segments {
+        let place = name.as_ref().is_some_and(|name| {
+            let name = name.trim().to_lowercase();
+            let own = cited.iter().any(|row| row.title.to_lowercase() == name);
+            is_place(before)
+                || (last_place
+                    && !own
+                    && words(before).iter().all(|w| JOINERS.contains(&w.as_str())))
+        });
+        if name.is_some() {
+            last_place = place;
+        }
+        flags.push(place);
+        before = after;
+    }
+    flags
+}
+
+/// 0.5.2 G57: a quoted name standing as a record's own name (not after a
+/// [`PLACE`] word) that is no cited record's own name but a cited
+/// session's or task's project, App, pool, holder or branch: the record
+/// named by where it is ("“api” is finished with “Add retries…” in project
+/// “api”", "“web” is the project"). A session's name is its one name
+/// (`needs::session_name`); a project is said only as "in" it. A memory's
+/// own words ("You called “api” …") are its names.
+fn named_by_place(text: &str, cited: &[&BotRowInfo]) -> Option<String> {
+    let segments = quote_segments(text);
+    let places = place_flags(&segments, cited);
+    for ((name, _), at_place) in segments.iter().zip(places) {
+        if let Some(name) = name {
+            let name = name.trim();
+            let same = |n: &str| n.to_lowercase() == name.to_lowercase();
+            let own = cited.iter().any(|row| {
+                same(&row.title) || (row.kind == BotRowKind::Memory && names_of(row).any(same))
+            });
+            let by_where = cited.iter().any(|row| {
+                matches!(row.kind, BotRowKind::Session | BotRowKind::Task)
+                    && names_of(row).skip(1).any(same)
+            });
+            if by_where && !own && !at_place {
+                return Some(name.to_lowercase());
+            }
+        }
+    }
+    None
+}
+
 /// 0.5.2 G45: the cited records each word of a sentence's own text (its
 /// words outside quotes, as [`split_quotes`] leaves them, in order) is
 /// said of: the records the quoted names before it name (names joined
@@ -801,24 +917,45 @@ fn word_owners<'r>(text: &str, cited: &[&'r BotRowInfo], n: usize) -> Vec<Vec<&'
     let mut out = Vec::new();
     let mut group: Vec<&'r BotRowInfo> = Vec::new();
     let mut joined = false;
-    for (name, after) in &segments {
-        if let Some(name) = name {
-            if !joined {
-                group.clear();
-            }
-            for row in named(name) {
-                if !group.iter().any(|g| std::ptr::eq(*g, row)) {
-                    group.push(row);
-                }
-            }
-        }
+    let places = place_flags(&segments, cited);
+    for (i, (name, after)) in segments.iter().enumerate() {
         let said = words(after);
+        // The place words a place name follows ("in project “docs”") join
+        // or part nothing themselves.
+        let next_is_name = segments.get(i + 1).is_some_and(|(n, _)| n.is_some());
+        let mut joining = said.as_slice();
+        while next_is_name
+            && let Some((last, rest)) = joining.split_last()
+            && PLACE.contains(&last.as_str())
+        {
+            joining = rest;
+        }
+        let only_joiners = joining.iter().all(|w| JOINERS.contains(&w.as_str()));
+        match name {
+            // 0.5.2 G57: a name after a place word ("in “docs”") is where
+            // the record before it is: it names no new owner, and "and"
+            // after it doesn't join the next name to that record.
+            Some(_) if places.get(i).copied().unwrap_or(false) => {
+                joined = joined && only_joiners;
+            }
+            Some(name) => {
+                if !joined {
+                    group.clear();
+                }
+                for row in named(name) {
+                    if !group.iter().any(|g| std::ptr::eq(*g, row)) {
+                        group.push(row);
+                    }
+                }
+                joined = only_joiners;
+            }
+            None => joined = only_joiners,
+        }
         let owners = if group.is_empty() {
             cited.to_vec()
         } else {
             group.clone()
         };
-        joined = said.iter().all(|w| JOINERS.contains(&w.as_str()));
         out.extend(said.iter().map(|_| owners.clone()));
     }
     if out.len() == n {
@@ -983,6 +1120,11 @@ fn check_inner(
     }
     let question_words = words(question);
     let question_numbers = numbers_in(question);
+    // 0.5.2 G62: every sentence of an answer or a review line is a whole
+    // clause (the feed's own-words lines keep their own rules).
+    if !own && let Some(word) = parts.iter().find_map(|p| fragment(&p.text)) {
+        return Err(Refused::Fragment(word));
+    }
     for part in parts {
         // A sentence saying nothing is in a state no record holds is true
         // of every record, so of any it cites too (each cite still real).
@@ -1375,6 +1517,9 @@ fn check_part(
             return Err(Refused::Name(name.to_lowercase()));
         }
     }
+    if let Some(name) = named_by_place(&part.text, &cited) {
+        return Err(Refused::Name(name));
+    }
     let name_words: Vec<String> = names.iter().flat_map(|n| words(n)).collect();
     // 0.5.2 G15: the words a cited record's own state is written in
     // ("asks you (waiting on the user)", "failed (stopped with an error)")
@@ -1515,6 +1660,124 @@ mod tests {
                 &[3, 4]
             ),
             Err(Refused::State("idle".into()))
+        );
+    }
+
+    /// 0.5.2 G57 (RW1 R14, W6 on Apple's model): a session is named by its
+    /// own name; its project only as where it is ("in “api”"). A quoted
+    /// project standing as a record's name is refused, whatever follows.
+    #[test]
+    fn a_session_is_never_named_by_its_project() {
+        let mut retries = row("Add retries to the sync client", BotState::Finished, None);
+        retries.project = Some("api".into());
+        retries.app_label = Some("Work".into());
+        let mut memory =
+            super::super::world::tests_support::row(BotRowKind::Memory, "the payments agent", None);
+        memory.about = Some("api".into());
+        let rows = [retries, memory];
+        let said = |text: &str, cites: &[u32]| {
+            check(
+                &[part(text, cites)],
+                &rows,
+                "what is the payments agent doing?",
+                &[],
+            )
+        };
+        for refused in [
+            "\u{201c}api\u{201d} is finished with \u{201c}Add retries to the sync client\u{201d} in project \u{201c}api\u{201d}.",
+            "\u{201c}api\u{201d} finished.",
+            "\u{201c}Add retries to the sync client\u{201d} finished and \u{201c}api\u{201d} is the project.",
+            "\u{201c}Work\u{201d} finished.",
+        ] {
+            assert!(
+                matches!(said(refused, &[1]), Err(Refused::Name(_))),
+                "{refused}: {:?}",
+                said(refused, &[1])
+            );
+        }
+        for shown in [
+            "\u{201c}Add retries to the sync client\u{201d} finished in \u{201c}api\u{201d}.",
+            "\u{201c}Add retries to the sync client\u{201d} finished, in project \u{201c}api\u{201d}, in \u{201c}Work\u{201d}.",
+            "\u{201c}Add retries to the sync client\u{201d} finished in \u{201c}api\u{201d} and \u{201c}Work\u{201d}.",
+        ] {
+            assert_eq!(said(shown, &[1]), Ok(()), "{shown}");
+        }
+        // The user's own words for it, from a memory, are its names there.
+        assert_eq!(
+            said(
+                "You call \u{201c}api\u{201d} \u{201c}the payments agent\u{201d}.",
+                &[2]
+            ),
+            Ok(())
+        );
+    }
+
+    /// 0.5.2 G62 (and RW1 on Apple's model, "your session in."): a sentence
+    /// is a whole clause or it isn't shown: never one opening on "and",
+    /// never one ending on a word that leads on; a quoted name may end it.
+    #[test]
+    fn a_fragment_is_never_shown() {
+        let rows = [row("Split the cart total", BotState::Finished, None)];
+        let said = |text: &str| check(&[part(text, &[1])], &rows, "what finished?", &[]);
+        for (fragment, word) in [
+            ("your session in.", "in"),
+            ("and \u{201c}Split the cart total\u{201d} finished.", "and"),
+            (
+                "\u{201c}Split the cart total\u{201d} finished in the",
+                "the",
+            ),
+            ("\u{201c}Split the cart total\u{201d} finished, and", "and"),
+            (
+                "Und \u{201e}Split the cart total\u{201c} ist fertig.",
+                "und",
+            ),
+        ] {
+            assert_eq!(
+                said(fragment),
+                Err(Refused::Fragment(word.into())),
+                "{fragment}"
+            );
+        }
+        for whole in [
+            "\u{201c}Split the cart total\u{201d} finished.",
+            "\u{201c}Split the cart total\u{201d} finished in \u{201c}shop\u{201d}.",
+            "Nothing in your records matches that.",
+        ] {
+            assert_ne!(
+                said(whole).err().map(|r| r.code()),
+                Some("fragment"),
+                "{whole}"
+            );
+        }
+        // The feed's own-words lines keep their own rules.
+        assert!(!matches!(
+            check_own_words(&[part("and finished", &[1])], &rows, &[]),
+            Err(Refused::Fragment(_))
+        ));
+    }
+
+    /// 0.5.2 G57: a name after "in" is where the record before it is: it
+    /// owns no state, and "and" after it starts the next record's clause.
+    #[test]
+    fn a_place_owns_no_state() {
+        let mut idle = row("Update the summary cell", BotState::Idle, None);
+        idle.project = Some("docs".into());
+        let mut failed = row("Rewrite the date parser", BotState::Failed, None);
+        failed.project = Some("web".into());
+        let rows = [idle, failed];
+        let said = |text: &str| check(&[part(text, &[1, 2])], &rows, "what are my sessions", &[]);
+        assert_eq!(
+            said(
+                "\u{201c}Update the summary cell\u{201d} is idle in \u{201c}docs\u{201d} and \u{201c}Rewrite the date parser\u{201d} failed in \u{201c}web\u{201d}."
+            ),
+            Ok(())
+        );
+        assert_eq!(
+            said(
+                "\u{201c}Update the summary cell\u{201d} in \u{201c}docs\u{201d} and \u{201c}Rewrite the date parser\u{201d} are idle."
+            ),
+            Err(Refused::State("idle".into())),
+            "both are said to be idle"
         );
     }
 

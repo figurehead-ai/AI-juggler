@@ -436,7 +436,15 @@ fn a_memory_is_a_record_an_answer_can_cite() {
     assert_eq!(row.kind, crate::features::bot::dto::BotRowKind::Memory);
     assert_eq!(row.title, "the payments agent");
     assert_eq!(row.about.as_deref(), Some("api"));
-    assert_eq!(row.memory_key.as_deref(), Some("alias:session:s-api"));
+    // 0.5.2 G57: "api" is the project's name (the session is named by its
+    // facts, "api · started …"), so the alias is the project's.
+    assert!(
+        row.memory_key
+            .as_deref()
+            .is_some_and(|k| k.starts_with("alias:project:")),
+        "{:?}",
+        row.memory_key
+    );
     // The turn keeps only the memory's random id: read again on the page.
     let storage = state.storage.lock().unwrap();
     let kept = storage.chat().turn(&turn.id).unwrap().unwrap();
@@ -738,6 +746,7 @@ fn a_session_s_need_is_read_by_home_s_rule() {
         crate::features::bot::world::session_row(
             info,
             &std::collections::HashMap::new(),
+            0,
             &mut Vec::new(),
         )
     };
@@ -859,4 +868,85 @@ fn a_refused_draft_is_asked_once_more_and_shown_only_if_it_checks_out() {
     assert_eq!(turn.outcome, BotOutcome::DontKnow);
     assert_eq!(lying.calls.get(), 2);
     assert!(turn.written.is_none());
+}
+
+/// 0.5.2 G58 (RW1 R14, D-144): a question naming none of the user's work
+/// is never refused by the records. A reply to it that speaks of the work
+/// (taken from the world section: after an alias was kept, its project's
+/// line went with "3+5") is asked once more without that section,
+/// sampled, and shown as Bot's own; it never goes the grounded route.
+#[test]
+fn a_question_naming_no_work_is_asked_again_without_the_world_section() {
+    let (_dir, state) = seeded();
+    let kept = ask_with(&state, &Fake::new(), "call api the payments agent");
+    assert_eq!(kept.outcome, BotOutcome::Remembered);
+    let world_line = "What AI Juggler connects to this question";
+    let fake = Fake::with(Box::new(move |request| {
+        if grounded(request) {
+            return Ok(r#"{"sentences":[{"text":"“api” crashed.","records":[1]}]}"#.to_owned());
+        }
+        if request.prompt.contains(world_line) {
+            return Ok(
+                r#"{"text":"8. I'll look in your records for api.","about_their_work":true}"#
+                    .to_owned(),
+            );
+        }
+        assert!(
+            matches!(
+                request.decoding,
+                crate::features::ai::engine::Decoding::Sampled { .. }
+            ),
+            "the second reply samples"
+        );
+        default_rule(request)
+    }));
+    let turn = ask_with(&state, &fake, "what is 3+5");
+    let sent = fake.requests.borrow();
+    assert!(
+        sent.first().is_some_and(|r| r.prompt.contains(world_line)),
+        "the world section went with the first try: {:?}",
+        sent.first().map(|r| r.prompt.clone())
+    );
+    assert_eq!(turn.outcome, BotOutcome::General, "{turn:?}");
+    assert_eq!(turn.general.as_ref().map(|g| g.text.as_str()), Some("8."));
+    assert_eq!(sent.len(), 2, "one more reply, never the grounded route");
+    assert!(!sent[1].prompt.contains(world_line));
+    drop(sent);
+    // A question about the work is grounded as before.
+    let work = ask_with(&state, &Fake::new(), "what is api doing?");
+    assert_eq!(work.outcome, BotOutcome::Answered);
+}
+
+/// 0.5.2 G59 (RW1 R14): Ask Bot on a post asks the user's own words about
+/// the post's record, by its key: the post's sentence is neither the
+/// look-up's words nor the question the model reads; the turn keeps all
+/// that was sent.
+#[test]
+fn a_post_s_ask_looks_up_its_record_by_its_key() {
+    let (_dir, state) = seeded();
+    let fake = Fake::new();
+    let asked = "About this post: \u{201c}Claude Code CLI changed the date format in the API responses in api, in under a minute.\u{201d} did it finish cleanly?";
+    let turn = bot_ask_with(
+        &state,
+        &BotAskInput {
+            question: asked.into(),
+            scope: Some(super::super::tests::session_chip("s-api")),
+            again: None,
+        },
+        &fake,
+    )
+    .unwrap();
+    assert_eq!(turn.outcome, BotOutcome::Answered, "{turn:?}");
+    assert_eq!(
+        turn.rows.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+        ["s-api"]
+    );
+    assert_eq!(turn.question, asked, "the turn keeps what was sent");
+    let sent = fake.requests.borrow();
+    let prompt = &sent.last().unwrap().prompt;
+    assert!(
+        prompt.ends_with("Question: did it finish cleanly?"),
+        "{prompt}"
+    );
+    assert!(!prompt.contains("under a minute"), "{prompt}");
 }

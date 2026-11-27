@@ -74,23 +74,70 @@ fn fixture() -> (tempfile::TempDir, Arc<crate::state::AppState>, Service) {
     let dir = tempfile::tempdir().unwrap();
     let state: Arc<crate::state::AppState> =
         crate::test_support::bare_state(dir.path().join("data"));
-    super::tests::seed_session(&state, dir.path(), "s-web", "web", "main");
+    // Started minutes ago, as a session named by its facts says it ("web ·
+    // started 4:51 AM", 0.5.2 G57), never years before the clock.
+    let now = crate::commands::now_millis();
+    super::tests::seed_session_at(
+        &state,
+        dir.path(),
+        ("s-web", "web", "main"),
+        Some(now - 20 * 60_000),
+    );
     {
         let cwd = dir.path().join("api");
         std::fs::create_dir_all(&cwd).unwrap();
         let storage = state.storage.lock().unwrap();
-        storage
-            .sessions()
-            .insert(&crate::test_support::instance(
-                "s-api",
-                "rec-1",
-                juggler_core::model::SessionStatus::WaitingUser,
-                cwd,
-            ))
-            .unwrap();
+        // A launch makes its folder a project (`launch::launch`).
+        let mut api = crate::test_support::instance(
+            "s-api",
+            "rec-1",
+            juggler_core::model::SessionStatus::WaitingUser,
+            cwd.clone(),
+        );
+        api.project = Some(storage.projects().ensure(&cwd).unwrap().id);
+        api.started_at = juggler_core::model::Timestamp::from_millis(now - 12 * 60_000);
+        api.last_activity = Some(juggler_core::model::Timestamp::from_millis(now - 60_000));
+        storage.sessions().insert(&api).unwrap();
         beta_on(&storage);
     }
     (dir, state, service())
+}
+
+/// The fixtures' Accounts (`(id, tool, label)`), each on its own folder
+/// under `root`.
+fn insert_accounts(
+    storage: &juggler_core::storage::Storage,
+    root: &std::path::Path,
+    accounts: &[(&str, &str, &str)],
+) {
+    for (account, harness, label) in accounts {
+        storage
+            .accounts()
+            .insert(&crate::test_support::account(
+                account,
+                harness,
+                label,
+                root.join(account),
+            ))
+            .unwrap();
+    }
+}
+
+/// A repository `name` under `root`'s `repos` (a `.git` folder in it).
+fn repo(root: &std::path::Path, name: &str) -> std::path::PathBuf {
+    let path = root.join("repos").join(name);
+    std::fs::create_dir_all(path.join(".git")).unwrap();
+    path
+}
+
+/// The chip on session `id` named `name`.
+fn session_scope(id: &str, name: &str) -> crate::features::bot::dto::BotScope {
+    crate::features::bot::dto::BotScope {
+        kind: crate::features::bot::dto::BotScopeKind::Session,
+        id: id.into(),
+        name: name.into(),
+        sessions: Vec::new(),
+    }
 }
 
 /// One answer: its outcome, words (lower case) and cites, printed for the
@@ -364,7 +411,8 @@ fn verdicts(
                 )
             };
             serde_json::json!({
-                "route": route, "prompt": request.prompt, "draft": text, "verdict": verdict,
+                "route": route, "instructions": request.instructions, "prompt": request.prompt,
+                "draft": text, "verdict": verdict,
             })
         })
         .collect()
@@ -546,12 +594,7 @@ fn bot_batch_b_on_the_real_model() {
     if kept.turn.outcome != BotOutcome::Remembered || kept.turn.details.is_some() {
         fails.push(format!("alias: {:?}", kept.turn.outcome));
     }
-    let api = crate::features::bot::dto::BotScope {
-        kind: crate::features::bot::dto::BotScopeKind::Session,
-        id: "s-api".into(),
-        name: "api".into(),
-        sessions: Vec::new(),
-    };
+    let api = session_scope("s-api", "api");
     let mut orders = 0;
     for _ in 0..3 {
         let alias = ask(&state, &service, "what is the payments agent doing?");
@@ -623,20 +666,14 @@ fn outside_fixture() -> (tempfile::TempDir, Arc<crate::state::AppState>, Service
     }
     {
         let storage = state.storage.lock().unwrap();
-        for (account, harness, label) in [
-            ("acc-work", "claude-code", "cc-work"),
-            ("acc-chatgpt", "codex", "ChatGPT"),
-        ] {
-            storage
-                .accounts()
-                .insert(&crate::test_support::account(
-                    account,
-                    harness,
-                    label,
-                    dir.path().join(account),
-                ))
-                .unwrap();
-        }
+        insert_accounts(
+            &storage,
+            dir.path(),
+            &[
+                ("acc-work", "claude-code", "cc-work"),
+                ("acc-chatgpt", "codex", "ChatGPT"),
+            ],
+        );
         storage
             .profiles()
             .insert(&crate::test_support::launch_settings(
@@ -751,12 +788,7 @@ fn lab_outside_fixture() -> (tempfile::TempDir, Arc<crate::state::AppState>, Ser
     )));
     let state =
         Arc::new(crate::state::AppState::init_with_registry(root.join("data"), registry).unwrap());
-    let repo = |name: &str| {
-        let path = root.join("repos").join(name);
-        std::fs::create_dir_all(path.join(".git")).unwrap();
-        path
-    };
-    let (web, api, docs) = (repo("web"), repo("api"), repo("docs"));
+    let (web, api, docs) = (repo(&root, "web"), repo(&root, "api"), repo(&root, "docs"));
     let work = root.join("work");
     {
         let storage = state.storage.lock().unwrap();
@@ -914,3 +946,7 @@ fn bot_answers_with_the_labs_outside_session_open_on_the_real_model() {
         );
     }
 }
+
+/// 0.5.2 G57–G59: the RW1 re-walk's exact states.
+#[path = "real_model_rw1_tests.rs"]
+mod rw1;

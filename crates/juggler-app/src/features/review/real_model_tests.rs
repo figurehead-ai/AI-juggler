@@ -111,6 +111,20 @@ const TURNS: &[Turn] = &[
         failed: true,
         last_run: None,
     },
+    // 0.5.2 G62: the RW1 edits turn, whose reply split into fragments
+    // across its files ("moved the price sum out of", "and added
+    // totals.test.ts for it").
+    Turn {
+        name: "RW1 edits: price sum moved, test added, tests pass",
+        files: &[
+            ("src/checkout/cart.ts", 3, 1),
+            ("src/checkout/totals.ts", 5, 0),
+            ("src/checkout/totals.test.ts", 9, 0),
+        ],
+        reply: "I moved the price sum out of cart.ts into a new totals.ts and added totals.test.ts for it. The tests pass: 12 passed, 0 failed.",
+        failed: false,
+        last_run: None,
+    },
     Turn {
         name: "RW1 Codex patch: retry helper, tests pass",
         files: &[("api/client.py", 2, 1), ("api/retry.py", 9, 0)],
@@ -296,6 +310,21 @@ fn the_beta_lines_on_apples_model() {
             )
             .is_ok()
         );
+        // 0.5.2 G62: never a fragment ("moved the price sum out of").
+        for (name, says) in &written.notes {
+            let last = says
+                .trim_end_matches(['.', ',', ' '])
+                .rsplit(' ')
+                .next()
+                .unwrap_or_default()
+                .to_lowercase();
+            assert!(
+                !["of", "to", "for", "with", "in", "into", "the", "a", "and"]
+                    .contains(&last.as_str())
+                    && !says.to_lowercase().starts_with("and "),
+                "a fragment on {name}: {says}"
+            );
+        }
         let mut shown = code.clone();
         written.apply(&mut shown, &routed.name, &guarded.cleaned);
         for file in &shown.changed {

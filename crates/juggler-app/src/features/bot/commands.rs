@@ -154,13 +154,16 @@ pub fn bot_ask_with(
     if let Some(drafted) = super::watch_draft::drafted(state, &world, &question) {
         return watch_turn(state, &world, &question, drafted);
     }
-    let (read_as, used) = super::memory::with_aliases(state, &world, &question);
+    // 0.5.2 G59: from a post, the user's own words are asked (the turn
+    // keeps all it said); the post's record is the chip's, by its key.
+    let asked = super::question::after_post(&question);
+    let (read_as, used) = super::memory::with_aliases(state, &world, asked);
     let reading = read(&read_as);
     // 0.5.2 G31: the chip is the ask's own (the window drops it once
     // asked); a question that refers back keeps the topic's last scope
     // ("and why did it fail?"), one that doesn't asks about everything.
     let scope = input.scope.clone().or_else(|| {
-        super::question::refers_back(&question)
+        super::question::refers_back(asked)
             .then(|| last_scope(state))
             .flatten()
     });
@@ -171,8 +174,8 @@ pub fn bot_ask_with(
         ..Meta::default()
     };
     // 0.5.2 G29: "call api the payments agent" is a Remember too.
-    let alias = (reading.remember.is_none() && super::memory::names_alias(&world, &question))
-        .then(|| question.clone());
+    let alias = (reading.remember.is_none() && super::memory::names_alias(&world, asked))
+        .then(|| asked.to_owned());
     if let Some(words) = reading.remember.as_deref().or(alias.as_deref()) {
         return remember_turn(state, &world, &question, words, secret, meta);
     }
@@ -181,7 +184,7 @@ pub fn bot_ask_with(
     // world model, go only with a question that refers back to them; one
     // that doesn't is read on its own, so a refusal or a grounded answer
     // before it never makes it grounded ("3+5" after "what needs me").
-    let follow_up = super::question::refers_back(&question);
+    let follow_up = super::question::refers_back(asked);
     let history = if follow_up {
         history(state)?
     } else {
@@ -197,7 +200,7 @@ pub fn bot_ask_with(
     // (those aren't matches, as `answer` reads them); seeded with them, a
     // plain "what is 3+5" carried an open session into its prompt and the
     // model took it for a question about the user's work.
-    let seeds: &[super::dto::BotRowInfo] = if names_work(&reading, scope.as_ref()) {
+    let seeds: &[super::dto::BotRowInfo] = if scope.is_some() || reading.names_work() {
         &looked.rows
     } else {
         &[]
@@ -205,7 +208,7 @@ pub fn bot_ask_with(
     let connected = crate::features::ai::world::assemble::assemble(
         state,
         &crate::features::ai::world::assemble::Ask {
-            question: &question,
+            question: asked,
             world: &world,
             rows: seeds,
             topic: topic.as_deref(),
@@ -215,7 +218,7 @@ pub fn bot_ask_with(
     // AJ-E3832 G9: a question about what the user told Bot gets those
     // memories as records it can cite (the ones the world model linked to
     // it, else the newest), read through ADR-0037's store.
-    let memories = if super::memory::asks_about_memory(&question) {
+    let memories = if super::memory::asks_about_memory(asked) {
         let keys: Vec<String> = connected
             .memory
             .iter()
@@ -230,7 +233,7 @@ pub fn bot_ask_with(
     let answered = super::answer::answer(
         model,
         &super::answer::Asked {
-            question: &question,
+            question: asked,
             reading: &reading,
             world: &world,
             scope: scope.as_ref(),
@@ -336,19 +339,6 @@ pub fn bot_ask_with(
 
 /// What a turn keeps of its answer beside its question (no words: the
 /// shown answer is the `shown` column).
-/// 0.5.2 G53: the question names the user's work: a record by its words,
-/// a state, a kind, a time, something not recorded, a work word, or a
-/// scope chip. "What is 3+5" names none of it.
-fn names_work(reading: &super::question::Reading, scope: Option<&super::dto::BotScope>) -> bool {
-    scope.is_some()
-        || reading.work
-        || !reading.subject.is_empty()
-        || !reading.states.is_empty()
-        || reading.kinds.any()
-        || reading.when != super::question::When::Any
-        || reading.unknown.is_some()
-}
-
 fn keep_in_meta(meta: &mut Meta, answered: &super::answer::Answer) {
     if let Some(found) = &answered.found {
         meta.shortcut = found.shortcut;

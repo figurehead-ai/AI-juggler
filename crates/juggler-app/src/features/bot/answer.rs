@@ -718,27 +718,31 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
     // every turn): what the user said shapes a plain answer; a reply that
     // states a work fact from it is asked again grounded (D-148's guard).
     let world = asked.connected.text.clone();
-    let request = general::request(
-        asked.question,
-        asked.reading.lang,
-        &name,
-        status.version.as_deref(),
-        &history,
-        &[memory.as_str(), world.as_str()]
-            .iter()
-            .filter(|p| !p.is_empty())
-            .copied()
-            .collect::<Vec<_>>()
-            .join("\n"),
-    );
-    let parts = Parts {
+    let general_request = |world: &str, attempt: u32| Request {
+        decoding: crate::features::ai::engine::Decoding::for_attempt(asked.question, attempt),
+        ..general::request(
+            asked.question,
+            asked.reading.lang,
+            &name,
+            status.version.as_deref(),
+            &history,
+            &[memory.as_str(), world]
+                .iter()
+                .filter(|p| !p.is_empty())
+                .copied()
+                .collect::<Vec<_>>()
+                .join("\n"),
+        )
+    };
+    let request = general_request(&world, 0);
+    let mut parts = Parts {
         records: String::new(),
-        memory,
-        history,
-        world,
+        memory: memory.clone(),
+        history: history.clone(),
+        world: world.clone(),
         question: asked.question.to_owned(),
     };
-    let (generated, ms) = match generate(model, &request, &mut answer) {
+    let (mut generated, ms) = match generate(model, &request, &mut answer) {
         Ok(done) => done,
         Err(failure) => {
             failed(&mut answer, failure);
@@ -746,7 +750,7 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
         }
     };
     answer.details = Some(details(&generated, &request, &parts, asked, 0, ms));
-    let Some((text, about_work)) = general::parse(&generated.draft) else {
+    let Some((mut text, mut about_work)) = general::parse(&generated.draft) else {
         unchecked(&mut answer);
         return answer;
     };
@@ -754,7 +758,25 @@ pub fn answer(model: &dyn BotModel, asked: &Asked<'_>) -> Answer {
         unchecked(&mut answer);
         return answer;
     }
-    let claim = general::guard(&text, &general::record_names(asked.world, asked.question));
+    let names = general::record_names(asked.world, asked.question);
+    let mut claim = general::guard(&text, &names);
+    // 0.5.2 G58 (D-144): a question whose own words name none of the
+    // user's work ("what is 3+5") is never refused by the records. A reply
+    // to it that speaks of the work took it from the world section (the
+    // RW1 re-walk: after a post's ask, its project's line went with "3+5"),
+    // so it is asked once more without that section, sampled; only a
+    // reply that still claims work goes the grounded route (D-148).
+    if (about_work || claim.is_err()) && !asked.reading.names_work() && !world.is_empty() {
+        let again = general_request("", 1);
+        if let Ok((second, second_ms)) = generate(model, &again, &mut answer)
+            && let Some((second_text, second_about)) = general::parse(&second.draft)
+        {
+            parts.world.clear();
+            answer.details = Some(details(&second, &again, &parts, asked, 0, second_ms));
+            claim = general::guard(&second_text, &names);
+            (text, about_work, generated) = (second_text, second_about, second);
+        }
+    }
     if about_work || claim.is_err() {
         // D-148's guard: a work fact never stands as general; the
         // grounded route answers it from the records it cites.

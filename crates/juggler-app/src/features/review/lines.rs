@@ -275,10 +275,24 @@ fn checked(text: &str, rows: &[BotRowInfo], removed: &[String]) -> Result<(), St
             | crate::features::bot::check::Refused::Number(w)
             | crate::features::bot::check::Refused::Time(w)
             | crate::features::bot::check::Refused::Claim(w) => format!(" (\"{w}\")"),
+            // 0.5.2 G62: the retry note says what a whole line is.
+            crate::features::bot::check::Refused::Fragment(w) => format!(
+                " (\"{w}\"): write it as one whole phrase that says what changed, never a piece of a longer sentence"
+            ),
             _ => String::new(),
         };
         format!("{}{word}", refused.code())
     })
+}
+
+/// What a refused line is, for the retry note: not a whole clause (G62),
+/// or not in the message's words.
+fn refused_as(why: &str) -> &'static str {
+    if why.starts_with("fragment") {
+        "isn't a whole clause"
+    } else {
+        "isn't in the message's words"
+    }
 }
 
 fn is_none(text: &str) -> bool {
@@ -332,7 +346,7 @@ pub fn decide(
         }
         let rows = records(Some(path), said);
         checked(says, &rows, removed)
-            .map_err(|why| format!("the note for {path} isn't in the message's words: {why}"))?;
+            .map_err(|why| format!("the note for {path} {}: {why}", refused_as(&why)))?;
         notes.push((path.to_owned(), says.to_owned()));
     }
     let floor = floor(review);
@@ -375,7 +389,7 @@ pub fn decide(
             return Err(format!("risk_reason is longer than {SAYS_MAX} characters"));
         }
         checked(reason, &records(None, said), removed)
-            .map_err(|why| format!("risk_reason isn't in the message's words: {why}"))?;
+            .map_err(|why| format!("risk_reason {}: {why}", refused_as(&why)))?;
     }
     Ok(Written {
         notes,

@@ -598,6 +598,53 @@ pub fn refers_back(text: &str) -> bool {
             .any(|pair| matches!(pair, [a, b] if a == "und" && b == "was"))
 }
 
+/// 0.5.2 G59: the user's own words after the feed's "About this post:
+/// “…”" (Ask Bot on a post starts the question with the post's sentence;
+/// the post's record rides on the chip, by its key). The sentence's
+/// closing quote is found by its pairs, a session's quoted name inside it
+/// included. The whole text when it doesn't start so, or nothing follows.
+#[must_use]
+pub fn after_post(text: &str) -> &str {
+    let Some(rest) = text.trim_start().strip_prefix("About this post:") else {
+        return text;
+    };
+    let rest = rest.trim_start();
+    if !rest.starts_with('\u{201c}') {
+        return text;
+    }
+    let mut depth = 0_u32;
+    for (at, c) in rest.char_indices() {
+        match c {
+            '\u{201c}' => depth += 1,
+            '\u{201d}' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    let own = rest[at + c.len_utf8()..].trim();
+                    return if own.is_empty() { text } else { own };
+                }
+            }
+            _ => {}
+        }
+    }
+    text
+}
+
+impl Reading {
+    /// 0.5.2 G53, G58: the question names the user's work: a record by its
+    /// words, a state, a kind, a time, something not recorded or a work
+    /// word. "What is 3+5" names none of it (D-144: never refused by the
+    /// records; [`super::answer`]).
+    #[must_use]
+    pub fn names_work(&self) -> bool {
+        self.work
+            || !self.subject.is_empty()
+            || !self.states.is_empty()
+            || self.kinds.any()
+            || self.when != When::Any
+            || self.unknown.is_some()
+    }
+}
+
 /// A model, as "which model are you" names it.
 const MODEL_WORDS: &[&str] = &[
     "model",
@@ -841,6 +888,22 @@ mod tests {
         ] {
             assert!(refers_back(follow_up), "{follow_up}");
         }
+    }
+
+    /// 0.5.2 G59: Ask Bot on a post asks the user's own words; the post's
+    /// sentence (its quoted names too) isn't read as the question.
+    #[test]
+    fn a_post_s_sentence_is_not_the_question() {
+        let asked = "About this post: \u{201c}\u{201c}Fix the login\u{201d} finished in shop, in under a minute.\u{201d} did it finish cleanly?";
+        assert_eq!(after_post(asked), "did it finish cleanly?");
+        assert_eq!(read(after_post(asked)).subject, ["cleanly"]);
+        let bare = "About this post: \u{201c}Fix the login finished.\u{201d} ";
+        assert_eq!(after_post(bare), bare, "nothing asked after it");
+        assert_eq!(after_post("what is 3+5"), "what is 3+5");
+        assert_eq!(
+            after_post("About this post: no quote here"),
+            "About this post: no quote here"
+        );
     }
 
     #[test]

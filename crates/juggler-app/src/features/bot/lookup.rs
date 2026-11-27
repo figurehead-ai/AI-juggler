@@ -194,9 +194,62 @@ fn candidates<'w>(
     pool
 }
 
+/// 0.5.2 G59: a chip on one record (a session, an Account: the post's
+/// own, by its key) is what the question is about: its words name no
+/// other record to match, so none of them leaves it out. Ask Bot from a
+/// post sent the post's sentence as the question, and its words, matched
+/// as names, found nothing ("Nothing matches “post claude code cli …”").
+fn of_scope(reading: &Reading, scope: Option<&BotScope>) -> Option<Reading> {
+    scope
+        .filter(|s| matches!(s.kind, BotScopeKind::Session | BotScopeKind::Account))
+        .filter(|_| !reading.subject.is_empty())
+        .map(|_| Reading {
+            subject: Vec::new(),
+            ..reading.clone()
+        })
+}
+
+/// 0.5.2 G58 (RW1 F-RW2-11): at most `room` of `rows`, in their order,
+/// each tool (Claude Code, Codex, …) not among `shown` first, its first
+/// row, then the rest in order: with four of AI Juggler's Claude Code
+/// sessions newer than two Codex threads, "what are my sessions" named no
+/// Codex thread at all.
+fn each_tool_kept<'w>(
+    rows: Vec<&'w BotRowInfo>,
+    shown: &[&BotRowInfo],
+    room: usize,
+) -> Vec<&'w BotRowInfo> {
+    let mut tools: Vec<Option<&str>> = shown.iter().map(|r| r.provider.as_deref()).collect();
+    let mut taken = 0;
+    let mut picked: Vec<bool> = rows
+        .iter()
+        .map(|row| {
+            let tool = row.provider.as_deref();
+            let first = taken < room && !tools.contains(&tool);
+            if first {
+                tools.push(tool);
+                taken += 1;
+            }
+            first
+        })
+        .collect();
+    for flag in &mut picked {
+        if taken < room && !*flag {
+            *flag = true;
+            taken += 1;
+        }
+    }
+    rows.into_iter()
+        .zip(picked)
+        .filter_map(|(row, kept)| kept.then_some(row))
+        .collect()
+}
+
 /// The question over the records.
 #[must_use]
 pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Found {
+    let scoped = of_scope(reading, scope);
+    let reading = scoped.as_ref().unwrap_or(reading);
     let accounts_only = reading.kinds.accounts && !reading.kinds.sessions && !reading.kinds.tasks;
     let pool = candidates(reading, world, scope);
     // An Account named by name answers "how much of Work did I use".
@@ -289,6 +342,8 @@ pub const NEAREST: usize = 3;
 /// Bot's only: Search (⌘K) keeps showing just what matched.
 #[must_use]
 pub fn nearest(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Option<Found> {
+    let scoped = of_scope(reading, scope);
+    let reading = scoped.as_ref().unwrap_or(reading);
     let accounts_only = reading.kinds.accounts && !reading.kinds.sessions && !reading.kinds.tasks;
     if !reading.subject.is_empty()
         || reading.when != When::Any
@@ -319,7 +374,10 @@ pub fn nearest(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Op
     Some(Found {
         total: u32::try_from(pool.len()).unwrap_or(u32::MAX),
         tallies: tally(&pool),
-        rows: pool.into_iter().take(NEAREST).cloned().collect(),
+        rows: each_tool_kept(pool, &[], NEAREST)
+            .into_iter()
+            .cloned()
+            .collect(),
         unknown: None,
         shortcut: Some(shortcut_for(reading)),
         looked: looked(reach, scope.cloned()),
@@ -424,7 +482,8 @@ fn narrow<'w>(
             let mut open_first: Vec<&BotRowInfo> = std::mem::take(&mut answer);
             open_first
                 .sort_by_key(|row| (rank(row.state), std::cmp::Reverse(row.at_ms.unwrap_or(0))));
-            open_first.extend(recent.into_iter().take(room));
+            let kept = each_tool_kept(recent, &open_first, room);
+            open_first.extend(kept);
             return open_first;
         }
     }

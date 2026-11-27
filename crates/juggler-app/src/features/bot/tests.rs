@@ -144,6 +144,134 @@ fn time_and_kind_words_narrow_the_rows() {
     assert_eq!(found.looked.reach, "accounts");
 }
 
+/// 0.5.2 G58 (RW1 F-RW2-11): the look-up's bound keeps each tool: with
+/// four of AI Juggler's Claude Code sessions newer than two Codex threads,
+/// "what are my sessions" (and the nearest records, nothing open) still
+/// names a Codex thread; the open one first, the newest of the rest.
+#[test]
+fn the_bound_keeps_each_tool() {
+    let tool = |mut row: BotRowInfo, provider: &str| {
+        row.provider = Some(provider.into());
+        row
+    };
+    let own = |id: &str, title: &str, state: BotState, ago: i64| {
+        tool(
+            session(id, title, state, "web", NOW - ago * MIN),
+            "claude-code",
+        )
+    };
+    let codex = |id: &str, title: &str, ago: i64| {
+        tool(
+            session(id, title, BotState::Ended, "api", NOW - ago * MIN),
+            "codex",
+        )
+    };
+    let world = |open: bool| World {
+        now_ms: NOW,
+        sessions: [
+            open.then(|| own("c-notebook", "Update the summary cell", BotState::Idle, 2)),
+            Some(own("s-question", "Add retries", BotState::Finished, 12)),
+            Some(own(
+                "s-fail",
+                "Rewrite the date parser",
+                BotState::Failed,
+                30,
+            )),
+            Some(own(
+                "s-revert",
+                "Change the date format",
+                BotState::Finished,
+                34,
+            )),
+            Some(own(
+                "s-edits",
+                "Split the cart total",
+                BotState::Finished,
+                40,
+            )),
+            Some(codex("x-patch", "Add a retry helper", 50)),
+            Some(codex("x-delete", "Remove the old handlers", 55)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        ..World::default()
+    };
+    let found = look_up(&read("what are my sessions"), &world(true), None);
+    assert_eq!(
+        titles(&found.rows),
+        [
+            "Update the summary cell",
+            "Add retries",
+            "Rewrite the date parser",
+            "Add a retry helper"
+        ]
+    );
+    let near = super::lookup::nearest(&read("what are my sessions"), &world(false), None).unwrap();
+    assert_eq!(
+        titles(&near.rows),
+        [
+            "Rewrite the date parser",
+            "Add retries",
+            "Add a retry helper"
+        ],
+        "the failure first, then each tool"
+    );
+}
+
+/// The chip on session `id`, named as its id.
+pub(super) fn session_chip(id: &str) -> BotScope {
+    BotScope {
+        kind: BotScopeKind::Session,
+        id: id.into(),
+        name: id.into(),
+        sessions: Vec::new(),
+    }
+}
+
+/// 0.5.2 G59 (RW1 R14): a chip on one record (Ask Bot on a post: its
+/// session, by its key) is what the question is about: the question's
+/// words never leave it out ("did it finish cleanly?" found nothing).
+#[test]
+fn a_chip_on_one_record_is_that_record_whatever_the_words() {
+    let world = World {
+        now_ms: NOW,
+        sessions: vec![
+            session(
+                "s-revert",
+                "Change the date format",
+                BotState::Finished,
+                "api",
+                NOW,
+            ),
+            session(
+                "s-web",
+                "Split the cart total",
+                BotState::Finished,
+                "web",
+                NOW,
+            ),
+        ],
+        ..World::default()
+    };
+    let post = session_chip("s-revert");
+    let asked = read(super::question::after_post(
+        "About this post: \u{201c}Claude Code CLI changed the date format in api.\u{201d} did it finish cleanly?",
+    ));
+    let found = look_up(&asked, &world, Some(&post));
+    assert_eq!(titles(&found.rows), ["Change the date format"]);
+    assert_eq!(found.unknown, None);
+    // A chip on a project still matches its records by the words.
+    let api = BotScope {
+        kind: BotScopeKind::Project,
+        id: "p-api".into(),
+        name: "api".into(),
+        sessions: Vec::new(),
+    };
+    let found = look_up(&read("is the parser done?"), &world, Some(&api));
+    assert_eq!(found.unknown, Some(BotUnknown::NothingFound));
+}
+
 /// D-136 point 3: with the chip, only the scope is looked at; without
 /// it (× pressed), everything.
 #[test]
@@ -455,6 +583,17 @@ pub(super) fn seed_session(
     name: &str,
     branch: &str,
 ) {
+    seed_session_at(state, dir, (id, name, branch), None);
+}
+
+/// [`seed_session`], started at `started_ms` (and active a minute later)
+/// when given, else at the fixture's fixed time.
+pub(super) fn seed_session_at(
+    state: &Arc<AppState>,
+    dir: &std::path::Path,
+    (id, name, branch): (&str, &str, &str),
+    started_ms: Option<i64>,
+) {
     let cwd = dir.join(name);
     std::fs::create_dir_all(cwd.join(".git")).unwrap();
     std::fs::write(
@@ -480,15 +619,22 @@ pub(super) fn seed_session(
             ))
             .unwrap();
     }
-    storage
-        .sessions()
-        .insert(&crate::test_support::instance(
-            id,
-            "rec-1",
-            juggler_core::model::SessionStatus::Running,
-            cwd,
-        ))
-        .unwrap();
+    // A repository is a project, as the window makes one for it (0.5.2
+    // G57: an untitled session is named by its facts, "api · started …",
+    // and its project by its own name).
+    let project = storage.projects().ensure(&cwd).unwrap().id;
+    let mut record = crate::test_support::instance(
+        id,
+        "rec-1",
+        juggler_core::model::SessionStatus::Running,
+        cwd,
+    );
+    record.project = Some(project);
+    if let Some(at) = started_ms {
+        record.started_at = juggler_core::model::Timestamp::from_millis(at);
+        record.last_activity = Some(juggler_core::model::Timestamp::from_millis(at + 60_000));
+    }
+    storage.sessions().insert(&record).unwrap();
 }
 
 /// The Bot review's H1: a forgotten memory's words are gone from every
@@ -886,7 +1032,7 @@ fn the_records_hold_the_sessions_ai_juggler_didnt_start_in_their_rail_state() {
             .unwrap()
     };
     let read = |row: &crate::features::sessions::dto::InstanceInfo| {
-        super::world::session_row(row, &std::collections::HashMap::new(), &mut Vec::new()).state
+        super::world::session_row(row, &std::collections::HashMap::new(), 0, &mut Vec::new()).state
     };
     assert_eq!(read(&row), Some(BotState::Working), "running, nothing said");
     row.runtime = Some(crate::features::runtime::dto::RuntimeInfo {
