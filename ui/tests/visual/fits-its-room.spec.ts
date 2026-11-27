@@ -21,21 +21,21 @@ const ACCOUNTS = [
 ];
 const RECIPES = [{ id: "rec-main", name: "Main", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null }];
 
-async function seed(page: Page, fixture: Record<string, unknown>, size: { width: number; height: number }) {
+async function seed(page: Page, fixture: Record<string, unknown>, size: { width: number; height: number }, theme: "dark" | "light" = "dark") {
   await page.addInitScript(
-    ({ fixture, known, recipes, t0 }) => {
+    ({ fixture, known, recipes, t0, theme }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       w.__AIJ_PLACES__ = known;
       w.__AIJ_RECIPES__ = recipes;
-      localStorage.setItem("aij.theme", "dark");
+      localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture, known: knownPlacesPreview(T0), recipes: RECIPES, t0: T0 },
+    { fixture, known: knownPlacesPreview(T0), recipes: RECIPES, t0: T0, theme },
   );
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize(size);
   await page.goto("/");
   await expect(page.getByTestId("rail")).toBeVisible();
@@ -230,6 +230,61 @@ for (const size of [
       await expect(chosen).toHaveAttribute("aria-pressed", "true");
       expect(await tops(), "still one row").toHaveLength(1);
       expect(await inside(), "every tab still within the row").toBe(true);
+    }
+  });
+}
+
+/** No tab shows in part: every tab on the row's visible line ends at
+ * least the toolbar's gap (8 px) before the ⋯ button; one that doesn't fit
+ * is out of sight whole. */
+async function noPartTab(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const row = document.querySelector<HTMLElement>("[data-testid='feed-chip']");
+    const more = document.querySelector<HTMLElement>("[data-testid='feed-more']");
+    if (!row || !more) return ["no row or no ⋯"];
+    const box = row.getBoundingClientRect();
+    const edge = more.getBoundingClientRect().left - 8;
+    return [...row.querySelectorAll<HTMLElement>("button")]
+      .filter((tab) => tab.getBoundingClientRect().top < box.bottom - 1)
+      .filter((tab) => tab.getBoundingClientRect().right > Math.min(edge, box.right) + 0.5)
+      .map((tab) => `${tab.textContent}: ends at ${tab.getBoundingClientRect().right.toFixed(1)}, the ⋯ at ${more.getBoundingClientRect().left.toFixed(1)}`);
+  });
+}
+
+/** PR #257's second Happo check ("This Ma" cut against the ⋯ at
+ * chrome-min, 1024 x 680): at every width walked and Happo's chrome-min,
+ * both themes, no tab shows in part. Then as Happo draws it: the page's
+ * DOM laid out at 1280 shown at 1024 with no script re-fitting it (no
+ * ResizeObserver): a tab that no longer fits drops whole out of sight. */
+for (const theme of ["dark", "light"] as const) {
+  for (const size of [
+    { width: 1280, height: 800 },
+    { width: 1200, height: 900 },
+    { width: 1024, height: 700 },
+    { width: 1024, height: 680 },
+  ]) {
+    test(`Home's feed tabs: none shows in part — ${size.width}x${size.height} — ${theme}`, async ({ page }) => {
+      await seed(page, { accounts: ACCOUNTS, projects: [], sessions: MOCK_SESSIONS, conversations: placesConversations(T0) }, size, theme);
+      await expect(page.getByTestId("feed-chip")).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      expect(await noPartTab(page)).toEqual([]);
+    });
+  }
+  test(`Home's feed tabs: none shows in part with the DOM of a wider layout — ${theme}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      };
+    });
+    await seed(page, { accounts: ACCOUNTS, projects: [], sessions: MOCK_SESSIONS, conversations: placesConversations(T0) }, { width: 1280, height: 800 }, theme);
+    await expect(page.getByTestId("feed-chip")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    for (const size of [{ width: 1024, height: 680 }, { width: 1100, height: 680 }]) {
+      await page.setViewportSize(size);
+      await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+      expect(await noPartTab(page), `at ${size.width}`).toEqual([]);
     }
   });
 }
