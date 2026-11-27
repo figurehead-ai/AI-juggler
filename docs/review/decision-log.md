@@ -3915,3 +3915,14 @@ With an AI ready, a question with no AI Juggler records in it ("what is 3+5") ge
 
   Every feed verdict stays `not_yet` and the plain excerpt ships in 0.5.2. The Models page's note now says why: "the line got the outcome wrong too often", not "the plain line reads better", which the preference no longer supports.
 - **Next:** the six optimizations in AJ-E3831, then one fresh blind round per model in the next release. 14 of the 24 critical errors were the code's own facts, so the first lever is code.
+
+### D-153 — Watches from Bot: Bot fills the Watches form, the user saves; the confirm card an opt-in Beta where code verifies every field (2026-11-27)
+
+- **Ruling** (the coordinating session, 2026-11-26, relaying the maintainer's standing rule "we do the best we can, and we optimize for later"; amends D-149 for watches and supersedes AJ-E3830's R3 "≥ 90 % exact" as a ship bar):
+  - Bot pre-fills the Watches form with only what code and the verified labels understood (target, condition with its parameters, lifetime, quiet hours), and the user checks and saves. Bot never saves a watch.
+  - The safety bar stays hard: never a wrong pre-filled field (0), never anything saved without the user's click.
+  - The quality bar (exact %) decides the label, not shipping: where code verifies every field, Bot may offer its confirm card directly as an opt-in Beta (`ai_beta_watches`, off by default, switched on in Settings › AI › Models).
+  - The "Bot drafts a watch" verdict stays `not_yet`. There are no more watch rounds in 0.5.2.
+- **Result** (e923067e2, d3ccfce2e; `docs/qa/evidence/AJ-E3830/manifest.md` R4): 0 wrong pre-filled fields on Apple's model, Qwen3 1.7B, Granite 4.1 3B and code alone over v13's 38 supported requests (and on v6–v12 on Apple), and over v6–v13's 480 requests against nine lying labellers. The confirm card is offered on 12–15 of 38, of which 11–13 have every field right.
+  - The measurement isn't blind: the builder had read v13's misses. Its reading changes only leave more fields empty, and it added no vocabulary.
+- **Next (0.5.3, in AJ-E3830):** grow the code's vocabulary from the model's labels (v13 showed they are mostly right), then a fresh blind round, a stronger model, and the local models.
