@@ -304,9 +304,15 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
       <h2 id="activity-h" className="sr-only">Activity</h2>
       {!empty && <HomeFeedFilters filters={filters} onChange={setFilters} facets={facets} seen={seen} counts={counts} toReview={toReview} onReviewAll={onReviewAll} onReadAll={readAll} />}
       {stream.waiting > 0 && (
-        <button type="button" onClick={stream.showNew} className="sticky top-1 z-10 self-center rounded-full bg-surface-3 px-3 py-1 text-meta font-medium text-ink shadow-card outline-none hover:bg-selected focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-new-pill">
-          ↑ {stream.waiting} new {stream.waiting === 1 ? "update" : "updates"}
-        </button>
+        // 0.5.2 G63 (RW1 F-RW2-9): in a scrolled feed the pill sat on a
+        // post's header line, the words running out on both sides of it.
+        // It rides a band of the page's own colour, fading below, so the
+        // post slides under it (Bot's conversation head, the same way).
+        <div className="pointer-events-none sticky top-0 z-10 -mb-6 flex justify-center bg-linear-to-b from-canvas from-60% to-transparent pb-6 pt-1" data-testid="feed-new-band">
+          <button type="button" onClick={stream.showNew} className="pointer-events-auto rounded-full bg-surface-3 px-3 py-1 text-meta font-medium text-ink shadow-card outline-none hover:bg-selected focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-new-pill">
+            ↑ {stream.waiting} new {stream.waiting === 1 ? "update" : "updates"}
+          </button>
+        </div>
       )}
       <States stream={stream} quiet={quiet} onNewSession={onNewSession} onOpenApp={onOpenApp} includeMine={empty && !filters.include_mine ? () => setFilters({ ...filters, include_mine: true }) : null}
         filteredAs={filtered(filters) ? [tab !== "all" ? TABS.find((one) => one.value === tab)?.label : null, state ? STATES.find((one) => one.value === state)?.label : null].filter(Boolean).join(" · ") || "this filter" : null}

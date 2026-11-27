@@ -432,3 +432,50 @@ for (const theme of ["dark", "light"] as const) {
     await axeClean(page, `a post leaned less, folded ${theme}`);
   });
 }
+
+/**
+ * 0.5.2 G63 (RW1 F-RW2-9): new items arrive while the reader is scrolled
+ * down: the "↑ 1 new update" pill rides a band of the page's colour at
+ * the column's top, the post sliding under it, never its words beside
+ * the pill.
+ */
+for (const theme of ["dark", "light"] as const) {
+  test(`home feed — 0.5.2 the new-update pill over a scrolled feed — 1280 — ${theme}`, async ({ page }) => {
+    // One unread earlier notice: the bell's Read all tells the model's
+    // change (the stand-in's), which reads the feed's first page again.
+    const unread = { id: 40, kind: "renewal", needs: false, title: "Renews in 6 days", detail: "", project_id: null, project: null, target: { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null }, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: null, meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false };
+    await seed(page, allStatuses, theme, { width: 1280, height: 800 }, { feed: [...releaseWalkFeed(T0), ...manyFeed(T0 - 6 * 3_600_000, 12)], globals: { __AIJ_NOTICES__: { earlier: [unread] } } });
+    await expect(page.getByTestId("feed-card").first()).toBeVisible();
+    const column = page.getByTestId("home-main");
+    // Scrolled so a post's header sits at the column's top, where the pill goes.
+    await column.evaluate((box) => {
+      const cards = [...box.querySelectorAll<HTMLElement>("[data-testid=feed-card]")];
+      const second = cards[1] ?? cards[0]!;
+      box.scrollTop = second.offsetTop - 6;
+      box.dispatchEvent(new Event("scroll"));
+    });
+    expect(await column.evaluate((box) => box.scrollTop)).toBeGreaterThan(4);
+    const arrived = { ...manyFeed(T0 + 60_000, 1)[0]!, id: "l:g63", coalesce: "s:g63", subject: "Bump the lockfile" };
+    await page.evaluate((item) => {
+      const w = window as unknown as { __AIJ_FEED__: unknown[] };
+      w.__AIJ_FEED__ = [item, ...w.__AIJ_FEED__];
+    }, arrived);
+    await page.getByTestId("notification-bell").click({ timeout: 5_000 });
+    await page.getByTestId("notices-read-all").click({ timeout: 5_000 });
+    await expect(async () => {
+      await page.getByTestId("notification-centre").press("Escape", { timeout: 1_000 }).catch(() => undefined);
+      await expect(page.getByTestId("notification-centre")).toHaveCount(0, { timeout: 1_000 });
+    }).toPass({ timeout: 8_000 });
+    const pill = page.getByTestId("feed-new-pill");
+    await expect(pill).toBeVisible({ timeout: 10_000 });
+    await expect(pill).toHaveText("↑ 1 new update");
+    // Nothing of a post's text shows beside the pill: the band covers the row.
+    const band = (await page.getByTestId("feed-new-band").boundingBox())!;
+    const pillBox = (await pill.boundingBox())!;
+    expect(band.y).toBeLessThanOrEqual(pillBox.y);
+    await page.mouse.move(0, 0);
+    const box = (await column.boundingBox())!;
+    await page.screenshot({ path: resolve(OUT, `g63-new-pill-scrolled-1280-${theme}.png`), clip: { x: box.x, y: box.y, width: Math.min(box.width, 760), height: 240 } });
+    await axeClean(page, `the new-update pill ${theme}`);
+  });
+}
