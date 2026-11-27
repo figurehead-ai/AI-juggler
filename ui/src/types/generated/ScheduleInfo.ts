@@ -62,4 +62,10 @@ created_by: string,
 /**
  * What a reminder is about.
  */
-about?: WatchTarget | null, };
+about?: WatchTarget | null, 
+/**
+ * 0.5.2 G42: the session it is about, named as the rail names it
+ * (the one rule), for a list the window doesn't hold that session
+ * in; none for another kind or one storage doesn't hold.
+ */
+about_name?: string | null, };

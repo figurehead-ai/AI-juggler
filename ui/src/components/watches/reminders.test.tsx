@@ -76,6 +76,24 @@ describe("AJ-E2027 — Reminders beside the watches", () => {
     expect(window.__AIJ_SCHEDULES__.calls).toContainEqual(["schedule_remove", { id: "api" }]);
   });
 
+  /** 0.5.2 G42: a reminder about a session the window doesn't hold read
+   * "About Session". It takes the backend's name for it (the one rule);
+   * one the window holds keeps the window's name; with neither, its kind. */
+  it("names what a reminder is about by the window's lists, else the backend's name, else its kind", async () => {
+    const held = new Map([["session:api", { target: { kind: "session" as const, id: "api" }, key: "session:api", kind: "session" as const, name: "api renamed", line: "", tool: null, open: true, at: 0 }]]);
+    window.__AIJ_SCHEDULES__ = {
+      yours: [
+        reminder("api", NOW + HOUR, { about_name: "api" }),
+        reminder("login", NOW + 2 * HOUR, { about_name: "Login refactor" }),
+        reminder("gone", NOW + 3 * HOUR, { about_name: null }),
+      ],
+      calls: [],
+    };
+    render(<RemindersSection book={held} now={NOW} />);
+    await screen.findAllByTestId("reminder-row");
+    expect(screen.getAllByTestId("reminder-about").map((one) => one.textContent)).toEqual(["About api renamed", "About Login refactor", "About Session"]);
+  });
+
   /** 0.5.2 G23 (RW1 B7): Remind me's toast and Bot's card open the
    * reminder they set: the list scrolls to it, the keyboard on it. */
   it("opens on one reminder by its id, marked and focused", async () => {

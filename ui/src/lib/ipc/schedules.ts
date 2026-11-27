@@ -28,6 +28,9 @@ interface SchedulesSeam {
   app?: ScheduleInfo[];
   /** The scheduler isn't there (an older backend): Remind me hides. */
   off?: boolean;
+  /** 0.5.2 G42: the sessions the backend names (by id, the one rule),
+   * for a reminder made here about one. */
+  names?: Record<string, string>;
   calls?: [string, unknown][];
 }
 
@@ -103,6 +106,7 @@ export async function scheduleRemind(request: RemindRequest): Promise<ScheduleIn
     created_ms: Date.now(),
     created_by: request.chat_turn ? "bot" : "user",
     about: request.about ?? null,
+    about_name: request.about?.kind === "session" ? (seam().names?.[request.about.id] ?? null) : null,
   };
   (seam().yours ??= []).unshift(made);
   return made;

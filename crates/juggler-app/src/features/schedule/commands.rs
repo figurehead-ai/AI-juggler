@@ -54,6 +54,12 @@ pub struct ScheduleInfo {
     /// What a reminder is about.
     #[ts(optional = nullable)]
     pub about: Option<WatchTarget>,
+    /// 0.5.2 G42: the session it is about, named as the rail names it
+    /// (the one rule), for a list the window doesn't hold that session
+    /// in; none for another kind or one storage doesn't hold.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub about_name: Option<String>,
 }
 
 impl ScheduleInfo {
@@ -77,8 +83,31 @@ impl ScheduleInfo {
             created_ms: found.row.created_ms,
             created_by: found.row.created_by.clone(),
             about,
+            about_name: None,
         }
     }
+}
+
+/// 0.5.2 G42: each reminder about a session named by the one rule
+/// ([`crate::features::sessions::names::names_of`]), one read for the
+/// list; the caller holds no lock.
+fn named(state: &Arc<AppState>, infos: &mut [ScheduleInfo]) {
+    let session = |info: &ScheduleInfo| match &info.about {
+        Some(WatchTarget::Session(id)) => Some(id.clone()),
+        _ => None,
+    };
+    let ids: Vec<String> = infos.iter().filter_map(session).collect();
+    let names =
+        crate::features::sessions::names::names_of(state, &ids, crate::commands::now_millis());
+    for info in infos {
+        info.about_name = session(info).and_then(|id| names.get(&id).cloned());
+    }
+}
+
+/// [`named`] for one.
+fn named_one(state: &Arc<AppState>, mut info: ScheduleInfo) -> ScheduleInfo {
+    named(state, std::slice::from_mut(&mut info));
+    info
 }
 
 /// Which list.
@@ -207,7 +236,7 @@ pub fn schedule_remind_impl(
         store::create(&storage, &registry, new, &ctx, now).map_err(refused)?
     };
     changed(state);
-    let info = ScheduleInfo::of(&made);
+    let info = named_one(state, ScheduleInfo::of(&made));
     // 0.5.2 G30: Bot's turn keeps which reminder came of its draft.
     if let Some(turn) = &request.chat_turn {
         crate::features::bot::commands::reminder_set(state, turn, &info.id);
@@ -248,7 +277,9 @@ pub fn schedule_list_impl(
         .map(|row| (SortKey::new([row.created_ms], row.id.clone()), row))
         .filter_map(|(key, row)| Schedule::of(row).map(|found| (key, ScheduleInfo::of(&found))))
         .collect();
-    Ok(page_of_fetched(fetched, limit, None))
+    let mut page = page_of_fetched(fetched, limit, None);
+    named(state, &mut page.items);
+    Ok(page)
 }
 
 /// Core: the user's list at a glance.
@@ -299,7 +330,7 @@ pub fn schedule_update_impl(
         .map_err(refused)?
     };
     changed(state);
-    Ok(ScheduleInfo::of(&edited))
+    Ok(named_one(state, ScheduleInfo::of(&edited)))
 }
 
 /// Core: pauses or resumes one of the user's schedules.
@@ -318,7 +349,7 @@ pub fn schedule_pause_impl(
         store::pause_users(&storage, id, paused, now).map_err(refused)?
     };
     changed(state);
-    Ok(ScheduleInfo::of(&found))
+    Ok(named_one(state, ScheduleInfo::of(&found)))
 }
 
 /// Core: Pause all (or Resume all) in the user's list.

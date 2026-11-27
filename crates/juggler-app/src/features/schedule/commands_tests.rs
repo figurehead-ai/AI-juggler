@@ -108,6 +108,51 @@ fn a_reminder_is_set_listed_and_told_once_when_due() {
     );
 }
 
+/// 0.5.2 G42: a reminder about a session the window doesn't hold read
+/// "About Session" (its kind word). The list now names each session by
+/// the one rule over its row, as the rail and the post do: its label, else
+/// its facts ("api · started …", never the bare folder of the old second
+/// rule); a session storage doesn't hold, or another kind, has no name.
+#[test]
+fn a_reminder_names_its_session_by_the_rails_rule() {
+    let (_dir, state) = state();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .sessions()
+            .set_label(
+                &juggler_core::model::SessionId::new("s2"),
+                Some("Login refactor"),
+            )
+            .unwrap();
+    }
+    let now = crate::commands::now_millis();
+    let at = now + 3_600_000;
+    let made = remind(&state, at, Some(WatchTarget::Session("s2".into())));
+    assert_eq!(made.about_name.as_deref(), Some("Login refactor"));
+    remind(&state, at, Some(WatchTarget::Session("s1".into())));
+    remind(&state, at, Some(WatchTarget::Session("s-gone".into())));
+    remind(&state, at, Some(WatchTarget::Account("acct-1".into())));
+    let page =
+        schedule_list_impl(&state, &PageRequest::first(10), ScheduleListWhich::Yours).unwrap();
+    let name = |about: &WatchTarget| {
+        page.items
+            .iter()
+            .find(|info| info.about.as_ref() == Some(about))
+            .unwrap()
+            .about_name
+            .clone()
+    };
+    assert_eq!(
+        name(&WatchTarget::Session("s2".into())).as_deref(),
+        Some("Login refactor")
+    );
+    let untitled = name(&WatchTarget::Session("s1".into())).unwrap();
+    assert!(untitled.starts_with("api · started "), "{untitled}");
+    assert_eq!(name(&WatchTarget::Session("s-gone".into())), None);
+    assert_eq!(name(&WatchTarget::Account("acct-1".into())), None);
+}
+
 #[test]
 fn the_list_pauses_all_and_removes_by_id() {
     let (_dir, state) = state();

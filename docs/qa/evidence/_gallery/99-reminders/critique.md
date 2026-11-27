@@ -1,4 +1,4 @@
-<!-- captures: 200069cfaa93 -->
+<!-- captures: 99b50c96cd2c -->
 # 99-reminders: the Reminders list beside the watches, and Settings › Advanced › Scheduled work
 
 Design critique (D-57, AJ-E2814), AJ-E2027 (ADR-0039 §6), Opus, 2026-11-26. Captured on the host from a clean export of HEAD (`watches-gallery.spec.ts`: one reminder set about "api", one made by Bot and paused, one told; the app's own two schedules), both themes, the list at 1280 and 1024, Scheduled work at 1280; every capture opened. Mock-ups: the Watches page's approved mock (its rows, state column and actions), `d126-rich-ui/kit-*.png` for the settings rows.
@@ -64,3 +64,15 @@ Four new captures, both themes, 1280, from a clean export of HEAD (`watches-gall
 | 19 | Rich-mode colour | 4 | Every row still leads with its clock tile; set is the accent's soft step; the arrival is the selected fill, never a ring; status keeps its hue. |
 
 Lowest: 3 (line 16).
+
+## 0.5.2 G42: a reminder about a session the window doesn't hold (Opus, 2026-11-26)
+
+Two captures changed, both themes, 1280 (`watches-gallery.spec.ts` "reminder opened from Remind me", now on a post whose session the window doesn't hold); the list, Scheduled work and their 1024 captures re-ran byte for byte. Every capture opened.
+
+**What changed.** The G23 captures had added a "Login refactor" session to the window's list so the reminder could be named; without it the opened row read "About Session" (reproduced first: the spec's new check failed on the old list with exactly that). The fixture now leaves that session out, as a Claude app conversation's post often is, so `remind-toast-1280-*` and `list-opened-1280-*` lose the rail's "Login refactor" row under Work (its count 2 → 1) and the rows below it move up one. The opened reminder still reads "About Login refactor": the list now takes the backend's name for the session (the rail's one rule) when the window doesn't hold it. The reminders' look is unchanged, so the scores stand as above; line 19 again for the rule.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 19 | Rich-mode colour | 4 | Unchanged: every row leads with its clock tile; set is the accent's soft step; the arrival is the selected fill; status keeps its hue. |
+
+Lowest: 3 (line 16, as above).

@@ -283,16 +283,16 @@ for (const theme of ["dark", "light"] as const) {
   }
   /** 0.5.2 G23 (RW1 B7): Home's Remind me, its toast's Open reminder,
    * and the Reminders list opened on that reminder (in view, marked, the
-   * keyboard on it). */
+   * keyboard on it). 0.5.2 G42: the post is a Claude app conversation's
+   * the window doesn't hold (its session isn't in the list), so the
+   * reminder's About is the backend's name for it (the one rule, as the
+   * post says it), never its kind word ("About Session"). */
   test(`reminder opened from Remind me — ${theme}`, async ({ page }) => {
     const story = storyHome(STORY_T0);
     await page.addInitScript(
       ({ story: st, schedules, theme: t, now, jobs, sessions }) => {
         const w = window as unknown as Record<string, unknown>;
-        // The story's posts about "Login refactor" are about a session
-        // this Mac holds, as the reminders' "api" and "web" are.
-        const login = { ...sessions[0]!, id: "login", label: "Login refactor" };
-        w.__AIJ_FIXTURE__ = { ...st.fixture, sessions: [...sessions, login] };
+        w.__AIJ_FIXTURE__ = { ...st.fixture, sessions };
         w.__AIJ_FEED__ = st.feed;
         w.__AIJ_SUMMARY__ = st.summary;
         w.__AIJ_QUOTA_DISPLAY__ = st.quota;
@@ -309,7 +309,7 @@ for (const theme of ["dark", "light"] as const) {
         const start = real();
         Date.now = () => now + (real() - start);
       },
-      { story, schedules: atStoryTime(SCHEDULES), theme, now: STORY_T0, jobs: BOT.empty!.jobs, sessions: WATCHES_FIXTURE.sessions },
+      { story, schedules: { ...atStoryTime(SCHEDULES), names: { login: "Login refactor" } }, theme, now: STORY_T0, jobs: BOT.empty!.jobs, sessions: WATCHES_FIXTURE.sessions },
     );
     await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
     await page.setViewportSize({ width: 1280, height: 800 });
@@ -329,6 +329,7 @@ for (const theme of ["dark", "light"] as const) {
     const opened = page.locator("[data-testid=reminder-row][data-focused='1']");
     await expect(opened).toBeVisible();
     await expect(opened).toBeFocused();
+    await expect(opened.getByTestId("reminder-about")).toHaveText("About Login refactor");
     await expect(page.getByTestId("reminder-row")).toHaveCount(4);
     if (OUT) await page.screenshot({ path: `${REMINDERS_GALLERY}/list-opened-1280-${theme}.png` });
     await axeClean(page, `reminder opened ${theme}`);

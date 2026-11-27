@@ -20,7 +20,7 @@ import { clock, minutes as span, whenWords } from "../../lib/time-words";
 import { REMIND_CHOICES } from "../../lib/feed-watch";
 import { onSchedulesChanged, scheduleRemind, schedulePause, scheduleRemove, schedulesPage, schedulesPauseAll, schedulesSummary, scheduleUpdate, type ScheduleInfo, type SchedulesSummary } from "../../lib/ipc/schedules";
 import { WatchChip, StateCell } from "./WatchParts";
-import { optionOf, type StateTone, type TargetOption } from "./watches-view";
+import { optionOf, targetKey, type StateTone, type TargetOption } from "./watches-view";
 import { IconBin, IconClockFace, IconPause, IconPencil, IconPlay } from "./watch-icons";
 
 const GHOST = "inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
@@ -49,6 +49,15 @@ const REMINDERS = {
   moved: (when: string) => `Reminder moved to ${when}.`,
   failed: (why: string) => `That didn't work: ${why}`,
 } as const;
+
+/** What a reminder is about, by name: as the window's lists name it
+ * when it holds it, else the backend's name for its session (0.5.2 G42:
+ * the one rule, as its post said it), else its kind's word. */
+function aboutName(book: Map<string, TargetOption>, info: ScheduleInfo): string | null {
+  if (!info.about) return null;
+  const held = book.get(targetKey(info.about));
+  return held?.name ?? info.about_name ?? optionOf(book, info.about).name;
+}
 
 /** The state column for a reminder. */
 function stateOf(info: ScheduleInfo, now: number): { tone: StateTone; top: string; sub: string } {
@@ -100,7 +109,7 @@ function ReminderRow({ info, book, now, actions, focused }: { info: ScheduleInfo
   const ours = info.source === "ai_juggler";
   const ended = info.ended_ms !== null;
   const dim = info.paused || ended;
-  const about = info.about ? optionOf(book, info.about) : null;
+  const about = aboutName(book, info);
   const state = stateOf(info, now);
   const open = (event: MouseEvent<HTMLElement>) => setMenuAt(menuPoint(event));
   return (
@@ -121,7 +130,7 @@ function ReminderRow({ info, book, now, actions, focused }: { info: ScheduleInfo
           {info.title}
         </p>
         <p className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-meta text-muted">
-          {about && <span data-testid="reminder-about">{REMINDERS.about(about.name)}</span>}
+          {about && <span data-testid="reminder-about">{REMINDERS.about(about)}</span>}
           {!ours && <WatchChip>{REMINDERS.otherTool(info.source)}</WatchChip>}
           {ours && !ended && info.trigger.kind === "at" && (
             <WatchChip icon={IconClockFace} accent={!info.paused} testId="reminder-when">
