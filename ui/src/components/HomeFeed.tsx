@@ -308,7 +308,10 @@ export function HomeFeed({ stacked, now, actions, nameOf, facets, toReview, onRe
         // post's header line, the words running out on both sides of it.
         // It rides a band of the page's own colour, fading below, so the
         // post slides under it (Bot's conversation head, the same way).
-        <div className="pointer-events-none sticky top-0 z-10 -mb-6 flex justify-center bg-linear-to-b from-canvas from-60% to-transparent pb-6 pt-1" data-testid="feed-new-band">
+        // 0.5.2 G70 (RW1 S15): in the app's web view a sliver of the post
+        // showed above the band's top edge while it stuck; the band's
+        // colour reaches 12 px above it (clipped by the column itself).
+        <div className="pointer-events-none sticky top-0 z-10 -mb-6 flex justify-center bg-linear-to-b from-canvas from-60% to-transparent pb-6 pt-1 before:absolute before:inset-x-0 before:-top-3 before:h-3 before:bg-canvas before:content-['']" data-testid="feed-new-band">
           <button type="button" onClick={stream.showNew} className="pointer-events-auto rounded-full bg-surface-3 px-3 py-1 text-meta font-medium text-ink shadow-card outline-none hover:bg-selected focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-new-pill">
             ↑ {stream.waiting} new {stream.waiting === 1 ? "update" : "updates"}
           </button>
