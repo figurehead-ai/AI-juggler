@@ -711,9 +711,8 @@ The bars are ≥ 60 % preference and ≤ 1 % critical. All three stay `not_yet` 
 **Found**: the 0.5.2 release walk's last part (RW1 Part T, 2026-11-27), triaged by D-137's wrap-up (the coordinator, relaying the maintainer's "do the best we can, optimize for later"): not blockers, so not fixed in 0.5.2. Findings G74, G75, G76 and G62's leftover in `docs/qa/0.5.2-findings.md`.
 **UI**: yes (Bot's panel; the watch form's reply). The six usability answers are written before building, per PAT-USE.
 **Requirements**:
-1. G74: in Bot's "What Bot found" list a row's state text never overlaps its title. The title truncates before the state at every width; captures in both themes at 1755, 1280 and 1024.
-2. G75: after a watch request opens the Watches form by itself, Bot's reply says the form is open. "Open the form" is offered only when it didn't open.
-3. G76: identify the untitled 280×168 AXDialog window AI Juggler Dev shows (seen since the lab's dry run 3, at 2416,672 in Part T). A stray or blank window never shows (the no-stray-windows rule); a system panel by design is recorded with evidence.
-4. G62's leftover: the turn review's model lines on an edits turn the model writes as fragments ("moved the price sum out of"). They stay refused (the check is not loosened); find a prompt or shape that yields whole clauses on Apple's model, proven with `review/real_model_tests.rs`.
-**Quality gates**: verify-static; vitest for R1–R2; the RW1 rows that showed each, re-walked.
+1. (Done in 0.5.2: G74 e5f44de9c and G75 e5f44de9c/4fef54b27, finished and tested before the wrap-up.)
+2. G76 (identified in 0.5.2, 04fd91cc3: macOS's own Siri text-input orb, a SwiftUI AXDialog with one 'Siri Waveform Orb' button, shown for about 30 s when a field takes focus; not ours): `lab_drive windows` labels it 'macOS text-input orb' so walks stop flagging it; check its placement on an unfocused field against Safari.
+3. G62's leftover: the turn review's model lines on an edits turn the model writes as fragments ("moved the price sum out of"). They stay refused (the check is not loosened); find a prompt or shape that yields whole clauses on Apple's model, proven with `review/real_model_tests.rs`.
+**Quality gates**: verify-static; vitest where UI changes; the RW1 rows that showed each, re-walked.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3833/manifest.md`.
