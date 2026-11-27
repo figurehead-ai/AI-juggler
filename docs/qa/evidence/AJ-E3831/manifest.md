@@ -48,3 +48,35 @@ The bars are 60 % preference and ≤ 1 % critical.
 - **The plain excerpt** was flagged critical in 10 to 11 of each packet's pairs, mostly for hiding a question or a part not done.
 
 Next optimizations are in AJ-E3831's task ("v14 findings"). Packets and raw transcripts are not committed (transcripts carry account ids) and are deleted with the lab.
+
+## v14 re-measure and ship (D-154, 2026-11-27, Opus; Apple only, one round, no tuning)
+
+**Inputs:** the same 42 read held-out turns. The raw transcripts were deleted with the lab, so each turn was rebuilt from v14's committed reading (request, goal, messages, commands with their failed flags, files and lines) through the app's own assembly (`feed::line::assemble`; `examples/feed_line_round.rs`, `view` rows) on HEAD d8c3c2194 (G48–G50's facts). The prompt and settings were v14's. Frozen SHA-256s: `../AJ-E3709/v14-results/remeasure/frozen-sha.txt`.
+
+**Judges:** the same two, blind: Sonnet, then a fresh Opus. The gold reference is v14's.
+
+| | Shown | Pooled preference | Critical (verified) |
+|---|---|---|---|
+| Apple on-device (datamark on) | 37/42 | **69.4 %** (50:22, 2 same; Sonnet 72.2 %, Opus 66.7 %) | **7/37 = 18.9 %** |
+
+Verified criticals:
+- H17: "Done" with the team-drive sync not set up.
+- H42, H30, H38: "Not done" or "Partly" on done turns.
+- H25: a wait shown as "Not done" with no question.
+- H23: "tests pass" from a piped run, `unittest … | tail` exits 0.
+- H26: "tests fail" where the tests weren't run.
+
+**Shipped (D-154: criticals over 1 %):** an opt-in Beta on Apple's model.
+- The "AI summaries in the feed" switch is off by default and kept out of "Use it".
+- The Models note is honest: "Beta: preferred in 69 % of blind checks, but about 1 line in 5 got something wrong."
+- The post's line has the agent's words one tap away and "This is wrong". A refused draft shows the agent's words.
+- The local models stay `not_yet`.
+
+**Fixed after the measure in the shared reading:** a piped test run's result is unknown, and a verify-and-restore sentence is never a test reading. Unit-tested on H23 and H04; not re-measured.
+
+**Gallery:**
+- 68-home-feed: `ai-summary-*`;
+- 99-ai-models: 22 frames;
+- 99-turn-review and 99-watch-prefill: the job-row crops.
+
+Each was opened in both themes with a critique line. Data: `../AJ-E3709/v14-results/remeasure/`.

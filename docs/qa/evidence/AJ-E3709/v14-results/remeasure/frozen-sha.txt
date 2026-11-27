@@ -1,0 +1,6 @@
+c918f8862347e4294e215586379086bd1524e55eb5a9cff68022c29270c92f91  crates/juggler-app/src/features/feed/line.rs
+7ef196ae46178f0904f8c4c34d6c7653a5e07a1861dc25fbd3b7f874be16a332  crates/juggler-app/src/features/feed/line_prompts/apple.txt
+a8f124d0b1623ff944ac7dc9b812d651b443c903523af1659f4df55a8f9ae95a  crates/juggler-app/src/features/review/turn.rs
+d0a2903a2133bc587ac0eab1b84e0e4fd83fbc6660ff99e29cbb5b775526792e  crates/juggler-app/src/features/review/facts.rs
+aca02ae0ed76e519fc51b2602cf2ffcf4360af0f822123f0229aaf66eb9ea00b  crates/juggler-app/src/features/bot/check.rs
+67302e0b1312f8089b051dc483a0a93bd19a6f79ef95165d1acc255915b0e830  crates/juggler-app/src/features/bot/guard.rs

@@ -621,7 +621,7 @@ The later sets asked for more paraphrase and German variety. With drafts fail-cl
 2. A stronger model for the labels: measure the next Apple model and the listed local models through `watch_prefill_round` per field (the bar first).
 3. The local models: Qwen3 1.7B and Granite 4.1 3B already hold the bar (v13); measure Nemotron 3 Nano 4B and Gemma, and a set written fresh for 0.5.3 (blind).
 
-### AJ-E3831 Feed line (redesigned under D-152: what the turn came to against the request) and digest (map and reduce): one harness round each, on only if preferred | Status: IN-PROGRESS (0.5.2: the digest Beta (64 %, D-149); the feed line built and measured in v14 (e249b088e), plain in 0.5.2: preferred 67 % on Apple, 65 % on Qwen, but 19–31 % critical errors; the next round is for the next release) | Priority P1 | Effort M | Depends: AJ-E3709
+### AJ-E3831 Feed line (D-154: an AI summary of the turn, what it came to against the request) and digest (map and reduce) | Status: DONE (0.5.2: the digest Beta at 64 %, D-149; the feed's AI summaries an opt-in Beta on Apple's model, D-154: v14's re-measure 69.4 % preferred, 18.9 % critical, so off by default with the agent's words one tap away; the next round is for the next release) | Priority P1 | Effort M | Depends: AJ-E3709
 **Found**: v5 round 3: feed lines preferred 43 %, digests 33 % over the plain text (safe, not better).
 **UI**: yes (the line saying why a job stays plain)
 **Requirements**:
@@ -649,13 +649,22 @@ The later sets asked for more paraphrase and German variety. With drafts fail-cl
 - **Retries:** at most two, sampled; after that the plain excerpt (the digest's quote: the question, else the failure, else the reply's first sentence).
 - **Injection safety:** the guarded fields and the gate. Datamarking is per model: Apple on, Qwen off, Granite on (from the tuning set).
 
-**Usability reasoning** (PAT-USE, for the line where a finished turn's post shows it; none of it reaches the UI until a model passes):
-(1) A developer glancing at Home after an agent finishes wants to know whether what they asked got done, without opening the session.
-(2) A newcomer sees one line under the post starting with the outcome word, the thing named in the agent's words, the agent's question when it asks, and the tests; tagged AI, its source (the plain excerpt) one tap away, with "This is wrong" (D-130's Beta).
-(3) Its value is relating the turn to the request, which the excerpt (the reply's first sentence) can't do: in v14 the excerpt hid a question or an undone part in about 30 % of turns.
-(4) With no model, a refused draft or the job off, the plain excerpt shows with no note; Settings › AI › Models says why in one line.
-(5) It raises no system prompt.
-(6) Watch for: a status the facts don't back, a request word stated as done, and the line truncating in a narrow post (it is bounded at 170 characters).
+**Usability reasoning** (PAT-USE, re-checked on the built post and Models row, 2026-11-27):
+1. **Who and when:** a developer glancing at Home after an agent finishes wants to know, without opening the session, whether what they asked got done. The maintainer's words (D-154): "like if I had a real human watching the agent and summarizing to me".
+2. **What a newcomer sees:**
+   - With "AI summaries in the feed" on (Settings › AI › Models, its own switch, off by default), a finished turn's post shows one line under its sentence. It starts with the AI tag and the outcome ("Done:", "Partly done: … · open: …", "Asks you: …"), names the thing in the agent's words, and adds the agent's question and the tests.
+   - A quiet foot follows: "Summary by <model>", Beta, "Show its words" (the agent's own words, one tap away) and "This is wrong" (kept on this Mac).
+   - When every draft was refused, the post shows "Its last reply" quoted instead.
+3. **Its value:** it relates the turn to the request. In v14's re-measure the judges preferred it to the agent's excerpt in 69 % of decided pairs.
+4. **Off, unavailable or failing:**
+   - Beta off, no engine, a turn whose end AI Juggler doesn't see, or Last messages off: nothing shows and the post is as before.
+   - On Settings › AI › Models, the row's note says why it's a Beta, in one honest line.
+   - "Use it" on a recommended model never turns it on.
+5. **No system prompt.**
+6. **Watch for:**
+   - **wrong lines:** about 1 in 5 had a critical error in testing, so the words stay one tap away and "This is wrong" is on every line;
+   - **cost:** one model call per post near the view, cached per turn;
+   - **width:** a long line wraps at narrow widths.
 
 **v14 findings** (the coordinator's one round, 2026-11-27; `docs/qa/evidence/AJ-E3831/manifest.md`, data in `docs/qa/evidence/AJ-E3709/v14-results/`):
 
@@ -670,6 +679,27 @@ The bars are ≥ 60 % preference and ≤ 1 % critical. All three stay `not_yet` 
 - **Most of the rest are the model's status:** "Done" with a part the reply says wasn't done; "Partly" when all was done.
 - **The rest:** one request word stated as done (Qwen, "published"), two questions the code didn't find (the agent stops with no question mark), and one false agent claim repeated.
 - **Injection:** H44's planted comment got through on every model and in both datamark modes, through the facts after the agent quoted it, not through the prompt.
+
+**Re-measure and ship (D-154, 2026-11-27, one round, Apple only).**
+- **The round:** the same 42 read held-out turns, the same prompt and settings, no tuning, on HEAD with G48–G50's facts.
+  - The turns were rebuilt from v14's committed readings through the app's own assembly (`feed::line::assemble`, `examples/feed_line_round.rs` reading `view` rows); the raw transcripts were deleted with the lab.
+  - What the readings don't keep is which failed command was refused for approval; G48's backstop (the agent's "couldn't run the tests") covers it.
+- **Result:** shown 37 of 42.
+  - Pooled preference **69.4 %** (Sonnet 72.2 %, a fresh blind Opus 66.7 %; 50:22, 2 same).
+  - Critical errors **7 of 37 = 18.9 %**, every one verified by Opus against its turn:
+    - "Done" with the team-drive sync not set up (H17);
+    - "Partly" or "Not done" on done turns (H30, H42, H38: H38's first draft was refused on `#` and the retry chose a side detail);
+    - a wait shown as "Not done" with no question (H25);
+    - "tests pass" from a piped run whose result was `tail`'s (H23);
+    - "tests fail" where the tests weren't run (H26).
+  - Data: `docs/qa/evidence/AJ-E3709/v14-results/remeasure/`.
+- **Shipped as an opt-in Beta** (criticals over 1 %): Apple's feed verdict `beta`, with the honest note in builtin.json, nightly.json and the ledger.
+  - The switch "AI summaries in the feed" sits on Settings › AI › Models, off by default; "Use it" doesn't turn it on.
+  - The post's line comes from `feed_line` (`features/feed/summary.rs`), with the agent's words one tap away and "This is wrong". A refused draft shows the agent's words, and the guard and gate stay.
+  - The local models stay `not_yet`.
+- **Fixed after the measure (the shared reading, also the shipped review's):**
+  - a piped test run's result is unknown, so the words decide (H23's cause);
+  - a verify-and-restore sentence is never a test reading or a failure.
 
 **Next optimizations, in order, for the next release** (each a code change measured by one fresh blind round per model; the v14 sets are now known, so a new held-out set is needed):
 1. **Facts from results, not words:**
