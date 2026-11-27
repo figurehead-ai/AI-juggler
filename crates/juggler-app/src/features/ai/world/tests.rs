@@ -286,7 +286,13 @@ fn nodes_resolve_to_live_lines() {
     assert!(line.line.contains("finished now"), "{}", line.line);
     assert!(resolve::resolve(&storage, &world, "session:gone", None).is_none());
     let account = resolve::resolve(&storage, &world, "account:acc-1", None).unwrap();
-    assert!(account.line.contains("62% used"), "{}", account.line);
+    // The Account's line isn't printed on a failure (CodeQL's cleartext
+    // logging rule reads an account's words as sensitive; this is fixture
+    // data, PR #257).
+    assert!(
+        account.line.contains("62% used"),
+        "the Account's line says its use"
+    );
     let memory = resolve::resolve(&storage, &world, &memory_key(&alias.subject_id), None).unwrap();
     assert!(
         memory

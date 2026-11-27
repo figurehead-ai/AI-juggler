@@ -39,9 +39,9 @@ EN_VERBS = {"added", "fixed", "renamed", "moved", "removed", "deleted", "updated
             "set", "made", "kept", "gave", "taught", "let", "put", "looked", "went", "read", "mapped", "stubbed", "mocked", "seeded"}
 TWO_WORD = {"looked": ("through", "into", "at", "over"), "went": ("through", "over"), "read": ("through",), "cleaned": ("up",), "tidied": ("up",),
             "set": ("up",), "hooked": ("up",), "wired": ("up",), "split": ("up",), "sped": ("up",)}
-EN_SUBJECT = re.compile(r"^(?:(?:so|then|also|and|finally|first|next|now|here)\s*,?\s+)*(?:i|we)(?:\s*['’]ve|\s+have|\s+also|\s+then|\s+just|\s+finally)*\s+", re.I)
-EN_LEAD = re.compile(r"^(?:(?:also|then|finally|first|next|and)\s*,?\s+)+", re.I)
-DE_SUBJECT = re.compile(r"^(?:(?:dann|außerdem|zuletzt|zuerst|und)\s*,?\s+)*(?:ich\s+habe|ich\s+hab|wir\s+haben|habe|hab)\s+(?:(?:dann|auch|noch|zuerst|außerdem)\s+)*", re.I)
+EN_SUBJECT = re.compile(r"^(?:(?:so|then|also|and|finally|first|next|now|here)(?:,\s+|\s+(?:,\s+)?))*(?:i|we)(?:\s*['’]ve|\s+have|\s+also|\s+then|\s+just|\s+finally)*\s+", re.I)
+EN_LEAD = re.compile(r"^(?:(?:also|then|finally|first|next|and)(?:,\s+|\s+(?:,\s+)?))+", re.I)
+DE_SUBJECT = re.compile(r"^(?:(?:dann|außerdem|zuletzt|zuerst|und)(?:,\s+|\s+(?:,\s+)?))*(?:ich\s+habe|ich\s+hab|wir\s+haben|habe|hab)\s+(?:(?:dann|auch|noch|zuerst|außerdem)\s+)*", re.I)
 DE_PARTICIPLE = re.compile(r"^(?:ge[\wäöüß-]{2,}(?:t|en)|[\wäöüß-]{3,}iert|(?:um|aus|ein|auf|ab|an|zu|zurück|weg|hinzu|nach|vor|über|unter|durch|fest|frei|mit|her|hin)"
                            r"ge[\wäöüß-]{2,}(?:t|en))$", re.I)
 PLAN = re.compile(r"^(?:i(?:['’]ll|\s+will|\s+would|\s+could|\s+can|\s+plan|\s+want)|we(?:['’]ll|\s+will)|next(?:\s+i)?\b|tomorrow|later|ich\s+werde|"
