@@ -9,8 +9,9 @@
 //! check ([`crate::features::bot::check::check`]) with the reply's
 //! sentences and the file as its records: every word is the check's own
 //! vocabulary or the agent's, no number, state or outcome its words
-//! don't hold, and G11's support rule (a cause, benefit or outcome is in
-//! the agent's own words). The risk may raise the facts' risk, never
+//! don't hold (a number they say may be repeated, 0.5.2 G43), and G11's
+//! support rule (a cause, benefit or outcome is in the agent's own
+//! words). The risk may raise the facts' risk, never
 //! lower it (never low on a failed or untested turn). A failed check
 //! regenerates with the reason, sampled, at most twice; then the
 //! code-only review shows, with no note (ADR-0033's ladder).
@@ -234,18 +235,25 @@ pub fn shape(files: &[String]) -> Value {
 /// The records a line is checked against: the file, then each sentence
 /// of the agent's reply (already through the guard).
 fn records(file: Option<&str>, said: &[String]) -> Vec<BotRowInfo> {
+    let file = file.map(|file| record(0, file.to_owned(), None));
+    let offset = usize::from(file.is_some());
     file.into_iter()
-        .map(str::to_owned)
-        .chain(said.iter().cloned())
-        .enumerate()
-        .map(|(i, title)| record(i, title))
+        .chain(
+            said.iter()
+                .enumerate()
+                .map(|(i, sentence)| record(i + offset, sentence.clone(), Some(sentence.clone()))),
+        )
         .collect()
 }
 
 /// A fact as one of the check's records: its words are its name; it has
-/// no state and no measured number, so a line can claim neither.
-fn record(i: usize, title: String) -> BotRowInfo {
-    empty_row(BotRowKind::Session, format!("fact-{i}"), title)
+/// no state and no measured number, so a line can claim neither. A
+/// sentence of the agent's is its own words too (0.5.2 G43): a number it
+/// says ("ISO 8601", "two-digit years") may be repeated, no other.
+fn record(i: usize, title: String, own_words: Option<String>) -> BotRowInfo {
+    let mut row = empty_row(BotRowKind::Session, format!("fact-{i}"), title);
+    row.quote = own_words;
+    row
 }
 
 /// A line through Bot's check, resting on every record.

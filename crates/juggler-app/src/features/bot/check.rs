@@ -84,6 +84,10 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// What a word for a bigger amount than [`number_word`] reads ("hundred",
+/// "million"): one number for all of them, so none is ever held.
+const BIG: u64 = 1_000_000_000;
+
 /// Number words, as the numbers they say (English and German), up to a
 /// hundred; a word for a bigger amount reads as a number no row holds.
 fn number_word(word: &str) -> Option<u64> {
@@ -133,9 +137,7 @@ fn number_word(word: &str) -> Option<u64> {
         "eighty" | "achtzig" => 80,
         "ninety" | "neunzig" => 90,
         "zwanzig" => 20,
-        "hundred" | "hundert" | "thousand" | "tausend" | "million" | "millionen" | "billion" => {
-            1_000_000_000
-        }
+        "hundred" | "hundert" | "thousand" | "tausend" | "million" | "millionen" | "billion" => BIG,
         _ => return None,
     })
 }
@@ -927,15 +929,56 @@ fn check_numbers(
         counts.push(cited.iter().filter(|r| r.kind == kind).count() as u64);
     }
     let held: Vec<u64> = cited.iter().flat_map(|r| held_numbers(r)).collect();
-    for n in numbers_in(rest)
-        .into_iter()
-        .chain(sentence.iter().filter_map(|w| number_word(w)))
-    {
-        if !(held.contains(&n) || question_numbers.contains(&n) || counts.contains(&n)) {
+    let said = Said::of(cited);
+    let supported = |n: u64| {
+        held.contains(&n)
+            || question_numbers.contains(&n)
+            || counts.contains(&n)
+            || said.numbers.contains(&n)
+    };
+    for n in numbers_in(rest) {
+        if !supported(n) {
+            return Err(Refused::Number(n.to_string()));
+        }
+    }
+    for word in sentence {
+        let Some(n) = number_word(word) else { continue };
+        if !(supported(n) || said.words.contains(word)) {
             return Err(Refused::Number(n.to_string()));
         }
     }
     Ok(())
+}
+
+/// 0.5.2 G43: the numbers the cited records' own words say (an agent's
+/// words, `quote`: "switched the API dates to ISO 8601", "two-digit
+/// years"), each as digits or a number word. A sentence repeating one
+/// says what a record says; a number they don't say is still refused,
+/// and one from a record's name still is (L2: a name is not its own
+/// words). A word for a bigger amount ([`BIG`]) is held only as that same
+/// word, never as another ("hundred" for "million").
+#[derive(Default)]
+struct Said {
+    numbers: Vec<u64>,
+    words: Vec<String>,
+}
+
+impl Said {
+    fn of(cited: &[&BotRowInfo]) -> Self {
+        let mut said = Self::default();
+        for text in cited.iter().filter_map(|r| r.quote.as_deref()) {
+            said.numbers
+                .extend(numbers_in(text).into_iter().filter(|n| *n != u64::MAX));
+            for word in words(text) {
+                match number_word(&word) {
+                    Some(BIG) => said.words.push(word),
+                    Some(n) => said.numbers.push(n),
+                    None => {}
+                }
+            }
+        }
+        said
+    }
 }
 
 /// What code verified about a look-up for a reply that cites no record
@@ -1361,6 +1404,42 @@ mod tests {
             one("“api 212” failed with 212 files changed.", &rows),
             Err(Refused::Number(_))
         ));
+    }
+
+    /// 0.5.2 G43: a number an agent's own words say (its `quote`) is
+    /// supported, as digits or as a word; one they don't say, a big
+    /// amount said as another word, and one only in a name still are not.
+    #[test]
+    fn a_number_in_a_record_s_own_words_is_supported_and_no_other() {
+        let mut said = row("api", BotState::Finished, None);
+        said.quote = Some(
+            "I switched the API dates to ISO 8601 and accept two-digit years; a hundred rows."
+                .into(),
+        );
+        let rows = [said];
+        let q = "what did api do with the iso dates?";
+        let ok = |text: &str| check(&[part(text, &[1])], &rows, q, &[]);
+        assert_eq!(ok("“api” finished: iso 8601."), Ok(()));
+        assert_eq!(ok("“api” finished with two sessions."), Ok(()));
+        assert_eq!(ok("“api” finished with 2 sessions."), Ok(()));
+        assert_eq!(
+            ok("“api” finished: iso 8602."),
+            Err(Refused::Number("8602".into()))
+        );
+        assert_eq!(
+            ok("“api” finished with three sessions."),
+            Err(Refused::Number("3".into()))
+        );
+        assert!(matches!(
+            ok("“api” finished with a million sessions."),
+            Err(Refused::Number(_))
+        ));
+        // Another record's words never count for a sentence not citing it.
+        let other = [row("web", BotState::Finished, None), rows[0].clone()];
+        assert_eq!(
+            check(&[part("“web” finished: iso 8601.", &[1])], &other, q, &[]),
+            Err(Refused::Number("8601".into()))
+        );
     }
 
     #[test]

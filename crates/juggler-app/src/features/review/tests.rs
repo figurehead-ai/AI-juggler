@@ -422,6 +422,70 @@ fn a_line_that_changes_the_meaning_or_claims_more_is_refused() {
     }
 }
 
+/// 0.5.2 G43 (the RW1 revert and failed turns): a note repeating a number
+/// the agent's own words say ("ISO 8601", "two-digit") is kept; one they
+/// don't say is still refused, and so is a time word ("years": G43 moved
+/// no other rule).
+#[test]
+fn a_number_the_agent_said_may_be_repeated_and_no_other() {
+    let reply = "I switched the API dates to ISO 8601 in format.ts. I rewrote the date parser in dates.ts to accept two-digit codes and two-digit years.";
+    let r = of(
+        &[
+            ("src/format.ts", Some((1, 1))),
+            ("parse/dates.ts", Some((5, 3))),
+        ],
+        reply,
+        false,
+    );
+    let said = super::facts::said(reply);
+    let draft = |format: &str, dates: &str| {
+        format!(
+            r#"{{"notes":[{{"path":"src/format.ts","says":"{format}"}},{{"path":"parse/dates.ts","says":"{dates}"}}],"risk_reason":"none","risk":"unknown"}}"#
+        )
+    };
+    let kept = lines::decide(
+        &draft(
+            "switched the API dates to ISO 8601",
+            "rewrote the date parser to accept two-digit codes",
+        ),
+        &r,
+        &said,
+        &[],
+    )
+    .unwrap();
+    assert_eq!(kept.notes.len(), 2);
+    assert_eq!(kept.notes[0].1, "switched the API dates to ISO 8601");
+    assert_eq!(
+        kept.notes[1].1,
+        "rewrote the date parser to accept two-digit codes"
+    );
+    for (format, dates, why) in [
+        (
+            "switched the API dates to ISO 8602",
+            "rewrote the date parser",
+            "number (\"8602\")",
+        ),
+        (
+            "switched the API dates",
+            "rewrote the date parser to accept four-digit codes",
+            "number (\"4\")",
+        ),
+        (
+            "switched the API dates",
+            "rewrote the date parser, 5 files",
+            "number (\"5\")",
+        ),
+        (
+            "switched the API dates",
+            "rewrote the date parser to accept two-digit years",
+            "time (\"years\")",
+        ),
+    ] {
+        let refused = lines::decide(&draft(format, dates), &r, &said, &[]).unwrap_err();
+        assert!(refused.contains(why), "{refused}");
+    }
+}
+
 #[test]
 fn a_risk_below_the_facts_is_refused_and_a_raised_one_is_kept() {
     let said = super::facts::said(REPLY);
