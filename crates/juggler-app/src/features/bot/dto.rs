@@ -177,6 +177,13 @@ pub struct BotRowInfo {
     #[serde(default)]
     #[ts(optional = nullable)]
     pub memory_key: Option<String>,
+    /// 0.5.2 G18: a session that needs the user now, by D-117's one rule
+    /// (Home's Needs you, [`crate::features::notifications::needs::session_kind`]):
+    /// it asks, may be stuck, hit its limit or stopped with an error. Read
+    /// by the look-up and the answer's check; never sent or kept.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub need: Option<&'static str>,
 }
 
 /// What a question was asked about (D-136 point 3): the chip "About:

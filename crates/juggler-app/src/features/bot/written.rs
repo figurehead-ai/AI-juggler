@@ -373,7 +373,13 @@ pub enum Decided {
 /// passes the check is shown; anything else gives the records.
 #[must_use]
 pub fn decide(draft: &Draft, rows: &[BotRowInfo], question: &str, removed: &[String]) -> Decided {
-    decide_with(draft, rows, question, removed, &[])
+    decide_with(
+        draft,
+        rows,
+        question,
+        removed,
+        &super::check::Absent::default(),
+    )
 }
 
 /// [`decide`], with the states no record holds now
@@ -384,7 +390,7 @@ pub fn decide_with(
     rows: &[BotRowInfo],
     question: &str,
     removed: &[String],
-    absent: &[BotState],
+    absent: &super::check::Absent,
 ) -> Decided {
     let Some(parts) = parse(draft) else {
         return Decided::Records("shape");

@@ -509,61 +509,58 @@ fn ended_lab() -> (tempfile::TempDir, Arc<AppState>) {
     (dir, state)
 }
 
-/// 0.5.2 G15: with nothing open or waiting, "what needs me" and "what
-/// are my sessions" get the most recent records (the failure first) and a
-/// note saying nothing is in the state asked about, never "no record
-/// matched"; an answer saying so and naming them stands, and one that
-/// invents a count is still refused.
+/// A fake whose grounded reply is `json`.
+fn grounded_reply(json: &'static str) -> Fake {
+    Fake::with(Box::new(
+        move |request: &crate::features::ai::engine::Request| {
+            Ok(if grounded(request) {
+                json.to_owned()
+            } else {
+                default_rule(request)?
+            })
+        },
+    ))
+}
+
+/// 0.5.2 G15: with nothing open, "what are my sessions" gets the most
+/// recent records (the failure first) and a note saying nothing is open,
+/// never "no record matched"; an answer saying so and naming them stands,
+/// and one that invents a count is still refused.
 #[test]
 fn nothing_open_gives_the_nearest_records_and_a_true_note() {
     let (_dir, state) = ended_lab();
-    let honest = Fake::with(Box::new(
-        |request: &crate::features::ai::engine::Request| {
-            Ok(if grounded(request) {
-                r#"{"sentences":[{"text":"Nothing needs you right now.","records":[]},{"text":"“Rewrite the date parser” failed.","records":[1]}]}"#.to_owned()
-            } else {
-                default_rule(request)?
-            })
-        },
-    ));
-    for question in ["what needs me", "what are my sessions"] {
-        let turn = ask_with(&state, &honest, question);
-        let sent = honest.requests.borrow().last().unwrap().clone();
-        assert!(
-            sent.prompt
-                .contains("1. session “Rewrite the date parser”; state: failed"),
-            "{question}: the failure first: {}",
-            sent.prompt
-        );
-        assert!(
-            !sent.prompt.contains("No record matched"),
-            "{}",
-            sent.prompt
-        );
-        assert!(sent.prompt.contains("most recent ones"), "{}", sent.prompt);
-        assert_eq!(turn.outcome, BotOutcome::Answered, "{question}");
-        assert!(
-            turn.rows.len() >= 2 && turn.rows.len() <= 3,
-            "{:?}",
-            turn.rows
-        );
-    }
-    let needs = honest.requests.borrow()[0].clone();
-    assert!(
-        needs.prompt.contains("“Nothing needs you right now.”"),
-        "the true sentence offered: {}",
-        needs.prompt
+    let honest = grounded_reply(
+        r#"{"sentences":[{"text":"Nothing is running or waiting on you right now.","records":[]},{"text":"“Rewrite the date parser” failed.","records":[1]}]}"#,
     );
-    let invents = Fake::with(Box::new(
-        |request: &crate::features::ai::engine::Request| {
-            Ok(if grounded(request) {
-                r#"{"sentences":[{"text":"You have two sessions","records":[1]}]}"#.to_owned()
-            } else {
-                default_rule(request)?
-            })
-        },
-    ));
-    let turn = ask_with(&state, &invents, "what needs me");
+    let turn = ask_with(&state, &honest, "what are my sessions");
+    let sent = honest.requests.borrow().last().unwrap().clone();
+    assert!(
+        sent.prompt
+            .contains("1. session “Rewrite the date parser”; state: failed"),
+        "the failure first: {}",
+        sent.prompt
+    );
+    assert!(
+        !sent.prompt.contains("No record matched"),
+        "{}",
+        sent.prompt
+    );
+    assert!(sent.prompt.contains("most recent ones"), "{}", sent.prompt);
+    assert!(
+        sent.prompt
+            .contains("“Nothing is running or waiting on you right now.”"),
+        "the true sentence offered: {}",
+        sent.prompt
+    );
+    assert_eq!(turn.outcome, BotOutcome::Answered);
+    assert!(
+        turn.rows.len() >= 2 && turn.rows.len() <= 3,
+        "{:?}",
+        turn.rows
+    );
+    let invents =
+        grounded_reply(r#"{"sentences":[{"text":"You have two sessions","records":[1]}]}"#);
+    let turn = ask_with(&state, &invents, "what are my sessions");
     assert_eq!(
         turn.outcome,
         BotOutcome::DontKnow,
@@ -571,13 +568,62 @@ fn nothing_open_gives_the_nearest_records_and_a_true_note() {
     );
 }
 
-/// G15: Search (⌘K) shows only what matched: the nearest records are
-/// Bot's, for its answer to cite.
+/// 0.5.2 G18: "what needs me" is Home's Needs you, a failure included:
+/// the failed session is the record, the answer naming it (failed, or
+/// needing you) stands, and "Nothing needs you right now." is refused and
+/// never offered while it is there.
+#[test]
+fn what_needs_me_is_home_s_needs_you_a_failure_included() {
+    let (_dir, state) = ended_lab();
+    for (said, shown) in [
+        ("“Rewrite the date parser” failed.", true),
+        ("“Rewrite the date parser” stopped with an error.", true),
+        ("“Rewrite the date parser” needs you.", true),
+        ("“Remove the old handlers module” needs you.", false),
+        ("Nothing needs you right now.", false),
+    ] {
+        let reply = serde_json::json!({"sentences":[{"text": said, "records": [1]}]}).to_string();
+        let fake = Fake::with(Box::new(
+            move |request: &crate::features::ai::engine::Request| {
+                Ok(if grounded(request) {
+                    reply.clone()
+                } else {
+                    default_rule(request)?
+                })
+            },
+        ));
+        let turn = ask_with(&state, &fake, "what needs me");
+        let titles: Vec<&str> = turn.rows.iter().map(|r| r.title.as_str()).collect();
+        assert_eq!(titles, ["Rewrite the date parser"], "{said}");
+        let sent = fake.requests.borrow().last().unwrap().clone();
+        assert!(
+            !sent.prompt.contains("Nothing needs you"),
+            "{}",
+            sent.prompt
+        );
+        assert_eq!(
+            turn.outcome == BotOutcome::Answered,
+            shown,
+            "{said}: {:?}",
+            turn.outcome
+        );
+    }
+}
+
+/// G15, G18: Search (⌘K) shows only what matched: the nearest records are
+/// Bot's, for its answer to cite; "what needs me" finds Home's Needs you.
 #[test]
 fn search_keeps_showing_only_what_matched() {
     let (_dir, state) = ended_lab();
-    let found = crate::features::bot::lookup::find_records(&state, "what needs me", None).unwrap();
-    assert!(found.rows.is_empty(), "{:?}", found.rows);
+    let find = |text: &str| {
+        crate::features::bot::lookup::find_records(&state, text, None)
+            .unwrap()
+            .rows
+    };
+    assert!(find("what are my sessions").is_empty());
+    let needs = find("what needs me");
+    assert_eq!(needs.len(), 1, "{needs:?}");
+    assert_eq!(needs[0].title, "Rewrite the date parser");
 }
 
 /// 0.5.2 G16: a question that doesn't refer back is read on its own: "3+5"
@@ -660,5 +706,50 @@ fn an_empty_look_up_never_lets_an_unread_none_through() {
         !sent.prompt.contains("No record matched"),
         "{}",
         sent.prompt
+    );
+}
+
+/// G18: a session's need is Home's, read by the one rule
+/// (`notifications::needs::session_kind`): may be stuck while its status
+/// reads running, and a limit parked till its reset is calm.
+#[test]
+fn a_session_s_need_is_read_by_home_s_rule() {
+    let (_dir, state) = ended_lab();
+    let infos = {
+        let storage = state.storage.lock().unwrap();
+        crate::features::sessions::read_model::session_infos_snapshot(&storage).unwrap()
+    };
+    let mut info = infos.first().unwrap().clone();
+    let row = |info: &crate::features::sessions::dto::InstanceInfo| {
+        crate::features::bot::world::session_row(
+            info,
+            &std::collections::HashMap::new(),
+            &mut Vec::new(),
+        )
+    };
+    info.status = "running".into();
+    info.needs_attention = Some(crate::features::sessions::dto::NeedsAttention::Stuck);
+    let stuck = row(&info);
+    assert_eq!(
+        (stuck.state, stuck.need),
+        (
+            Some(crate::features::bot::dto::BotState::Stuck),
+            Some("stuck")
+        )
+    );
+    info.status = "quota_blocked".into();
+    info.needs_attention = None;
+    info.parked = Some("acc-1".into());
+    let parked = row(&info);
+    assert_eq!(
+        (parked.state, parked.need),
+        (Some(crate::features::bot::dto::BotState::Limit), None)
+    );
+    info.status = "failed".into();
+    info.parked = None;
+    assert_eq!(
+        row(&info).need,
+        Some("failed"),
+        "a failure is in Needs you now"
     );
 }

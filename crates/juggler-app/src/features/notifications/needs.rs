@@ -192,8 +192,9 @@ fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
 /// An own session's need: its attention, else a status that is one;
 /// none at level 0 (D-117, the shared table: a session parked until its
 /// reset is calm whatever its need), as the window reads it, so the count
-/// and the window's lit marks never part.
-fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
+/// and the window's lit marks never part. Bot reads it too (0.5.2 G18), so
+/// its "what needs me" is Home's Needs you.
+pub(crate) fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
     let facts = centre::LevelFacts {
         parked: row.parked.is_some(),
         ..centre::LevelFacts::default()

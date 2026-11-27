@@ -116,23 +116,42 @@ const STATES: [BotState; 13] = [
 ];
 
 /// 0.5.2 G15: the states no session or task holds now, read by code from
-/// every record (none when a record's state is unknown: it could be any).
+/// every record (none when a record's state is unknown: it could be any),
+/// and (G18) whether nothing needs the user by Home's rule.
 #[must_use]
-pub fn absent(world: &World) -> Vec<BotState> {
+pub fn absent(world: &World) -> super::check::Absent {
     let rows = || world.sessions.iter().chain(&world.tasks);
     if rows().any(|row| row.state.is_none()) {
-        return Vec::new();
+        return super::check::Absent::default();
     }
-    STATES
-        .into_iter()
-        .filter(|state| !rows().any(|row| row.state == Some(*state)))
-        .collect()
+    let task_waits = [
+        BotState::AsksYou,
+        BotState::Stuck,
+        BotState::Limit,
+        BotState::Blocked,
+        BotState::InReview,
+    ];
+    super::check::Absent {
+        states: STATES
+            .into_iter()
+            .filter(|state| !rows().any(|row| row.state == Some(*state)))
+            .collect(),
+        nothing_needs: !world.sessions.iter().any(|row| row.need.is_some())
+            && !world
+                .tasks
+                .iter()
+                .any(|row| row.state.is_some_and(|s| task_waits.contains(&s))),
+    }
 }
 
 /// G15: a sentence saying nothing is in the states asked about, in the
 /// question's language, offered to the model only when the check passes
 /// it (it is true of every record now).
-fn none_sentence(asked: &[BotState], lang: BotLang, absent: &[BotState]) -> Option<&'static str> {
+fn none_sentence(
+    asked: &[BotState],
+    lang: BotLang,
+    absent: &super::check::Absent,
+) -> Option<&'static str> {
     let named = |states: &[BotState]| {
         asked.len() == states.len() && states.iter().all(|s| asked.contains(s))
     };
@@ -198,7 +217,7 @@ fn nearest_note(
     asked: &Reading,
     scoped: bool,
     rows: &[super::dto::BotRowInfo],
-    absent: &[BotState],
+    absent: &super::check::Absent,
 ) -> String {
     let mut note = String::from(match (asked.states.is_empty(), scoped) {
         (true, false) => {
@@ -523,7 +542,7 @@ If that answers it, say so in one sentence of your own with the question's time 
 fn grounding<'a>(
     asked: &Asked<'a>,
     mut found: Found,
-    absent: &[BotState],
+    absent: &super::check::Absent,
 ) -> (Found, Option<String>, super::check::Verified<'a>) {
     // G15: states that matched nothing ("what needs me" with nothing
     // waiting) get the most recent records to cite, never none.

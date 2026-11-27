@@ -132,6 +132,7 @@ pub(crate) fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowIn
         gone: false,
         about: None,
         memory_key: None,
+        need: None,
     }
 }
 
@@ -166,7 +167,16 @@ pub fn session_row<S: BuildHasher>(
         .or(folder)
         .unwrap_or_default();
     let (title, name_hidden) = guarded_into(&raw, removed);
-    let state = session_state(&row.status);
+    // G18: D-117's one rule, Home's Needs you: what it needs names its
+    // state ("may be stuck" while its status still reads running).
+    let need = crate::features::notifications::needs::session_kind(row);
+    let state = match need {
+        Some("asks") => Some(BotState::AsksYou),
+        Some("stuck") => Some(BotState::Stuck),
+        Some("limit") => Some(BotState::Limit),
+        Some("failed") => Some(BotState::Failed),
+        _ => session_state(&row.status),
+    };
     let at_ms = match state {
         Some(BotState::AsksYou | BotState::Stuck) => row
             .attention
@@ -182,6 +192,7 @@ pub fn session_row<S: BuildHasher>(
     BotRowInfo {
         name_hidden,
         state,
+        need,
         at_ms,
         started_ms: Some(row.started_at_ms),
         provider: Some(row.provider.clone()),
@@ -354,11 +365,20 @@ fn accounts(
 pub mod tests_support {
     use super::{BotRowInfo, BotRowKind, BotState, empty_row};
 
-    /// A row of `kind` named `title`, its id the title.
+    /// A row of `kind` named `title`, its id the title; a session in a
+    /// state Home's Needs you counts (asks, stuck, limit, failed) needs
+    /// the user, as [`super::session_row`] reads one that isn't parked.
     #[must_use]
     pub fn row(kind: BotRowKind, title: &str, state: Option<BotState>) -> BotRowInfo {
         BotRowInfo {
             state,
+            need: match (kind, state) {
+                (BotRowKind::Session, Some(BotState::AsksYou)) => Some("asks"),
+                (BotRowKind::Session, Some(BotState::Stuck)) => Some("stuck"),
+                (BotRowKind::Session, Some(BotState::Limit)) => Some("limit"),
+                (BotRowKind::Session, Some(BotState::Failed)) => Some("failed"),
+                _ => None,
+            },
             ..empty_row(kind, title.to_owned(), title.to_owned())
         }
     }

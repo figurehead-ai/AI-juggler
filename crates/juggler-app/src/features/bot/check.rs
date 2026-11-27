@@ -220,6 +220,31 @@ pub const OPEN: [BotState; 6] = [
     BotState::Working,
 ];
 
+/// What no record is in now, read by code from every session and task
+/// (0.5.2 G15, G18): the states none holds, and whether nothing needs the
+/// user by D-117's one rule (Home's Needs you).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Absent {
+    /// The states no session or task holds.
+    pub states: Vec<BotState>,
+    /// No session needs the user (Home's rule) and no task waits on them.
+    pub nothing_needs: bool,
+}
+
+/// The words that say a record needs the user: Home's Needs you for a
+/// session (its `need`), the waiting states for a task.
+const NEEDS_WORDS: &[&str] = &["needs", "need", "braucht", "brauchen"];
+
+/// Whether `row` needs the user, as `claim` (the needs words' states)
+/// reads it: a session by Home's rule, any other by its state.
+fn needs(row: &BotRowInfo, claim: &[BotState]) -> bool {
+    if row.kind == BotRowKind::Session {
+        row.need.is_some()
+    } else {
+        row.state.is_some_and(|s| claim.contains(&s))
+    }
+}
+
 /// Outcomes and states the records never hold as they are said: claiming
 /// one is claiming what no row backs, whatever a name holds (M1).
 const UNHELD: &[&str] = &[
@@ -775,7 +800,7 @@ pub fn check(
     question: &str,
     removed: &[String],
 ) -> Result<(), Refused> {
-    check_with(parts, rows, question, removed, &[])
+    check_with(parts, rows, question, removed, &Absent::default())
 }
 
 /// [`check`], with the states no record holds now (`absent`, read by code
@@ -791,7 +816,7 @@ pub fn check_with(
     rows: &[BotRowInfo],
     question: &str,
     removed: &[String],
-    absent: &[BotState],
+    absent: &Absent,
 ) -> Result<(), Refused> {
     let all = shape(parts)?;
     let all_words = words(&all).join(" ");
@@ -833,9 +858,12 @@ pub fn check_with(
 /// asks, is stuck, blocked, in review or at its limit; "You have no
 /// sessions." never does (it names no state: a count no row backs).
 #[must_use]
-pub fn says_none_in(text: &str, absent: &[BotState], question_words: &[String]) -> bool {
+pub fn says_none_in(text: &str, absent: &Absent, question_words: &[String]) -> bool {
     let (quoted, rest) = split_quotes(text);
-    if absent.is_empty() || !quoted.is_empty() || !numbers_in(text).is_empty() {
+    if (absent.states.is_empty() && !absent.nothing_needs)
+        || !quoted.is_empty()
+        || !numbers_in(text).is_empty()
+    {
         return false;
     }
     let sentence = words(&rest);
@@ -861,7 +889,13 @@ pub fn says_none_in(text: &str, absent: &[BotState], question_words: &[String]) 
             return false;
         }
         if let Some(claim) = state_word(w) {
-            if !claim.iter().all(|s| absent.contains(s)) {
+            // G18: "needs" is Home's Needs you, a failure included.
+            let none = if NEEDS_WORDS.contains(&w) {
+                absent.nothing_needs
+            } else {
+                claim.iter().all(|s| absent.states.contains(s))
+            };
+            if !none {
                 return false;
             }
             stated = true;
@@ -1160,12 +1194,16 @@ fn check_part(
             return Err(Refused::Time(word.clone()));
         }
         if let Some(claim) = state_word(word) {
-            // Each cited row's own state, never one of several (R1).
-            if cited.is_empty()
-                || !cited
-                    .iter()
-                    .all(|r| r.state.is_some_and(|s| claim.contains(&s)))
-            {
+            // Each cited row's own state, never one of several (R1); "needs"
+            // by Home's rule for a session (G18).
+            let holds = |r: &&BotRowInfo| {
+                if NEEDS_WORDS.contains(&word.as_str()) {
+                    needs(r, claim)
+                } else {
+                    r.state.is_some_and(|s| claim.contains(&s))
+                }
+            };
+            if cited.is_empty() || !cited.iter().all(holds) {
                 return Err(Refused::State(word.clone()));
             }
             continue;
@@ -1501,15 +1539,18 @@ mod tests {
             row("Rewrite the date parser", BotState::Failed, None),
             row("Remove the old handlers", BotState::Ended, None),
         ];
-        let absent = [
-            BotState::AsksYou,
-            BotState::Stuck,
-            BotState::Limit,
-            BotState::Blocked,
-            BotState::InReview,
-            BotState::Working,
-        ];
-        let say = |text: &str, cites: &[u32], absent: &[BotState]| {
+        let absent = Absent {
+            states: vec![
+                BotState::AsksYou,
+                BotState::Stuck,
+                BotState::Limit,
+                BotState::Blocked,
+                BotState::InReview,
+                BotState::Working,
+            ],
+            nothing_needs: true,
+        };
+        let say = |text: &str, cites: &[u32], absent: &Absent| {
             check_with(&[part(text, cites)], &rows, "what needs me", &[], absent)
         };
         for ok in [
@@ -1532,7 +1573,7 @@ mod tests {
         );
         // Without the states read as absent, it is the negation it was.
         assert_eq!(
-            say("Nothing needs you right now.", &[1], &[]),
+            say("Nothing needs you right now.", &[1], &Absent::default()),
             Err(Refused::Negation)
         );
         assert_eq!(
@@ -1720,6 +1761,39 @@ mod tests {
         assert!(!says_only_verified("You have no sessions.", q_tests, &note));
         // Without a negation, a work noun states a fact and needs a cite.
         assert!(!says_only_verified("You have sessions.", "hi", &none));
+    }
+
+    /// 0.5.2 G18: "needs" is Home's Needs you: a failed session needs you,
+    /// a parked limit doesn't; "Nothing needs you" stands only when nothing
+    /// does by that rule, whatever states are absent.
+    #[test]
+    fn needs_is_read_by_home_s_rule() {
+        let failed = [row("dates", BotState::Failed, None)];
+        assert_eq!(one("“dates” needs you.", &failed), Ok(()));
+        let mut parked = row("cart", BotState::Limit, None);
+        parked.need = None;
+        assert_eq!(
+            one("“cart” needs you.", &[parked]),
+            Err(Refused::State("needs".into()))
+        );
+        let states = vec![
+            BotState::AsksYou,
+            BotState::Stuck,
+            BotState::Limit,
+            BotState::Blocked,
+            BotState::InReview,
+        ];
+        let failing = Absent {
+            states: states.clone(),
+            nothing_needs: false,
+        };
+        assert!(!says_none_in("Nothing needs you right now.", &failing, &[]));
+        assert!(says_none_in("Nothing is stuck right now.", &failing, &[]));
+        let calm = Absent {
+            states,
+            nothing_needs: true,
+        };
+        assert!(says_none_in("Nothing needs you right now.", &calm, &[]));
     }
 
     /// MUT-C1: the echo check on its own (no other rule refuses this one).

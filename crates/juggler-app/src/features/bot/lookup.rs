@@ -344,6 +344,21 @@ fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
     out
 }
 
+/// G18: a state "needs me" asks about: for a session, Home's Needs you
+/// (its `need`) decides, never the state alone (a parked limit is calm).
+const fn needs_state(state: Option<BotState>) -> bool {
+    matches!(
+        state,
+        Some(
+            BotState::AsksYou
+                | BotState::Stuck
+                | BotState::Limit
+                | BotState::Blocked
+                | BotState::InReview
+        )
+    )
+}
+
 /// The matched rows narrowed by the question's states and time, in the
 /// order they are shown.
 fn narrow<'w>(
@@ -359,7 +374,9 @@ fn narrow<'w>(
     if !reading.states.is_empty() {
         answer.retain(|row| {
             row.kind == BotRowKind::Account
-                || row.state.is_some_and(|s| reading.states.contains(&s))
+                || (reading.needs && row.kind == BotRowKind::Session && row.need.is_some())
+                || (!(reading.needs && row.kind == BotRowKind::Session && needs_state(row.state))
+                    && row.state.is_some_and(|s| reading.states.contains(&s)))
         });
     }
     if let Some((from, to)) = window(reading.when, world.now_ms, world.offset_hours) {

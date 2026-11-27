@@ -429,7 +429,9 @@ fn bot_answers_the_rw1_labs_questions_on_the_real_model() {
     for _ in 0..3 {
         for question in ["what are my sessions", "what needs me"] {
             let a = ask_recorded(&state, &service, question, false);
-            if a.outcome != BotOutcome::Answered || a.cites.is_empty() {
+            // G18: "what needs me" names the failure, as Home's Needs you does.
+            let named = question != "what needs me" || a.words.contains("date parser");
+            if a.outcome != BotOutcome::Answered || a.cites.is_empty() || !named {
                 fails.push(format!("{question}: {:?} {:?}", a.outcome, a.words));
             }
             let sum = ask_recorded(&state, &service, "3+5", true);

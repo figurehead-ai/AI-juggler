@@ -40,6 +40,10 @@ pub struct Reading {
     /// AJ-E3825: "which model are you": answered from the engine's own
     /// name and version.
     pub which_model: bool,
+    /// 0.5.2 G18: it asks what needs the user ("what needs me"): a
+    /// session by Home's Needs you (a failure included), a task by the
+    /// states it waits in.
+    pub needs: bool,
 }
 
 /// The kinds of record named.
@@ -746,6 +750,7 @@ pub fn read(text: &str) -> Reading {
     }
     // "needs me" is Home's Needs you; "asks" alone is only asks.
     reading.states = states;
+    reading.needs = has(&words, &["needs", "need", "braucht", "brauchen"]);
     reading.kinds = Kinds {
         sessions: has(&words, SESSION_WORDS),
         tasks: has(&words, TASK_WORDS),
