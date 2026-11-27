@@ -193,7 +193,7 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
         "“{}” crashed and was restarted (try 1 of 3)",
         facts_name(&state, &crashed, "nightly-fix")
     );
-    assert_eq!(earlier_titles(&state), [restarted.clone()]);
+    assert_eq!(earlier_titles(&state), std::slice::from_ref(&restarted));
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "told once");
     assert_eq!(told[0].title, restarted);

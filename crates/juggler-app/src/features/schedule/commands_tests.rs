@@ -148,18 +148,9 @@ fn a_reminder_names_its_session_by_the_rails_rule() {
         Some("Login refactor")
     );
     let untitled = name(&WatchTarget::Session("s1".into())).unwrap();
-    let started = {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .sessions()
-            .get(&juggler_core::model::SessionId::new("s1"))
-            .unwrap()
-            .started_at
-            .millis()
-    };
     assert_eq!(
         untitled,
-        crate::test_support::facts_name("api", started, crate::commands::now_millis())
+        crate::test_support::facts_name_of(&state, "s1", "api")
     );
     assert_eq!(name(&WatchTarget::Session("s-gone".into())), None);
     assert_eq!(name(&WatchTarget::Account("acct-1".into())), None);

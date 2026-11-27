@@ -507,3 +507,18 @@ pub(crate) fn facts_name(folder: &str, started_ms: i64, now_ms: i64) -> String {
     juggler_platform::clock::started_words(started_ms, now_ms)
         .map_or_else(|| folder.to_owned(), |words| format!("{folder} · {words}"))
 }
+
+/// [`facts_name`] for session `id` as storage holds it (its own start),
+/// now.
+pub(crate) fn facts_name_of(state: &crate::state::AppState, id: &str, folder: &str) -> String {
+    let started = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(id))
+        .unwrap()
+        .started_at
+        .millis();
+    facts_name(folder, started, crate::commands::now_millis())
+}

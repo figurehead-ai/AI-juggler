@@ -443,17 +443,7 @@ fn a_memory_is_a_record_an_answer_can_cite() {
     // PR #257's CI). With the words, "api" is the project's name alone and
     // the alias is the project's; without them the session is called "api"
     // too, and a session wins over its namesake project (resolve's rule).
-    let started = {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .sessions()
-            .get(&juggler_core::model::SessionId::new("s-api"))
-            .unwrap()
-            .started_at
-            .millis()
-    };
-    let session_is_api =
-        crate::test_support::facts_name("api", started, crate::commands::now_millis()) == "api";
+    let session_is_api = crate::test_support::facts_name_of(&state, "s-api", "api") == "api";
     let kind = if session_is_api {
         "alias:session:"
     } else {

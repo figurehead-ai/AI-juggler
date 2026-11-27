@@ -77,16 +77,7 @@ fn a_bell_entry_names_its_session_as_it_is_called_now() {
             .unwrap()
     };
     let before = read();
-    let started = {
-        let storage = state.storage.lock().unwrap();
-        storage
-            .sessions()
-            .get(&juggler_core::model::SessionId::new("s1"))
-            .unwrap()
-            .started_at
-            .millis()
-    };
-    let facts = crate::test_support::facts_name("api", started, crate::commands::now_millis());
+    let facts = crate::test_support::facts_name_of(&state, "s1", "api");
     assert_eq!(before.title, format!("“{facts}” finished"));
     {
         let storage = state.storage.lock().unwrap();
