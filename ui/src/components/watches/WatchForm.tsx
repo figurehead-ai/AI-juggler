@@ -21,7 +21,7 @@ import { LoadingState } from "../LoadingState";
 import type { Param } from "../../types/generated/Param";
 import { WatchPreview, WatchPreviewStrip } from "./WatchPreview";
 import { WatchTargetPicker } from "./WatchTargetPicker";
-import { botLeft, codesNow, draftFrom, defaultParam, lifeAsked, lifeOf, paramSteps, previewFacts, touched, untilMs, type FormState } from "./watch-form-state";
+import { botLeft, codesNow, draftFrom, defaultParam, lifeAsked, lifeOf, lifeWaits, paramSteps, previewFacts, touched, untilMs, type FormState } from "./watch-form-state";
 import { MAX_CONDITIONS, splitConditions, type TargetOption } from "./watches-view";
 import { CONDITION_LINE, FORM, PARAM } from "./watches-words";
 import { CONDITION_ICONS, IconBin, IconCheckCircle, IconChevronD, IconChevronL, IconChevronR, IconEye, IconMoon } from "./watch-icons";
@@ -342,7 +342,7 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
           <FormSection n={2} done={state.codes.length > 0} title={FORM.forWhat} help={helps.forWhat} id={`${ids}-for`}>
             <ConditionCards state={state} catalogue={catalogue} onFlip={flip} onParam={(code, param) => set({ auto: false, params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
           </FormSection>
-          <FormSection n={3} done={state.codes.length > 0 && !asked} title={FORM.until} id={`${ids}-until`}>
+          <FormSection n={3} done={state.codes.length > 0 && !asked && lifeWaits(state) === null} title={FORM.until} id={`${ids}-until`}>
             <UntilChoice state={state} set={set} offered={offered} book={book} now={now} />
           </FormSection>
           <FormSection n={4} done={false} title={FORM.quiet} id={`${ids}-quiet`}>
