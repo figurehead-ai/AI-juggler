@@ -892,6 +892,53 @@ pub fn check_with(
     removed: &[String],
     absent: &Absent,
 ) -> Result<(), Refused> {
+    check_inner(parts, rows, question, removed, absent, false)
+}
+
+/// AJ-E3831: [`check`] for a line written over records that are an
+/// agent's own sentences (each record's `quote`: its messages; the user's
+/// request is cited by name only, so it never supports a state). G43's own-words rule, widened from numbers and time words
+/// to states, outcomes and negations: a state or outcome word ("fixed",
+/// "passes", "done") or a negation is allowed when a cited record's own
+/// words say that very word; everything else is checked as [`check`]
+/// does. Bot's answers never use it. The feed line adds its own rule on
+/// top: such a word must stand in one sentence with the line's other
+/// words ([`support_words`]).
+///
+/// # Errors
+///
+/// The first rule it breaks.
+pub fn check_own_words(
+    parts: &[BotWrittenPart],
+    rows: &[BotRowInfo],
+    removed: &[String],
+) -> Result<(), Refused> {
+    check_inner(parts, rows, "", removed, &Absent::default(), true)
+}
+
+/// The words of `text` that [`check_own_words`] lets through only on a
+/// record's own words: states, outcomes, claims (G11) and negations.
+#[must_use]
+pub fn support_words(text: &str) -> Vec<String> {
+    words(text)
+        .into_iter()
+        .filter(|w| {
+            UNHELD.contains(&w.as_str())
+                || CLAIMED.contains(&w.as_str())
+                || NEGATION.contains(&w.as_str())
+                || state_word(w).is_some()
+        })
+        .collect()
+}
+
+fn check_inner(
+    parts: &[BotWrittenPart],
+    rows: &[BotRowInfo],
+    question: &str,
+    removed: &[String],
+    absent: &Absent,
+    own: bool,
+) -> Result<(), Refused> {
     let all = shape(parts)?;
     let all_words = words(&all).join(" ");
     for gone in removed {
@@ -919,7 +966,7 @@ pub fn check_with(
             }
             continue;
         }
-        check_part(part, rows, &question_words, &question_numbers)?;
+        check_part(part, rows, &question_words, &question_numbers, own)?;
     }
     Ok(())
 }
@@ -1227,11 +1274,26 @@ pub fn says_only_verified(text: &str, question: &str, verified: &Verified<'_>) -
 }
 
 /// One sentence against the rows it cites.
+/// A negation in the sentence or its quotes that `said` doesn't allow.
+fn negates(sentence: &[String], quoted: &[String], said: &dyn Fn(&String) -> bool) -> bool {
+    sentence
+        .iter()
+        .chain(
+            quoted
+                .iter()
+                .flat_map(|q| words(q))
+                .collect::<Vec<_>>()
+                .iter(),
+        )
+        .any(|w| NEGATION.contains(&w.as_str()) && !said(w))
+}
+
 fn check_part(
     part: &BotWrittenPart,
     rows: &[BotRowInfo],
     question_words: &[String],
     question_numbers: &[u64],
+    own: bool,
 ) -> Result<(), Refused> {
     for &cite in &part.cites {
         if cite == 0 || cite as usize > rows.len() {
@@ -1258,17 +1320,15 @@ fn check_part(
     {
         return Err(Refused::Acting);
     }
-    if sentence
+    // 0.5.2 G43: the cited records' own words (an agent's, `quote`).
+    let own_words: Vec<String> = cited
         .iter()
-        .chain(
-            quoted
-                .iter()
-                .flat_map(|q| words(q))
-                .collect::<Vec<_>>()
-                .iter(),
-        )
-        .any(|w| NEGATION.contains(&w.as_str()))
-    {
+        .filter_map(|r| r.quote.as_deref())
+        .flat_map(words)
+        .collect();
+    // AJ-E3831: in own-words mode a word the records' own words say.
+    let said = |w: &String| own && own_words.contains(w);
+    if negates(&sentence, &quoted, &said) {
         return Err(Refused::Negation);
     }
     if cited.len() < rows.len() && sentence.iter().any(|w| QUANTIFIERS.contains(&w.as_str())) {
@@ -1286,12 +1346,6 @@ fn check_part(
         }
     }
     let name_words: Vec<String> = names.iter().flat_map(|n| words(n)).collect();
-    // 0.5.2 G43: the cited records' own words (an agent's, `quote`).
-    let own_words: Vec<String> = cited
-        .iter()
-        .filter_map(|r| r.quote.as_deref())
-        .flat_map(words)
-        .collect();
     // 0.5.2 G15: the words a cited record's own state is written in
     // ("asks you (waiting on the user)", "failed (stopped with an error)")
     // say that state, so a sentence repeating them says what it holds.
@@ -1305,6 +1359,9 @@ fn check_part(
     let owners = word_owners(&part.text, &cited, sentence.len());
     for (i, word) in sentence.iter().enumerate() {
         if word.chars().all(|c| c.is_ascii_digit()) || number_word(word).is_some() {
+            continue;
+        }
+        if said(word) {
             continue;
         }
         if let Some(refused) = unheld_or_claimed(word, &name_words) {

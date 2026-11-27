@@ -20,6 +20,7 @@ pub mod commands;
 pub mod conversations;
 pub mod dto;
 pub mod items;
+pub mod line;
 pub mod page;
 pub mod pick;
 

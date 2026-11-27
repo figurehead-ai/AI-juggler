@@ -539,7 +539,9 @@ fn quote_of(now: Now, agent: &AgentFacts) -> (Option<String>, Option<String>) {
     }
 }
 
-fn first_sentence(text: &str) -> String {
+/// A text's first sentence (to its first `.`, `!` or `?` before a space).
+#[must_use]
+pub fn first_sentence(text: &str) -> String {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let end = text
         .char_indices()
