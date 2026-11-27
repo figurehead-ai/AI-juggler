@@ -1,4 +1,4 @@
-<!-- captures: a5cf54adc848 -->
+<!-- captures: 2bfdff31d475 -->
 # 68-home-feed: Home's two columns and its activity feed (D-118): pinned needs, the narrated stream with rollups and the away digest, Your apps and Runway by account, at 1024, 1280, 1440 and stacked, each section folded, empty and flooded
 
 Design critique (D-57, AJ-E2814), against the approved home-feed design (2026-11-14) and its mock (`AIJuggler-design-refs/calm-ui/home-feed/`).
@@ -142,5 +142,25 @@ Re-captured on the host (`home-feed-gallery.spec.ts`), every state, both themes,
 | 16 | Hand walk | 3 | The re-walk on the fixed build follows (RW1). |
 | 18 | Usability | 4 | Answer 2 now holds: a finished turn's stat and review stay reachable after a digest. |
 | 19 | Rich-mode colour | 4 | A calm monitoring feed, scored as asked: the App tiles and the stat's green and red carry the colour, the digest's lines stay ink and muted, nothing monochrome or loud. |
+
+The other lines are as the AJ-E2027 section scored them (lowest 3: line 16).
+
+## 0.5.2 G63 (2026-11-27, Opus, both themes)
+
+Captured from a clean checkout of 7f39c9b81 (`home-feed-gallery.spec.ts`, the g63 case only; the other captures not re-taken: nothing else in the feed moved); both frames opened.
+
+**What changed.** `g63-new-pill-scrolled-1280-*` (new): the feed scrolled so a Codex post's header sits at the column's top, then one new item told (the stand-in's change, as the backend tells one). The "↑ 1 new update" pill now sits on a band of the page's own colour across the column's top, fading out below it; the post slides under the band, so its header line is covered rather than running out on both sides of the pill (RW1's S-R26 capture: "Change the date format in the API responses" struck through around the pill). Its first visible line ("Codex CLI worked on Add a retry helper to the API client in web.") starts clear below the pill.
+
+**Judged.** Light and dark: the band is the canvas colour, so it reads as the page, not a new surface; the pill keeps its own raised chip and shadow. Clicking still scrolls to the top and shows the new post (vitest unchanged).
+
+**Weak.** The band hides about 30 px of whatever card is under it while the pill shows; that is the price of never overlapping text, and it goes with the pill.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 6 | Areas and spacing | 4 | Nothing overlaps; the band takes no room of its own in the column's flow. |
+| 7 | Colour | 4 | The band is the canvas, no new hue; the pill unchanged. |
+| 14 | Consistency | 4 | The same fade Bot's conversation head uses over its turns. |
+| 15 | Accessibility | 4 | axe clean on both; the band takes no pointer, the pill keeps its focus ring. |
+| 16 | Hand walk | 3 | Preview only; the re-walk on the fixed build follows. |
 
 The other lines are as the AJ-E2027 section scored them (lowest 3: line 16).

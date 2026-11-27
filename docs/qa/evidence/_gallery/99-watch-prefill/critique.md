@@ -1,4 +1,4 @@
-<!-- captures: 18ce15e803b3 -->
+<!-- captures: 3e2f04e2dc10 -->
 # 99-watch-prefill: the Watches form as Bot pre-filled it, Bot's confirm card, the Watches row
 
 Design critique (D-57, AJ-E2814), AJ-E3830 (0.5.2), Opus, 2026-11-27. Captured on the host from the working tree at the UI commit (`watch-prefill-gallery.spec.ts`: Bot docked at 1280, its turn opening the form; the card; Settings › AI › Models' jobs card), both themes; every capture opened. Mock-ups: the Watches form's approved mock and the d126 kit (`~/Dev/AIJuggler-design-refs/`), Bot's confirm card as the row's Watch… card (`bot` gallery's `watch`).
@@ -50,3 +50,27 @@ Re-captured from the worktree at HEAD (b74eab212) with `AIJ_PREFILL_OUT`; each f
 | 19 | Rich-mode colour | 4 | Unchanged: the eyebrow and Watch in the accent, the quiet line muted with its icon; no bright edge. |
 
 Lowest: 3 (line 16, unchanged).
+
+## 0.5.2 G60 (2026-11-27, Opus, both themes)
+
+Captured from a clean checkout of 28aae623b (no other session's uncommitted work in the frame), `AIJ_PREFILL_OUT`; every frame opened. `form-left-*` and `card-*` came out byte-equal and are unchanged.
+
+**What changed, by capture.**
+- `form-several-1280-*` (new): "Tell me when shop finishes", where "shop" names the project and sessions in it (the RW1 R31 shape: "web" the project and an open session named by its folder). The note says "More than one matches that name: pick which one."; Watch what says "Bot couldn't tell which one", and the picker is open under it with a new first group, "Your words match": api (Agent CLI · shop · Working), Fix the login redirect (Idle), then the project shop, open sessions first. Open now and Recent follow with what the matches don't hold (Open now's count is the rows it shows). Nothing is picked (0 picked); Until's step dot is not lit and Watch stays off. Before: the same form with an empty field and a closed picker, and Until showing Today chosen.
+- `form-nearest-1280-*`: Until no longer shows Today chosen; no segment is lit and the line reads "How long is suggested once you pick what to watch for." (the form's suggestion follows the condition; it appears, labelled, once a card is ticked). This was the Weak point of the first section above.
+
+**Judged.** The ambiguous name now ends in a choice the user makes in one click, the candidates named the way the rail names them, with their App and state, and nothing chosen for them; the matches group reuses the picker's own heading and rows (no new pattern). The unchosen Until reads as "not yet", not as Bot's fill.
+
+**Weak.** The foot still says "Starts watching now · 7 of 50." beside a Watch that is off until a target is picked (the form's existing line for a new watch). The open picker covers sections 2 to 4 until it is closed or a target picked, as it does when opened by hand. The strip above says "Looks like this: …" while nothing is picked (as before).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 3 | Default and folding | 4 | No lifetime shown chosen while it depends on what Bot left; the suggestion comes labelled with the pick. |
+| 12 | Words | 4 | "Your words match", "How long is suggested once you pick what to watch for." (plain-words lint). |
+| 13 | States | 4 | Several matches: the picker open on them; nearest; left; card; unchanged ones byte-equal. |
+| 14 | Consistency | 4 | The matches are the picker's own rows under its own heading style; open sessions first, as Open now orders. |
+| 15 | Accessibility | 4 | axe clean on both new captures; the picker keeps its search focused and ↑↓ through the matches. |
+| 16 | Hand walk | 3 | Walked by vitest and Playwright in the preview; the real-app re-walk of R31/R32 follows. |
+| 19 | Rich-mode colour | 4 | The matches lead with each target's own mark and the project's folder icon; the open field keeps the accent ring; no bright border, AA in both themes (axe). |
+
+The other lines are as the first section scored them (lowest 3: line 16).
