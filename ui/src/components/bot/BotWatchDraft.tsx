@@ -175,7 +175,7 @@ export function BotWatchDraft({ turn }: { turn: BotTurnInfo }): JSX.Element {
       <BotWatchDraftWords drafted={drafted} />
       {selfOpened ? (
         !/is open|ist offen/.test(lineOf(drafted, turn.lang)) && (
-          <p className="text-meta text-muted" data-testid="bot-watch-draft-is-open">
+          <p className="pl-6 text-meta text-muted" data-testid="bot-watch-draft-is-open">
             {w.isOpen}
           </p>
         )
