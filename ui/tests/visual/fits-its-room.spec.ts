@@ -195,3 +195,41 @@ test("A8: a rail row's state word stays whole beside its title — 1280", async 
   const cutWords = await words.evaluateAll((all) => all.filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent));
   expect(cutWords, "a state word cut").toEqual([]);
 });
+
+/** 0.5.2 (PR #257's Happo review): Home's feed tabs stay on one row at
+ * every width walked, the ones without room in the ⋯ menu ("This Mac"
+ * first); the chosen tab stays in the row, whichever it is. At 1200 and
+ * 1024 "This Mac" sat alone on a second line. */
+for (const size of [
+  { width: 1280, height: 800 },
+  { width: 1200, height: 800 },
+  { width: 1024, height: 700 },
+]) {
+  test(`Home's feed tabs keep to one row, the rest in ⋯ — ${size.width}`, async ({ page }) => {
+    await seed(page, { accounts: ACCOUNTS, projects: [], sessions: MOCK_SESSIONS, conversations: placesConversations(T0) }, size);
+    const row = page.getByTestId("feed-chip");
+    await expect(row).toBeVisible();
+    const tops = () => row.locator("button").evaluateAll((tabs) => [...new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().top)))]);
+    const inside = () =>
+      row.evaluate((box) => {
+        const edge = box.getBoundingClientRect().right;
+        return [...box.querySelectorAll("button")].every((tab) => tab.getBoundingClientRect().right <= edge + 0.5);
+      });
+    expect(await tops(), "one row").toHaveLength(1);
+    expect(await inside(), "every tab within the row").toBe(true);
+    const hidden = ((await row.getAttribute("data-hidden")) ?? "").split(",").filter(Boolean);
+    const all = ["all", "needs", "sessions", "tasks", "pools", "switches", "mac"];
+    // Hidden from the end, This Mac first.
+    expect(hidden, "hidden from the end").toEqual(all.slice(all.length - hidden.length));
+    if (hidden.length > 0) {
+      await page.getByTestId("feed-more").click();
+      for (const value of hidden) await expect(page.getByTestId(`feed-more-tab-${value}`)).toBeVisible();
+      // Chosen from ⋯, it stays in the row, and the row stays one line.
+      await page.getByTestId(`feed-more-tab-${hidden[0]}`).click();
+      const chosen = page.getByTestId(`feed-chip-${hidden[0]}`);
+      await expect(chosen).toHaveAttribute("aria-pressed", "true");
+      expect(await tops(), "still one row").toHaveLength(1);
+      expect(await inside(), "every tab still within the row").toBe(true);
+    }
+  });
+}

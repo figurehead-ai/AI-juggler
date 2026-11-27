@@ -11,8 +11,8 @@
  */
 import { useState, type JSX } from "react";
 import { Picker, type PickerOption } from "./controls";
-import { SELECTED } from "./controls/selected";
-import { MenuItem, MenuLine, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { MenuItem, MenuLine, MenuSeparator, RowMenu, menuPoint, type MenuAt } from "./RowMenu";
+import { FeedTabs, TAB_ICONS } from "./FeedTabs";
 import { IconProfiles, IconProjects, IconSessions } from "./icons";
 import { IconPool } from "./icons-actions";
 import { IconCheck } from "./icons-controls";
@@ -93,7 +93,6 @@ export function stateOf(filters: FeedFiltersInfo): StateChip | null {
   return STATES.find((one) => one.value === filters.state)?.value ?? null;
 }
 
-const TAB = "rounded-full px-[11px] py-[5px] text-meta outline-none focus-visible:ring-1 focus-visible:ring-accent/60";
 const TINT: Record<StateChip, string> = {
   running: "bg-live-soft text-live",
   finished: "bg-success-soft text-success",
@@ -116,6 +115,7 @@ export function HomeFeedFilters({ filters, onChange, facets, seen = new Map(), c
   onReadAll: () => void;
 }): JSX.Element {
   const [menu, setMenu] = useState<MenuAt | null>(null);
+  const [hiddenTabs, setHiddenTabs] = useState<Tab[]>([]);
   const tab = tabOf(filters);
   const state = stateOf(filters);
   const { options, suggested } = facetOptions(facets, seen);
@@ -125,28 +125,19 @@ export function HomeFeedFilters({ filters, onChange, facets, seen = new Map(), c
   return (
     <div className="flex flex-col gap-2.5" data-testid="feed-filters">
       <div className="flex items-start gap-2" data-testid="feed-toolbar">
-        <fieldset className="m-0 flex min-w-0 flex-1 flex-wrap items-center gap-1.5 border-0 p-0" data-testid="feed-chip">
-          <legend className="sr-only">Show in the feed</legend>
-          {TABS.map((one) => (
-            <button
-              key={one.value}
-              type="button"
-              aria-pressed={tab === one.value}
-              onClick={() => setTab(one.value)}
-              // PAT-SURF-3: the chosen tab wears the selected look (the
-              // attention budget's rule: a selection is never a loud fill).
-              className={TAB + (tab === one.value ? ` ${SELECTED}` : " text-muted hover:bg-surface-2 hover:text-ink")}
-              data-testid={`feed-chip-${one.value}`}
-            >
-              {one.label}
-            </button>
-          ))}
-        </fieldset>
+        <FeedTabs tab={tab} onTab={setTab} onHidden={setHiddenTabs} />
         <button type="button" aria-label="More feed options" aria-haspopup="menu" aria-expanded={menu !== null} onClick={(event) => setMenu(menuPoint(event))} className="btn-ghost flex size-7 shrink-0 items-center justify-center rounded-md text-label outline-none focus-visible:ring-1 focus-visible:ring-accent/60" data-testid="feed-more">
           ⋯
         </button>
         {menu && (
           <RowMenu heading="Feed" ariaLabel="Feed options" at={menu} onClose={() => setMenu(null)} testId="feed-menu">
+            {/* 0.5.2: the tabs the row has no room for (FeedTabs), first. */}
+            {hiddenTabs.map((value) => (
+              <MenuItem key={value} onClick={() => { setTab(value); setMenu(null); }} testId={`feed-more-tab-${value}`}>
+                <MenuLine icon={TAB_ICONS[value]} label={TABS.find((one) => one.value === value)?.label ?? value} />
+              </MenuItem>
+            ))}
+            {hiddenTabs.length > 0 && <MenuSeparator />}
             {/* 0.5.1 F60 (N8): every line carries its icon, as every menu's. */}
             <MenuItem checked={filters.include_mine} onClick={() => onChange({ ...filters, include_mine: !filters.include_mine })} testId="feed-include-mine">
               <MenuLine icon={IconProfiles} label="Include my actions" tick={filters.include_mine} />
