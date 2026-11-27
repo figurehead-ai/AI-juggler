@@ -1,4 +1,4 @@
-<!-- captures: 8f9bc4743030 -->
+<!-- captures: ed2cd3250517 -->
 <!-- captures: pending -->
 # 99-bot-breakdown: Bot's context and memory breakdown, and a memory as a record
 
@@ -120,3 +120,21 @@ All twelve re-captured, plus `head-{light,dark}-1755.png` (new): `bot-breakdown-
 | 19 | Rich-mode colour | 4 | Not a create, edit or settings surface; calm colour, the accent only on Beta. |
 
 Lowest: 4.
+
+## 0.5.2 G74: a long title truncates before its state (Opus, 2026-11-27)
+
+Captured from a clean export of e5f44de9c (`bot-breakdown-gallery.spec.ts`): four new frames, `long-title-{light,dark}-{1755,1300}.png`, the first answer's rows given the walk's long titles ("Split the cart total into its own module and test it", working; "Add a retry helper to the API client", ended); the other fourteen came out byte-equal and are unchanged. Every new frame opened.
+
+**What changed.** RW1 Part T (T4) saw the title run under the row's state ("…module and tes[Working]", "…API client ● Ended") and the panel scroll sideways: the title and place lines sized to their content inside the row's button. The title now takes the column's width and truncates ("Split the cart total into its own m…", "Add a retry helper to the …") with the state whole at the right; the whole title stays the row's tooltip. The spec asserts the title ends before the state, and nothing in the panel scrolls sideways, at both widths and both themes (it failed 4 of 4 on the old layout).
+
+**Weak.** At the docked panel's width the second line wraps a long place ("Task · Release pool · builder-2" over two lines), as before; the title gives way first, as it should.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 6 | Areas | 5 | Name, place, state: each in its own column, none drawn over another. |
+| 8 | Type | 4 | Unchanged sizes; the cut is the ellipsis, the tooltip has the rest. |
+| 13 | States | 4 | Working and Ended whole beside a long title. |
+| 15 | Accessibility | 4 | axe clean at 1755; the row's accessible name is unchanged (the title whole). |
+| 19 | Rich-mode colour | 4 | Unchanged: the rows' calm tones, the state's dot and word. |
+
+The other lines are as the sections above scored them (lowest 4).
