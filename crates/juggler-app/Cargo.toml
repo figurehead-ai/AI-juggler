@@ -80,12 +80,12 @@ getrandom = { workspace = true }
 # Calendar triggers and windows. Already locked (through serde_with); only
 # the system zone database: /usr/share/zoneinfo on macOS and Linux, the
 # platform bundle only where a system has none (Windows).
-jiff = { version = "=0.2.38", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform"] }
+jiff = { version = "=0.2.46", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform"] }
 # D-108 (AJ-E1107 R5): crash reports go to Sentry through its SDK. No
 # default features: no transport (reports go over the app's own HTTPS
 # client, juggler-account's ureq + rustls), no integrations that read the
 # OS, environment, files or debug images, no sessions. Pinned exactly.
-sentry = { version = "=0.49.5", default-features = false }
+sentry = { version = "=0.49.6", default-features = false }
 prost = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -99,7 +99,7 @@ sysinfo = { version = "0.39.6", default-features = false, features = ["system"] 
 # AJ-E2501: the menu-bar item (Tauri's tray, the same API on every desktop).
 # ADR-0026: pinned exactly; `unstable` gives the Floor its native window
 # (WindowBuilder without a webview). An update re-checks the Floor first.
-tauri = { version = "=2.12.4", features = ["tray-icon", "unstable"] }
+tauri = { version = "=2.12.5", features = ["tray-icon", "unstable"] }
 tauri-plugin-dialog = "2"
 # AJ-E1010: the launch alert when an older AI Juggler meets newer data
 # (before any window exists), on every desktop platform. Already in the
