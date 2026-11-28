@@ -220,9 +220,16 @@ for (const theme of ["dark", "light"] as const) {
       const control = body.locator("input, button, a[href], [tabindex]:not([tabindex='-1'])").first();
       if ((await control.count()) > 0) await control.focus();
       else await body.focus();
+      // PR #257 (a11y 6/6, 1024x680 light, scrollTop 0): Page Down is a
+      // smooth scroll, 0 at the press and there over about five frames
+      // (traced here: 0, 15, 30, 68, 100, 101); two frames were not always
+      // enough on a busy runner. So: focus inside the body and something to
+      // scroll before the key, then wait for the scroll to happen.
+      await expect.poll(() => body.evaluate((el) => el.contains(document.activeElement)), { message: "focus inside the body" }).toBe(true);
+      await expect.poll(async () => { const now = await scrollState(body); return now.height > now.client + 1 && now.top === 0; }, { message: "the body overflows, at its top" }).toBe(true);
       await page.keyboard.press("PageDown");
+      await expect.poll(async () => (await scrollState(body)).top, { message: "Page Down scrolls the body", timeout: 3_000 }).toBeGreaterThan(0);
       await settle(page);
-      expect((await scrollState(body)).top, "Page Down scrolls the body").toBeGreaterThan(0);
       expect(same(foot, await boxOf(footer)), "the footer stayed").toBe(true);
     });
 
