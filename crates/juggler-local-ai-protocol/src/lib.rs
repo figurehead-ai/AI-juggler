@@ -152,6 +152,10 @@ pub struct Sampling {
     /// Presence penalty × 1000.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub presence_milli: Option<u32>,
+    /// The sampler's seed (D-149: a retry samples with its own); absent,
+    /// the helper's fixed one, so a run can be repeated.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed: Option<u32>,
 }
 
 impl Sampling {

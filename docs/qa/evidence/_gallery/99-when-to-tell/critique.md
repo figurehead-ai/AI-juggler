@@ -1,4 +1,4 @@
-<!-- captures: 2932830216e9 -->
+<!-- captures: c8ffb3e632ec -->
 <!-- captures: pending -->
 # 99-when-to-tell: Notifications › When to tell me
 
@@ -45,3 +45,17 @@ Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail'
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 G52 (2026-11-27, Opus, both themes)
+
+Re-captured from the worktree at HEAD (ea6bda3e2) with the family's own spec; each frame compared pixel by pixel with the one before, and every changed frame opened by eye, light and dark side by side. All four `section-*` frames changed.
+
+**What changed.** The folded line under When to tell me read "More: quiet hours 22:00–07:00, all accounts"; it now reads "More: quiet hours 10:00 PM–7:00 AM, all accounts", the times by the system's clock as the Watches form and Bot's cards write them (G52, ea6bda3e2), each time kept whole with its AM/PM. The last committed frames were from before AJ-E1558, so these also show the section as it ships since then: each When-to-tell row led by its icon chip with its help line under it, the pickers beside the words, Send test under the rows; the alert rows above with their switches ("Watches and reminders", "The digest").
+
+**Judged.** The longer times keep the fold's line to one line at 1024 and 1280. Nothing else moved because of G52.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 11 | Plain words | 4 | One time style across Settings, the Watches form and Bot. |
+| 14 | Consistency | 4 | The fold's line uses the app's one time rule. |
+| 19 | Rich-mode colour | 4 | Every row its icon chip; switches on in the accent; the fold calm on the surface; no bright edge. |

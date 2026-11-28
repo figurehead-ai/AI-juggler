@@ -7,6 +7,7 @@ import { Button } from "../../components/primitives";
 import { OfferRow, usePlaceOffers } from "../../components/PlaceOffers";
 import { findMyApps } from "../../lib/found-tools";
 import { PaneSection, RowNote, SettingRow } from "./parts";
+import { IconPlus } from "../../components/icons-actions";
 
 /** A row just forgotten, held where it was (the go sitting's rerun: Forget
  * took the row out and Find profiles put it back under Found a moment
@@ -25,7 +26,7 @@ export type Offers = ReturnType<typeof usePlaceOffers>;
  * not added, folders not brought in, a removed App again). */
 function FindAppsRow(): JSX.Element {
   return (
-    <SettingRow
+    <SettingRow icon={IconPlus}
       title="Add an app"
       description="Looks on this computer for the AI apps you use, open profiles included, and adds the ones you tick. Nothing is added until you do."
       testId="desktop-find-apps"

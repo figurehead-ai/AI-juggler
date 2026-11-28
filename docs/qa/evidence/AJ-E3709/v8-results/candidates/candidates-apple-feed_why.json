@@ -1,0 +1,142 @@
+{
+ "family": "apple",
+ "job": "feed_why",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V8T07",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: chat/handlers/ was undone (names split))",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T07",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: chat/handlers/ was undone (names split))",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T07",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: chat/handlers/ was undone (names split))",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T15",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (Wired up the push-notification opt-in in cedar-mobile and then reverted the iOS )",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T15",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: ios/OptIn.swift was undone (names ios))",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T15",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: ios/OptIn.swift was undone (names ios))",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T20",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: negation word in output with none in source",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T20",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: negation word in output with none in source",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T24",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: failure word in output with none in source",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T24",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: failure word in output with none in source",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T24",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: failure word in output with none in source",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: failure word in output with none in source",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T40",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: states a failure the facts and the message don't report",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T40",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: search/scoring.py was undone)",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T40",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "contradiction",
+   "detail": "contradiction: names a change that was undone (git: search/scoring.py was undone (names ranking))",
+   "stage": "caught",
+   "corpus": "turns8"
+  }
+ ]
+}

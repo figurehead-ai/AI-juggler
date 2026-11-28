@@ -39,5 +39,7 @@ ADRs capture the *why* behind non-obvious decisions: context, decision, alternat
 | [0034](./0034-ai-jobs-router.md) | AI jobs through one router: jobs declare needs, engines declare capabilities; Chat v1 read-only with cited look-ups; one downloaded model at most (D-121) | Accepted |
 | [0036](./0036-digest-and-watches.md) | The agent digest and watches: a checked cross-agent digest over a non-AI rollup; typed watches that code evaluates and Chat only drafts (D-132) | Accepted |
 | [0037](./0037-memory-and-context.md) | One memory and context system for Chat and the 0.6 bot: a supersede-only store, live facts over stored ones, one assembler with per-job budgets, an append-only log (D-133) | Proposed |
+| [0038](./0038-world-model-engine.md) | Bot's world model: a typed graph kept in memory over SQLite, built as its own open-source crate, `gyrus` (extends ADR-0037; supersedes its "no graph store") | Accepted (2026-11-26) |
+| [0039](./0039-one-scheduler.md) | One scheduler: durable, typed, visible triggers for everything time-based (At, Every, Calendar, AfterEvent, WhenIdle) | Accepted (2026-11-26) |
 
 To add one: copy `0000-template.md`, number sequentially, PR it with the change that implements the decision.

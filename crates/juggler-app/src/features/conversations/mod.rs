@@ -24,6 +24,7 @@ pub mod places;
 pub mod procs;
 pub mod saved;
 pub mod scan;
+pub mod seen;
 pub mod switch_source;
 mod titles;
 
@@ -275,6 +276,10 @@ pub struct ConversationIndex {
     /// running began (or while none ran): its result leaves them out, and
     /// the next look's scanner forgets them.
     ended: Mutex<std::collections::BTreeSet<u32>>,
+    /// 0.5.2 G45: a live look was made after the index was read whole,
+    /// so the next look's changes are told ([`seen`]); before, a look
+    /// sees what was open all along.
+    told: std::sync::atomic::AtomicBool,
 }
 
 /// What reads did to the index's folders since [`ConversationIndex::take_placed`].
@@ -587,6 +592,36 @@ impl ConversationIndex {
             .unwrap_or_default()
     }
 
+    /// Test seam: `conversation` in the index, as a pass reads it from
+    /// its file, and the index read whole.
+    #[cfg(test)]
+    pub(crate) fn put_for_test(&self, conversation: Conversation) {
+        if let Ok(mut files) = self.files.lock() {
+            files.insert(
+                conversation.path.clone(),
+                Entry {
+                    len: 0,
+                    modified: None,
+                    conversation: Some(conversation),
+                    complete: true,
+                },
+            );
+        }
+        self.first_done
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Test seam: a live look of `model`, as the live thread makes one.
+    ///
+    /// # Errors
+    ///
+    /// A poisoned lock.
+    #[cfg(test)]
+    pub(crate) fn look_for_test(state: &Arc<AppState>, model: scan::LiveModel) -> AppResult<bool> {
+        state.conversations.set_live_model(model);
+        update_live(state)
+    }
+
     /// Test seam: what the live refresher saw.
     #[cfg(test)]
     pub(crate) fn set_live_model(&self, model: scan::LiveModel) {
@@ -870,12 +905,23 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
         asks::apply(&mut now, &all, &mut tails, &say, SystemTime::now());
     }
     let idle = live::inactive_ids(&all, &model);
-    let changed = {
+    // 0.5.2 G45: what the sessions AI Juggler didn't start did since the
+    // last look, once a look has been made over the whole index.
+    let tells = state.conversations.told.swap(
+        state.conversations.first_pass_done(),
+        std::sync::atomic::Ordering::Relaxed,
+    );
+    let (changed, moved) = {
         let mut live = state
             .conversations
             .live
             .lock()
             .map_err(|_| AppError::StatePoisoned)?;
+        let moved = if tells {
+            seen::transitions(&live, &now)
+        } else {
+            Vec::new()
+        };
         let changed = *live != now;
         // AJ-E3102: which are open moves counts; their states don't.
         if live.len() != now.len() || now.keys().any(|key| !live.contains_key(key)) {
@@ -885,8 +931,9 @@ fn update_live(state: &Arc<AppState>) -> AppResult<bool> {
             );
         }
         *live = now;
-        changed
+        (changed, moved)
     };
+    seen::tell(state, moved, crate::commands::now_millis());
     let mut inactive = state
         .conversations
         .inactive

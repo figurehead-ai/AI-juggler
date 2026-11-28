@@ -77,6 +77,11 @@ the router picks an engine that can serve it (ADR-0034).
 - `crates/juggler-floor`, `juggler-floor-render` — the Floor's model and
   its native wgpu window.
 - `crates/juggler-stats` — opt-in, identifier-free usage statistics.
+- `crates/gyrus` — Bot's world model engine (ADR-0038): a typed graph
+  kept in memory over SQLite (its tables a migration in AI Juggler's
+  database), kind packs as data, bounded walks, tiers, the idle pass and a
+  forget that really deletes. Generic and open source (MIT OR Apache-2.0):
+  it knows nothing of AI Juggler; the kind pack is `features/ai/world/`.
 - `crates/juggler-remote-config` — the signed remote configuration
   (ADR-0035): canonical bytes, pinned-key verification before any parse,
   rollback and expiry state, the typed section registry, the layer merge,

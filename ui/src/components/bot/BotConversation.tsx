@@ -103,8 +103,11 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
       </Fragment>,
     );
   });
-  // A New topic with nothing asked yet: its divider at the end, with its note.
-  for (const topic of topics.filter((t) => t.started_ms > (last?.at_ms ?? Number.NEGATIVE_INFINITY))) items.push(<TopicDivider key={topic.id} topic={topic} withNote />);
+  // A New topic with nothing asked yet: its divider at the end, with its
+  // note; 0.5.2 G31: it starts empty, so with no turn shown it stands over
+  // the empty state.
+  const fresh = topics.filter((t) => t.started_ms > (last?.at_ms ?? Number.NEGATIVE_INFINITY)).map((topic) => <TopicDivider key={topic.id} topic={topic} withNote />);
+  items.push(...fresh);
   return (
     <div ref={scroller} onScroll={keepAnchor} data-scrolled={edge.up ? "" : undefined} data-more={edge.more ? "" : undefined} className={"scroll-edge relative flex min-h-0 flex-1 flex-col overflow-y-auto before:shrink-0 " + (wide ? "gap-5 px-7 pt-5 pb-2.5 before:-mb-[21px]!" : "gap-[18px] px-4 pt-[18px] pb-2.5 before:-mb-[19px]!")} data-testid="bot-conversation">
       {bot.more && (
@@ -116,7 +119,14 @@ export function BotConversation({ now, empty, wide = false }: { now: number; emp
           </button>
         </div>
       )}
-      {bot.turns.length === 0 && !bot.loading ? empty : items}
+      {bot.turns.length === 0 && !bot.loading ? (
+        <>
+          {bot.more && fresh}
+          {empty}
+        </>
+      ) : (
+        items
+      )}
       {bot.asking && (
         <output className="text-meta text-muted">
           {WORDS.asking}

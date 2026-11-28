@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/gyrus",
     "crates/juggler-account",
     "crates/juggler-agentbridge",
     "crates/juggler-adapter",

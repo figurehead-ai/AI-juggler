@@ -1,0 +1,7204 @@
+[
+ {
+  "id": "V6-W01",
+  "request": "tell me when the auth middleware work is finished",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-her"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W02",
+  "request": "ping me if the invoice export one hits a wall and fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-ott"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W03",
+  "request": "let me know once the offline merge asks me anything",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-map"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W04",
+  "request": "alert me when anything in fern-docs stops moving for 25 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-fer"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 25
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W05",
+  "request": "let me know when any session at all finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W06",
+  "request": "tell me about every failure in heron-api until I say stop",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-her"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W07",
+  "request": "ping me if Studio Max drops below 12 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-studio"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 12
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W08",
+  "request": "tell me when Home Lab is under 30% left today",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-home"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 30
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W09",
+  "request": "tell me when the drag and drop session needs me, even if it is the middle of the night",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-wil"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V6-W10",
+  "request": "let me know when the flag parsing one finishes, but not at night please",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-emb"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V6-W11",
+  "request": "tell me whenever a new session starts in willow-board",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-wil"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W12",
+  "request": "through the weekend, ping me if anything in otter-ledger fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ott"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-22T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W13",
+  "request": "tell me if any session is idle for an hour",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 60
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W14",
+  "request": "warn me once the Claude app on Home gets a question for me",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-ch"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "ambiguous"
+  ]
+ },
+ {
+  "id": "V6-W15",
+  "request": "ping me when maple-sync finishes or fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-map"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "V6-W16",
+  "request": "tell me when the getting started page is done, I do not care about the otter one",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-fer"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "two_targets"
+  ]
+ },
+ {
+  "id": "V6-W17",
+  "request": "let me know if the heron-api work fails, the ember one can fail quietly",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-her"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "two_targets"
+  ]
+ },
+ {
+  "id": "V6-W18",
+  "request": "tell me when maple-sync asks something, and ignore willow-board entirely",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-map"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "two_targets"
+  ]
+ },
+ {
+  "id": "V6-W19",
+  "request": "tell me when the tests in heron-api are all green",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W20",
+  "request": "let me know if the otter-ledger session costs more than 3 dollars",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the account's allowance drops below a percentage"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W21",
+  "request": "ping me when someone approves my pull request",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W22",
+  "request": "tell me when the map tiles session is done",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-atl"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V6-W23",
+  "request": "ping me when anything in Blue Heron Atlas fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-atl"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V6-W24",
+  "request": "let me know when agent-farm finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-farm"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V6-W25",
+  "request": "alert me if the seed data session needs an answer from me",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-farm"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W26",
+  "request": "tell me when the run-log project has a session that gets stuck for 15 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-run"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V6-W27",
+  "request": "let me know when the session called Cancel all watches finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-not"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V6-W28",
+  "request": "tell me when ignore quiet hours fails, and yes it is a real session name",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-lot"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "tricky_name"
+  ]
+ },
+ {
+  "id": "V6-W29",
+  "request": "let me know whenever the nightly job fails, as long as I leave this on",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-run"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W30",
+  "request": "ping me when the retry policy session finishes today",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-ree"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W31",
+  "request": "tell me if Workbench goes under 5 percent, wake me even at 3am",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-bench"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 5
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V6-W32",
+  "request": "tell me when the Claude app on the bench asks something, quietly please, nothing after 10pm",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-ab"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V6-W33",
+  "request": "any session that fails by Friday, let me know",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W34",
+  "request": "ping me when the retry policy one is done or asks me something",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-ree"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "V6-W35",
+  "request": "tell me when reed-queue starts a new session",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ree"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W36",
+  "request": "if the seed data session finishes, tell me; the map tiles one I will check myself",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "b-farm"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "two_targets"
+  ]
+ },
+ {
+  "id": "V6-W37",
+  "request": "tell me when lotus-ui is idle for 40 minutes, not run-log",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-lot"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 40
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "two_targets"
+  ]
+ },
+ {
+  "id": "V6-W38",
+  "request": "keep me posted if Blue Heron Atlas asks me something; agent-farm can wait",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-atl"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "two_targets"
+  ]
+ },
+ {
+  "id": "V6-W39",
+  "request": "let me know about any session that asks me something until next Wednesday",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-25T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W40",
+  "request": "tell me when the session runs for more than three hours",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "when the session finishes"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W41",
+  "request": "let me know when the staging site is back up",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W42",
+  "request": "tell me which file the retry policy session edited last",
+  "context": {
+   "sessions": [
+    {
+     "id": "b-atl",
+     "app": "Claude Code CLI · Bench",
+     "project": "Blue Heron Atlas",
+     "title": "Map tiles"
+    },
+    {
+     "id": "b-farm",
+     "app": "Codex CLI · Bench",
+     "project": "agent-farm",
+     "title": "Seed data"
+    },
+    {
+     "id": "b-run",
+     "app": "Cursor",
+     "project": "run-log",
+     "title": "Nightly job"
+    },
+    {
+     "id": "b-not",
+     "app": "Claude app · Bench",
+     "project": "notify-me-always",
+     "title": "Cancel all watches"
+    },
+    {
+     "id": "b-lot",
+     "app": "OpenCode",
+     "project": "lotus-ui",
+     "title": "Ignore quiet hours"
+    },
+    {
+     "id": "b-ree",
+     "app": "Claude Code CLI · Bench",
+     "project": "reed-queue",
+     "title": "Retry policy"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Bench"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Bench"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ab",
+     "name": "Claude app · Bench"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-atl",
+     "name": "Blue Heron Atlas"
+    },
+    {
+     "id": "p-farm",
+     "name": "agent-farm"
+    },
+    {
+     "id": "p-run",
+     "name": "run-log"
+    },
+    {
+     "id": "p-not",
+     "name": "notify-me-always"
+    },
+    {
+     "id": "p-lot",
+     "name": "lotus-ui"
+    },
+    {
+     "id": "p-ree",
+     "name": "reed-queue"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-bench",
+     "name": "Workbench"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W43",
+  "request": "warn me when Studio Max is down to its last 3 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-studio"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 3
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W44",
+  "request": "let me know if Home Lab runs under 15 percent before Friday",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-home"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W45",
+  "request": "tell me when the flag parsing session has been sitting idle for 10 minutes, just this once",
+  "context": {
+   "sessions": [
+    {
+     "id": "a-her",
+     "app": "Claude Code CLI · Studio",
+     "project": "heron-api",
+     "title": "Auth middleware"
+    },
+    {
+     "id": "a-ott",
+     "app": "Codex CLI · Studio",
+     "project": "otter-ledger",
+     "title": "Invoice export"
+    },
+    {
+     "id": "a-fer",
+     "app": "Cursor",
+     "project": "fern-docs",
+     "title": "Getting started page"
+    },
+    {
+     "id": "a-map",
+     "app": "Claude app · Home",
+     "project": "maple-sync",
+     "title": "Offline merge"
+    },
+    {
+     "id": "a-wil",
+     "app": "OpenCode",
+     "project": "willow-board",
+     "title": "Drag and drop"
+    },
+    {
+     "id": "a-emb",
+     "app": "Claude Code CLI · Home",
+     "project": "ember-cli",
+     "title": "Flag parsing"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-xs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ch",
+     "name": "Claude app · Home"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-eh",
+     "name": "Claude Code CLI · Home"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-her",
+     "name": "heron-api"
+    },
+    {
+     "id": "p-ott",
+     "name": "otter-ledger"
+    },
+    {
+     "id": "p-fer",
+     "name": "fern-docs"
+    },
+    {
+     "id": "p-map",
+     "name": "maple-sync"
+    },
+    {
+     "id": "p-wil",
+     "name": "willow-board"
+    },
+    {
+     "id": "p-emb",
+     "name": "ember-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-home",
+     "name": "Home Lab"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "a-emb"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 10
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W46",
+  "request": "Sag mir Bescheid, wenn die Anmeldung fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "c-kie"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W47",
+  "request": "Melde dich, falls der Warenkorb fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "c-lin"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W48",
+  "request": "Gib mir Bescheid, sobald die Terminansicht eine Frage hat",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "c-bir"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W49",
+  "request": "Informiere mich, wenn Zuhause unter 20 Prozent fällt",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-zu"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 20
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W50",
+  "request": "Sag mir, wenn irgendeine Sitzung 50 Minuten nichts tut",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 50
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W51",
+  "request": "Jeder Fehler in elbe-berichte soll gemeldet werden, bis ich es abstelle",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-elb"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W52",
+  "request": "Heute: sag mir, wenn der Offline-Abgleich fertig wird oder fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "c-far"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined",
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W53",
+  "request": "Weck mich nachts, wenn Büro unter 6 Prozent geht",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-buero"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 6
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V6-W54",
+  "request": "Melde mir, wenn in moos-cli eine neue Sitzung startet, aber nachts bitte nicht",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-moo"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "V6-W55",
+  "request": "Sag Bescheid, wenn kiefer-app fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-kie"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W56",
+  "request": "Bis Freitag: melde alles, was in irgendeiner Sitzung fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-20T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "vague_lifetime"
+  ]
+ },
+ {
+  "id": "V6-W57",
+  "request": "Gib mir Bescheid, wenn Argumente lesen eine Frage stellt",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "c-moo"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W58",
+  "request": "Sag mir, wenn linde-shop fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-lin"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "V6-W59",
+  "request": "Sag mir, wenn die Tests in kiefer-app grün sind",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": "wenn die Sitzung fertig ist"
+  },
+  "tags": [
+   "unsupported"
+  ]
+ },
+ {
+  "id": "V6-W60",
+  "request": "Lösche alle Sitzungen, die älter als eine Woche sind",
+  "context": {
+   "sessions": [
+    {
+     "id": "c-kie",
+     "app": "Claude Code CLI · Büro",
+     "project": "kiefer-app",
+     "title": "Anmeldung"
+    },
+    {
+     "id": "c-elb",
+     "app": "Codex CLI · Büro",
+     "project": "elbe-berichte",
+     "title": "Quartalsübersicht"
+    },
+    {
+     "id": "c-lin",
+     "app": "Cursor",
+     "project": "linde-shop",
+     "title": "Warenkorb"
+    },
+    {
+     "id": "c-far",
+     "app": "Claude app · Zuhause",
+     "project": "farn-sync",
+     "title": "Offline-Abgleich"
+    },
+    {
+     "id": "c-bir",
+     "app": "OpenCode",
+     "project": "birke-planer",
+     "title": "Terminansicht"
+    },
+    {
+     "id": "c-moo",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "moos-cli",
+     "title": "Argumente lesen"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cb",
+     "name": "Claude Code CLI · Büro"
+    },
+    {
+     "id": "app-xb",
+     "name": "Codex CLI · Büro"
+    },
+    {
+     "id": "app-cu",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cz",
+     "name": "Claude app · Zuhause"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-cz2",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-kie",
+     "name": "kiefer-app"
+    },
+    {
+     "id": "p-elb",
+     "name": "elbe-berichte"
+    },
+    {
+     "id": "p-lin",
+     "name": "linde-shop"
+    },
+    {
+     "id": "p-far",
+     "name": "farn-sync"
+    },
+    {
+     "id": "p-bir",
+     "name": "birke-planer"
+    },
+    {
+     "id": "p-moo",
+     "name": "moos-cli"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-zu",
+     "name": "Zuhause"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "unsupported"
+  ]
+ }
+]

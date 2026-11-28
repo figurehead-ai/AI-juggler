@@ -8,21 +8,57 @@ pub mod icon;
 pub mod list;
 pub mod mark;
 
-/// Each tracked project's `value`, by its root folder.
+/// Each tracked project's `value`, by its root folder, under each of its
+/// spellings: as recorded, and as the file system resolves it (0.5.2 G24:
+/// a tool that records the resolved folder, as Codex records `/private/tmp/…`
+/// for a project kept as `/tmp/…`, found no project, so its posts shared
+/// one scope).
 ///
 /// # Errors
 ///
 /// The projects could not be read.
-pub(crate) fn by_root<T>(
+pub(crate) fn by_root<T: Clone>(
     storage: &juggler_core::storage::Storage,
     value: impl Fn(juggler_core::model::ProjectRecord) -> T,
 ) -> crate::error::AppResult<std::collections::HashMap<std::path::PathBuf, T>> {
-    Ok(storage
-        .projects()
-        .list()?
-        .into_iter()
-        .map(|project| (project.root.clone(), value(project)))
-        .collect())
+    let mut out = std::collections::HashMap::new();
+    for project in storage.projects().list()? {
+        let root = project.root.clone();
+        let resolved = std::fs::canonicalize(&root)
+            .ok()
+            .filter(|real| *real != root);
+        let value = value(project);
+        if let Some(real) = resolved {
+            out.entry(real).or_insert_with(|| value.clone());
+        }
+        out.insert(root, value);
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod by_root_tests {
+    /// 0.5.2 G24: a project kept under a folder reached through a link is
+    /// found under the folder the link resolves to as well. A folder link
+    /// is made by unix's `symlink` (Windows needs a privilege for one: the
+    /// build-windows job, PR #257).
+    #[cfg(unix)]
+    #[test]
+    fn a_project_is_found_by_its_resolved_folder_too() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("real");
+        std::fs::create_dir_all(real.join("web")).unwrap();
+        let link = dir.path().join("link");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let state = crate::test_support::bare_state(dir.path().join("data"));
+        let storage = state.storage.lock().unwrap();
+        let kept = link.join("web");
+        storage.projects().ensure(&kept).unwrap();
+        let roots = super::by_root(&storage, |project| project.name).unwrap();
+        assert_eq!(roots.get(&kept).map(String::as_str), Some("web"));
+        let resolved = std::fs::canonicalize(real.join("web")).unwrap();
+        assert_eq!(roots.get(&resolved).map(String::as_str), Some("web"));
+    }
 }
 
 /// A tracked project for the UI — the juggling anchor (ADR-0007).

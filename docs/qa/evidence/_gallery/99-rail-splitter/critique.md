@@ -1,4 +1,4 @@
-<!-- captures: 0f7aa50e2631 -->
+<!-- captures: 0dc509a437f3 -->
 <!-- captures: pending -->
 # 99-rail-splitter: the rail's edge from the keyboard
 
@@ -70,3 +70,11 @@ Lowest: 4.
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-26, AJ-E3713, Opus, both themes)
+
+Re-captured on the host; every changed capture opened (contact sheets, four to a sheet) beside its last capture and the approved story-feed mock (`AIJuggler-design-refs/story-feed/`). Captures: focused at 1280 (dark, light), narrowest and widest at 1280 dark.
+
+**What changed (AJ-E3713).** Home's feed below the pinned needs is the story feed now: the tabs All · Needs you · Sessions · Tasks · Pools · Switches & limits · This Mac (the chosen one the accent's soft fill), the state chips Running / Finished / Failed in their soft tints with today's counts, Showing: Every app at that row's end, and posts in place of log rows: a tone card each with the App's own icon (or AI Juggler's mark), the calm line "**Claude Code CLI** · Work Max · 10 min", the story with its thing as an accent-soft chip, a quiet gesture bar (↑ ↓ + … Mark reviewed · ↗ Open). Nothing else on these screens moved. The rail's edge is unchanged; the Home behind it shows the story feed.
+
+Scores unchanged but for: line 5 (Mock-up) 4: the feed follows the approved story mock (68-home-feed's 0.5.2 section lists the deviations); line 19 (Rich-mode colour) **4**: the feed's filters are choices, the chosen tab a soft accent fill, the state chips their own hues with a ✓ when on, the Showing picker's options with their icons; nothing chosen by a ring.

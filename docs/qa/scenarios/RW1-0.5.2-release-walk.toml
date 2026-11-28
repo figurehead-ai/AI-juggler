@@ -1,0 +1,86 @@
+id = "RW1"
+title = "0.5.2's release walk: the story feed, the turn review, reminders and Bot on Apple's model"
+epic = "E38"
+decisions = ["D-149", "D-150", "D-151"]
+layers = ["L4"]
+exercises = ["the story feed's diff stat and turn fold (AJ-E3713)", "the turn review (AJ-E3820)", "reminders and the one scheduler (AJ-E2027)", "watch deadlines across a restart (G12)", "Settings › AI › Models (AJ-E3826)", "Bot through the real model (AJ-E3825, AJ-E3829, AJ-E3832)", "the digest Beta (D-149)", "0.5.2's design passes (AJ-E1555 to AJ-E1558)"]
+needs = ["lab"]
+sheet = "docs/qa/0.5-walks/0.5.2-RW1.md"
+
+# DW1's stand-ins, with the turns 0.5.2 reads (the hand sheet holds the
+# walk; these steps are its spine):
+#
+# - Claude Code, live: every session from New session runs the lab's
+#   stand-in (scripts/qa/lab_standin.sh). A line `lab: KIND` at its prompt
+#   plays one whole turn into its transcript in Claude Code's own format,
+#   its hooks naming the file as Claude Code's do: `edits` (3 files
+#   +17 −1, tests pass), `revert` (2 files +3 −3, locale.ts reverted, tests
+#   not run), `question` (1 file +4 −1, ends on a question), `fail` (1 file
+#   +5 −3, tests fail, then the stand-in exits 1: Failed), `notebook`
+#   (1 file, no line counts). `/exit` ends it Finished.
+# - Codex, a fixture this scenario names: scripts/qa/lab_turns.py seed
+#   writes two Codex CLI threads in the lab's Codex App's folder, as Codex
+#   writes them outside AI Juggler (an apply_patch of 2 files +11 −1 in
+#   web; a delete and an update in api: 2 files, no line counts).
+# - Bot, the turn review's lines and the digest run on Apple's on-device
+#   model through Dev's own signed helper; nothing is downloaded.
+# - Project docs has no session: a watch on it ("Idle for") is armed at
+#   once and nothing disarms it, so it is the restart check's (G12).
+[setup]
+replica = false
+projects = ["web", "api", "docs"]
+
+[[setup.apps]]
+id = "cc-work"
+tool = "claude-code"
+account = "Work"
+profile = "work"
+
+[[setup.apps]]
+id = "cc-personal"
+tool = "claude-code"
+account = "Personal"
+profile = "personal"
+
+[[setup.apps]]
+id = "cx-chatgpt"
+tool = "codex"
+account = "ChatGPT"
+profile = "default"
+
+[[steps]]
+do = "After setup: scripts/qa/lab_turns.py seed --home <lab> (--dry-run first), then open Dev"
+expect = "Home's feed shows the two Codex threads, each with its diff stat: 2 files +11 −1, and 2 files with no line counts"
+
+[[steps]]
+do = "New session: cc-work in web; at its prompt lab: edits, then /exit"
+expect = "Working, then Finished; Home's post shows 3 files +17 −1 and folds the turn review: Changed cart.ts, totals.ts, totals.test.ts, Tests Pass, Low risk"
+measure = "the /exit to the post ≤ 2 s"
+
+[[steps]]
+do = "New session: cc-personal in api; lab: revert, then /exit"
+expect = "The post shows 2 files +3 −3; its review lists format.ts as Changed and locale.ts only as Reverted, Tests Not run, Medium risk"
+
+[[steps]]
+do = "New session: cc-work in api; lab: question, then /exit"
+expect = "Its review says Asks you with the agent's question; Medium risk"
+
+[[steps]]
+do = "New session: cc-work in web; lab: fail"
+expect = "The session ends Failed; its post's review: What failed and Tests Fail in the agent's words, High risk"
+
+[[steps]]
+do = "Settings › AI › Models: turn on Bot with Apple's model, then the turn review Beta"
+expect = "Bot's AI card reads Running or Idle with today's line; the review row reads For Claude Code and Codex in the terminal…; reopened, a review shows the model's lines tagged AI, each with This is wrong; no notification"
+
+[[steps]]
+do = "Bot: what are my sessions, what needs me, 3+5, an alias and a memory question"
+expect = "Grounded answers cite records; 3+5 is Bot's own answer; nothing invented"
+
+[[steps]]
+do = "Bot: remind me in 3 minutes to check web; quit Dev through its Quit and open it again"
+expect = "The reminder fires once at its time after the relaunch; the Reminders list and Settings › Advanced › Scheduled work say so"
+
+[[steps]]
+do = "Watches › New watch: project docs, Idle for 5 min, once; quit Dev and open it again before it is due"
+expect = "It fires once, at the time it was armed for"

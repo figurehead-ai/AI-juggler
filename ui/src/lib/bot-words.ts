@@ -29,11 +29,11 @@ export interface Piece {
 type Kind = BotRowInfo["kind"];
 
 /** The order clauses and rows come in: what needs you first. */
-const ORDER: BotState[] = ["asks_you", "stuck", "limit", "failed", "blocked", "in_review", "working", "finished", "done", "ended", "ready", "todo", "cancelled"];
+const ORDER: BotState[] = ["asks_you", "stuck", "limit", "failed", "blocked", "in_review", "working", "idle", "finished", "done", "ended", "ready", "todo", "cancelled"];
 
 const NOUN: Record<BotLang, Record<Kind, [string, string]>> = {
-  en: { session: ["session", "sessions"], task: ["task", "tasks"], account: ["account", "accounts"] },
-  de: { session: ["Sitzung", "Sitzungen"], task: ["Aufgabe", "Aufgaben"], account: ["Konto", "Konten"] },
+  en: { session: ["session", "sessions"], task: ["task", "tasks"], account: ["account", "accounts"], memory: ["memory", "memories"] },
+  de: { session: ["Sitzung", "Sitzungen"], task: ["Aufgabe", "Aufgaben"], account: ["Konto", "Konten"], memory: ["Erinnerung", "Erinnerungen"] },
 };
 
 /** Each state's verb phrase, one and many. */
@@ -45,6 +45,8 @@ const VERB_EN: Record<BotState, [string, string]> = {
   blocked: ["is blocked", "are blocked"],
   in_review: ["waits for review", "wait for review"],
   working: ["is working", "are working"],
+  // 0.5.2 G45: open, between turns (the rail's Idle).
+  idle: ["is idle", "are idle"],
   finished: ["finished", "finished"],
   ended: ["ended", "ended"],
   done: ["is done", "are done"],
@@ -60,6 +62,7 @@ const VERB_DE: Record<BotState, [string, string]> = {
   blocked: ["ist blockiert", "sind blockiert"],
   in_review: ["wartet auf Prüfung", "warten auf Prüfung"],
   working: ["arbeitet", "arbeiten"],
+  idle: ["ist inaktiv", "sind inaktiv"],
   finished: ["ist fertig", "sind fertig"],
   ended: ["wurde beendet", "wurden beendet"],
   done: ["ist erledigt", "sind erledigt"],
@@ -96,7 +99,7 @@ export function lead(rows: readonly BotRowInfo[], lang: BotLang, about?: BotScop
   if (tallies && tallies.length > 0) for (const t of tallies) add(t.kind, t.state, t.n);
   else for (const row of rows) add(row.kind, leadState(row), 1);
   const rank = (state: BotState | null) => (state === null ? ORDER.length : ORDER.indexOf(state));
-  const kindRank = (kind: Kind) => ["session", "task", "account"].indexOf(kind);
+  const kindRank = (kind: Kind) => ["session", "task", "account", "memory"].indexOf(kind);
   const ordered = [...groups.values()].sort((a, b) => rank(a.state) - rank(b.state) || kindRank(a.kind) - kindRank(b.kind));
   const named = new Set<Kind>();
   const clauses: Piece[][] = ordered.map((group) => {
@@ -136,6 +139,7 @@ export const STATE_WORDS: Record<BotState, string> = {
   blocked: "Blocked",
   in_review: "Waits for review",
   working: "Working",
+  idle: "Idle",
   finished: "Finished",
   ended: "Ended",
   done: "Done",
@@ -152,6 +156,7 @@ export function stateLevel(state: BotState | null): 0 | 1 | 2 {
 /** The second line under a row's state: how long, or when. */
 export function stateSub(row: BotRowInfo, now: number): string {
   if (row.kind === "account") return row.resets_at_ms ? `resets ${resetDay(row.resets_at_ms, now)}` : "";
+  if (row.kind === "memory") return row.at_ms ? `you said, ${agoWords(row.at_ms, now)}` : "";
   const at = row.at_ms ?? 0;
   switch (row.state) {
     case "asks_you":
@@ -189,6 +194,8 @@ export function rowPlace(row: BotRowInfo): string {
     return ["Session", app, row.project].filter(Boolean).join(" · ");
   }
   if (row.kind === "task") return ["Task", row.pool, row.holder].filter(Boolean).join(" · ");
+  // AJ-E3832 G9: something the user told Bot, in their own words.
+  if (row.kind === "memory") return row.about ? `What Bot remembers · your name for ${row.about}` : "What Bot remembers · your note";
   return ["Account", row.window === "weekly" ? "this week" : row.window === "five_hour" ? "5-hour window" : null].filter(Boolean).join(" · ");
 }
 
@@ -254,7 +261,7 @@ export function unknownWords(unknown: BotUnknown): { strong: string; rest: strin
     case "authors":
       return { strong: "I don’t know.", rest: " AI Juggler doesn’t record who wrote what." };
     case "unverified":
-      return { strong: "I don’t know.", rest: " I couldn’t write an answer I could check against these records." };
+      return { strong: "Bot’s answer didn’t check out against your records,", rest: " so it isn’t shown. Try asking another way." };
     default:
       return { strong: "I don’t know.", rest: "" };
   }

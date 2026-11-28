@@ -8,7 +8,9 @@
 import { useEffect, useState, type JSX } from "react";
 import { Field, Input, Modal } from "./form";
 import { Button } from "./primitives";
-import { Checkbox, Disclosure } from "./controls";
+import { Checkbox, Disclosure, RowChip } from "./controls";
+import { IconLines } from "./bot/bot-icons";
+import { IconBug } from "./icons-settings";
 import { errorText } from "../lib/bridge";
 import { loadingPart } from "../lib/lazy";
 import { closeReportBug, openReportBug, useReportBug } from "../lib/report-bug";
@@ -58,11 +60,14 @@ function ReportParts({ parts, keep, onToggle }: { parts: readonly BugPartInfo[];
         Scrubbed on this computer: no messages, transcripts, credentials, names or home folder. Untick anything you'd rather
         leave out; open a row to read it in full.
       </p>
-      <ul className="mt-1 flex flex-col divide-y divide-hairline">
+      {/* AJ-E1558 (D-126, PAT-SURF): each part a row with its chip (the
+          accent's soft step while it goes along), spaced, no rules. */}
+      <ul className="mt-1 flex flex-col gap-1">
         {parts.map((part) => (
-          <li key={part.key} className="flex items-start gap-2 py-2" data-testid="report-part">
+          <li key={part.key} className="flex items-start gap-3 rounded-[10px] px-1 py-1.5" data-testid="report-part">
+            <RowChip icon={IconLines} on={keep.includes(part.key)} />
             <Checkbox
-              className="mt-1"
+              className="mt-2"
               checked={keep.includes(part.key)}
               onChange={(event) => onToggle(part.key, event.target.checked)}
               aria-label={part.title}
@@ -71,7 +76,7 @@ function ReportParts({ parts, keep, onToggle }: { parts: readonly BugPartInfo[];
             <Disclosure
               className="min-w-0 flex-1"
               summary={
-                <span className="text-xs">
+                <span className="text-meta">
                   <span className="font-medium text-ink">{part.title}</span>
                   <span className="text-muted"> · {part.about}</span>
                 </span>
@@ -164,6 +169,7 @@ export function ReportBugSheet({ context, onClose }: { context: BugContextArgs; 
     <Modal
       title="Report a bug"
       subtitle="Nothing leaves this computer until you open the form or copy the report."
+      icon={IconBug}
       onClose={onClose}
       wide
       testId="report-bug"

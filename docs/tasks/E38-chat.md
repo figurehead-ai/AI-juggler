@@ -433,17 +433,26 @@
 - **Step 4 (UI) — N7, bulk forget:** "Forget this conversation", "Forget everything about …" and "Forget all memory" must not loop over `MemoryStore::forget`: each call rebuilds the whole index (about 350 ms at 100k records) under the app-wide storage lock, so 50 subjects would block every storage command for about 17 s. Add a batch forget: one transaction, one `reindex`, one WAL fold; "Forget all" empties the tables and `delete-all`s the index. Test it at 100k records against a time budget.
 - **At V54's registration (the 0.4.6 → 0.5 merge):** un-ignore `tests/backup_restore.rs`'s `a_restore_brings_back_nothing_forgotten_and_no_kept_copy_holds_it` (the schema check refuses V54's tables until then); `v54_waits_for_v53` names both.
 
-### AJ-E3820 The turn review: the code-only review, the model's Beta lines on it, and where it shows | Status: TODO | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3705, AJ-E3806
+### AJ-E3820 The turn review: the code-only review, the model's Beta lines on it, and where it shows | Status: DONE (0.5.2, D-149: opt-in Beta on Apple's model; R1–R5 PASS, `docs/qa/evidence/AJ-E3820/manifest.md`; the Sonnet walk the coordinator's) | Priority P0 | Effort L | Depends: AJ-E3802, AJ-E3705, AJ-E3806
 **Why this task (2026-11-20, the 0.5 pre-push walk's F-02):** D-131's table ships the turn review as opt-in Beta, and the router, the job (`Job::Review`), its flag and the Models screen's row were built, but nothing produces or shows a review: no task owned the review itself. Until this task lands, `ai_review_on` is off by default (D-127: a switch with nothing behind it isn't shown), so Models says "Not yet" for it and no card offers it. This task turns it back on.
 **Goal**: When an agent's turn ends, the user can read a short, checked review of what it did, without opening the transcript.
 **User story**: As someone with several agents working, I open a session whose turn just ended and see what changed, what failed, what was reverted and what the agent is asking, in a few lines I can trust.
 **Requirements**:
-1. A code-only review SHALL be built from the facts alone (ADR-0033 §6): Changed and Reverted from git's diff, status and reflog (a revert is never shown as changed), the turn's failures and its question from A's excerpt (AJ-E3708), and a risk from the facts (low on a failed or untested turn is impossible). It is the default and the no-model path.
+1. A code-only review SHALL be built from the facts alone (ADR-0033 §6): Changed and Reverted from the session's own transcript (a revert is never shown as changed; see the note below), the turn's failures and its question from A's excerpt (AJ-E3708), and a risk from the facts (low on a failed or untested turn is impossible). It is the default and the no-model path.
+   - **Note (2026-11-26, the maintainer's ruling on transcripts):** turn facts come from the session's own transcript, never from running git in the user's projects. So "Changed and Reverted from git's diff, status and reflog" became: **Changed** from the turn's own edit and write calls, through the transcript reader built for the feed's diff stat (G8, AJ-E3713 R6a, `juggler_adapters::turn_changes`, extended with each file's own lines, not a second reader); **Reverted**, and an abandoned turn, from the facts the digest already uses (G7: the agent's own words, `pick::undone` and `rollup::says_undone`): a file the undo names is reverted, "the whole change" (or a one-file turn) reverts every file, and an undo naming none of several files makes them "edited", never "changed". **A revert is never listed as changed.** A tool whose calls carry no line counts shows the files only, as the feed does.
 2. With the job's Beta on and a model whose verdict for the review is `beta` or `ships`, the model SHALL add only a short description per changed path and the risk, through the router; every line passes the shared guard and check (AJ-E3806; ADR-0033 steps 2, 2b, 3 and 5). A failed check regenerates at most twice, then the code-only review shows, with no note.
 3. The review SHALL show where the turn's end is shown: the session page, and the feed item for that turn, behind the same "show" pattern as the last reply (AJ-E3703), never as a notification of its own.
 4. `ai_review_on` SHALL default to on again only when R1–R3 pass, with the router matrix and the Models screen's row walked.
 5. No review SHALL be written for a turn whose end AI Juggler can't see (AJ-E3705's apps and turn ends), and the router's query SHALL say so.
 **UI/UX reasoning**: Calm attention: a review is depth on demand, never a ping. Progressive disclosure: the code-only review is enough by itself; the model's lines are an addition the user opted into.
+**UI**: yes (calm mode: the feed post and the session page; the review's Models row in rich mode). Mock first: `~/Dev/AIJuggler-design-refs/turn-review/` (HTML, dark and light PNGs, the story-feed mock's style).
+**Usability reasoning** (PAT-USE, Opus, 2026-11-26, written with the mock before the UI was built):
+(1) *Who and what they expect.* Someone with several command-line agents (Claude Code, Codex) coming back to a turn that ended. "Turn review" under a finished post, folded like a turn's "Worked for 6 min" row, promises a short account of that one turn: what it changed, undid, failed or asks, and how careful to be. Its risk word says "how much of a look this wants", not a grade of the agent. It is not "Mark reviewed" (the user's own triage, beside it in the post's bar): reading the review is how the user decides to mark it.
+(2) *What a newcomer sees.* One quiet row: "Turn review · 2 files · Medium risk", the risk word in its colour (red high, amber medium, green low; never colour alone). Opened: Risk with its reasons in plain words ("tests not run · part undone · asks you"); Changed with each file's +added −removed, the same counts as the post's diff stat; Reverted, Tests and What failed in the agent's own sentences, quoted and said to be its words ("as it says": AI Juggler ran no test); Asks you with the question. With the Beta on, each model line carries an "AI" tag and the foot says whose lines they are, that they are Beta, "Show its words" (the reply they were checked against) and "This is wrong". The Models row says what turning it on gets ("preferred over the plain review in 81 % of blind checks") and which apps it covers.
+(3) *Value, in one place.* The turn's own end, where the user already is: the finished post on Home and the session page under the last turn, never a notification, a queue or a screen of its own. It doesn't repeat the diff stat (the post keeps the summary; the review lists files) or, on the session page, the reply right above it (it names what the words said instead of quoting them).
+(4) *Unavailable or empty.* Hidden, never greyed (D-127): with Last messages off (nothing is read), for an App whose turn ends AI Juggler can't see (the Claude app's conversations, a tool that only says it's busy; the AI query's `covers` names the rest), with no transcript on this Mac, while the turn still runs, and when the review would hold nothing. The Beta's lines appear only when its switch is on and Apple's model is ready; otherwise the code-only review is the whole review, with no note.
+(5) *System prompts.* None new: the review reads the transcripts Last messages already reads, and the Beta runs on the Apple helper Models already set up and primed (PAT-OSP).
+(6) *What could surprise.* "Risk" read as blame: it is said as what wants a look and why. Tests read as AI Juggler's own run: always "as it says". A model line that disagrees with the facts: it can only describe a changed file and raise the risk, never lower it or touch the facts; "This is wrong" keeps it on this Mac for the next check. A reverted file shown as changed: never, by construction.
 **Performance budget**: The code-only review in under 100 ms from the turn's end; the model's lines within the router's budget, never blocking the page.
 **Quality gates**: verify-static; the review's checks over ADR-0033's fixtures (the v2 FAILs rejected, the faithful lines kept); a revert never listed as changed; the router matrix; the a11y gate on the review; the design-quality review against a mock-up made first (D-126, `~/Dev/AIJuggler-design-refs`).
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3820/manifest.md`, R1–R5; a Sonnet walk on a lab fixture with Apple's model and, once the `models` section is published, a downloaded one, checked by Opus.
@@ -511,3 +520,229 @@
 4. One search, no duplicate: Bot's own look-up input and results are gone (AJ-E3823), and no other surface keeps a second search.
 **Quality gates**: `just keep-going verify-static`; tests for each record kind, the suggested entries, the command; the a11y gate; an Opus critique in both themes.
 **Evidence/validation proof**: `docs/qa/evidence/AJ-E3824/manifest.md`.
+
+### AJ-E3825 Bot is a conversation through the real model: every question reaches it, the engine is started and checked, its name is shown, a failure is said with its fix | Status: DONE (0.5.2) | Priority P0 | Effort L | Depends: AJ-E3806, AJ-E3823
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): with Apple's on-device model "In use" (Apple Intelligence on), Bot answered "what is 3+5" with "I found nothing that matches right now", "what LLM model are you" with "I don't know", "Tell me about my session" with "nothing matches". Root cause (Opus, read-only on the Nightly): `bot_ask_impl` calls the model only when the record look-up found rows and the job reads Ready, so a question with no rows never reaches it; Models' "In use" reads availability only and never starts or tests the engine (no `juggler-apple-ai` process, no engine event in `ai_log`); and a written answer is shown only when every fact in it is in the records it cites, so a general answer could never pass.
+**UI**: yes
+**Usability reasoning** (Opus, before building; re-checked on the built screen):
+(1) Someone who turned on Apple's AI expects a chat that answers like an assistant, about their sessions first. "Nothing matches" for 3+5 reads as broken, not as scoped.
+(2) Each answer says what it rests on: a records answer cites them (chips); a general answer says "General answer, not from your records". The panel header names the model ("Apple on-device · Beta"), so "which model are you" is also visible without asking.
+(3) It replaces the records-only reply when an AI is ready (D-144); with no AI, Bot stays its setup guide. No second chat surface.
+(4) No AI ready, or the engine fails to start, time out or refuses: Bot says so in one plain line with the fix ("Apple Intelligence is off: turn it on in System Settings › Apple Intelligence & Siri", "Bot's helper didn't start: Try again / Details"), never a silent records-only answer.
+(5) Starting the helper may show macOS's prompt only when its signature changed (AJ-E1555 primes it then, and only then).
+(6) Watch for: an answer that invents a record; a general answer presented as from the records; a long wait with no progress; the model naming itself wrongly; a failure that looks like "nothing matches".
+**Usability reasoning, the details line and the topic's totals** (Opus, before building R8/R9):
+(1) Someone who just got an answer sometimes wants to know what it cost and what it rested on, without it competing with the answer; someone in a long topic wants to know when it is getting full. (2) Under each answer one small muted line: "Apple's on-device model · 812 in · ≈ 18 est. out · 1.4 s · 2 records"; above the box one muted line: "This topic 1.6k tokens · context 812 / 4.1k · memory 3", each indicator opening a short breakdown on hover or click, like Claude Code's `/context`. (3) It replaces nothing: the numbers were nowhere before; the Models card (AJ-E3826) reads today's totals from the same status. (4) No answer yet: no totals line; an engine that gave no count: the figure is shown as "≈ … est.", never as a count. (5) None. (6) Watch for: numbers that read as alarms (they stay muted, PAT-COLOR); an estimate shown as a count; a breakdown that doesn't add up to the used figure; memory shown that wasn't sent.
+**Requirements** (widened 2026-11-25 by the maintainer through the coordinator: R1 is D-144 in full; R5 the live state; R7 to R11 added):
+1. D-144 in full: with an AI ready, Bot is the model every time. The record look-up is the model's tool: code runs it first and passes the rows as grounding the model must cite (the Apple helper's guided output has no tool calls Bot can check); nothing that isn't the model answers in Bot's voice (no records-only "nothing matches", no rows standing in as an answer); the look-up's own UI is ⌘K Search's. "Remember …" stays code (ADR-0037 §2.3), an echo card. A test fails if any Bot reply is made without an engine call while AI is ready.
+2. Questions outside AI Juggler get a brief answer and one line that Bot is here for your AI apps and sessions (D-148); never "nothing matches" for a question with no records in it.
+3. "Which model are you" is answered from the engine's own name and version, given to the model as facts; a reply naming another model, or not its own, isn't shown.
+4. The engine is really started and its hello checked when Bot opens with an AI chosen; its status (started, running, answering, idle, failed with kind) is one command and DTO (`ai_engine_status`, `AiEngineStatusInfo`) that Settings › AI › Models reads (AJ-E3826).
+5. The panel header shows the model and its live state: "Apple on-device · Running" / "Starting…" / "Idle" / "Failed: <why>".
+6. Every engine failure (off, not downloaded, helper didn't start, timed out, refused, too long, can't run here) is a plain line with its fix; logged to the app log and the AI log by kind; no silent fallback.
+7. Two answer kinds, visibly different: a grounded answer shows its record chips; a general answer is labelled as Bot's own answer and claims no records. The general answer keeps a fabrication guard: it never states AI Juggler facts (names, counts, states); a question about the user's work always goes the grounded route; a plain answer that names a session, count or state is asked again grounded (or refused), with a test.
+8. Each answer has a small, calm details line (the model, tokens in and out, the duration (the helpers don't stream, so no first-token time), the records used when grounded); the topic shows its running totals (tokens this topic, context used vs the model's window). Numbers are the engine's own counts (the helper's `context_size`, its per-request counts where the system gives them); an estimate is labelled "≈ … est."; today's totals are in the engine status DTO for AJ-E3826.
+9. Context and memory indicators, calm: "context 3.1k / 8k" opens a breakdown (instructions, Bot's memory, records and look-ups, conversation history, the question, room left for the answer); "memory n" opens which memory went with the turn by kind (preferences, notes, earlier questions and answers, watches) with counts and tokens, and a link to manage it. Read and written only through ADR-0037's interfaces (AJ-E3832 replaces the store later).
+10. The engine starts lazily on Bot's first use with a visible "Starting Apple's on-device model…" (words from the engine's name), and stops after an idle time through the helper's own lifecycle (stopped and reaped, no orphaned process); tests cover the start, the idle stop and the next lazy start.
+11. AJ-E3829's seam: an entry that asks the started engine a question through Bot's real routing and returns the turn, its outcome and the model's name (`bot::model::ask_for_check`, `tests/bot_real_model.rs`).
+**Quality gates**: `just keep-going verify-static`; unit and integration tests for the routing (rows / none / general / scope / which model / each failure); AJ-E3829's real-model check; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3825/manifest.md`.
+
+### AJ-E3826 Settings › AI › Models says what Bot uses and whether it runs, in plain words | Status: DONE (0.5.2) | Priority P1 | Effort M | Depends: AJ-E3825
+**Found** by the maintainer on the 0.5.1 Nightly (2026-11-25): the Models page was unclear about what is in use; "Recommended for this Mac" showed with a model already set up.
+**UI**: yes
+**Usability reasoning** (Opus, before building; amended 2026-11-26 before the build with the design it fixes, PAT-USE):
+(1) Someone checking why Bot answers as it does wants one line: which AI, and is it working; someone reading the jobs wants to know which are on and, for each one off, why. The page's first section is named "Bot’s AI", the name Bot and Settings already share (AJ-E1548 #6), with the model's own tile (Apple's chip, a downloaded model's letters) on every choice.
+(2) The top card: each model that can write Bot's answers on this Mac as a choice (its tile, its name, the tests' one line), "Automatic" first only when there are two or more; the current choice a soft accent fill (PAT-SURF), its second line the live state from the started engine: "Running · answered 2 min ago", "Idle · starts when you ask Bot", "Starting…", or "Not running: <why>. <fix>" (AJ-E3825's words, one source); under it today's totals: "Today · 12 answers · 8.1k tokens in · ≈ 2.3k est. out" (an estimate always labelled), "Today · no answers yet" at none. Choosing another model goes through the per-job pick (`ai_set_pick`), the same setting the jobs' pickers write. Then "Each job uses": a row per job, its icon chip lit while the job is on, its name, a Beta tag where it is one, and one line: "On · built from the facts, so it needs no model" (attention), "On · Beta with Apple’s on-device model" (a Beta that's on, its switch beside it), "Off · Beta, preferred over the plain roundup in 64 % of blind checks" (a Beta that's off: what turning it on gets), "Off · not built yet" (a job this version hasn't built; the turn review was the last, until AJ-E3820), "Off · the plain line reads better for now" (feed line), "Off · drafts are being made exact before Bot fills the form" (watches); the off reasons are the `models` section's own notes (builtin.json `*_note`), never a bare "Not yet". Every model and option has its icon (the picker's options and its field included). A model card (Recommended, Other tested models) names only the jobs this version has, so Use it never promises the turn review before it is built.
+(3) It replaces the scattered state words (Recommended's "In use", the rows' "Not yet") with one live answer; Bot's model is chosen in the card only (its row keeps its Beta switch, no second picker); the header in Bot's panel reads the same status, so the two never disagree. Recommended for this Mac shows only while no model is in use.
+(4) Nothing set up (no job runs on a model): Recommended for this Mac leads with its one primary (or the engine-setup guide while Apple's AI is off, unanswered or blocked), and the Bot's AI card isn't shown (nothing to choose or report yet). Bot's Beta off while another job runs: the card says "Off · turn on Bot’s AI under Each job uses". The engine failed: the reason and its fix in the card, in the warning hue's mark on neutral, never a fill.
+(5) None: the page reads the status (`ai_engine_status` starts nothing); a start happens only when Bot opens, through AJ-E1547's gate.
+(6) Watch for: "In use" while nothing runs (0.5.1's bug); Recommended beside a model already in use; two places saying different things (one status store; one pick); a count shown that is an estimate; a bare "Not yet"; a monochrome row (line 19).
+**Requirements**:
+1. The page opens with a "Bot's AI" selector card: the current choice highlighted (a soft accent fill, PAT-SURF), its live state (running / idle / failed) and today's totals, read from the started engine (AJ-E3825 R4, R8).
+2. "Recommended for this Mac" only when no model is set up.
+3. Each AI job's row shows its real state in plain words: on, Beta (with its switch), or off and why in one line (D-149); never a bare "not yet".
+**Quality gates**: `just keep-going verify-static`; vitest; the a11y gate; an Opus critique in both themes.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3826/manifest.md`.
+
+### AJ-E3827 Research note: getting turn reviews, feed lines, the digest and watches to pass on Apple's model | Status: TODO (0.5.2) | Priority P1 | Effort M | Depends: AJ-E3826
+**Found**: the maintainer (2026-11-25) wants the AI jobs that are a main point of 0.5 on; D-131 kept them off because the on-device models missed the bars (watches 70% vs 95%).
+**UI**: no (a note for the maintainer's decision)
+**Requirements**:
+1. A short note per job: today's score and bar, why it misses, what would close the gap (a real harness, structured output and constrained decoding, few-shot prompts, per-job prompts, smaller tasks, a downloadable model), the expected effort, and a recommendation; recommended downloads with sizes.
+2. No gating change until the maintainer rules (a D-number).
+**Evidence/validation proof**: `docs/qa/0.5.2-ai-jobs-note.md`.
+
+### AJ-E3829 Bot's real-model check on the reference Mac, in the release gate for any AI change | Status: TODO (0.5.2) | Priority P0 | Effort M | Depends: AJ-E3825
+**Found**: 0.5.1's Bot checks never asked a real model a real question on a real Mac, so a Bot that never called its model shipped.
+**UI**: no (a check and a walk step)
+**Requirements**:
+1. A script asks the started engine on the reference Mac (Apple Intelligence on) five fixed questions: "what is 3+5", "which model are you", "what are my sessions" (fixture data), "what needs me", and a nonsense one; it asserts a real model answer each time (not a records-only or "nothing matches" reply), the right model name, citations where records are asked about, and a plain reply to the nonsense.
+2. A walk step reads the five answers by eye and records them.
+3. `scripts/release_scope.py` requires its passing report for any release that changes `features/ai` or `features/bot`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3829/manifest.md`.
+
+### AJ-E3830 Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | Status: DONE (0.5.2: Bot pre-fills the Watches form with what code verified, the user saves; the confirm card an opt-in Beta; the "Bot drafts a watch" verdict stays not_yet) | Priority P1 | Effort M | Depends: AJ-E3709, AJ-E3825
+**Found**: v5 round 3 measured Apple's watch drafts at 70 % exact against a 95 % bar; 42 of 80 English/German misses were our own code (since fixed), and Apple's own misses came from the draft's shape (`docs/qa/0.5.2-ai-jobs-note.md`).
+**UI**: yes
+**Usability reasoning** (Opus, 2026-11-27, for what ships in 0.5.2; the first version's answers were about a whole draft): (1) Someone asking Bot "tell me when the api session finishes, until I remove it" expects the watch set up from their words; the Watches form is the place they already know for it, so Bot opens it with what it read filled in and says in one line what it left ("Left for you to pick: how long"). (2) A newcomer sees the form's own four sections, a calm "Filled in by Bot" note naming what is left and the words Bot couldn't read, and in each left section a plain line ("Bot couldn't tell how long from your words. Pick one."); nothing is chosen for them where Bot couldn't tell (no lifetime segment, no condition card), the nearest condition is tagged "Nearest", never ticked, and Watch says "Pick how long first" until they do. (3) The value is in the one right place, the Watches form, the one editor; the card (Watches Beta) is the same confirm card Bot's row Watch… uses, offered only for a request code read whole, its Change… opening the same form. (4) With no model served the form still opens, filled by code alone; with the Watches job switched off by an update, Bot answers as before; the Beta switch shows only while Bot's AI runs (D-127). (5) The first watch's Watch primes Notifications as the form always did (PAT-OSP); nothing new. (6) What could surprise: a question that only sounds like a watch ("tell me when api finished") opens the form, so a question about the past ("when did …", "wann hat …") never does; a field filled wrong would break trust, so the bar is 0 wrong fields and anything unread is left; the card's unsaid lifetime is the suggestion, and the card says so.
+**Requirements**:
+1. The draft schema: exactly one target (a choice among the user's sessions and projects), an enum for what can't be watched, the condition from the enum the form supports.
+2. Two calls: the target first, then the condition; retries sample (not greedy).
+3. Re-measured with the fixed code on fresh blind sets (60 requests, English and German, harness v6, a Sonnet eval round, Opus verifying every verdict that matters); ships at ≥ 90 % exact, each watch added only by the user's click; below 90 % reported to the coordinator before shipping.
+4. (0.5.2, the coordinator's and maintainer's call after v13) Bot pre-fills the Watches form with only what code and the verified labels understood (target, condition with its numbers, lifetime, quiet hours); a field nothing verified stays empty for the user; Bot never saves a watch; never a wrong pre-filled field. The form is offered for everything Bot reads as a watch request, with the nearest option where one exists.
+5. (0.5.2) Where code fully verifies a request, Bot may offer its plain-words confirm card: off by default, turned on from Settings › AI › Models (the Watches Beta). The verdict stays `not_yet`.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3830/manifest.md` (R4, R5 for 0.5.2; R3 superseded by the ruling, its D-number the maintainer's).
+**The rounds, v6 to v13 (2026-11-26), on Apple's on-device model** (exact with ADR-0036's default for an unsaid lifetime, strict beside it; unsupported claimed; nearest offered):
+
+| Round | Exact (strict) | Unsupported claimed | Nearest offered |
+|---|---|---|---|
+| v6 | 63.5 % (19.2 %) | 0 | 60 % (3 of 5) |
+| v7 | 77.1 % (56.3 %) | 5 | 30 % |
+| v8 | 75.0 % (66.7 %) | 3 | 83.3 % |
+| v9 | 68.8 % (46.9 %) | 0 | 92.0 % |
+| v10 | 85.7 % (76.2 %) | 3 | 72.2 % |
+| v11 | 65.8 % (57.9 %) | 0 | 95.5 % |
+| v12 | 31.6 % (28.9 %) | 0 | 95.5 % |
+| v13 | 31.6 % (28.9 %) | 0 | 81.8 %; latency median 634.5 ms, p95 775 ms |
+
+The later sets asked for more paraphrase and German variety. With drafts fail-closed by construction, exact on fresh wording is bounded by code's verified vocabulary; Apple's model labels unknown words by meaning, and code can't verify those labels (`docs/qa/evidence/AJ-E3709/v13-results/summary.md`).
+
+**What ships in 0.5.2** (e923067e2 the pre-fill, d3ccfce2e the form and the card, gallery `99-watch-prefill`; G47 in 9ea640dba):
+- Every request Bot reads as a watch request opens the Watches form pre-filled field by field (`watches::draft::prefill`): the words code couldn't place spoil the fields they may touch, by their label, their clause and their place (a qualifier beside the condition, a word of another name beside the target, a name after a negation); a project or App needs its kind word, a session or account whose name another kind shares needs its own; the model's pick among several is never filled. An unread lifetime chooses nothing (Watch waits for a pick), unread quiet hours stay off with "Check it", an unread condition ticks nothing and tags the nearest.
+- The labels ride Bot's own model (the Watches verdict stays `not_yet`); with no model, code alone. No extra call: v13's one label call.
+- The confirm card (Watches Beta, off by default): only for a request code read whole whose draft the form's own check passes.
+- The Watches row in Settings › AI › Models: "On · Fills in what it understands from your words; you check the form and save." with its Beta line; the same note in builtin.json and the remote list for every model.
+- Measured through the app's own engines (manifest R4): **0 wrong pre-filled fields** on Apple's model over v6 to v13 and on Qwen3 1.7B and Granite 4.1 3B over v13. On v13 (38 supported), Apple fills the target right in 21, the condition in 16, the lifetime in 6 (plus 9 of 21 labelled suggestions equal to the gold), quiet hours as verified in 27; Qwen 19 / 15 / 6 / 24; Granite 17 / 17 / 6 / 26; code alone 20 / 12 / 4 / 12.
+- No more watch rounds in 0.5.2.
+
+**Next, in 0.5.3** (planned, not started):
+1. Grow code's vocabulary from the model's labels: v13 showed the labels are mostly right (21 condition, 15 target, 7 lifetime, 7 condition_param for words code couldn't place: "bis ich es entferne", "abschmiert", "wants something from me", "even overnight", "selbst in den Ruhezeiten"). Each label class a candidate list, reviewed by Opus, added only with its regression fixtures, so the next set fills more fields with the bar still 0.
+2. A stronger model for the labels: measure the next Apple model and the listed local models through `watch_prefill_round` per field (the bar first).
+3. The local models: Qwen3 1.7B and Granite 4.1 3B already hold the bar (v13); measure Nemotron 3 Nano 4B and Gemma, and a set written fresh for 0.5.3 (blind).
+
+### AJ-E3831 Feed line (D-154: an AI summary of the turn, what it came to against the request) and digest (map and reduce) | Status: DONE (0.5.2: the digest Beta at 64 %, D-149; the feed's AI summaries an opt-in Beta on Apple's model, D-154: v14's re-measure 69.4 % preferred, 18.9 % critical, so off by default with the agent's words one tap away; the next round is for the next release) | Priority P1 | Effort M | Depends: AJ-E3709
+**Found**: v5 round 3: feed lines preferred 43 %, digests 33 % over the plain text (safe, not better).
+**UI**: yes (the line saying why a job stays plain)
+**Requirements**:
+1. Feed line: the model picks the turn's most telling fact and the verb from a constrained choice; code renders the line.
+2. Digest: the model writes one short line per session (the feed-line task); code orders, groups, counts and assembles.
+3. One harness round each on fresh blind sets (a Sonnet eval round, Opus verifying); each is switched on only if preferred over the plain text in the blind checks; otherwise it stays plain and Settings › AI › Models says why in one line.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3831/manifest.md`.
+
+**The redesign (D-152, 2026-11-26, built e249b088e):**
+- **The line:** one line per finished turn saying what the turn came to compared with what the user asked. It replaces "pick, don't write", which lost v6 to v8.
+- **One definition of good** (`docs/qa/evidence/AJ-E3831/definition-of-good.md`) for the prompt, the gold and the judges.
+- **Input**, read from the session's own transcript, never git:
+  - the request;
+  - the whole turn: every agent message, the tool calls, the diff stat through the feed's reader, the tests;
+  - the session's goal: its opening request when the turn isn't the first. A caller may pass the world model's own words for it instead; gyrus holds no session-goal node yet, so that's a kind-pack follow-up.
+- **Code supplies the truth:**
+  - The status enum (done, partly, not_done, undone, asks) is narrowed by the facts. Never done on failing tests, a failed turn or an undo; undone only on undo words; asks only with the agent's own question.
+  - The model fills `status`, `did`, `left` and `extra`.
+  - Code renders the line: "Done: …", "Partly done: … · open: …", "Not done: …", "Tried, then undone: … · why: …", "Asks you: …". It adds the agent's question whatever the status (never hidden) and the tests from the facts, with the agent's own count.
+- **The gate** (`features/feed/line.rs`):
+  - Bot's check in a new own-words mode (`check_own_words`): a state, outcome or negation passes only on the agent's own word. Bot's default is unchanged.
+  - The request is cited by name only, so it never supports a state.
+  - The line's support rule: each claim, result or negation word stands in one agent sentence with the line's own subject words.
+  - An outcome verb the turn doesn't say becomes "worked on"; a refused optional part is dropped.
+- **Retries:** at most two, sampled; after that the plain excerpt (the digest's quote: the question, else the failure, else the reply's first sentence).
+- **Injection safety:** the guarded fields and the gate. Datamarking is per model: Apple on, Qwen off, Granite on (from the tuning set).
+
+**Usability reasoning** (PAT-USE, re-checked on the built post and Models row, 2026-11-27):
+1. **Who and when:** a developer glancing at Home after an agent finishes wants to know, without opening the session, whether what they asked got done. The maintainer's words (D-154): "like if I had a real human watching the agent and summarizing to me".
+2. **What a newcomer sees:**
+   - With "AI summaries in the feed" on (Settings › AI › Models, its own switch, off by default), a finished turn's post shows one line under its sentence. It starts with the AI tag and the outcome ("Done:", "Partly done: … · open: …", "Asks you: …"), names the thing in the agent's words, and adds the agent's question and the tests.
+   - A quiet foot follows: "Summary by <model>", Beta, "Show its words" (the agent's own words, one tap away) and "This is wrong" (kept on this Mac).
+   - When every draft was refused, the post shows "Its last reply" quoted instead.
+3. **Its value:** it relates the turn to the request. In v14's re-measure the judges preferred it to the agent's excerpt in 69 % of decided pairs.
+4. **Off, unavailable or failing:**
+   - Beta off, no engine, a turn whose end AI Juggler doesn't see, or Last messages off: nothing shows and the post is as before.
+   - On Settings › AI › Models, the row's note says why it's a Beta, in one honest line.
+   - "Use it" on a recommended model never turns it on.
+5. **No system prompt.**
+6. **Watch for:**
+   - **wrong lines:** about 1 in 5 had a critical error in testing, so the words stay one tap away and "This is wrong" is on every line;
+   - **cost:** one model call per post near the view, cached per turn;
+   - **width:** a long line wraps at narrow widths.
+
+**v14 findings** (the coordinator's one round, 2026-11-27; `docs/qa/evidence/AJ-E3831/manifest.md`, data in `docs/qa/evidence/AJ-E3709/v14-results/`):
+
+| Model | Pooled preference | Verified critical errors |
+|---|---|---|
+| Apple | **67.2 %** | 19.4 % (7/36) |
+| Qwen3 1.7B | **65.4 %** | 30 % (9/30) |
+| Granite 4.1 3B | 59.1 % | 30.8 % (8/26) |
+
+The bars are ≥ 60 % preference and ≤ 1 % critical. All three stay `not_yet` and the excerpt ships; the value is there, the safety isn't.
+- **14 of the 24 critical errors are the code's own facts.** "tests fail" was read from the agent's words over a passing run. `ls tests` was taken as a test run. A test command blocked by approval was taken as failing. A verify-and-restore ("put the fix back afterwards") was read as an undo.
+- **Most of the rest are the model's status:** "Done" with a part the reply says wasn't done; "Partly" when all was done.
+- **The rest:** one request word stated as done (Qwen, "published"), two questions the code didn't find (the agent stops with no question mark), and one false agent claim repeated.
+- **Injection:** H44's planted comment got through on every model and in both datamark modes, through the facts after the agent quoted it, not through the prompt.
+
+**Re-measure and ship (D-154, 2026-11-27, one round, Apple only).**
+- **The round:** the same 42 read held-out turns, the same prompt and settings, no tuning, on HEAD with G48–G50's facts.
+  - The turns were rebuilt from v14's committed readings through the app's own assembly (`feed::line::assemble`, `examples/feed_line_round.rs` reading `view` rows); the raw transcripts were deleted with the lab.
+  - What the readings don't keep is which failed command was refused for approval; G48's backstop (the agent's "couldn't run the tests") covers it.
+- **Result:** shown 37 of 42.
+  - Pooled preference **69.4 %** (Sonnet 72.2 %, a fresh blind Opus 66.7 %; 50:22, 2 same).
+  - Critical errors **7 of 37 = 18.9 %**, every one verified by Opus against its turn:
+    - "Done" with the team-drive sync not set up (H17);
+    - "Partly" or "Not done" on done turns (H30, H42, H38: H38's first draft was refused on `#` and the retry chose a side detail);
+    - a wait shown as "Not done" with no question (H25);
+    - "tests pass" from a piped run whose result was `tail`'s (H23);
+    - "tests fail" where the tests weren't run (H26).
+  - Data: `docs/qa/evidence/AJ-E3709/v14-results/remeasure/`.
+- **Shipped as an opt-in Beta** (criticals over 1 %): Apple's feed verdict `beta`, with the honest note in builtin.json, nightly.json and the ledger.
+  - The switch "AI summaries in the feed" sits on Settings › AI › Models, off by default; "Use it" doesn't turn it on.
+  - The post's line comes from `feed_line` (`features/feed/summary.rs`), with the agent's words one tap away and "This is wrong". A refused draft shows the agent's words, and the guard and gate stay.
+  - The local models stay `not_yet`.
+- **Fixed after the measure (the shared reading, also the shipped review's):**
+  - a piped test run's result is unknown, so the words decide (H23's cause);
+  - a verify-and-restore sentence is never a test reading or a failure.
+
+**Next optimizations, in order, for the next release** (each a code change measured by one fresh blind round per model; the v14 sets are now known, so a new held-out set is needed):
+1. **Facts from results, not words:**
+   - a test command's exit outranks the words;
+   - only a runner word (`unittest`, `pytest`, `cargo test`, `npm test`…) makes a command a test run;
+   - a command blocked by approval is "not run";
+   - the undo reading takes the reply only and never a verify-and-restore.
+   The turn review and the digest share these readings: the shipped review's tests reading has the first bug, reported to the coordinator.
+2. **Code status floors:**
+   - no "done" when the reply has a not-done sentence about a request noun ("couldn't push", "haven't pointed the sync", "isn't installed");
+   - no "partly" when there is none, the last run passed and every request clause's nouns are in the reply.
+3. **A "Waiting on you" reading** for a stop with no question mark ("I haven't changed anything", "höre hier auf", a choice offered).
+4. **Done-elsewhere verbs** (published, pushed, merged, deployed, released, opened a pull request) only on the agent's words.
+5. **The plain excerpt itself** leads with a not-done or waiting sentence when the reply has one: a no-model gain for every user, with its own check.
+6. **Then the round,** with Granite last: its coverage was lowest, 26/42.
+
+### AJ-E3832 Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | Status: DONE (0.5.2) | Priority P0 | Effort XL | Depends: ADR-0037, ADR-0038
+**Found**: the maintainer (2026-11-25) wants the world-model memory built in 0.5.2 as the base later versions extend, with no porting later; ADR-0038 accepted 2026-11-26 (D-150).
+**UI**: yes (Settings › AI › Memory; Bot's context and memory breakdown, AJ-E3825 R9, rebuilt on it in step 4)
+**Usability reasoning** (Opus, written first for Settings › AI › Memory and the breakdown, PAT-USE): what someone wants to know about what Bot remembers about their work, why, and how to make it forget, in plain words.
+- **The context breakdown** (built in step 4; re-checked on the built screen):
+  (1) Someone who wonders why Bot answered as it did opens "context …" under the box and expects to see what went to the model; the new part's name says it plainly: "Linked from your work".
+  (2) A newcomer sees the parts with their sizes (estimates labelled "≈ … est."), then up to six short lines, each a name and why in plain words: "agent11 · named in your question", "your own name for it", "matches your words", "shop · connected to agent11", and "and N more". No internal term (no node, graph, seed, walk, rule).
+  (3) Its value: it shows that Bot connected the right things, in the one breakdown that already lists what was sent; it replaces nothing and adds no second surface. The memory indicator counts a memory once, whether the question used it by name or the world model linked it.
+  (4) Unavailable or empty (the index still warming up, or nothing linked): the part reads 0 and no list shows; nothing else changes.
+  (5) No system prompt: the world model reads and writes AI Juggler's own database only.
+  (6) Watch for: a line naming something that wasn't sent (only what went into the request is listed: an empty section lists nothing); a state word in the list (the list names things, it never says what they are doing); a long name breaking the 248 px popover (each line truncates).
+- **Settings › AI › Memory** is not changed by this item: what Bot remembers is still listed, edited and forgotten there and in "What Bot remembers"; forgetting a memory now also removes what the world model linked to it, with no new control.
+**Requirements** (ADR-0038's Order of work):
+1. **The crate's core** (`crates/gyrus`, MIT OR Apache-2.0, its own README, tests, bench; a lint forbids any juggler-* dependency; no new crate in Cargo.lock): nodes, links, kind specs, the SQLite store (the next migration in AI Juggler's chain, checked on every branch), the in-memory index, write-through, rebuild, forget, the kill-at-every-step and test-phrase tests.
+2. **The operations:** `seed`, `expand`, `rank`, `matches`, `as_of`, `touch`, `explain`, with the benchmark suite at 10k, 100k and 1M links and its p95 budgets (ADR-0038 §3) in CI.
+3. **AI Juggler's kind pack** (`features/ai/world/`): kinds, link types, rules, reasoning questions, live resolvers; ADR-0037's records linked as `memory` nodes by a one-time pass; nothing moves.
+4. **Assembly:** the `world` section; topics as separate chats; Bot's context and memory breakdown (AJ-E3825 R9) built on it.
+5. **Dreaming and tiers:** merges, archive, salience, inside ADR-0037's maintenance batches.
+6. **The real-engine check:** fixed questions asked of Bot on the reference Mac, the answers read and judged (ai-features-tested-for-real); the 27-canary forget test reads 0.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3832/manifest.md`.
+
+### AJ-E3833 0.5.2's walk polish carried to 0.5.3: Bot's found rows, the form's reply, a small untitled window, the edits turn's review lines | Status: TODO (0.5.3) | Priority P2 | Effort S | Depends: AJ-E3820, AJ-E3830
+**Found**: the 0.5.2 release walk's last part (RW1 Part T, 2026-11-27), triaged by D-137's wrap-up (the coordinator, relaying the maintainer's "do the best we can, optimize for later"): not blockers, so not fixed in 0.5.2. Findings G74, G75, G76 and G62's leftover in `docs/qa/0.5.2-findings.md`.
+**UI**: yes (Bot's panel; the watch form's reply). The six usability answers are written before building, per PAT-USE.
+**Requirements**:
+1. (Done in 0.5.2: G74 e5f44de9c and G75 e5f44de9c/4fef54b27, finished and tested before the wrap-up.)
+2. G76 (identified in 0.5.2, 04fd91cc3: macOS's own Siri text-input orb, a SwiftUI AXDialog with one 'Siri Waveform Orb' button, shown for about 30 s when a field takes focus; not ours): `lab_drive windows` labels it 'macOS text-input orb' so walks stop flagging it; check its placement on an unfocused field against Safari.
+3. G62's leftover: the turn review's model lines on an edits turn the model writes as fragments ("moved the price sum out of"). They stay refused (the check is not loosened); find a prompt or shape that yields whole clauses on Apple's model, proven with `review/real_model_tests.rs`.
+**Quality gates**: verify-static; vitest where UI changes; the RW1 rows that showed each, re-walked.
+**Evidence/validation proof**: `docs/qa/evidence/AJ-E3833/manifest.md`.

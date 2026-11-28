@@ -4,7 +4,7 @@
  * overlapping marks), the echo with its names in bold, a chip, the state
  * column and the section fold.
  */
-import type { JSX, ReactNode } from "react";
+import { Fragment, type JSX, type ReactNode } from "react";
 import { LogoTile, ToolLogo } from "../ToolLogo";
 import type { EchoSpan } from "../../types/generated/EchoSpan";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
@@ -68,7 +68,10 @@ export function EchoHead({ spans, tone = "live" }: { spans: readonly EchoSpan[];
             {span.text}
           </b>
         ) : (
-          <span key={i}>{span.text}</span>
+          // 0.5.2 G54: a bare text node, never an element: the space beside
+          // a name ("…notebook” finishes") is kept in the accessible text,
+          // which drops an element's leading or trailing space.
+          <Fragment key={i}>{span.text}</Fragment>
         ),
       )}
     </>

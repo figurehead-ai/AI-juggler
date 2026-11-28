@@ -12,6 +12,13 @@ import { openAccount } from "../../lib/accounts-page";
 import { accountName, planWords, type SubscriptionInfo } from "../../lib/subscriptions";
 import { termNoun, termValueWords } from "../../lib/account-terms";
 import type { Term } from "../../lib/ipc/subscriptions";
+import { IconProfiles } from "../../components/icons";
+import { IconStar } from "../../components/icons-actions";
+import { IconCalendar } from "../../components/icons-controls";
+import { IconCoin } from "../../components/icons-settings";
+
+/** AJ-E1558 (D-126): each term's icon, as on the account's own Settings. */
+const TERM_ICONS: Record<Term, typeof IconStar> = { plan: IconStar, renewal: IconCalendar, fee: IconCoin };
 
 /** The stored Account an App is on: the one its row names, else its
  * folder's; `null` when it has none. 0.5.1 F36: its own first, so a
@@ -37,7 +44,7 @@ export function AppTerms({ sub, now }: { sub: SubscriptionInfo; now: number }): 
   ];
   return (
     <PaneSection id="app-terms" title="Plan, renewal and fee">
-      <SettingRow
+      <SettingRow icon={IconProfiles}
         title={`On ${name}`}
         description="They're its account's, set once for every app on it."
         testId="app-terms-account"
@@ -48,7 +55,7 @@ export function AppTerms({ sub, now }: { sub: SubscriptionInfo; now: number }): 
         }
       />
       {rows.map(([term, raw]) => (
-        <SettingRow
+        <SettingRow icon={TERM_ICONS[term]}
           key={term}
           title={termNoun(term).replace(/^./, (first) => first.toUpperCase())}
           testId={`app-terms-${term}`}

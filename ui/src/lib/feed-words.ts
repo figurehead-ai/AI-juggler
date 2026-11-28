@@ -342,7 +342,8 @@ export function digestLineWords(line: DigestLineInfo): { state: string; said: st
   const state = line.state === "stuck" && line.stuck_min ? `stuck for ${line.stuck_min} min` : (DIGEST_STATE[line.state] ?? line.state);
   const own = line.quote && line.quote_kind !== "last" ? `: “${line.quote}”` : null;
   const facts = [...digestEvents(line), ...digestWork(line)];
-  const last = line.quote && line.quote_kind === "last" ? ` · last: “${line.quote}”` : null;
+  // D-149's map step: the model's pick of the agent's own words, rendered by code, in place of its last words.
+  const last = line.picked ? ` · ${line.picked}` : line.quote && line.quote_kind === "last" ? ` · last: “${line.quote}”` : null;
   return { state: ` · ${state}`, said: own, facts: facts.length > 0 ? ` · ${facts.join(" · ")}` : null, last };
 }
 

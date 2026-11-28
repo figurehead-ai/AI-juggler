@@ -9,7 +9,10 @@ import { placeOf } from "../lib/project-words";
 import { Field, Input, Modal } from "./form";
 import { useActionHost } from "./ItemMenu";
 import { Button } from "./primitives";
-import { Picker } from "./controls";
+import { Picker, RowChip } from "./controls";
+import { SELECTED } from "./controls/selected";
+import { IconProjects } from "./icons";
+import { IconMove, IconPool } from "./icons-actions";
 import { recentProjects } from "../lib/pickers";
 
 /**
@@ -69,7 +72,7 @@ function CreatePool({
   const [error, setError] = useState<string | null>(null);
   const where = session ? placeOf(session, projects) : null;
   return (
-    <Modal title="New pool" subtitle="Sessions that work together." onClose={onClose} testId="pool-create-sheet"
+    <Modal title="New pool" subtitle="Sessions that work together." icon={IconPool} onClose={onClose} testId="pool-create-sheet"
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>
@@ -122,7 +125,7 @@ function CreatePool({
               onChange={setProject}
               testId="pool-create-project"
               className="self-start"
-              options={[{ value: "", label: "Any project", pinned: true }, ...projects.map((row) => ({ value: row.id, label: row.name }))]}
+              options={[{ value: "", label: "Any project", pinned: true, icon: IconProjects }, ...projects.map((row) => ({ value: row.id, label: row.name, icon: IconProjects }))]}
               groups={[{ label: "Recent", values: recentProjects(projects) }]}
               searchLabel="Search projects"
               allHeading="All projects"
@@ -130,14 +133,14 @@ function CreatePool({
           </Field>
         )}
         {where && (
-          <p className="text-xs text-ink-2" data-testid="pool-create-session">
+          <p className="text-meta text-ink-2" data-testid="pool-create-session">
             <span className="text-ink">{where.title}</span>
             {where.detail ? ` · ${where.detail}` : ""} goes in it.
           </p>
         )}
-        {!session && sessions.length === 0 && <p className="text-xs text-ink-2">Sessions can join it once you start some.</p>}
+        {!session && sessions.length === 0 && <p className="text-meta text-ink-2">Sessions can join it once you start some.</p>}
         {error && (
-          <p className="text-xs text-danger" role="alert" data-testid="pool-error">
+          <p className="text-label text-danger" role="alert" data-testid="pool-error">
             {error}
           </p>
         )}
@@ -180,27 +183,33 @@ function MovePool({
     }
   };
   return (
-    <Modal title="Move to pool" subtitle={[where.title, where.detail].filter(Boolean).join(" · ")} onClose={onClose} testId="pool-move-sheet">
+    <Modal title="Move to pool" subtitle={[where.title, where.detail].filter(Boolean).join(" · ")} icon={IconMove} onClose={onClose} testId="pool-move-sheet">
       <div className="flex flex-col gap-3">
-        <ul className="overflow-hidden rounded-xl border border-hairline bg-surface" data-testid="pool-move-list">
+        {/* AJ-E1558 (D-126, PAT-SURF): the pools on their inset tone, no
+            outline or rules; each with its chip; the one it is in a fill. */}
+        <ul className="flex flex-col gap-0.5 rounded-xl bg-surface-2 p-1.5" data-testid="pool-move-list">
           {choices.map((pool) => (
-            <li key={pool.id} className="border-t border-hairline/60 first:border-t-0">
+            <li key={pool.id}>
               <button
                 type="button"
                 disabled={busy || pool.id === here}
                 aria-current={pool.id === here ? "true" : undefined}
                 onClick={() => void move(pool.id)}
-                className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm text-ink outline-none hover:bg-surface-2 focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60 disabled:cursor-default disabled:hover:bg-transparent"
+                className={
+                  "flex w-full items-center gap-3 rounded-[10px] px-2.5 py-2 text-left text-body text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-default " +
+                  (pool.id === here ? SELECTED : "hover:bg-hover")
+                }
                 data-testid="pool-move-choice"
               >
-                <span className="min-w-0 truncate">{pool.name}</span>
-                {pool.id === here && <span className="shrink-0 text-xs text-faint">It's here</span>}
+                <RowChip icon={IconPool} on={pool.id === here} />
+                <span className="min-w-0 flex-1 truncate">{pool.name}</span>
+                {pool.id === here && <span className="shrink-0 text-label font-normal text-muted">It's here</span>}
               </button>
             </li>
           ))}
         </ul>
         {error && (
-          <p className="text-xs text-danger" role="alert" data-testid="pool-error">
+          <p className="text-label text-danger" role="alert" data-testid="pool-error">
             {error}
           </p>
         )}

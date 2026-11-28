@@ -38,6 +38,7 @@ struct Slots {
     watches: Option<KindWriter>,
     chat: Option<KindWriter>,
     digest: Option<KindWriter>,
+    world: Option<KindWriter>,
 }
 
 impl MemoryWriters {
@@ -51,12 +52,14 @@ impl MemoryWriters {
                 watches,
                 chat,
                 digest,
+                world,
             } = writers;
             Slots {
                 memory: Some(memory),
                 watches: Some(watches),
                 chat: Some(chat),
                 digest: Some(digest),
+                world: Some(world),
             }
         });
         Self(std::sync::Mutex::new(slots))
@@ -87,6 +90,12 @@ impl MemoryWriters {
     /// on its first digest).
     pub fn take_digest(&self) -> Option<KindWriter> {
         self.0.lock().ok().and_then(|mut slots| slots.digest.take())
+    }
+
+    /// AJ-E3832: Bot's world model's own writer, once (`features/ai/world`
+    /// takes it when its index is first built).
+    pub fn take_world(&self) -> Option<KindWriter> {
+        self.0.lock().ok().and_then(|mut slots| slots.world.take())
     }
 }
 
@@ -130,9 +139,11 @@ pub(crate) fn memory_error(error: MemoryError) -> AppError {
 pub fn forget(state: &Arc<AppState>, subject_key: &str, actor: &Actor) -> AppResult<Forgotten> {
     let storage = crate::commands::lock_storage_arc(state)?;
     let now = juggler_core::model::Timestamp::now().millis();
+    // ADR-0038 §6: the world model's nodes go in the same transaction, and
+    // after the WAL is truncated, from its in-memory index.
     let forgotten = storage
         .memory()
-        .forget(subject_key, actor, now)
+        .forget_with_world(subject_key, actor, now, state.world.graph())
         .map_err(memory_error)?;
     crate::backup::drop_staged(&storage, &state.data_dir)?;
     Ok(forgotten)

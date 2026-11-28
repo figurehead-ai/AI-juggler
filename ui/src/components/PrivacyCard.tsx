@@ -20,7 +20,8 @@ import { usageStatsDeleteLocal, usageStatsOpenDocs, usageStatsOverview, usageSta
 import type { UsageReportRow } from "../types/generated/UsageReportRow";
 import type { UsageStatsOverview } from "../types/generated/UsageStatsOverview";
 import { CardTitle } from "./CardTitle";
-import { Checkbox } from "./controls";
+import { SettingSwitch } from "./SettingSwitch";
+import { IconCloud } from "./icons-menu";
 
 const CATEGORY_LABEL: Record<string, string> = {
   environment: "Your setup",
@@ -147,24 +148,20 @@ export function PrivacyCard(): JSX.Element {
         />
       )}
       {info.included && overview.sync.offered && (
-        <div className="flex flex-col gap-1 rounded-lg border border-hairline px-3 py-2" data-testid="privacy-sync">
-          <label className="flex items-start gap-2 text-label text-ink">
-            <Checkbox
-              className="mt-0.5"
-              checked={overview.sync.on}
-              onChange={(event) => void setSync(event.target.checked)}
-              data-testid="privacy-sync-toggle"
-            />
-            <span className="flex flex-col gap-0.5">
-              <span className="font-medium">Show my stats in my Figurehead dashboard</span>
-              <span className="text-muted">
-                Links this computer's weekly reports to your Figurehead account so you can see them at figurehead.ai. Only
-                you can see them, and they're deleted with your account. A synced week is never also sent anonymously.
-              </span>
-            </span>
-          </label>
+        <div className="flex flex-col gap-1 rounded-[10px] bg-surface-2" data-testid="privacy-sync">
+          {/* AJ-E1558 (D-126): the kit's switch row, its chip the accent's
+              soft step while on; no outlined box (PAT-SURF), its tone. */}
+          <SettingSwitch
+            id="privacy-sync"
+            icon={IconCloud}
+            label="Show my stats in my Figurehead dashboard"
+            hint="Links this computer's weekly reports to your Figurehead account so you can see them at figurehead.ai. Only you can see them, and they're deleted with your account. A synced week is never also sent anonymously."
+            checked={overview.sync.on}
+            testId="privacy-sync-toggle"
+            onChange={(on) => void setSync(on)}
+          />
           {overview.sync.on && overview.sync.email && (
-            <p className="pl-5 text-label text-muted" data-testid="privacy-sync-email">
+            <p className="pb-2 pl-[54px] text-label text-muted" data-testid="privacy-sync-email">
               Synced to {overview.sync.email}
             </p>
           )}
@@ -195,7 +192,7 @@ export function PrivacyCard(): JSX.Element {
       )}
       {counting && (
         <section aria-labelledby="privacy-collected" className="flex flex-col gap-2" data-testid="privacy-collected">
-          <h4 id="privacy-collected" className="text-xs font-semibold">
+          <h4 id="privacy-collected" className="text-meta font-semibold text-ink">
             What's collected
           </h4>
           {info.effective === "share" && overview.next_upload_ms && (
@@ -262,7 +259,7 @@ export function PrivacyCard(): JSX.Element {
             </ul>
           )}
           {viewing && (
-            <div className="flex flex-col gap-1.5 rounded-lg border border-hairline p-2" data-testid="privacy-report-json">
+            <div className="flex flex-col gap-1.5 rounded-lg bg-surface-2 p-2" data-testid="privacy-report-json">
               <div className="flex items-center gap-2 text-label">
                 <span className="flex-1 text-ink">
                   {viewing.row.week} · {STATUS_LABEL[viewing.row.status] ?? viewing.row.status} — the exact report, spaced

@@ -29,8 +29,10 @@ use super::conditions::Registry;
 use super::engine::{EndReason, Engine, Expiry, Outcome};
 use super::model::{Watch, WatchTarget};
 use super::store::{Stored, WatchStore};
+use crate::features::conversations::dto::ConversationInfo;
 use crate::features::observe::bell::Bell;
 use crate::features::observe::{Observation, Pending, Subject};
+use crate::features::sessions::seen;
 use crate::state::AppState;
 
 /// The app setting holding when the engine last heard (epoch ms).
@@ -54,6 +56,8 @@ type Shared = Bell<Inner>;
 #[derive(Default)]
 pub struct Watches {
     shared: Arc<Shared>,
+    /// G12: one engine step's snapshot and save at a time, in order.
+    saving: std::sync::Mutex<()>,
     thread: OnceLock<()>,
     writer: OnceLock<Option<KindWriter>>,
 }
@@ -94,13 +98,49 @@ impl Watches {
 pub struct Facts<'a> {
     storage: &'a Storage,
     state: &'a AppState,
+    /// 0.5.2 G45: the sessions AI Juggler didn't start that this hold
+    /// knows, by key (`sessions::seen`), read before the store's lock.
+    outside: std::collections::HashMap<String, ConversationInfo>,
 }
 
 impl<'a> Facts<'a> {
     /// Facts over one storage hold.
     #[must_use]
-    pub const fn new(storage: &'a Storage, state: &'a AppState) -> Self {
-        Self { storage, state }
+    pub fn new(storage: &'a Storage, state: &'a AppState) -> Self {
+        Self {
+            storage,
+            state,
+            outside: std::collections::HashMap::new(),
+        }
+    }
+
+    /// 0.5.2 G45: with the sessions AI Juggler didn't start that the
+    /// caller read (`sessions::seen`, before taking the store's lock):
+    /// they are open, observed and named here as AI Juggler's own are.
+    #[must_use]
+    pub fn with_outside(mut self, rows: impl IntoIterator<Item = ConversationInfo>) -> Self {
+        self.outside
+            .extend(rows.into_iter().map(|row| (seen::key_of(&row), row)));
+        self
+    }
+
+    /// What an observation about a session AI Juggler didn't start is
+    /// about: the key, its App (presence's, ADR-0032), project, account
+    /// and the pools naming it, its App, account or tool.
+    fn outside_subject(&self, key: &str, row: &ConversationInfo) -> Subject {
+        let pools = self.pools_of(
+            key,
+            row.app.as_deref(),
+            Some(row.account_id.as_str()),
+            Some(row.tool.as_str()),
+        );
+        Subject {
+            session: Some(key.to_owned()),
+            apps: row.app.clone().into_iter().collect(),
+            project: row.project_id.clone(),
+            account: Some(row.account_id.clone()),
+            pools,
+        }
     }
 
     /// The tool an account is for, and its id.
@@ -171,6 +211,11 @@ impl<'a> Facts<'a> {
             .into_iter()
             .filter(|m| match &m.member {
                 MemberRef::Session(id) => id.as_str() == session,
+                // D-62 decision 15: a session another app runs, by its
+                // folder and conversation (its key, G45).
+                MemberRef::Conversation { folder, id } => {
+                    seen::parse_source_key(session) == Some((folder.as_str(), id.as_str()))
+                }
                 MemberRef::App(id) => Some(id.as_str()) == app,
                 MemberRef::Account(id) => Some(id.as_str()) == account,
                 MemberRef::Tool(id) => Some(id.as_str()) == tool,
@@ -189,6 +234,17 @@ impl<'a> Facts<'a> {
     /// account and pools.
     #[must_use]
     pub fn session_subject(&self, session: &str) -> Subject {
+        // 0.5.2 G45: a session AI Juggler didn't start, by its key.
+        if let Some((account, _)) = seen::parse_source_key(session) {
+            return self.outside.get(session).map_or_else(
+                || Subject {
+                    session: Some(session.to_owned()),
+                    account: Some(account.to_owned()),
+                    ..Subject::default()
+                },
+                |row| self.outside_subject(session, row),
+            );
+        }
         let record = self.storage.sessions().get(&SessionId::new(session)).ok();
         let app = self
             .storage
@@ -261,6 +317,32 @@ impl<'a> Facts<'a> {
     /// Juggler's own.
     #[must_use]
     pub fn observes(&self, target: &WatchTarget) -> Observes {
+        // 0.5.2 G45: a session AI Juggler didn't start reports what the
+        // live look sees of it (its tool's, `ToolObserves::seen_by`), and
+        // none of AI Juggler's own (it runs no pool or task of it).
+        if let WatchTarget::Session(session) = target
+            && let Some((account, _)) = seen::parse_source_key(session)
+        {
+            let tool = self.outside.get(session.as_str()).map_or_else(
+                || {
+                    self.storage
+                        .accounts()
+                        .get(&juggler_core::model::AccountId::new(account))
+                        .ok()
+                        .map(|a| a.harness.as_str().to_owned())
+                },
+                |row| Some(row.tool.clone()),
+            );
+            return tool
+                .and_then(|tool| {
+                    self.state
+                        .registry
+                        .get(&juggler_core::model::HarnessId::new(tool))
+                })
+                .map_or_else(Observes::empty, |adapter| {
+                    juggler_adapter::ToolObserves::seen_by(adapter.capabilities())
+                });
+        }
         let tools: Vec<String> = match target {
             WatchTarget::Session(session) => self
                 .storage
@@ -297,6 +379,39 @@ impl<'a> Facts<'a> {
         })
     }
 
+    /// 0.5.2 G32: the sessions open now (the store's live ones: any state
+    /// but ended), each as an observation about it would name it (its
+    /// App, project, account and pools), so a group target's open members
+    /// can be found by `engine::covers`.
+    ///
+    /// 0.5.2 G45: and the sessions AI Juggler didn't start that the caller
+    /// read open ([`Self::with_outside`] of `sessions::seen::outside_open`):
+    /// one started in the user's own terminal is open in its project and
+    /// App as AI Juggler's own are.
+    #[must_use]
+    pub fn open_subjects(&self) -> Vec<Subject> {
+        let mut open: Vec<Subject> = self
+            .storage
+            .sessions()
+            .live()
+            .unwrap_or_default()
+            .iter()
+            .map(|row| self.session_subject(row.id.as_str()))
+            .collect();
+        let mut outside: Vec<(&String, &ConversationInfo)> = self
+            .outside
+            .iter()
+            .filter(|(_, row)| seen::open(row))
+            .collect();
+        outside.sort_by(|a, b| a.0.cmp(b.0));
+        open.extend(
+            outside
+                .into_iter()
+                .map(|(key, row)| self.outside_subject(key, row)),
+        );
+        open
+    }
+
     /// The target still exists (`None` when the store can't say).
     #[must_use]
     pub fn exists(&self, target: &WatchTarget) -> Option<bool> {
@@ -306,6 +421,24 @@ impl<'a> Facts<'a> {
             Err(_) => None,
         };
         match target {
+            // 0.5.2 G45: a session AI Juggler didn't start is there while
+            // the index holds it; before the index is read whole, unknown.
+            WatchTarget::Session(id) if seen::parse_source_key(id).is_some() => {
+                let (account, conversation) = seen::parse_source_key(id)?;
+                if self.outside.contains_key(id.as_str())
+                    || self
+                        .state
+                        .conversations
+                        .path_of(account, conversation)
+                        .is_some()
+                {
+                    Some(true)
+                } else if self.state.conversations.first_pass_done() {
+                    Some(false)
+                } else {
+                    None
+                }
+            }
             WatchTarget::Session(id) => found(
                 self.storage
                     .sessions()
@@ -378,6 +511,8 @@ fn load(state: &AppState, registry: &Arc<Registry>, now_ms: i64) -> Engine {
         }
         engine.add(watch, now_ms);
     }
+    // G12: each watch's deadlines as they were armed, not again from now.
+    super::durable::restore_all(&storage, &mut engine);
     engine
 }
 
@@ -461,11 +596,21 @@ pub fn with_engine<T>(
         inner.engine.is_some()
     };
     let fresh = (!loaded).then(|| load(state, &registry, now_ms));
-    let mut inner = state.watches.shared.lock().ok()?;
-    if inner.engine.is_none() {
-        inner.engine = fresh;
+    // G12: the step and its save in order; the store's lock only after
+    // the engine's is let go.
+    let _saving = state.watches.saving.lock().ok()?;
+    let (out, snapshot) = {
+        let mut inner = state.watches.shared.lock().ok()?;
+        if inner.engine.is_none() {
+            inner.engine = fresh;
+        }
+        let out = inner.engine.as_mut().map(f);
+        (out, inner.engine.as_ref().map(super::durable::snapshot))
+    };
+    if let Some(snapshot) = snapshot {
+        super::durable::save_all(state, &snapshot, now_ms);
     }
-    inner.engine.as_mut().map(f)
+    out
 }
 
 fn start_thread(state: &Arc<AppState>) {
@@ -526,9 +671,18 @@ fn run(shared: &Shared, state: &Weak<AppState>) {
 /// One step: the queued observations resolved and heard, in order, then
 /// what fell due by now.
 fn step(state: &Arc<AppState>, batch: Vec<Pending>) {
+    // 0.5.2 G45: the sessions AI Juggler didn't start that the batch is
+    // about, read before the store's lock.
+    let outside = seen::outside_of(
+        state,
+        batch.iter().filter_map(|pending| match pending {
+            Pending::Session { session, .. } => Some(session.as_str()),
+            Pending::Account { .. } => None,
+        }),
+    );
     let observations: Vec<Observation> = match state.storage.lock() {
         Ok(storage) => {
-            let facts = Facts::new(&storage, state);
+            let facts = Facts::new(&storage, state).with_outside(outside.into_values());
             batch
                 .into_iter()
                 .flat_map(|pending| resolve(&facts, pending))

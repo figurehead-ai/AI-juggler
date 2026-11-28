@@ -1046,4 +1046,78 @@ mod first_report_tests {
         runtimes.forget("sess-gone");
         assert!(runtimes.take_in_overdue(i64::MAX, &|_| None).is_empty());
     }
+
+    /// 0.5.2 G20 (the RW1 walk's first session): a new session's first
+    /// turn reads Working from its prompt's report and Idle from its Stop,
+    /// through the report key and the hook's own parsing, whether its
+    /// hooks name the transcript before the file exists (Claude Code knows
+    /// the path at once) or only once it does (the lab's stand-in). Its
+    /// conversation is linked at once, its file once written. The walk's
+    /// Idle at +0 to +2 s was the stand-in taking the typed line 2.7 s
+    /// late (bash 3.2's `read -t` timeout reads as end of input there, so
+    /// it slept 5 s), and its 8 s of Working fell between two samples.
+    #[test]
+    fn a_new_sessions_first_turn_reads_working_with_or_without_its_transcripts_path() {
+        use juggler_agentbridge::wire::{Report, VERSION};
+        let dir = tempfile::tempdir().unwrap();
+        let (state, _clock) = clocked(dir.path(), &["sess-named", "sess-unnamed"]);
+        let folder = dir.path().join("state/projects/-w");
+        std::fs::create_dir_all(&folder).unwrap();
+        for (id, native, names_early) in [
+            ("sess-named", "11111111-2222-4333-8444-555555555555", true),
+            (
+                "sess-unnamed",
+                "22222222-2222-4333-8444-555555555555",
+                false,
+            ),
+        ] {
+            let session = SessionId::new(id);
+            let token = state
+                .agent_bridge
+                .mint_reports(&state.data_dir, &session, &|_| false)
+                .unwrap();
+            let file = folder.join(format!("{native}.jsonl"));
+            let send = |event: &str, extra: &str| {
+                let path = if names_early || file.exists() {
+                    format!(r#","transcript_path":"{}""#, file.display())
+                } else {
+                    String::new()
+                };
+                let input = format!(
+                    r#"{{"session_id":"{native}","cwd":"/w","hook_event_name":"{event}"{path}{extra}}}"#
+                );
+                let hook = juggler_agentbridge::hook::report_of(event, &input).unwrap();
+                let report = Report {
+                    v: VERSION,
+                    token: token.clone(),
+                    hook,
+                };
+                let answer = reports::handle(&state, &report);
+                assert!(answer.refused.is_none(), "{id} {event}: {answer:?}");
+            };
+            send("SessionStart", r#","source":"startup""#);
+            assert_eq!(state_of(&state, id).as_deref(), Some("idle"), "{id}");
+            send("UserPromptSubmit", r#","prompt":"lab""#);
+            assert_eq!(state_of(&state, id).as_deref(), Some("working"), "{id}");
+            std::fs::write(&file, "{}\n").unwrap();
+            send("Stop", r#","stop_hook_active":false"#);
+            assert_eq!(state_of(&state, id).as_deref(), Some("idle"), "{id}");
+            let record = state
+                .storage
+                .lock()
+                .unwrap()
+                .sessions()
+                .get(&session)
+                .unwrap();
+            assert_eq!(
+                record.conversation.as_ref().map(|c| c.as_str()),
+                Some(native)
+            );
+            assert_eq!(
+                record.transcript_ref.map(|linked| linked.path),
+                Some(file.canonicalize().unwrap()),
+                "{id}"
+            );
+        }
+    }
 }

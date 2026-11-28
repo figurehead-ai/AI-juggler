@@ -2,13 +2,13 @@ import { primaryToolId } from "../lib/tools";
 import { useCallback, useEffect, useState, type JSX } from "react";
 import { Card, Chip } from "./primitives";
 import { SwitchSetUpsCard } from "./SwitchSetUpsCard";
-import { PACK_POLICY_OPTIONS, packPolicyRestatement, type PackPolicyWire } from "./PackPolicyChooser";
+import { PACK_POLICY_ICONS, PACK_POLICY_OPTIONS, packPolicyRestatement, type PackPolicyWire } from "./PackPolicyChooser";
 import { providerDisplayName } from "../lib/providers";
 import { errorText } from "../lib/bridge";
 import { redactionPolicyGet, redactionPolicySetGlobal, redactionPolicySetOverride, type RedactionInfoData } from "../lib/ipc/redaction";
 import { CardTitle } from "./CardTitle";
-import { Picker, Radio } from "./controls";
-import { SELECTED_CARD } from "./controls/selected";
+import { ChoiceOption, PickRow, Picker } from "./controls";
+import { ToolMark } from "./ToolMark";
 
 /**
  * AJ-E309 Req.2 / AJ-E208 (D-14): Accounts → Pack secrets. The GLOBAL
@@ -58,7 +58,7 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
       <Card className="flex flex-col gap-3 p-5" data-testid="pack-secrets">
         <div>
           <CardTitle>Keys and passwords</CardTitle>
-          <p className="mt-0.5 text-xs leading-relaxed text-ink-2">
+          <p className="mt-0.5 text-meta text-ink-2">
             When you switch to another tool, or save a handover, the other tool reads the
             conversation. Choose what happens to keys and passwords in it — remembered for every
             tool unless one has its own. A switch between apps of the same tool copies the
@@ -74,31 +74,35 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               Not chosen yet — your first switch to another tool asks.
             </p>
           )}
+          {/* AJ-E1558 (D-126): each choice a card with its icon chip, the
+              chosen one a fill, the recommended one its accent tag. */}
           {storedOptions.map((option) => (
-            <label
+            <ChoiceOption
               key={option.value}
-              className={
-                "flex items-start gap-2.5 rounded-lg border px-3 py-2 text-xs transition-colors " +
-                (global === option.value ? SELECTED_CARD : "border-hairline hover:border-accent/30")
+              type="radio"
+              look="card"
+              name="pack-secrets-global"
+              value={option.value}
+              icon={PACK_POLICY_ICONS[option.value]}
+              label={
+                option.value === "strip" ? (
+                  <span className="flex flex-wrap items-center gap-2">
+                    {option.title.replace(" (recommended)", "")}
+                    <span className="rounded-full bg-accent-soft px-2 py-px text-label font-medium text-accent-hi">Recommended</span>
+                  </span>
+                ) : (
+                  option.title
+                )
               }
-            >
-              <Radio
-                name="pack-secrets-global"
-                value={option.value}
-                checked={global === option.value}
-                onChange={() =>
-                  void run(
-                    () => redactionPolicySetGlobal(option.value),
-                    packPolicyRestatement(option.value as PackPolicyWire, "global", ""),
-                  )
-                }
-                className="mt-0.5 shrink-0"
-              />
-              <span className="flex flex-col gap-0.5">
-                <span className="font-medium text-ink">{option.title}</span>
-                <span className="text-label leading-relaxed text-muted">{option.consequence}</span>
-              </span>
-            </label>
+              hint={option.consequence}
+              checked={global === option.value}
+              onChange={() =>
+                void run(
+                  () => redactionPolicySetGlobal(option.value),
+                  packPolicyRestatement(option.value as PackPolicyWire, "global", ""),
+                )
+              }
+            />
           ))}
         </fieldset>
         {providers.length > 0 && (
@@ -110,8 +114,8 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
               const row = info[provider];
               const name = providerDisplayName(provider);
               return (
-                <div key={provider} className="flex flex-wrap items-center gap-2 text-xs" data-testid="provider-redaction">
-                  <span className="min-w-28 font-medium">{name}</span>
+                <PickRow key={provider} icon={<ToolMark tool={provider} size={20} />} on={Boolean(row?.override)} testId="provider-redaction">
+                  <span className="min-w-28 font-medium text-ink">{name}</span>
                   <Picker choice
                     size="sm"
                     value={row?.override ?? ""}
@@ -124,11 +128,11 @@ export function PackSecretsCard({ providers }: { providers: string[] }): JSX.Ele
                     ariaLabel={`Keys and passwords for ${name}`}
                     options={[
                       { value: "", label: `Use my choice${global ? "" : " (not chosen yet)"}` },
-                      ...storedOptions.map((option) => ({ value: option.value, label: option.title })),
+                      ...storedOptions.map((option) => ({ value: option.value, label: option.title, icon: PACK_POLICY_ICONS[option.value] })),
                     ]}
                   />
                   {row?.override && <Chip tone="accent">Override</Chip>}
-                </div>
+                </PickRow>
               );
             })}
           </div>

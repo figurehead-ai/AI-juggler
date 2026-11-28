@@ -7,9 +7,11 @@
  * records it cites; one it couldn't check is "I don't know" with the
  * records it checked, never the records alone as an answer.
  */
+import { BotWatchDraft } from "./BotWatchDraft";
 import { useState, type JSX, type SVGProps } from "react";
 import { BotRows } from "./BotRows";
 import { BotWrittenCard } from "./BotWritten";
+import { BotDetailsLine, BotFailedAnswer, BotGeneralAnswer } from "./BotAnswerParts";
 import { BotMemoryEcho, BotUsedMemories } from "./BotMemoryParts";
 import { Marked } from "./Marked";
 import { useBotNav } from "./bot-nav";
@@ -124,8 +126,10 @@ function Unknown({ turn, now, find, onWatch }: { turn: BotTurnInfo; now: number;
         <b className="font-semibold text-ink">{words.strong}</b>
         {words.rest}
       </p>
-      {turn.unknown === "unverified" && turn.rows.length > 0 ? (
-        <BotRows rows={turn.rows} now={now} find={find} onWatch={onWatch} label={WORDS.checkedRecords} />
+      {turn.unknown === "unverified" ? (
+        // D-144 in full: an answer that didn't check out is said so; no
+        // record stands in as the answer.
+        <BotDetailsLine turn={turn} />
       ) : nearest && turn.unknown && turn.unknown !== "nothing_found" ? (
         <>
           <span className="text-meta text-muted">
@@ -174,6 +178,16 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
   }
   if (turn.outcome === "remembered" || turn.outcome === "refused") return <BotMemoryEcho turn={turn} />;
   if (turn.outcome === "dont_know") return <Unknown turn={turn} now={now} find={find} onWatch={onWatch} />;
+  if (turn.outcome === "failed") return <BotFailedAnswer turn={turn} />;
+  if (turn.outcome === "watch_draft") return <BotWatchDraft turn={turn} />;
+  if (turn.outcome === "general") {
+    return (
+      <div className="flex flex-col gap-2">
+        <BotGeneralAnswer turn={turn} />
+        <BotDetailsLine turn={turn} />
+      </div>
+    );
+  }
   const before = dayWords(turn.at_ms, now) !== "Today";
   const written = turn.written ?? null;
   return (
@@ -187,6 +201,7 @@ function Answer({ turn, now, latest, find, onWatch }: { turn: BotTurnInfo; now: 
       )}
       {turn.rows.length > 0 && <BotRows rows={turn.rows} numbered={written !== null} now={now} find={find} onWatch={onWatch} label="What Bot found" aliases={aliasesOf(turn)} />}
       {turn.total > turn.rows.length && <span className="pl-1 text-meta text-muted">{WORDS.more(turn.total - turn.rows.length)}</span>}
+      <BotDetailsLine turn={turn} />
       <Looked turn={turn} now={now} />
       {latest && <Refine turn={turn} />}
     </div>

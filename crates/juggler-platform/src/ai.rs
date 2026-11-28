@@ -50,6 +50,14 @@ pub fn system_model() -> SystemModel {
     )
 }
 
+/// The system's own version text ("26.1"), which the system model's
+/// version follows (AJ-E3825: Bot names its model with it); `None` when
+/// the system won't say.
+#[must_use]
+pub fn system_version() -> Option<String> {
+    sysinfo::System::os_version().filter(|text| !text.trim().is_empty())
+}
+
 /// [`system_model`] for `os`, `arch` and the OS's version text (pure).
 #[must_use]
 pub fn system_model_on(os: &str, arch: &str, version: Option<&str>) -> SystemModel {

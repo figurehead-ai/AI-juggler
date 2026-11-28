@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type JSX, type MouseEvent, type ReactNode, type RefObject, type SVGProps } from "react";
+import { placed } from "./menu-room";
 import { createPortal } from "react-dom";
 import { useInertOutside } from "../lib/inert";
+import { SELECTED_FILL } from "./controls/selected";
 
 /**
  * The row menu (D-25: one pattern everywhere): the ⋯ button or a
@@ -180,12 +182,8 @@ export function useAnchoredPlace(ref: RefObject<HTMLElement | null>, at: MenuAt)
   useLayoutEffect(() => {
     const box = ref.current?.getBoundingClientRect();
     if (!box) return;
-    const span = anchoredSpan(at.y, at.above, box.height, window.innerHeight);
-    setStyle({
-      left: anchoredEdge(at.x, at.right, box.width, window.innerWidth),
-      top: span.start,
-      ...(span.max !== null ? { maxHeight: span.max } : {}),
-    });
+    // 0.5.2: room made, or beside its button, before scrolling inside (menu-room).
+    setStyle(placed({ x: at.x, y: at.y, above: at.above, right: at.right }, box, anchoredSpan, anchoredEdge));
   }, [ref, at.x, at.y, at.right, at.above]);
   return style;
 }
@@ -291,7 +289,8 @@ export function MenuItem({
       aria-expanded={submenu ? submenu.open : undefined}
       className={
         "rounded-lg px-2 py-1 text-left text-meta outline-none transition-colors hover:bg-hover focus-visible:ring-1 focus-visible:ring-accent/60 disabled:cursor-default disabled:text-muted disabled:hover:bg-transparent " +
-        (danger ? "text-danger" : "text-ink")
+        (danger ? "text-danger" : "text-ink") + // AJ-E1558: a chosen line is a fill too, not its ✓ alone (PAT-SURF-3).
+        (checked && !multi ? ` ${SELECTED_FILL}` : "")
       }
     >
       {children}

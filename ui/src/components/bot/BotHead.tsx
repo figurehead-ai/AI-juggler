@@ -12,6 +12,8 @@ import { IconMore } from "../icons-canvas";
 import { IconPlus, IconTrash } from "../icons-actions";
 import { IconBookmark, IconBot, IconExpand, IconEye, IconGrid, IconSearch, IconSparkle } from "./bot-icons";
 import { BetaPill } from "./BotWritten";
+import { useBotEngine } from "../../lib/bot-engine";
+import { engineLabel, engineStateWords, failureWords, modelName } from "../../lib/bot-engine-words";
 import { useBotNav } from "./bot-nav";
 import { WORDS } from "../../lib/bot-words";
 import { closeBot, closeFind, expandBot, findWords, newTopic, openFind, stepMatch, useBot } from "../../lib/bot-store";
@@ -19,6 +21,7 @@ import { aiBetaSet, type AiJobInfo } from "../../lib/ipc/ai";
 import { botCount } from "../../lib/ipc/bot";
 import { useMemories } from "../../lib/bot-memory";
 import { useMenuCloses } from "../../lib/use-menu-closes";
+import { belowEnd, useTip } from "../WhyTip";
 
 const ICON_BUTTON = "grid size-[30px] place-items-center rounded-lg text-muted outline-none hover:bg-surface-2 hover:text-ink focus-visible:ring-2 focus-visible:ring-accent/60";
 
@@ -138,19 +141,25 @@ export function BotFindBar(): JSX.Element | null {
   );
 }
 
+/** AJ-E1556: its tip is the app's one tip (`useTip`): drawn over the
+ * page, under the button's right end, its words whole and wrapping (the
+ * head's nowrap cut it to "Nothing is do…", and a count was drawn over it). */
 function TopicButton({ compact }: { compact: boolean }): JSX.Element {
-  const [tip, setTip] = useState(false);
+  const words = (
+    <>
+      <b className="block font-semibold">{WORDS.newTopic}</b>
+      <span className="block text-ink-2">{WORDS.newTopicTip}</span>
+    </>
+  );
+  const { ref, show, hide, shown, tipId, tip } = useTip<HTMLButtonElement>(words, "bot-topic-tip", belowEnd);
   return (
-    <span className="relative" onMouseEnter={() => setTip(true)} onMouseLeave={() => setTip(false)}>
-      <button type="button" className="mr-0.5 inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" aria-describedby="bot-topic-tip" onFocus={() => setTip(true)} onBlur={() => setTip(false)} onClick={() => void newTopic()} data-testid="bot-new-topic">
+    <>
+      <button ref={ref} type="button" className="mr-0.5 inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-meta font-medium text-ink-2 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/60" aria-describedby={shown ? tipId : undefined} onPointerEnter={show} onPointerLeave={hide} onFocus={show} onBlur={hide} onClick={() => void newTopic()} data-testid="bot-new-topic">
         <IconPlus width={13} height={13} aria-hidden="true" />
         <span className={compact ? "sr-only" : "whitespace-nowrap"}>{WORDS.newTopic}</span>
       </button>
-      <span id="bot-topic-tip" role="tooltip" className={"absolute top-[calc(100%+6px)] right-0 z-30 w-[250px] flex-col gap-0.5 rounded-[9px] bg-ink px-2.5 py-2 text-meta text-canvas shadow-[0_18px_48px_-12px_rgba(0,0,0,.45)] [[data-theme=dark]_&]:bg-surface-3 [[data-theme=dark]_&]:text-ink " + (tip ? "flex" : "hidden")} data-testid="bot-topic-tip">
-        <b className="font-semibold">{WORDS.newTopic}</b>
-        <span className="opacity-80">{WORDS.newTopicTip}</span>
-      </span>
-    </span>
+      {tip}
+    </>
   );
 }
 
@@ -171,41 +180,73 @@ function WatchCount(): JSX.Element | null {
   );
 }
 
+/** AJ-E3825 R5: the model in use and how it stands, calm and muted:
+ * "Apple on-device · Running", "· Starting…", "· Idle", "· Failed: …",
+ * then the Beta pill. `under`: the panel's head draws it as the line
+ * under "Bot" (0.5.2 G35: beside it, between "Bot" and the head's
+ * buttons, it was cut to "Apple on-d…" at the panel's usual width), its
+ * Beta pill beside the title instead. */
+export function BotEngineBadge({ beta, under = false }: { beta: boolean; under?: boolean }): JSX.Element {
+  const engine = useBotEngine(false);
+  const state = engineStateWords(engine.status, engine.starting);
+  const failed = engine.status?.state === "failed";
+  const why = failed ? failureWords(engine.status?.failure ?? "unknown", modelName(engine.status)) : null;
+  const whole = `${engineLabel(engine.status)}${state ? ` · ${state}` : ""}`;
+  return (
+    <span className={(under ? "pl-[26px] " : "ml-2 ") + "flex min-w-0 items-center gap-1.5 text-label text-muted"} title={why ? `${why.line} ${why.fix}` : under ? whole : undefined} data-testid="bot-engine">
+      <span className="truncate">
+        {engineLabel(engine.status)}
+        {state && <span className={failed ? "text-danger" : undefined}> · {state}</span>}
+      </span>
+      {beta && <BetaPill>Beta</BetaPill>}
+    </span>
+  );
+}
+
 export function BotHead({ job, onClear, onMemories, setup = false }: { job: AiJobInfo | null; onClear: () => void; onMemories: () => void; setup?: boolean }): JSX.Element {
   const bot = useBot();
   const [menu, setMenu] = useState(false);
+  const ready = job?.state === "ready" && !setup;
   return (
-    <div className="relative flex h-12 shrink-0 items-center gap-0.5 border-b border-divider pr-2 pl-4 whitespace-nowrap">
-      <h2 className="flex items-center gap-2 text-section font-semibold text-ink">
-        <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
-        {WORDS.title}
-      </h2>
-      {job?.state === "ready" && job.beta && (
-        <span className="ml-2" title="Written answers are on (Beta)">
-          <BetaPill>Beta</BetaPill>
-        </span>
+    <div className="relative grid min-h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] content-center items-center border-b border-divider pt-1 pr-2 pb-1.5 pl-4 whitespace-nowrap" data-testid="bot-head">
+      {/* 0.5.2 G35: the model and its state on the line under "Bot"; Beta
+          beside the title. G61 (RW1 R31): that line spans the head's whole
+          width, under the buttons too, so a chip among them (the watch
+          count) never cuts it ("Apple on-device · Runn…" at 1755 wide). */}
+      <div className="flex min-w-0 items-center gap-2">
+        <h2 className="flex items-center gap-2 text-section leading-5 font-semibold text-ink">
+          <IconBot width={18} height={18} aria-hidden="true" className="text-accent-hi" />
+          {WORDS.title}
+        </h2>
+        {ready && job?.beta && <BetaPill>Beta</BetaPill>}
+      </div>
+      <div className="flex items-center gap-0.5">
+        {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
+        {!setup && (
+          <>
+            <WatchCount />
+            <TopicButton compact={job?.state === "ready" && job.beta} />
+            <button type="button" className={ICON_BUTTON + (bot.find ? " bg-surface-3 text-ink" : "")} title={`${WORDS.searchLabel} (⌘F)`} aria-label={WORDS.searchLabel} aria-pressed={bot.find !== null} onClick={() => (bot.find ? closeFind() : openFind())} data-testid="bot-search">
+              <IconSearch width={16} height={16} aria-hidden="true" />
+            </button>
+          </>
+        )}
+        <button type="button" className={ICON_BUTTON} title={WORDS.expandLabel} aria-label={WORDS.expandLabel} onClick={expandBot} data-testid="bot-expand">
+          <IconExpand width={15} height={15} aria-hidden="true" />
+        </button>
+        <button type="button" className={ICON_BUTTON + (menu ? " bg-surface-3 text-ink" : "")} title={WORDS.moreLabel} aria-label={WORDS.moreLabel} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)} data-testid="bot-more">
+          <IconMore width={16} height={16} aria-hidden="true" />
+        </button>
+        <button type="button" className={ICON_BUTTON} title={`${WORDS.closeLabel} (Esc)`} aria-label={WORDS.closeLabel} onClick={closeBot} data-testid="bot-close">
+          <IconClose width={16} height={16} aria-hidden="true" />
+        </button>
+      </div>
+      {ready && (
+        <div className="col-span-2 -mt-1 min-w-0">
+          <BotEngineBadge beta={false} under />
+        </div>
       )}
-      <span className="grow" />
-      {/* D-144: "Set up Bot" has no conversation to start, search or count in. */}
-      {!setup && (
-        <>
-          <WatchCount />
-          <TopicButton compact={job?.state === "ready" && job.beta} />
-          <button type="button" className={ICON_BUTTON + (bot.find ? " bg-surface-3 text-ink" : "")} title={`${WORDS.searchLabel} (⌘F)`} aria-label={WORDS.searchLabel} aria-pressed={bot.find !== null} onClick={() => (bot.find ? closeFind() : openFind())} data-testid="bot-search">
-            <IconSearch width={16} height={16} aria-hidden="true" />
-          </button>
-        </>
-      )}
-      <button type="button" className={ICON_BUTTON} title={WORDS.expandLabel} aria-label={WORDS.expandLabel} onClick={expandBot} data-testid="bot-expand">
-        <IconExpand width={15} height={15} aria-hidden="true" />
-      </button>
-      <button type="button" className={ICON_BUTTON + (menu ? " bg-surface-3 text-ink" : "")} title={WORDS.moreLabel} aria-label={WORDS.moreLabel} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)} data-testid="bot-more">
-        <IconMore width={16} height={16} aria-hidden="true" />
-      </button>
-      <button type="button" className={ICON_BUTTON} title={`${WORDS.closeLabel} (Esc)`} aria-label={WORDS.closeLabel} onClick={closeBot} data-testid="bot-close">
-        <IconClose width={16} height={16} aria-hidden="true" />
-      </button>
-      {menu && <BotMenu job={job} onClose={() => setMenu(false)} onClear={onClear} onMemories={onMemories} setup={setup} />}
+      {menu && <BotMenu job={job} onClose={() => setMenu(false)} onClear={onClear} onMemories={onMemories} setup={setup} at="right-2.5 top-[calc(100%-2px)]" />}
     </div>
   );
 }

@@ -1,0 +1,1658 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"available\":\"available\",\"extensions\":[\"fields\",\"sampling\"],\"os\":\"Version 27.0.1 (Build 26A434)\",\"protocol\":3,\"hello\":true,\"guided\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "feed_why"
+  ],
+  "prompt_sha256": {
+   "feed_why": "d33d7c1ee0f939041d02a39191261ae544bbb193f377634548973f7c44bb932f"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "turns8",
+    "file": "turns-v8.json",
+    "sha256": "b8b5a776ecc60fb4f3cc6e8983e15ba7b039fcbfc846289b54ad07bf19045d43",
+    "items_in_file": 50,
+    "items_run": 50
+   }
+  ],
+  "calls": 35,
+  "wall_s": 39.0,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   4.5,
+   4.5,
+   5.2
+  ],
+  "load_avg_end": [
+   8.5,
+   5.5,
+   5.5
+  ],
+  "helper_cpu_s": 0.71,
+  "cpu_deltas": [
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 2.06
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.87
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.7
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.51
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 130.5,
+   "peak": 135.0,
+   "after": 136.6
+  },
+  "started": "2026-11-26 12:25:31"
+ },
+ "results": [
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T01",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"drag handle improves interaction, tidy vars reduce CSS noise\"}",
+     "finish": "stop",
+     "latency_ms": 1204,
+     "gen_ms": 1203.8089036941528,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1438,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file — drag handle improves interaction, tidy vars reduce CSS noise\nStep 2 of 4 in the plan is done; steps 3 and 4 are cosmetic.",
+    "model_text": [
+     "drag handle improves interaction, tidy vars reduce CSS noise"
+    ],
+    "notes": [],
+    "line": "Added a drag handle to the cards in lantern-board and tidied three CSS variables while I was in the file — drag handle improves interaction, tidy vars reduce CSS noise",
+    "why": "drag handle improves interaction, tidy vars reduce CSS noise"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T02",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "git: kept reports/export.py (+9 -2); reverted reports/stream.py\nShould I try chunked export instead?\nTests were not run.\nQuestion: Should I try chunked export instead?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T03",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "4 of 6 conversion steps ran, then the build broke on a missing native header.\nFailed: fatal error: vips/vips.h: No such file or directory\nFailed: make: *** [build] Error 1",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T04",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "",
+     "finish": "stop",
+     "latency_ms": 2270,
+     "gen_ms": 2269.3469524383545,
+     "out_tokens": null,
+     "error": "Response may contain sensitive or unsafe content",
+     "refused": true,
+     "est_tokens": 1433,
+     "retry_note": false,
+     "errors": [
+      "engine: refused or failed"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"retry logic now centralizes calls for cleaner code\"}",
+     "finish": "stop",
+     "latency_ms": 1214,
+     "gen_ms": 1213.8700485229492,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1490,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Moved the retry logic of mossy-queue into one helper (3 call sites) — retry logic now centralizes calls for cleaner code",
+    "model_text": [
+     "retry logic now centralizes calls for cleaner code"
+    ],
+    "notes": [],
+    "line": "Moved the retry logic of mossy-queue into one helper (3 call sites) — retry logic now centralizes calls for cleaner code",
+    "why": "retry logic now centralizes calls for cleaner code"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T05",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “The pagination in basil-forum is fixed and the whole suite is green, 47 of 47.”\nTests: 45 passed, 2 failed (per AI Juggler)\nFailed: FAILED tests/test_pages.py::test_last_page - expected 5 got 4\nFailed: FAILED tests/test_pages.py::test_empty - IndexError",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T06",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Which currency is that?\nImported 120 of 300 rows of the supplier catalogue in marble-shop (steps 1 and 2 of 5).\nTests not run.\nQuestion: Which currency is XQD?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T07",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"no split means fewer bugs in core logic\"}",
+     "finish": "stop",
+     "latency_ms": 1137,
+     "gen_ms": 1137.099027633667,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1449,
+     "retry_note": false,
+     "errors": [
+      "contradiction: names a change that was undone (git: chat/handlers/ was undone (names split))"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"no split means cleaner core structure for future builds\"}",
+     "finish": "stop",
+     "latency_ms": 1112,
+     "gen_ms": 1111.6939783096313,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1537,
+     "retry_note": true,
+     "errors": [
+      "contradiction: names a change that was undone (git: chat/handlers/ was undone (names split))"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 2,
+     "text": "{\"why\": \"no split means core stays stable for next phases\"}",
+     "finish": "stop",
+     "latency_ms": 1009,
+     "gen_ms": 1009.2999935150146,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1542,
+     "retry_note": true,
+     "errors": [
+      "faithfulness: 'stable' is not in the agent's checked words; leave states, counts and outcomes out",
+      "contradiction: names a change that was undone (git: chat/handlers/ was undone (names split))"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "git: kept chat/handler.py (+3 -1); reverted chat/handlers/\nThe agent says: “Tried splitting the monolith handler in ripple-chat into three modules, found circular imports and put everything back.”",
+    "model_text": [],
+    "notes": [
+     "every draft failed the faithfulness gate: the plain excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T08",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “19 tests pass, 1 fails (test_theme_sync); I think it is flaky, so I left it.”\nTests: 19 passed, 1 failed (per AI Juggler)\nFailed: FAILED tests/test_theme.py::test_theme_sync - AssertionError",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T09",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"no progress on formatting or download button\"}",
+     "finish": "stop",
+     "latency_ms": 975,
+     "gen_ms": 974.5110273361206,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1410,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Started the audit-trail export for pine-ledger — no progress on formatting or download button\nStep 1 of 3 (collect events) works; formatting and the download button are not started.",
+    "model_text": [
+     "no progress on formatting or download button"
+    ],
+    "notes": [],
+    "line": "Started the audit-trail export for pine-ledger — no progress on formatting or download button",
+    "why": "no progress on formatting or download button"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T10",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Want it moved to 03:00?\nQuestion: Want the nightly job moved to 03:00?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T11",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"standard parser ensures consistent date handling across projects\"}",
+     "finish": "stop",
+     "latency_ms": 1063,
+     "gen_ms": 1063.1669759750366,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1416,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Replaced the home-grown date parser in kelp-planner with the standard one — standard parser ensures consistent date handling across projects",
+    "model_text": [
+     "standard parser ensures consistent date handling across projects"
+    ],
+    "notes": [],
+    "line": "Replaced the home-grown date parser in kelp-planner with the standard one — standard parser ensures consistent date handling across projects",
+    "why": "standard parser ensures consistent date handling across projects"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T12",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The deploy script for amber-site stopped at step 3 of 7: the ssh key was rejected.\nFailed: Permission denied (publickey).\nFailed: deploy aborted at step 3 of 7",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T13",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Which do you prefer?\nQuestion: Which do you prefer: a short illustration or just text?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T14",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"no tests ran, so fix not confirmed\"}",
+     "finish": "stop",
+     "latency_ms": 1028,
+     "gen_ms": 1028.1269550323486,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1389,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Fixed the off-by-one in the pagination of the sleet-api list endpoint — no tests ran, so fix not confirmed\nI believe it's right now but I didn't run the tests.",
+    "model_text": [
+     "no tests ran, so fix not confirmed"
+    ],
+    "notes": [],
+    "line": "Fixed the off-by-one in the pagination of the sleet-api list endpoint — no tests ran, so fix not confirmed",
+    "why": "no tests ran, so fix not confirmed"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T15",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"reversion fixes missing entitlement for ios\"}",
+     "finish": "stop",
+     "latency_ms": 1075,
+     "gen_ms": 1074.7040510177612,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1448,
+     "retry_note": false,
+     "errors": [
+      "faithfulness: 'fixes' is not in the agent's checked words; leave states, counts and outcomes out",
+      "contradiction: names a change that was undone (Wired up the push-notification opt-in in cedar-mobile and then reverted the iOS )"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"reversion ensures ios entitlement alignment after opt-in change\"}",
+     "finish": "stop",
+     "latency_ms": 1191,
+     "gen_ms": 1190.9799575805664,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1576,
+     "retry_note": true,
+     "errors": [
+      "contradiction: names a change that was undone (git: ios/OptIn.swift was undone (names ios))"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 2,
+     "text": "{\"why\": \"reversion keeps ios entitlement correct after opt-in wiring\"}",
+     "finish": "stop",
+     "latency_ms": 1043,
+     "gen_ms": 1042.6030158996582,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1543,
+     "retry_note": true,
+     "errors": [
+      "faithfulness: 'correct' is not in the agent's checked words; leave states, counts and outcomes out",
+      "contradiction: names a change that was undone (git: ios/OptIn.swift was undone (names ios))"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "git: kept android/OptIn.kt (new, +74 -0); android/Manifest.xml (+3 -0); reverted ios/OptIn.swift\nWired up the push-notification opt-in in cedar-mobile and then reverted the iOS half because the entitlement is missing.",
+    "model_text": [],
+    "notes": [
+     "every draft failed the faithfulness gate: the plain excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T16",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"smaller assets speed up loading for every user\"}",
+     "finish": "stop",
+     "latency_ms": 1069,
+     "gen_ms": 1068.6120986938477,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1418,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer) — smaller assets speed up loading for every user",
+    "model_text": [
+     "smaller assets speed up loading for every user"
+    ],
+    "notes": [],
+    "line": "Compressed the sprite sheet in glow-arcade from 4.2 MB to 1.1 MB (pass 3 of 3 of the optimizer) — smaller assets speed up loading for every user",
+    "why": "smaller assets speed up loading for every user"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T17",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “The nightly rollup in vault-metrics now handles empty days; all 25 checks pass.”\nTests: 23 passed, 2 failed (per AI Juggler)\nFailed: FAILED tests/test_rollup.py::test_empty_week - KeyError: 'total'\nFailed: FAILED tests/test_rollup.py::test_dst_day - 23 != 24",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T18",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Ported the avatar service in plum-social to the new storage SDK for reads; writes still use the old one.\nQuestion: Port writes in this change or a separate one?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T19",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Ran the data backfill for opal-orders on 50 of 400 batches before the database connection dropped.\nFailed: OperationalError: server closed the connection unexpectedly\nFailed: backfill stopped at batch 51 of 400",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T20",
+   "rep": 0,
+   "model_called": true,
+   "used": 2,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"request id tracks logs without extra print\"}",
+     "finish": "stop",
+     "latency_ms": 1007,
+     "gen_ms": 1007.0250034332275,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1410,
+     "retry_note": false,
+     "errors": [
+      "contradiction: negation word in output with none in source"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"request id ensures traceability without manual tracking\"}",
+     "finish": "stop",
+     "latency_ms": 1062,
+     "gen_ms": 1061.4010095596313,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1489,
+     "retry_note": true,
+     "errors": [
+      "contradiction: negation word in output with none in source"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 2,
+     "text": "{\"why\": \"traceability grows with every request id\"}",
+     "finish": "stop",
+     "latency_ms": 1093,
+     "gen_ms": 1092.7159786224365,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1493,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added a request id to every log line in thistle-gateway — traceability grows with every request id",
+    "model_text": [
+     "traceability grows with every request id"
+    ],
+    "notes": [],
+    "line": "Added a request id to every log line in thistle-gateway — traceability grows with every request id",
+    "why": "traceability grows with every request id"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T21",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"slow build hints at hidden bottlenecks\"}",
+     "finish": "stop",
+     "latency_ms": 1016,
+     "gen_ms": 1015.6240463256836,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1393,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Looked into why the nightly build of reed-docs is slow — slow build hints at hidden bottlenecks",
+    "model_text": [
+     "slow build hints at hidden bottlenecks"
+    ],
+    "notes": [],
+    "line": "Looked into why the nightly build of reed-docs is slow — slow build hints at hidden bottlenecks",
+    "why": "slow build hints at hidden bottlenecks"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T22",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “The 31 unit tests pass but the integration test for expiry fails: expected 0, got 1.”\nTests: 31 passed, 1 failed (per AI Juggler)\nFailed: FAILED integration/test_expiry.py::test_ttl - expected 0, got 1",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T23",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "git: kept docs/deprecations.md (+6 -0); reverted portal/routes/legacy_login.py\nDo you want me to email them first?\nQuestion: Do you want me to email the partners first?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T24",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"new format applied, next step still missing\"}",
+     "finish": "stop",
+     "latency_ms": 1117,
+     "gen_ms": 1116.4040565490723,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1433,
+     "retry_note": false,
+     "errors": [
+      "contradiction: failure word in output with none in source"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"new format applied, next step still missing\"}",
+     "finish": "stop",
+     "latency_ms": 970,
+     "gen_ms": 970.2460765838623,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1512,
+     "retry_note": true,
+     "errors": [
+      "contradiction: failure word in output with none in source"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 2,
+     "text": "{\"why\": \"new format applied, next step still missing\"}",
+     "finish": "stop",
+     "latency_ms": 962,
+     "gen_ms": 961.3730907440186,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1512,
+     "retry_note": true,
+     "errors": [
+      "contradiction: failure word in output with none in source"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Ich habe die Rechnungsnummern im Projekt nordlicht-shop auf das neue Format umgestellt (Schritt 2 von 3).",
+    "model_text": [],
+    "notes": [
+     "every draft failed the faithfulness gate: the plain excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T25",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Der Agent sagt: „Die Passwort-zurücksetzen-Mail im Projekt birke-app ist überarbeitet und alle 12 Tests bestehen.“\nTests: 10 bestanden, 2 fehlgeschlagen (laut AI Juggler)\nFehlgeschlagen: FAILED tests/test_mail.py::test_betreff_umlaut - AssertionError\nFehlgeschlagen: FAILED tests/test_mail.py::test_link_ablauf - TypeError",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T26",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"flaky preview forced rollback, alt-text now required\"}",
+     "finish": "stop",
+     "latency_ms": 1134,
+     "gen_ms": 1133.3489418029785,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1452,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: behalten galerie/bild.html (+2 -1); zurückgenommen galerie/lazy.js\nIch wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte — flaky preview forced rollback, alt-text now required\nTests nicht ausgeführt.",
+    "model_text": [
+     "flaky preview forced rollback, alt-text now required"
+    ],
+    "notes": [],
+    "line": "Ich wollte die Bildergalerie in tannen-blog auf Lazy Loading umstellen, habe es aber zurückgenommen, weil die Vorschau flackerte — flaky preview forced rollback, alt-text now required",
+    "why": "flaky preview forced rollback, alt-text now required"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T27",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Soll ich die fehlerhaften Zeilen überspringen oder abbrechen?\nDer Import der Mitgliederliste im Vereinstool kiesel-club hat 180 von 250 Zeilen übernommen und ist bei Zeile 181 abgebrochen: ungültiges Datum.\nFrage: Soll ich die fehlerhaften Zeilen überspringen oder abbrechen?\nFehlgeschlagen: ValueError: ungültiges Datum in Zeile 181",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T28",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"no changes mean safe state for next step\"}",
+     "finish": "stop",
+     "latency_ms": 1015,
+     "gen_ms": 1015.0240659713745,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1371,
+     "retry_note": false,
+     "errors": [
+      "faithfulness: 'safe' is not in the agent's checked words; leave states, counts and outcomes out"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"no action means clear path for next check\"}",
+     "finish": "stop",
+     "latency_ms": 1089,
+     "gen_ms": 1088.7540578842163,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1460,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Ich habe nur geschaut: Die Konfiguration von wiese-sync ist in Ordnung — no action means clear path for next check\nIch habe nichts geändert und nichts ausgeführt.",
+    "model_text": [
+     "no action means clear path for next check"
+    ],
+    "notes": [],
+    "line": "Ich habe nur geschaut: Die Konfiguration von wiese-sync ist in Ordnung — no action means clear path for next check",
+    "why": "no action means clear path for next check"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T29",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"search now handles accented terms\"}",
+     "finish": "stop",
+     "latency_ms": 1019,
+     "gen_ms": 1018.3700323104858,
+     "out_tokens": 11,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1426,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente — search now handles accented terms",
+    "model_text": [
+     "search now handles accented terms"
+    ],
+    "notes": [],
+    "line": "Die Suche in lerche-wiki liefert jetzt auch Treffer ohne Akzente — search now handles accented terms",
+    "why": "search now handles accented terms"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T30",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Soll ich Schritt 5 (alte Spalte löschen) ohne Sicherung ausführen?\nSchritt 4 von 6 der Datenbank-Umstellung in dachs-kasse ist fertig, Tests wurden nicht gestartet.\nFrage: Soll ich Schritt 5 (alte Spalte löschen) ohne Sicherung ausführen?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T31",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Das Bauen der Desktop-App von sturm-notizen scheiterte im Schritt Signieren: Zertifikat abgelaufen.\nFehlgeschlagen: codesign: certificate has expired\nFehlgeschlagen: Build abgebrochen (Exit 1)",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T32",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "J'ai ajouté le tri par date dans la liste des commandes de pomme-cave et supprimé un ancien paramètre inutilisé.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T33",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "La migration de la table clients a échoué à l'étape 2 sur 5 : la colonne « ville » est dupliquée.\nFailed: ERROR: column \"ville\" specified more than once\nFailed: migration arrêtée à l'étape 2 sur 5",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T34",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "git: kept blog/pied.html (+1 -1); reverted blog/cache.py\nJ'ai essayé d'activer le cache de pages dans flocon-blog, puis j'ai tout annulé car les commentaires ne s'actualisaient plus.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T35",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Terminé la exportación a CSV en taller-notas y añadí una columna de fecha.",
+    "model_text": [],
+    "notes": [
+     "no word lists for the language"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T36",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "¿Prefieres que el recordatorio de pagos en cobre-app se envíe por correo o por notificación?\nQuestion: ¿Correo o notificación para el recordatorio de pagos?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T37",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Dije que el módulo de reportes de lago-ventas estaba listo, pero 3 pruebas fallan: los totales por región.\nFailed: FAILED tests/test_regiones.py::test_total_norte - 120 != 118\nFailed: FAILED tests/test_regiones.py::test_total_sur - 80 != 79\nFailed: FAILED tests/test_regiones.py::test_vacio - ZeroDivisionError",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T38",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Tried to open the pull request for the maple-cli fix but the CLI says there is no remote named origin.\nFailed: fatal: 'origin' does not appear to be a git repository",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T39",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"slow endpoint needs optimization\"}",
+     "finish": "stop",
+     "latency_ms": 965,
+     "gen_ms": 964.8100137710571,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1389,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Checked 5 of 5 endpoints in the heron-api health check and all respond — slow endpoint needs optimization",
+    "model_text": [
+     "slow endpoint needs optimization"
+    ],
+    "notes": [],
+    "line": "Checked 5 of 5 endpoints in the heron-api health check and all respond — slow endpoint needs optimization",
+    "why": "slow endpoint needs optimization"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T40",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"reverted old scoring after new ranking broke item order\"}",
+     "finish": "stop",
+     "latency_ms": 1179,
+     "gen_ms": 1178.5460710525513,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1465,
+     "retry_note": false,
+     "errors": [
+      "faithfulness: 'broke' is not in the agent's checked words; leave states, counts and outcomes out",
+      "contradiction: failure word in output with none in source",
+      "contradiction: states a failure the facts and the message don't report"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"old scoring order stopped, now new tweak affects search\"}",
+     "finish": "stop",
+     "latency_ms": 1171,
+     "gen_ms": 1170.8869934082031,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1596,
+     "retry_note": true,
+     "errors": [
+      "contradiction: names a change that was undone (git: search/scoring.py was undone)"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 2,
+     "text": "{\"why\": \"git history reset shifts focus from old to new ranking tweak\"}",
+     "finish": "stop",
+     "latency_ms": 1176,
+     "gen_ms": 1175.4440069198608,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1555,
+     "retry_note": true,
+     "errors": [
+      "contradiction: names a change that was undone (git: search/scoring.py was undone (names ranking))"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "git: kept search/synonyms.yaml (+6 -2); reverted search/scoring.py\nI rebuilt the search ranking in juniper-shop, then reverted to the old scoring after the new one pushed unrelated items to the top.",
+    "model_text": [],
+    "notes": [
+     "every draft failed the faithfulness gate: the plain excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T41",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Two quick decisions for the yarrow-cal sync: should deleted events be kept for 30 days or removed at once, and should we show a banner when sync lags?\nQuestion: Keep deleted events for 30 days or remove at once?\nQuestion: Show a banner when sync lags?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T42",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Menu.tsx (any leaks) and Tabs.tsx still have type errors, so I stopped there.\nConverted six files of finch-ui to TypeScript; 4 of 6 compile.\nFailed: Menu.tsx:41:9 - error TS7006: Parameter 'e' implicitly has an 'any' type.\nFailed: Tabs.tsx:12:3 - error TS2322",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T43",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Updated the licence header in the hazel-tools source files, 3 files.\nTests not run.",
+    "model_text": [],
+    "notes": [
+     "the guard removed a sentence: no written line (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T44",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"dry-run flag skips docker tests, saving time on setup\"}",
+     "finish": "stop",
+     "latency_ms": 1084,
+     "gen_ms": 1084.2779874801636,
+     "out_tokens": 25,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1393,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added a --dry-run flag to the quill-deploy script — dry-run flag skips docker tests, saving time on setup",
+    "model_text": [
+     "dry-run flag skips docker tests, saving time on setup"
+    ],
+    "notes": [],
+    "line": "Added a --dry-run flag to the quill-deploy script — dry-run flag skips docker tests, saving time on setup",
+    "why": "dry-run flag skips docker tests, saving time on setup"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T45",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"no commit means lost schema changes\"}",
+     "finish": "stop",
+     "latency_ms": 1012,
+     "gen_ms": 1011.8449926376343,
+     "out_tokens": 13,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1395,
+     "retry_note": false,
+     "errors": [
+      "faithfulness: 'commit' is not in the agent's checked words; leave states, counts and outcomes out"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 1,
+     "text": "{\"why\": \"no commit means schema loss if changes vanish\"}",
+     "finish": "stop",
+     "latency_ms": 1041,
+     "gen_ms": 1041.2189960479736,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1483,
+     "retry_note": true,
+     "errors": [
+      "faithfulness: 'commit' is not in the agent's checked words; leave states, counts and outcomes out"
+     ],
+     "ok": false
+    },
+    {
+     "step": "why",
+     "attempt": 2,
+     "text": "{\"why\": \"no commit means schema could vanish if changes disappear\"}",
+     "finish": "stop",
+     "latency_ms": 956,
+     "gen_ms": 955.6000232696533,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1486,
+     "retry_note": true,
+     "errors": [
+      "faithfulness: 'commit' is not in the agent's checked words; leave states, counts and outcomes out"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "I stopped after writing the schema for the ember-rooms booking tables.\nThe migration is not written yet and nothing is committed.",
+    "model_text": [],
+    "notes": [
+     "every draft failed the faithfulness gate: the plain excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T46",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "git: kept docs/runbook.md (+14 -0); reverted config/limiter.yaml\nThe rollout of the new rate limiter in bolt-proxy hit a bug under load, so I rolled it back to the previous release.\nFailed: p99 latency 4200 ms after rollout\nFailed: rollback to release 41 done",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T47",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Could you confirm that step 7 (invite a teammate) is still in the product?\nQuestion: Is step 7 (invite a teammate) still in the product?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T48",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"no tests run, but build passes after file removal\"}",
+     "finish": "stop",
+     "latency_ms": 1153,
+     "gen_ms": 1152.7279615402222,
+     "out_tokens": 21,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1431,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages — no tests run, but build passes after file removal\nThe build still passes; I haven't run the 120-test suite.",
+    "model_text": [
+     "no tests run, but build passes after file removal"
+    ],
+    "notes": [],
+    "line": "Finished step 5 of 5 of the cleanup in rowan-store: removed three dead files and two unused packages — no tests run, but build passes after file removal",
+    "why": "no tests run, but build passes after file removal"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T49",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"makes uploads more reliable after flaky timing\"}",
+     "finish": "stop",
+     "latency_ms": 1000,
+     "gen_ms": 999.9359846115112,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1415,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added exponential backoff to the upload client in sand-sync — makes uploads more reliable after flaky timing",
+    "model_text": [
+     "makes uploads more reliable after flaky timing"
+    ],
+    "notes": [],
+    "line": "Added exponential backoff to the upload client in sand-sync — makes uploads more reliable after flaky timing",
+    "why": "makes uploads more reliable after flaky timing"
+   }
+  },
+  {
+   "corpus": "turns8",
+   "job": "feed_why",
+   "setting": "main",
+   "id": "V8T50",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "why",
+     "attempt": 0,
+     "text": "{\"why\": \"confidential data now masked, rotation needed\"}",
+     "finish": "stop",
+     "latency_ms": 1037,
+     "gen_ms": 1037.2910499572754,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1420,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder — confidential data now masked, rotation needed",
+    "model_text": [
+     "confidential data now masked, rotation needed"
+    ],
+    "notes": [],
+    "line": "Found a hard-coded API key in config/sample.env of thorn-bridge and replaced it with a placeholder — confidential data now masked, rotation needed",
+    "why": "confidential data now masked, rotation needed"
+   }
+  }
+ ]
+}

@@ -345,12 +345,20 @@ for (const theme of THEMES) {
       test(`settings sessions — ${cell}`, async ({ page }) => {
         await open(page, theme, density, vp);
         await goTo(page, "Settings");
-        await await settingsPane(page, "Sessions");
+        await settingsPane(page, "Sessions");
         await page.getByTestId("settings-terminal-toggle").click();
         await expect(page.getByLabel("Scrollback")).toBeVisible();
+        // 0.5.2 G5: the open pane is taller than the window, and an
+        // element's capture shows only what its scroller shows (the rest
+        // came out as an empty band, rows cut mid-line): the window grows
+        // to hold the whole pane first (its width, so its layout, kept).
+        const pane = page.getByTestId("settings-sessions");
+        const tall = await pane.evaluate((card) => card.getBoundingClientRect().height);
+        await page.setViewportSize({ width: vp.width, height: Math.max(vp.height, Math.ceil(tall) + 400) });
+        await pane.evaluate((card) => card.scrollIntoView({ block: "start" }));
         await page.mouse.move(0, 0);
         await settle(page);
-        await expect.soft(page.getByTestId("settings-sessions")).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
+        await expect.soft(pane).toHaveScreenshot(`settings-sessions-${cell}.png`, SCREEN);
       });
 
       // AJ-E1504: the ? sheet and the folded inspector.
@@ -556,7 +564,7 @@ for (const theme of THEMES) {
 // its accessible name — a colour-only change fails even when its pixel
 // diff is small. The fixture holds a session in every status (the ended
 // ones ended today); with ended and quiet ones shown, every session is a
-// row, so every state dot and every Needs you mark the rail draws is
+// row, so every state word and every Needs you mark the rail draws is
 // checked, in AJ-E2104's words.
 const TODAY = {
   ...allStatuses,
@@ -582,11 +590,12 @@ test("status is never colour-only", async ({ page }) => {
     await expect(rail.locator(`[data-instance-id="${session.id}"]`), `${session.id} (${session.status}) is drawn`).toHaveCount(twice.has(session.status) ? 2 : 1);
   }
   const drawn = new Set<string>();
-  const dots = await rail.locator("[data-state-dot]").all();
-  // A row is its button (its name) under the line it draws (the dot and
+  // AJ-E1557: an idle or ended row leads with no mark, so every row is
+  // read by its state's word, and the marks drawn are counted beside it.
+  const lines = await rail.locator("[data-rail-row]").filter({ has: page.getByTestId("state-word") }).all();
+  // A row is its button (its name) under the line it draws (the mark and
   // the words), in one [data-rail-row].
-  for (const dot of dots) {
-    const line = dot.locator("xpath=ancestor::*[@data-rail-row][1]");
+  for (const line of lines) {
     const row = line.locator("[data-rail-item]");
     const id = (await row.getAttribute("data-rail-item")) ?? "a row";
     // Read together until they agree (as in the Project lens below).
@@ -595,7 +604,10 @@ test("status is never colour-only", async ({ page }) => {
       expect(word, `${id}: its state in words`).toMatch(vocabulary);
       await expect(row, `${id}: its name says its state`).toHaveAccessibleName(new RegExp(`^${escape(word)}, `), { timeout: 1_000 });
     }).toPass({ timeout: 10_000 });
-    drawn.add((await dot.getAttribute("data-state-dot"))!);
+    const dot = line.locator("[data-state-dot]");
+    // A need's mark is its level's (an ended row that failed draws L3's ✕).
+    if (await dot.count()) drawn.add((await dot.first().getAttribute("data-level")) ? `level ${await dot.first().getAttribute("data-level")}` : (await dot.first().getAttribute("data-state-dot"))!);
+    else drawn.add(`${await line.getAttribute("data-state")}, no mark`);
   }
   // Needs you: why, in its level's colour and in words, and first in the
   // row's name. D-117: a level's glyph (L3's ✕, a guess's ring) is drawn
@@ -619,12 +631,14 @@ test("status is never colour-only", async ({ page }) => {
   }
   // Not vacuous: every session in the fixture is a row (above; D-47: one
   // that needs you and is still open is in Needs you and in its place, so
-  // it's drawn twice), and every row is one of those checked (a dot or a
-  // Needs you mark); the dots include at least the working and the ended
-  // state.
-  expect(await rail.locator("[data-rail-item]").count(), "every row shows its state").toBe(dots.length + needs.length);
+  // it's drawn twice), and every row is one of those checked (a state's
+  // word or a Needs you mark); working is drawn with its dot, and an ended
+  // row with none (AJ-E1557: no bullet before a session).
+  expect(await rail.locator("[data-rail-item]").count(), "every row shows its state").toBe(lines.length + needs.length);
   expect(needs.length, "Needs you rows").toBeGreaterThan(0);
-  expect([...drawn].sort(), "states drawn as dots").toEqual(expect.arrayContaining(["ended", "working"]));
+  expect([...drawn].sort(), "states drawn").toEqual(expect.arrayContaining(["ended, no mark", "working"]));
+  expect([...drawn], "no idle or ended mark").not.toEqual(expect.arrayContaining(["ended"]));
+  expect([...drawn], "no idle or ended mark").not.toEqual(expect.arrayContaining(["idle"]));
 
   // The Project lens says it the same way (AJ-E2104 Req.3; D-117: the App
   // lens's state marks, no per-state glyph): every state mark has its word

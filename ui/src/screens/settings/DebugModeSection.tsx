@@ -13,6 +13,8 @@ import { errorText } from "../../lib/bridge";
 import { byteSize } from "../../lib/compact";
 import { debugLogClear, debugLogShow, debugModeGet, debugModeSet, type DebugModeInfo } from "../../lib/ipc/report";
 import { PaneSection, SettingRow, SwitchRow } from "./parts";
+import { IconBug } from "../../components/icons-settings";
+import { IconFolderOpen } from "../../components/icons-actions";
 
 const until = (ms: number) => new Date(ms).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
@@ -52,10 +54,10 @@ export function DebugModeSection(): JSX.Element {
       footer="On this computer only, readable by you only. It goes with a bug report only when you choose to send it."
     >
       {info === null ? (
-        <SettingRow title="Keep a detailed log" description={error ?? "Reading…"} testId="debug-loading" />
+        <SettingRow icon={IconBug} title="Keep a detailed log" description={error ?? "Reading…"} testId="debug-loading" />
       ) : (
         <>
-          <SwitchRow
+          <SwitchRow icon={IconBug}
             title="Keep a detailed log"
             description={debugWords(info)}
             checked={info.on}
@@ -64,7 +66,7 @@ export function DebugModeSection(): JSX.Element {
             note={error ?? note}
             noteTone={error ? "warning" : "info"}
           />
-          <SettingRow
+          <SettingRow icon={IconFolderOpen}
             title="The debug log"
             description={
               info.lines > 0

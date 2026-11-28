@@ -1,0 +1,34 @@
+{
+ "family": "apple",
+ "job": "feed_pick3",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V8T28",
+   "attempt": 0,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T28",
+   "attempt": 1,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns8"
+  },
+  {
+   "id": "V8T28",
+   "attempt": 2,
+   "class": "critical",
+   "detector": "outcome_or_caveat",
+   "detail": "gate step 3: caveat: dropped (facts: tests not run; text: not run)",
+   "stage": "caught",
+   "corpus": "turns8"
+  }
+ ]
+}

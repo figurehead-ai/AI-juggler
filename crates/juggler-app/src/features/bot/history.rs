@@ -7,10 +7,12 @@
 use serde::{Deserialize, Serialize};
 
 use super::dto::{
-    BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotRowInfo, BotScope, BotShortcut, BotTally,
-    BotTurnInfo, BotUnknown, BotWritten, BotWrittenPart,
+    BotDetails, BotGeneral, BotLang, BotLooked, BotMemoryInfo, BotOutcome, BotPastReminder,
+    BotRowInfo, BotRowKind, BotScope, BotShortcut, BotTally, BotTurnInfo, BotUnknown, BotWritten,
+    BotWrittenPart,
 };
 use super::world::World;
+use crate::features::ai::run::AiFailure;
 use juggler_core::storage::memory::Turn;
 
 /// What a turn keeps beside its question (the `entities` column).
@@ -47,11 +49,32 @@ pub struct Meta {
     /// "This is wrong" was said about it.
     #[serde(default)]
     pub flagged: bool,
+    /// D-148: a general answer's model (its words are the `shown` column).
+    #[serde(default)]
+    pub general_model: Option<String>,
+    /// The general answer's question was outside AI Juggler.
+    #[serde(default)]
+    pub off_topic: bool,
+    /// AJ-E3825: why the engine failed.
+    #[serde(default)]
+    pub failure: Option<AiFailure>,
+    /// AJ-E3825: the answer's details (counts and sizes, no text).
+    #[serde(default)]
+    pub details: Option<BotDetails>,
+    /// 0.5.2 G30: the turn drafted a reminder; the id of the one set from
+    /// it once the user sets it (no words: the reminder keeps its own).
+    #[serde(default)]
+    pub remind: Option<BotPastReminder>,
 }
 
 /// A row as kept: no agent words, no then/now marks.
 #[must_use]
 pub fn kept_row(row: &BotRowInfo) -> BotRowInfo {
+    if row.kind == BotRowKind::Memory {
+        // A memory keeps only its random id with the turn: its words are
+        // read again when shown, so a forget leaves none behind.
+        return super::world::empty_row(BotRowKind::Memory, row.id.clone(), String::new());
+    }
     BotRowInfo {
         quote: None,
         then_state: None,
@@ -94,6 +117,18 @@ pub fn turn_info(
         .into_iter()
         .map(|then| match world {
             None => then,
+            Some(_) if then.kind == BotRowKind::Memory => {
+                match memory(&format!("subject:{}", then.id)) {
+                    Some(info) => BotRowInfo {
+                        title: info.text,
+                        about: info.about,
+                        memory_key: Some(info.key),
+                        at_ms: Some(info.at_ms),
+                        ..then
+                    },
+                    None => BotRowInfo { gone: true, ..then },
+                }
+            }
             Some(world) => match world.find(then.kind, &then.id) {
                 Some(now) => BotRowInfo {
                     then_state: then.state.filter(|was| Some(*was) != now.state),
@@ -116,6 +151,14 @@ pub fn turn_info(
                 .collect(),
             model_name: model.clone(),
             on_this_mac: true,
+        }),
+        _ => None,
+    };
+    let general = match (&turn.shown, &meta.general_model) {
+        (Some(shown), Some(model)) if !turn.redacted => Some(BotGeneral {
+            text: shown.clone(),
+            model_name: model.clone(),
+            off_topic: meta.off_topic,
         }),
         _ => None,
     };
@@ -150,5 +193,10 @@ pub fn turn_info(
         live: world.is_some(),
         redacted: turn.redacted,
         flagged: meta.flagged,
+        general,
+        failure: meta.failure,
+        details: meta.details,
+        watch_draft: None,
+        past_reminder: meta.remind,
     }
 }

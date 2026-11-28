@@ -1,4 +1,4 @@
-<!-- captures: b3b8ad3c6530 -->
+<!-- captures: 8fc73fe5693d -->
 # 84-notifications: Settings › Notifications, which alerts reach macOS, quiet hours and the digest's accounts
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -17,3 +17,37 @@ The alerts card stands a clear step off the page in both themes (a lighter card 
 Re-captured against 0.5.1: checked boxes read as accent fills against empty ones and the section is one tonal card with no outline. The copy and order of the choices did not change.
 
 Nothing broken (checked both themes).
+
+## 0.5.2 (2026-11-25, AJ-E1558, Opus side-by-side, both themes)
+
+Re-captured on the host from a clean export of HEAD (the shared tree held another agent's unbuilt Bot work), both themes, every changed capture diffed (changed-pixel count and box) and looked at old beside new in contact sheets; the ones named below also opened at full size. Mock-ups: `d126-rich-ui/kit-dark.png` and `notif-dark.png` (rich mode), `calm-ui/mock-r2-*.png` (the rail). Captures: settings-chosen and settings-off at 1280×800, both themes (old beside new in the contact sheet).
+
+**What changed.** The eleven kinds were bare checkboxes with words; each is now the kit's switch row with its icon (asks you, looks stuck, limit, finished, left running, low, crash, room again, This Mac, watches, digest), the chosen ones' switches in the accent and their chips lit; When to tell me and quiet hours are rows with chips; the digest's accounts are check rows. The tile column beside it is the accent's soft step.
+
+**Judged.** Dark and light side by side: in dark the chips and the accent's soft step read clearly against the cards; in light the soft step is paler but the lit chip's violet glyph, the switch's accent fill and the chosen fill still mark what is on (two cues each, never colour alone). No outline came back (PAT-SURF): separation is the card's tone and spacing. Text keeps the type roles (14 px titles, 13 px help), AA in both themes (the gate's contrast spec). Matches `d126-rich-ui/notif-*.png` closely (icon chip, title, one line, switch).
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 4 | Mode | 4 | Rich, the kit's dials: icons on every row and choice, the accent for on and chosen. |
+| 6 | Areas | 4 | Tone, not outlines; no box in a box. |
+| 7 | Colour | 4 | The accent means on, chosen, recommended or navigation; status keeps its hue (amber words on neutral, never a fill). |
+| 14 | Consistency | 4 | The kit's own pieces (RowChip, the switch, ChoiceOption cards, SELECTED_FILL, Modal's icon tile). |
+| 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
+
+The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+## 0.5.2 AJ-E2027 (2026-11-26, Opus): Watches and reminders
+
+Re-captured on the host from a clean export of HEAD (`notifications.spec.ts`); the four captures changed only in the last row (6,809–6,825 pixels, box 670×51 at its foot), each opened, the dark one cropped at full size.
+
+**What changed.** The watches kind is now "Watches and reminders", its line "A watch you set was met, or a reminder came due. Quiet hours hold a watch unless it is set to tell you even then; a reminder comes at the time you picked." A reminder is told through the same kind, so the one switch turns both off, and the words say so.
+
+**Judged.** The line wraps to two lines in the 1280 frame (the other rows take one); it stays in the hint's role and colour, and the switch stays centred on the row. The eye icon still fits watches; a reminder has no separate kind to need its own.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 12 | Words | 4 | Plain, and says the one difference (quiet hours) instead of hiding it. |
+| 13 | States | 4 | On and off as before, both themes. |
+| 19 | Rich-mode colour | 4 | Unchanged: every row its icon chip, on in the accent's soft step, the switch's fill. |
+
+The other lines are as the 0.5.1 section scored them (lowest 4).

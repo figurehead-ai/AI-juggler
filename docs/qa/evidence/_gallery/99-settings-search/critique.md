@@ -1,4 +1,4 @@
-<!-- captures: 08c737c6a86f -->
+<!-- captures: 0e28f7d4add7 -->
 <!-- captures: pending -->
 # 99-settings-search: Settings' search
 
@@ -46,3 +46,35 @@ Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail'
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: The lens switch's chosen segment is a solid fill. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-25, AJ-E1558, Opus side-by-side, both themes)
+
+Re-captured on the host from a clean export of HEAD (the shared tree held another agent's unbuilt Bot work), both themes, every changed capture diffed (changed-pixel count and box) and looked at old beside new in contact sheets; the ones named below also opened at full size. Mock-ups: `d126-rich-ui/kit-dark.png` and `notif-dark.png` (rich mode), `calm-ui/mock-r2-*.png` (the rail). Captures: opened, results and none at 1024×700 and 1280×800, both themes.
+
+**What changed.** The panes and rows the search lands on wear the rich rows (chips, the kit's switch); the sidebar tiles are the accent's soft step and the dimmed ones still fade their tile.
+
+**Judged.** Dark and light side by side: in dark the chips and the accent's soft step read clearly against the cards; in light the soft step is paler but the lit chip's violet glyph, the switch's accent fill and the chosen fill still mark what is on (two cues each, never colour alone). No outline came back (PAT-SURF): separation is the card's tone and spacing. Text keeps the type roles (14 px titles, 13 px help), AA in both themes (the gate's contrast spec). Kit rows.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 4 | Mode | 4 | Rich, the kit's dials: icons on every row and choice, the accent for on and chosen. |
+| 6 | Areas | 4 | Tone, not outlines; no box in a box. |
+| 7 | Colour | 4 | The accent means on, chosen, recommended or navigation; status keeps its hue (amber words on neutral, never a fill). |
+| 14 | Consistency | 4 | The kit's own pieces (RowChip, the switch, ChoiceOption cards, SELECTED_FILL, Modal's icon tile). |
+| 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
+
+The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+## 0.5.2 G52 (2026-11-27, Opus, both themes)
+
+Re-captured from the worktree at HEAD (ea6bda3e2) with the family's own spec; each frame compared pixel by pixel with the one before, and every changed frame opened by eye, light and dark side by side. Only the four `opened-*` frames changed ("quiet" opened on Notifications with More unfolded); `results-*` and `none-*` are unchanged.
+
+**What changed.** More's line read "quiet hours 22:00–07:00" and the From/to pickers "22:00" and "07:00". They now read "quiet hours 10:00 PM–7:00 AM" and "10:00 PM" / "7:00 AM", by the system's clock (G52, ea6bda3e2); the pickers' options are written the same way. The Agent digest row's help line under it is longer than in the last frames ("…and a minute after one finishes or needs you…", from earlier 0.5.2 work), so it wraps to three lines at 1280.
+
+**Judged.** The wider picker values fit their pills and the row; the quiet-hours card keeps its soft accent fill and moon chip; nothing clips at 1024.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 11 | Plain words | 4 | The times read as the system writes them. |
+| 14 | Consistency | 4 | Same time rule as the Watches form, Bot's cards and the bell. |
+| 19 | Rich-mode colour | 4 | Unchanged: the quiet-hours row in the accent's soft step with its icon chip, rows with icons, checkboxes in the accent; no bright edge. |

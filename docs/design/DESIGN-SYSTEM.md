@@ -475,6 +475,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 - **LST-5.** Selected rows wear `SELECTED_FILL` and semibold ink; focus is the accent ring, never the same look as selection. (D-117 point 2, `selected.ts`)
 - **LST-6.** Each row's accessible name is its full sentence ("payments-api, main, 2 running, active 12 min ago"); state is in text. (DEEP §4.2)
 - **LST-7.** Every visible name of an Account, App, Project, Session, Pool, Task or Mac opens its page. (PRIN §12)
+- **LST-8.** A rail row leads with a state mark only for a state worth a glance: working (the static live dot), needs you (its level's mark), done to review (✓) and an error (L3's mark). An idle or ended row leads with nothing; its gutter stays, empty, so every title starts in the same place and none moves when a mark appears. The state's word still ends the row and leads its name. A count of a session's subagents is `IconHelpers` (a small cluster of agents) and the number, never the git branch (ICN-1). (AJ-E1557, the 0.5.1 Nightly: "a dot before every row reads as bullets"; `hasStateMark` in `lib/attention.ts`)
 
 ### 4.11 Card
 
@@ -538,6 +539,7 @@ Each component lists its anatomy, when to use it, do's and don'ts, accessibility
 - **Segmented** (`controls/Segmented.tsx`): 2–4 short options; one look app-wide, a `control`-filled track with no edge, the chosen segment `SELECTED_STRONG` (a solid neutral fill 3:1 off the track and semibold words in its ink, WCAG 1.4.11; 0.5.1 F53). (KIT, D-117, PAT-SURF)
 - **Disclosure** (`controls/Disclosure.tsx`): a button with a chevron, never `<details>`; its closed label summarises what is inside. (D-57, AJ-E3011)
 - **WhyTip / WhyButton** (`WhyTip.tsx`): a greyed control stays focusable, says `aria-disabled`, and shows its reason on hover and focus. (rc19/rc21 walks)
+- **Tip** (`TipLayer`, `useTip` in `WhyTip.tsx`; `TipButton` in `NameTip.tsx`): the one tooltip. Drawn over the page (portalled, the popover layer, so no column clips it and nothing in a panel is drawn over it), `TIP_LOOK`'s overlay tone, its words wrapping to its width, a long word broken, never ellipsised or clamped, and kept 8 px inside the window once drawn. A chart's tip (`charts/ChartCard` `Tooltip`) wraps its names the same way. `tests/visual/tooltip-overflow.spec.ts` (the accessibility gate) opens every tip in the gallery states and fails on cut words, words past its edge or anything over it. (AJ-E1556: Bot's New topic tip read "Nothing is do…" with a count over it)
 - **ToolLogo** (`ToolLogo.tsx`): the app's own icon read at run time; a neutral letter tile only when no icon exists and the owner allows none. (D-38, KIT)
 - **ScrollEdge / MoreBelow**: the top shadow and bottom fade of any scroller under a fixed head. (0.4.1)
 - **StatTile, ChartCard, charts** (`components/charts/`): hand-built SVG, table fallback, colour per Account. (ADR-0021, M:readability-and-visuals)
@@ -727,6 +729,7 @@ The soft and the text colours are the AA tokens of §3.1 (4.5:1 on every surface
 - **PAT-COLOR-5.** Colour never alone: every status hue goes with its word or glyph (TAG-3, WCAG 1.4.1).
 - **PAT-COLOR-6.** A change to the identity slots or the semantic set re-runs the palette validator in both themes; every FAIL is fixed before it ships.
 - **PAT-COLOR-7.** `scripts/design_tokens_lint.py` fails a raw palette colour (`raw-hue`), a grayscale or saturate filter (`grayscale`), and a new identity-colour use outside the marks (`identity`); its allowlist only shrinks.
+- **PAT-COLOR-8.** Making and editing surfaces are never monochrome (AJ-E1558, the 0.5.1 Nightly's "monochrome hell"): every Settings section, edit or create sheet and picker leads each row and option with its icon (the kit's 30 px `RowChip`, `RowLead` for an App's logo), on and chosen take the accent's soft step, a chosen card, line or menu value is a fill (`SELECTED_CARD`, `SELECTED_FILL`), and a sheet's header carries its icon tile (`Modal icon`). `scripts/rich_mode_lint.py` (verify-static) fails a component that builds a choice from neutral tokens alone; its allowlist only shrinks. The critique checklist scores it as line 19, and a 3 blocks (VALIDATION §5).
 
 ## 6. Content rules
 

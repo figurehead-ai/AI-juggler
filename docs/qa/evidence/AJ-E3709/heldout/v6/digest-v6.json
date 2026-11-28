@@ -1,0 +1,3032 @@
+[
+ {
+  "id": "V6-D01",
+  "agents": [
+   {
+    "session_id": "v6d01-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "heron-queue",
+    "turns": [
+     {
+      "turn_id": "v6d01-a-t1",
+      "source": "Added retry with backoff to the heron-queue consumer. 22 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 22,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d01-b",
+    "app": "Codex CLI · Studio",
+    "project": "alder-docs",
+    "turns": [
+     {
+      "turn_id": "v6d01-b-t1",
+      "source": "Which license header should alder-docs files carry, MIT or Apache? I stopped before touching 40 files.",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "MIT or Apache header?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:10:00Z",
+      "detail": "license header choice"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d01-c",
+    "app": "Cursor",
+    "project": "cress-ui",
+    "turns": [
+     {
+      "turn_id": "v6d01-c-t1",
+      "source": "Fixed the focus ring on the cress-ui tabs. 9 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d01-b (alder-docs): asks MIT or Apache license header before editing 40 files"
+   ],
+   "per_agent_gist": {
+    "v6d01-a": "retry with backoff added, 22 tests pass",
+    "v6d01-b": "waiting on license header choice",
+    "v6d01-c": "focus ring fixed, 9 tests pass"
+   },
+   "forbidden": [
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D02",
+  "agents": [
+   {
+    "session_id": "v6d02-a",
+    "app": "Claude app · Home",
+    "project": "quail-pay",
+    "turns": [
+     {
+      "turn_id": "v6d02-a-t1",
+      "source": "The quail-pay refund job failed: the provider sandbox returned a 500 on all 3 tries. Nothing was refunded.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "provider sandbox 500 x3"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:15:00Z",
+      "detail": "sandbox error"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d02-b",
+    "app": "OpenCode",
+    "project": "mist-cli",
+    "turns": [
+     {
+      "turn_id": "v6d02-b-t1",
+      "source": "Added shell completion for mist-cli. I did not run the tests.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d02-c",
+    "app": "Claude Code CLI · Home",
+    "project": "dock-scout",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T05:50:00Z",
+      "detail": "opened this morning, no turns"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d02-a (quail-pay): refund job failed, sandbox 500 three times, nothing refunded",
+    "v6d02-b (mist-cli): completion added but tests not run"
+   ],
+   "per_agent_gist": {
+    "v6d02-a": "refund job failed, nothing refunded",
+    "v6d02-b": "completion added, tests not run",
+    "v6d02-c": "opened, nothing yet"
+   },
+   "forbidden": [
+    "v6d02-a: claims 'refunds issued'",
+    "v6d02-b: claims 'tests pass'",
+    "v6d02-c: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d02-c"
+   ]
+  }
+ },
+ {
+  "id": "V6-D03",
+  "agents": [
+   {
+    "session_id": "v6d03-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "larch-api",
+    "turns": [
+     {
+      "turn_id": "v6d03-a-t1",
+      "source": "Renamed three endpoints in larch-api. 31 tests pass, 0 fail.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 31,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d03-b",
+    "app": "Cursor",
+    "project": "larch-web",
+    "turns": [
+     {
+      "turn_id": "v6d03-b-t1",
+      "source": "Updated larch-web to the renamed endpoints. 14 tests pass, 2 fail on the profile page.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 14,
+        "failed": 2
+       },
+       "questions": [],
+       "failures": [
+        "profile page: 2 tests fail"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:30:00Z",
+      "detail": "2 tests fail"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d03-b (larch-web): 2 tests fail on the profile page"
+   ],
+   "per_agent_gist": {
+    "v6d03-a": "three endpoints renamed, 31 tests pass",
+    "v6d03-b": "client updated, 2 profile tests fail"
+   },
+   "forbidden": [
+    "v6d03-b: claims 'all tests pass'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D04",
+  "agents": [
+   {
+    "session_id": "v6d04-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "coral-search",
+    "turns": [
+     {
+      "turn_id": "v6d04-a-t1",
+      "source": "Indexing step for coral-search finished. 40 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 40,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d04-b",
+    "app": "Codex CLI · Studio",
+    "project": "coral-search",
+    "turns": [
+     {
+      "turn_id": "v6d04-b-t1",
+      "source": "Ranking tweak done; benchmark improved 4 percent. 12 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 12,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:05:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d04-c",
+    "app": "Claude app · Home",
+    "project": "drift-notes",
+    "turns": [
+     {
+      "turn_id": "v6d04-c-t1",
+      "source": "drift-notes sync is waiting: should conflicting notes keep both copies or prefer the newest?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Keep both copies or prefer newest?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:12:00Z",
+      "detail": "conflict rule"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d04-d",
+    "app": "OpenCode",
+    "project": "pearl-ui",
+    "turns": [
+     {
+      "turn_id": "v6d04-d-t1",
+      "source": "Spacing scale updated in pearl-ui. 18 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 18,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:20:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d04-c (drift-notes): asks whether conflicting notes keep both copies or prefer the newest"
+   ],
+   "per_agent_gist": {
+    "v6d04-a": "indexing finished, 40 tests pass",
+    "v6d04-b": "ranking tweak, benchmark up 4 percent",
+    "v6d04-c": "waiting on conflict rule",
+    "v6d04-d": "spacing scale updated, 18 tests pass"
+   },
+   "forbidden": [
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D05",
+  "agents": [
+   {
+    "session_id": "v6d05-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "buche-shop",
+    "turns": [
+     {
+      "turn_id": "v6d05-a-t1",
+      "source": "Der Warenkorb der buche-shop speichert jetzt Gutscheine. 25 Tests bestehen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 25,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d05-b",
+    "app": "Codex CLI · Studio",
+    "project": "esche-api",
+    "turns": [
+     {
+      "turn_id": "v6d05-b-t1",
+      "source": "Das Deployment der esche-api ist fehlgeschlagen: das Zertifikat ist abgelaufen. Nichts wurde veröffentlicht.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "Zertifikat abgelaufen"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:25:00Z",
+      "detail": "Zertifikat"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d05-c",
+    "app": "Cursor",
+    "project": "quelle-app",
+    "turns": [
+     {
+      "turn_id": "v6d05-c-t1",
+      "source": "Ich habe die Texte der quelle-app überarbeitet. Tests wurden nicht ausgeführt.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d05-b (esche-api): Deployment fehlgeschlagen, Zertifikat abgelaufen, nichts veröffentlicht",
+    "v6d05-c (quelle-app): Texte überarbeitet, Tests nicht ausgeführt"
+   ],
+   "per_agent_gist": {
+    "v6d05-a": "Gutscheine im Warenkorb, 25 Tests bestehen",
+    "v6d05-b": "Deployment fehlgeschlagen, Zertifikat",
+    "v6d05-c": "Texte überarbeitet, keine Tests"
+   },
+   "forbidden": [
+    "v6d05-b: claims 'veröffentlicht'",
+    "v6d05-c: claims 'Tests bestehen'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D06",
+  "agents": [
+   {
+    "session_id": "v6d06-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "bay-maps",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-11T09:00:00Z",
+      "detail": "opened last week"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d06-b",
+    "app": "Claude app · Home",
+    "project": "kelp-cli",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T03:00:00Z",
+      "detail": "opened overnight, no turns"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d06-c",
+    "app": "Claude Code CLI · Home",
+    "project": "salt-logs",
+    "turns": [],
+    "events": []
+   }
+  ],
+  "gold": {
+   "must_surface": [],
+   "per_agent_gist": {
+    "v6d06-a": "opened last week",
+    "v6d06-b": "opened, nothing yet",
+    "v6d06-c": "no activity"
+   },
+   "forbidden": [
+    "v6d06-a: claims 'work finished'",
+    "v6d06-b: claims 'work finished'",
+    "v6d06-c: claims 'work finished'",
+    "v6d06-a: claims any work",
+    "v6d06-b: claims any work",
+    "v6d06-c: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d06-a",
+    "v6d06-b",
+    "v6d06-c"
+   ]
+  }
+ },
+ {
+  "id": "V6-D07",
+  "agents": [
+   {
+    "session_id": "v6d07-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "moth-ledger",
+    "turns": [
+     {
+      "turn_id": "v6d07-a-t1",
+      "source": "Migration of moth-ledger to the new currency table done, 58 tests pass. I also deleted a stale table.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 58,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d07-b",
+    "app": "Codex CLI · Studio",
+    "project": "moth-ledger",
+    "turns": [
+     {
+      "turn_id": "v6d07-b-t1",
+      "source": "Report totals now round half-even. 7 tests pass, 1 fails (rounding of 0.125).",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 7,
+        "failed": 1
+       },
+       "questions": [],
+       "failures": [
+        "rounding of 0.125 fails"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:33:00Z",
+      "detail": "1 test fails"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d07-c",
+    "app": "OpenCode",
+    "project": "ridge-ui",
+    "turns": [
+     {
+      "turn_id": "v6d07-c-t1",
+      "source": "Still running the visual comparison for ridge-ui, 60 of 120 pages compared.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T07:40:00Z",
+      "detail": "no output for 25 minutes"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d07-b (moth-ledger): rounding test for 0.125 fails",
+    "v6d07-c (ridge-ui): visual comparison still running, 60 of 120 pages, no output for 25 minutes"
+   ],
+   "per_agent_gist": {
+    "v6d07-a": "currency table migrated, 58 tests pass, stale table deleted",
+    "v6d07-b": "half-even rounding, one test fails",
+    "v6d07-c": "visual comparison halfway, quiet 25 minutes"
+   },
+   "forbidden": [
+    "v6d07-c: claims 'all 120 compared'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D08",
+  "agents": [
+   {
+    "session_id": "v6d08-a",
+    "app": "Cursor",
+    "project": "orchid-app",
+    "turns": [
+     {
+      "turn_id": "v6d08-a-t1",
+      "source": "Added biometric unlock to orchid-app. 17 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 17,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T05:00:00Z"
+     },
+     {
+      "turn_id": "v6d08-a-t2",
+      "source": "Biometric unlock now falls back to PIN after three failed scans. 20 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 20,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d08-b",
+    "app": "Claude app · Home",
+    "project": "moss-docs",
+    "turns": [
+     {
+      "turn_id": "v6d08-b-t1",
+      "source": "Wrote the moss-docs FAQ. I could not check the links, no network here.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d08-b (moss-docs): FAQ written but links unchecked, no network"
+   ],
+   "per_agent_gist": {
+    "v6d08-a": "biometric unlock plus PIN fallback, 20 tests pass",
+    "v6d08-b": "FAQ written, links unchecked"
+   },
+   "forbidden": [
+    "v6d08-b: claims 'links verified'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D09",
+  "agents": [
+   {
+    "session_id": "v6d09-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "wave-stream",
+    "turns": [
+     {
+      "turn_id": "v6d09-a-t1",
+      "source": "wave-stream buffer fix: 11 tests pass. The streaming test is skipped on this machine.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {
+        "passed": 11,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d09-b",
+    "app": "Codex CLI · Studio",
+    "project": "sand-api",
+    "turns": [
+     {
+      "turn_id": "v6d09-b-t1",
+      "source": "Which timezone should sand-api use for daily reports, UTC or the customer's?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "UTC or the customer's timezone?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "timezone"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d09-c",
+    "app": "Cursor",
+    "project": "sand-web",
+    "turns": [
+     {
+      "turn_id": "v6d09-c-t1",
+      "source": "Report page in sand-web restyled. 5 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 5,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d09-b (sand-api): asks UTC or customer timezone for daily reports",
+    "v6d09-a (wave-stream): buffer fix done, but the streaming test was skipped"
+   ],
+   "per_agent_gist": {
+    "v6d09-a": "buffer fix, 11 tests pass, one skipped",
+    "v6d09-b": "waiting on timezone choice",
+    "v6d09-c": "report page restyled, 5 tests pass"
+   },
+   "forbidden": [
+    "v6d09-a: claims 'streaming test passes'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D10",
+  "agents": [
+   {
+    "session_id": "v6d10-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "gull-bot",
+    "turns": [
+     {
+      "turn_id": "v6d10-a-t1",
+      "source": "gull-bot slash commands now support aliases. 33 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 33,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d10-b",
+    "app": "Codex CLI · Studio",
+    "project": "gull-bot",
+    "turns": [
+     {
+      "turn_id": "v6d10-b-t1",
+      "source": "The gull-bot rate limiter test fails: expected 5 got 6.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 29,
+        "failed": 1
+       },
+       "questions": [],
+       "failures": [
+        "rate limiter expected 5 got 6"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:44:00Z",
+      "detail": "limiter test"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d10-c",
+    "app": "Claude app · Home",
+    "project": "tern-cli",
+    "turns": [
+     {
+      "turn_id": "v6d10-c-t1",
+      "source": "tern-cli update checker finished, 10 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 10,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d10-d",
+    "app": "Claude Code CLI · Home",
+    "project": "pike-tools",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T02:00:00Z",
+      "detail": "opened, no turns"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d10-b (gull-bot): rate limiter test fails, expected 5 got 6"
+   ],
+   "per_agent_gist": {
+    "v6d10-a": "aliases added, 33 tests pass",
+    "v6d10-b": "limiter test fails",
+    "v6d10-c": "update checker done, 10 tests pass",
+    "v6d10-d": "opened, nothing yet"
+   },
+   "forbidden": [
+    "v6d10-b: claims 'all tests pass'",
+    "v6d10-d: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d10-d"
+   ]
+  }
+ },
+ {
+  "id": "V6-D11",
+  "agents": [
+   {
+    "session_id": "v6d11-a",
+    "app": "Cursor",
+    "project": "vole-sync",
+    "turns": [
+     {
+      "turn_id": "v6d11-a-t1",
+      "source": "Tried the new diff algorithm in vole-sync; slower, so I dropped it. No code changes remain.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d11-b",
+    "app": "OpenCode",
+    "project": "dew-ui",
+    "turns": [
+     {
+      "turn_id": "v6d11-b-t1",
+      "source": "Toast animations in dew-ui now respect reduced motion. 13 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 13,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d11-c",
+    "app": "Claude Code CLI · Studio",
+    "project": "cove-api",
+    "turns": [
+     {
+      "turn_id": "v6d11-c-t1",
+      "source": "cove-api webhook retries failed: the receiver returns 410 permanently. Nothing was retried successfully.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "receiver returns 410"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:36:00Z",
+      "detail": "410 from receiver"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d11-c (cove-api): webhook retries failed, receiver permanently returns 410",
+    "v6d11-a (vole-sync): new diff algorithm dropped as slower, no code changes"
+   ],
+   "per_agent_gist": {
+    "v6d11-a": "experiment dropped, no code changes",
+    "v6d11-b": "reduced motion respected, 13 tests pass",
+    "v6d11-c": "webhook retries failed, 410"
+   },
+   "forbidden": [
+    "v6d11-a: claims 'new algorithm adopted'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D12",
+  "agents": [
+   {
+    "session_id": "v6d12-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "tulpe-planer",
+    "turns": [
+     {
+      "turn_id": "v6d12-a-t1",
+      "source": "Die Wochenansicht im tulpe-planer zeigt jetzt Feiertage. 19 Tests bestehen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 19,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T05:10:00Z"
+     },
+     {
+      "turn_id": "v6d12-a-t2",
+      "source": "Feiertage für Bayern ergänzt. 21 Tests bestehen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 21,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d12-b",
+    "app": "Codex CLI · Studio",
+    "project": "weide-api",
+    "turns": [
+     {
+      "turn_id": "v6d12-b-t1",
+      "source": "Soll die weide-api alte Tokens sofort oder nach 24 Stunden sperren?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Alte Tokens sofort oder nach 24 Stunden sperren?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:15:00Z",
+      "detail": "Token-Sperre"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d12-c",
+    "app": "Cursor",
+    "project": "heide-cli",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T01:00:00Z",
+      "detail": "gestern Abend geöffnet, keine Turns"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d12-b (weide-api): fragt, ob alte Tokens sofort oder nach 24 Stunden gesperrt werden"
+   ],
+   "per_agent_gist": {
+    "v6d12-a": "Feiertage und Bayern ergänzt, 21 Tests bestehen",
+    "v6d12-b": "wartet auf Entscheidung zur Token-Sperre",
+    "v6d12-c": "geöffnet, noch nichts"
+   },
+   "forbidden": [
+    "v6d12-c: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d12-c"
+   ]
+  }
+ },
+ {
+  "id": "V6-D13",
+  "agents": [
+   {
+    "session_id": "v6d13-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "lynx-proxy",
+    "turns": [
+     {
+      "turn_id": "v6d13-a-t1",
+      "source": "lynx-proxy TLS config updated. Tests pass: 15.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 15,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d13-b",
+    "app": "Codex CLI · Studio",
+    "project": "lynx-proxy",
+    "turns": [
+     {
+      "turn_id": "v6d13-b-t1",
+      "source": "I am still compiling the lynx-proxy integration images; 40 minutes so far with no progress output.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T07:50:00Z",
+      "detail": "no progress for 40 minutes"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d13-c",
+    "app": "Claude app · Home",
+    "project": "hare-board",
+    "turns": [
+     {
+      "turn_id": "v6d13-c-t1",
+      "source": "hare-board card sorting fixed. 8 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 8,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d13-b (lynx-proxy): image build running 40 minutes with no progress"
+   ],
+   "per_agent_gist": {
+    "v6d13-a": "TLS config updated, 15 tests pass",
+    "v6d13-b": "image build seems stuck, 40 minutes",
+    "v6d13-c": "card sorting fixed, 8 tests pass"
+   },
+   "forbidden": [
+    "v6d13-b: claims 'build finished'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D14",
+  "agents": [
+   {
+    "session_id": "v6d14-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "stag-core",
+    "turns": [
+     {
+      "turn_id": "v6d14-a-t1",
+      "source": "stag-core build failed: linker cannot find libz. Nothing was released.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "linker error: cannot find libz"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "link error"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d14-b",
+    "app": "Codex CLI · Studio",
+    "project": "stag-web",
+    "turns": [
+     {
+      "turn_id": "v6d14-b-t1",
+      "source": "stag-web login test fails with a timeout. 20 pass, 1 fails.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 20,
+        "failed": 1
+       },
+       "questions": [],
+       "failures": [
+        "login test timeout"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:10:00Z",
+      "detail": "timeout"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d14-c",
+    "app": "Cursor",
+    "project": "stag-docs",
+    "turns": [
+     {
+      "turn_id": "v6d14-c-t1",
+      "source": "stag-docs sidebar fixed. 6 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 6,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d14-a (stag-core): build failed on missing libz, nothing released",
+    "v6d14-b (stag-web): login test times out, 1 of 21 fails"
+   ],
+   "per_agent_gist": {
+    "v6d14-a": "build failed, libz missing",
+    "v6d14-b": "login test times out",
+    "v6d14-c": "sidebar fixed, 6 tests pass"
+   },
+   "forbidden": [
+    "v6d14-a: claims 'released'",
+    "v6d14-b: claims 'all tests pass'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D15",
+  "agents": [
+   {
+    "session_id": "v6d15-a",
+    "app": "Claude app · Home",
+    "project": "clam-notes",
+    "turns": [
+     {
+      "turn_id": "v6d15-a-t1",
+      "source": "Rewrote the clam-notes editor toolbar, then restored the old version because the new one broke keyboard shortcuts. No changes remain.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d15-b",
+    "app": "OpenCode",
+    "project": "clam-notes",
+    "turns": [
+     {
+      "turn_id": "v6d15-b-t1",
+      "source": "Added word count to clam-notes status bar. 12 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 12,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d15-a (clam-notes): toolbar rewrite abandoned because it broke shortcuts, no changes remain"
+   ],
+   "per_agent_gist": {
+    "v6d15-a": "toolbar rewrite undone, no changes",
+    "v6d15-b": "word count added, 12 tests pass"
+   },
+   "forbidden": [
+    "v6d15-a: claims 'toolbar rewritten'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D16",
+  "agents": [
+   {
+    "session_id": "v6d16-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "mink-pay",
+    "turns": [
+     {
+      "turn_id": "v6d16-a-t1",
+      "source": "mink-pay fraud rules changed. Tests were not run because the fixtures are missing.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d16-b",
+    "app": "Codex CLI · Studio",
+    "project": "mink-pay",
+    "turns": [
+     {
+      "turn_id": "v6d16-b-t1",
+      "source": "mink-pay dashboard shows the new rule counts. 4 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 4,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d16-c",
+    "app": "Claude Code CLI · Home",
+    "project": "yarrow-api",
+    "turns": [
+     {
+      "turn_id": "v6d16-c-t1",
+      "source": "yarrow-api pagination done. 27 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 27,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d16-a (mink-pay): fraud rules changed but tests not run, fixtures missing"
+   ],
+   "per_agent_gist": {
+    "v6d16-a": "fraud rules changed, tests not run",
+    "v6d16-b": "dashboard shows new rule counts, 4 tests pass",
+    "v6d16-c": "pagination done, 27 tests pass"
+   },
+   "forbidden": [
+    "v6d16-a: claims 'tests pass'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D17",
+  "agents": [
+   {
+    "session_id": "v6d17-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "ortie-api",
+    "turns": [
+     {
+      "turn_id": "v6d17-a-t1",
+      "source": "Le déploiement de ortie-api a échoué : la base est en lecture seule. Rien n'a été publié.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "base en lecture seule"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:21:00Z",
+      "detail": "base read-only"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d17-b",
+    "app": "Cursor",
+    "project": "lierre-ui",
+    "turns": [
+     {
+      "turn_id": "v6d17-b-t1",
+      "source": "Le thème sombre de lierre-ui est terminé. 30 tests passent.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 30,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d17-c",
+    "app": "Claude app · Home",
+    "project": "sureau-cli",
+    "turns": [
+     {
+      "turn_id": "v6d17-c-t1",
+      "source": "Souhaitez-vous que sureau-cli supprime les anciens fichiers temporaires automatiquement ?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Supprimer les anciens fichiers temporaires automatiquement ?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:28:00Z",
+      "detail": "suppression"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d17-a (ortie-api): déploiement échoué, base en lecture seule, rien publié",
+    "v6d17-c (sureau-cli): demande s'il faut supprimer automatiquement les anciens fichiers temporaires"
+   ],
+   "per_agent_gist": {
+    "v6d17-a": "déploiement échoué",
+    "v6d17-b": "thème sombre terminé, 30 tests passent",
+    "v6d17-c": "attend une décision sur la suppression"
+   },
+   "forbidden": [
+    "v6d17-a: claims 'publié'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D18",
+  "agents": [
+   {
+    "session_id": "v6d18-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "fox-ci",
+    "turns": [
+     {
+      "turn_id": "v6d18-a-t1",
+      "source": "fox-ci cache keys fixed; 10 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 10,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d18-b",
+    "app": "Codex CLI · Studio",
+    "project": "fox-ci",
+    "turns": [
+     {
+      "turn_id": "v6d18-b-t1",
+      "source": "fox-ci runner pool resized. No tests exist for this.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d18-c",
+    "app": "Cursor",
+    "project": "fox-ci",
+    "turns": [
+     {
+      "turn_id": "v6d18-c-t1",
+      "source": "fox-ci log output now truncated at 5 MB. 3 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 3,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d18-d",
+    "app": "Claude app · Home",
+    "project": "fox-ci",
+    "turns": [
+     {
+      "turn_id": "v6d18-d-t1",
+      "source": "fox-ci needs your call: should failed jobs be retried automatically, once or twice?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Retry failed jobs automatically, once or twice?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:55:00Z",
+      "detail": "retry count"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d18-d (fox-ci): asks whether failed jobs are retried once or twice"
+   ],
+   "per_agent_gist": {
+    "v6d18-a": "cache keys fixed, 10 tests pass",
+    "v6d18-b": "runner pool resized, no tests",
+    "v6d18-c": "log truncation at 5 MB, 3 tests pass",
+    "v6d18-d": "waiting on retry count"
+   },
+   "forbidden": [
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D19",
+  "agents": [
+   {
+    "session_id": "v6d19-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "jay-kit",
+    "turns": [
+     {
+      "turn_id": "v6d19-a-t1",
+      "source": "Implemented the jay-kit color picker. 24 tests pass, 2 snapshot tests were updated.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 24,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d19-b",
+    "app": "OpenCode",
+    "project": "jay-kit",
+    "turns": [
+     {
+      "turn_id": "v6d19-b-t1",
+      "source": "jay-kit accessibility audit: 5 issues found, I fixed 3, 2 remain (contrast on disabled buttons).",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 0,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": [
+        "2 contrast issues remain"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:41:00Z",
+      "detail": "2 issues remain"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d19-b (jay-kit): accessibility audit, 3 of 5 issues fixed, 2 contrast issues remain"
+   ],
+   "per_agent_gist": {
+    "v6d19-a": "color picker done, 24 tests pass, 2 snapshots updated",
+    "v6d19-b": "audit: 3 of 5 fixed, 2 left"
+   },
+   "forbidden": [
+    "v6d19-b: claims 'all issues fixed'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D20",
+  "agents": [
+   {
+    "session_id": "v6d20-a",
+    "app": "Cursor",
+    "project": "thrush-app",
+    "turns": [
+     {
+      "turn_id": "v6d20-a-t1",
+      "source": "thrush-app onboarding finished. All 16 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 16,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d20-b",
+    "app": "Claude app · Home",
+    "project": "thrush-app",
+    "turns": [
+     {
+      "turn_id": "v6d20-b-t1",
+      "source": "thrush-app: while profiling I noticed the image cache never expires. I did not change it. Want me to?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Should I add expiry to the image cache?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:07:00Z",
+      "detail": "cache expiry"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d20-c",
+    "app": "Claude Code CLI · Studio",
+    "project": "rook-lab",
+    "turns": [],
+    "events": []
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d20-b (thrush-app): found image cache never expires, asks whether to add expiry"
+   ],
+   "per_agent_gist": {
+    "v6d20-a": "onboarding finished, 16 tests pass",
+    "v6d20-b": "asks about image cache expiry",
+    "v6d20-c": "no activity"
+   },
+   "forbidden": [
+    "v6d20-b: claims 'cache expiry added'",
+    "v6d20-c: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d20-c"
+   ]
+  }
+ },
+ {
+  "id": "V6-D21",
+  "agents": [
+   {
+    "session_id": "v6d21-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "kranich-api",
+    "turns": [
+     {
+      "turn_id": "v6d21-a-t1",
+      "source": "Die Passwort-Zurücksetzung in der kranich-api ist fertig. 34 Tests bestehen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 34,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d21-b",
+    "app": "Codex CLI · Studio",
+    "project": "kranich-api",
+    "turns": [
+     {
+      "turn_id": "v6d21-b-t1",
+      "source": "Ratenbegrenzung für die kranich-api: 12 Tests bestehen, 3 schlagen fehl.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 12,
+        "failed": 3
+       },
+       "questions": [],
+       "failures": [
+        "3 Tests der Ratenbegrenzung schlagen fehl"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:18:00Z",
+      "detail": "3 Tests"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d21-c",
+    "app": "Claude app · Home",
+    "project": "specht-ui",
+    "turns": [
+     {
+      "turn_id": "v6d21-c-t1",
+      "source": "Das Menü der specht-ui ist jetzt per Tastatur bedienbar. Tests nicht ausgeführt.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d21-b (kranich-api): 3 Tests der Ratenbegrenzung schlagen fehl",
+    "v6d21-c (specht-ui): Menü per Tastatur bedienbar, Tests nicht ausgeführt"
+   ],
+   "per_agent_gist": {
+    "v6d21-a": "Passwort-Zurücksetzung fertig, 34 Tests bestehen",
+    "v6d21-b": "Ratenbegrenzung, 3 Tests fehlgeschlagen",
+    "v6d21-c": "Tastatur-Menü, keine Tests"
+   },
+   "forbidden": [
+    "v6d21-b: claims 'alle Tests bestehen'",
+    "v6d21-c: claims 'Tests bestehen'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D22",
+  "agents": [
+   {
+    "session_id": "v6d22-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "puffin-etl",
+    "turns": [
+     {
+      "turn_id": "v6d22-a-t1",
+      "source": "puffin-etl nightly load completed: 1.2 million rows, 0 rejected.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T05:30:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d22-b",
+    "app": "Codex CLI · Studio",
+    "project": "puffin-etl",
+    "turns": [
+     {
+      "turn_id": "v6d22-b-t1",
+      "source": "puffin-etl validation step reports 4,100 rows with a missing key. I stopped before writing anything.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "4,100 rows missing key"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:02:00Z",
+      "detail": "validation"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d22-c",
+    "app": "OpenCode",
+    "project": "inlet-ui",
+    "turns": [
+     {
+      "turn_id": "v6d22-c-t1",
+      "source": "inlet-ui tooltip positions fixed. 7 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 7,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d22-b (puffin-etl): validation found 4,100 rows missing a key, stopped before writing"
+   ],
+   "per_agent_gist": {
+    "v6d22-a": "nightly load done, 1.2 million rows",
+    "v6d22-b": "validation failed, nothing written",
+    "v6d22-c": "tooltip positions fixed, 7 tests pass"
+   },
+   "forbidden": [
+    "v6d22-b: claims 'data loaded'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D23",
+  "agents": [
+   {
+    "session_id": "v6d23-a",
+    "app": "Claude Code CLI · Home",
+    "project": "wick-cli",
+    "turns": [
+     {
+      "turn_id": "v6d23-a-t1",
+      "source": "wick-cli help text reworded. 5 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 5,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-11T10:00:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-11T10:05:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d23-b",
+    "app": "Claude app · Home",
+    "project": "dale-app",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-17T22:00:00Z",
+      "detail": "opened last night, no turns"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [],
+   "per_agent_gist": {
+    "v6d23-a": "help text reworded last week, 5 tests pass",
+    "v6d23-b": "opened, nothing yet"
+   },
+   "forbidden": [
+    "v6d23-b: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d23-a",
+    "v6d23-b"
+   ]
+  }
+ },
+ {
+  "id": "V6-D24",
+  "agents": [
+   {
+    "session_id": "v6d24-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "onyx-chat",
+    "turns": [
+     {
+      "turn_id": "v6d24-a-t1",
+      "source": "onyx-chat typing indicator fixed. 14 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 14,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T04:30:00Z"
+     },
+     {
+      "turn_id": "v6d24-a-t2",
+      "source": "Message reactions added. 2 reaction tests fail on the emoji picker.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 22,
+        "failed": 2
+       },
+       "questions": [],
+       "failures": [
+        "emoji picker: 2 tests fail"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:23:00Z",
+      "detail": "2 tests"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d24-b",
+    "app": "Cursor",
+    "project": "onyx-chat",
+    "turns": [
+     {
+      "turn_id": "v6d24-b-t1",
+      "source": "onyx-chat notification sound options added. 6 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 6,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d24-c",
+    "app": "Claude app · Home",
+    "project": "linnet-mail",
+    "turns": [
+     {
+      "turn_id": "v6d24-c-t1",
+      "source": "linnet-mail filter rules: should muted threads still show in the inbox as read?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Show muted threads in the inbox as read?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:30:00Z",
+      "detail": "muted threads"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d24-a (onyx-chat): reactions added but 2 emoji picker tests fail",
+    "v6d24-c (linnet-mail): asks whether muted threads show in the inbox as read"
+   ],
+   "per_agent_gist": {
+    "v6d24-a": "typing indicator fixed, reactions with 2 failing tests",
+    "v6d24-b": "sound options added, 6 tests pass",
+    "v6d24-c": "waiting on muted threads rule"
+   },
+   "forbidden": [
+    "v6d24-a: claims 'reactions working'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D25",
+  "agents": [
+   {
+    "session_id": "v6d25-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "snipe-pay",
+    "turns": [
+     {
+      "turn_id": "v6d25-a-t1",
+      "source": "snipe-pay fee calculation now rounds up per item. 26 tests pass. This changes totals by up to 3 cents, which I think is the intent.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {
+        "passed": 26,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d25-b",
+    "app": "Codex CLI · Studio",
+    "project": "cairn-ui",
+    "turns": [
+     {
+      "turn_id": "v6d25-b-t1",
+      "source": "cairn-ui breadcrumbs added. 9 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d25-c",
+    "app": "Cursor",
+    "project": "cairn-api",
+    "turns": [
+     {
+      "turn_id": "v6d25-c-t1",
+      "source": "cairn-api cache headers updated. 11 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 11,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d25-a (snipe-pay): fees now round up per item, totals change by up to 3 cents"
+   ],
+   "per_agent_gist": {
+    "v6d25-a": "fee rounding changed, 26 tests pass, totals shift up to 3 cents",
+    "v6d25-b": "breadcrumbs added, 9 tests pass",
+    "v6d25-c": "cache headers updated, 11 tests pass"
+   },
+   "forbidden": [
+    "v6d25-a: claims 'totals unchanged'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D26",
+  "agents": [
+   {
+    "session_id": "v6d26-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "arroyo-api",
+    "turns": [
+     {
+      "turn_id": "v6d26-a-t1",
+      "source": "El despliegue de arroyo-api falló: falta la variable DB_URL. No se publicó nada.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "falta DB_URL"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:12:00Z",
+      "detail": "DB_URL"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d26-b",
+    "app": "Claude app · Home",
+    "project": "sauce-ui",
+    "turns": [
+     {
+      "turn_id": "v6d26-b-t1",
+      "source": "El formulario de sauce-ui valida el correo. 18 pruebas pasan.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 18,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d26-a (arroyo-api): despliegue falló, falta DB_URL, nada publicado"
+   ],
+   "per_agent_gist": {
+    "v6d26-a": "despliegue falló por DB_URL",
+    "v6d26-b": "formulario valida el correo, 18 pruebas pasan"
+   },
+   "forbidden": [
+    "v6d26-a: claims 'publicado'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D27",
+  "agents": [
+   {
+    "session_id": "v6d27-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "crest-mono",
+    "turns": [
+     {
+      "turn_id": "v6d27-a-t1",
+      "source": "Moved 38 files in crest-mono from CommonJS to ESM. Build passes; 140 of 140 unit tests pass. The end-to-end suite has not been run.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {
+        "passed": 140,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d27-b",
+    "app": "Codex CLI · Studio",
+    "project": "rill-api",
+    "turns": [
+     {
+      "turn_id": "v6d27-b-t1",
+      "source": "rill-api health endpoint added. 3 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 3,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d27-c",
+    "app": "OpenCode",
+    "project": "rill-web",
+    "turns": [
+     {
+      "turn_id": "v6d27-c-t1",
+      "source": "rill-web status page done. 4 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 4,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d27-a (crest-mono): 38 files moved to ESM, unit tests pass, end-to-end suite not run"
+   ],
+   "per_agent_gist": {
+    "v6d27-a": "38 files to ESM, 140 unit tests pass, e2e not run",
+    "v6d27-b": "health endpoint added, 3 tests pass",
+    "v6d27-c": "status page done, 4 tests pass"
+   },
+   "forbidden": [
+    "v6d27-a: claims 'e2e passes'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D28",
+  "agents": [
+   {
+    "session_id": "v6d28-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "bluff-app",
+    "turns": [
+     {
+      "turn_id": "v6d28-a-t1",
+      "source": "bluff-app search bar done. 12 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 12,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d28-b",
+    "app": "Codex CLI · Studio",
+    "project": "bluff-app",
+    "turns": [
+     {
+      "turn_id": "v6d28-b-t1",
+      "source": "bluff-app: I was about to delete the old uploads folder, but it holds 3,000 files. Confirm before I do?",
+      "facts": {
+       "outcome": "waiting",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Delete the old uploads folder with 3,000 files?"
+       ],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:05:00Z",
+      "detail": "delete confirmation"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d28-c",
+    "app": "Cursor",
+    "project": "bluff-app",
+    "turns": [
+     {
+      "turn_id": "v6d28-c-t1",
+      "source": "bluff-app dark theme colours tuned. 5 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 5,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d28-d",
+    "app": "Claude app · Home",
+    "project": "vale-cli",
+    "turns": [
+     {
+      "turn_id": "v6d28-d-t1",
+      "source": "vale-cli lint step failed: unknown rule 'strict-null'. Nothing was changed.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "unknown rule strict-null"
+       ]
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:35:00Z",
+      "detail": "lint config"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d28-b (bluff-app): asks to confirm deleting the old uploads folder, 3,000 files",
+    "v6d28-d (vale-cli): lint step failed on unknown rule strict-null"
+   ],
+   "per_agent_gist": {
+    "v6d28-a": "search bar done, 12 tests pass",
+    "v6d28-b": "waiting for delete confirmation",
+    "v6d28-c": "dark theme colours tuned, 5 tests pass",
+    "v6d28-d": "lint failed, unknown rule"
+   },
+   "forbidden": [
+    "v6d28-b: claims 'folder deleted'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D29",
+  "agents": [
+   {
+    "session_id": "v6d29-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "ginster-api",
+    "turns": [
+     {
+      "turn_id": "v6d29-a-t1",
+      "source": "Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T07:50:00Z",
+      "detail": "50 Minuten ohne Ausgabe"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d29-b",
+    "app": "Codex CLI · Studio",
+    "project": "raute-ui",
+    "turns": [
+     {
+      "turn_id": "v6d29-b-t1",
+      "source": "Die Tabelle in der raute-ui lässt sich jetzt sortieren. 13 Tests bestehen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 13,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d29-c",
+    "app": "Cursor",
+    "project": "raute-api",
+    "turns": [
+     {
+      "turn_id": "v6d29-c-t1",
+      "source": "Paginierung der raute-api ist fertig. 9 Tests bestehen.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d29-a (ginster-api): Integrationstest läuft seit 50 Minuten ohne Ausgabe"
+   ],
+   "per_agent_gist": {
+    "v6d29-a": "hängt im Integrationstest, 50 Minuten still",
+    "v6d29-b": "Tabelle sortierbar, 13 Tests bestehen",
+    "v6d29-c": "Paginierung fertig, 9 Tests bestehen"
+   },
+   "forbidden": [
+    "v6d29-a: claims 'Test bestanden'",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": []
+  }
+ },
+ {
+  "id": "V6-D30",
+  "agents": [
+   {
+    "session_id": "v6d30-a",
+    "app": "Claude Code CLI · Studio",
+    "project": "terrace-app",
+    "turns": [
+     {
+      "turn_id": "v6d30-a-t1",
+      "source": "terrace-app: reverted my payment form rewrite after card tests failed. The old form is back; one small label fix remains.",
+      "facts": {
+       "outcome": "done",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d30-b",
+    "app": "Claude app · Home",
+    "project": "terrace-app",
+    "turns": [
+     {
+      "turn_id": "v6d30-b-t1",
+      "source": "terrace-app receipts email template updated. 8 tests pass.",
+      "facts": {
+       "outcome": "done",
+       "level": "info",
+       "tests": {
+        "passed": 8,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      },
+      "ended_at": "2026-11-18T06:40:00Z"
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "session_id": "v6d30-c",
+    "app": "OpenCode",
+    "project": "orbit-lab",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T06:00:00Z",
+      "detail": "opened, no turns"
+     }
+    ]
+   }
+  ],
+  "gold": {
+   "must_surface": [
+    "v6d30-a (terrace-app): payment form rewrite reverted after card tests failed, only a label fix remains"
+   ],
+   "per_agent_gist": {
+    "v6d30-a": "rewrite undone, label fix kept",
+    "v6d30-b": "receipt email template updated, 8 tests pass",
+    "v6d30-c": "opened, nothing yet"
+   },
+   "forbidden": [
+    "v6d30-a: claims 'payment form rewritten'",
+    "v6d30-c: claims any work",
+    "any agent, project or number not present in the input"
+   ],
+   "quiet": [
+    "v6d30-c"
+   ]
+  }
+ }
+]

@@ -21,6 +21,9 @@ import { TeamToolsQuestion, useToolsSave } from "../pages/pool/setup/TeamTools";
 import { Card } from "./primitives";
 import { Disclosure } from "./controls";
 import { SettingSwitch } from "./SettingSwitch";
+import { IconProjects } from "./icons";
+import { IconTools } from "./icons-settings";
+import { ToolMark } from "./ToolMark";
 
 /** Settings › Agent access: the question until it's answered, then the
  * switches. */
@@ -45,7 +48,7 @@ export function AgentToolsSettings(): JSX.Element {
   }
   return (
     <Card className="flex flex-col gap-3 p-5" data-testid="settings-agent-tools">
-      <SettingSwitch
+      <SettingSwitch icon={IconTools}
         id="agent-tools"
         label="Agent tools in the sessions AI Juggler starts"
         hint="Who's in their pool, what each is doing, and their own status line. Sessions get them, or lose them, when they next start or continue in AI Juggler."
@@ -85,7 +88,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
   const toggle = (scope: AgentToolsScope, id: string, on: boolean) => run(() => agentBridgeSet(scope, id, on));
   return (
     <Disclosure
-      className="ml-5 rounded-lg border border-hairline/60 px-3 py-2"
+      className="ml-[54px] rounded-lg bg-surface-2 px-3 py-2"
       onToggle={load}
       summary={
         <span>
@@ -104,7 +107,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
         <div className="mt-2.5 flex flex-col gap-3">
           <Group title="Projects" empty="No projects yet.">
             {rows.projects.map((project) => (
-              <SettingSwitch
+              <SettingSwitch icon={IconProjects}
                 key={project.id}
                 id={`agent-tools-project-${project.id}`}
                 label={project.name}
@@ -117,7 +120,7 @@ function OffWhere({ info, busy, run }: { info: AgentBridgeInfo; busy: boolean; r
           </Group>
           <Group title="Apps" empty="No apps yet.">
             {rows.profiles.map((profile) => (
-              <SettingSwitch
+              <SettingSwitch icon={<ToolMark tool={profile.provider} size={20} />}
                 key={profile.id}
                 id={`agent-tools-profile-${profile.id}`}
                 label={cliAppName(profile.provider, profile.label)}

@@ -105,6 +105,51 @@ pub fn feed_rows(
     Ok(rows)
 }
 
+/// 0.5.2 G45: the rows of these conversations (`(account, id)`), made as
+/// the list makes them, from what the index holds now (nothing read from
+/// disk): a session another app runs, read by its key where a session id
+/// goes (`switch_source::source_key`).
+///
+/// # Errors
+///
+/// Storage errors; a poisoned lock.
+pub fn rows_by_key(
+    state: &Arc<AppState>,
+    keys: &[(String, String)],
+) -> AppResult<Vec<ConversationInfo>> {
+    if keys.is_empty() {
+        return Ok(Vec::new());
+    }
+    let wanted: std::collections::HashSet<(&str, &str)> = keys
+        .iter()
+        .map(|(account, id)| (account.as_str(), id.as_str()))
+        .collect();
+    rows_of(
+        state,
+        state
+            .conversations
+            .all_where(|c| wanted.contains(&(c.account_id.as_str(), c.summary.id.as_str())))?,
+    )
+}
+
+/// 0.5.2 G45: the conversations a running session is on now, as rows
+/// ([`rows_by_key`] of the live keys): a few, never the working set.
+///
+/// # Errors
+///
+/// As [`rows_by_key`].
+pub fn live_rows(state: &Arc<AppState>) -> AppResult<Vec<ConversationInfo>> {
+    let keys: Vec<(String, String)> = state
+        .conversations
+        .live_keys()
+        .into_iter()
+        .map(|(account, _, id)| (account, id))
+        .collect();
+    let mut rows = rows_by_key(state, &keys)?;
+    rows.retain(|row| row.live);
+    Ok(rows)
+}
+
 fn rows_of(
     state: &Arc<AppState>,
     conversations: Vec<super::Conversation>,
@@ -255,7 +300,7 @@ struct ListInputs {
 /// "nothing open"). Then the row is the conversation's own, in the App its
 /// process runs in (ADR-0032); once that process ends, the session is it
 /// again (0.4.6's rule for an ended conversation).
-fn stands_for(
+pub(crate) fn stands_for(
     run: Option<&juggler_core::storage::ConversationLink>,
     live: Option<&super::scan::LiveEntry>,
 ) -> Option<String> {

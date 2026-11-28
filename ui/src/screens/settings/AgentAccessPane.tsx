@@ -23,6 +23,8 @@ import { AgentToolsSettings } from "../../components/AgentTools";
 import { Button, Card } from "../../components/primitives";
 import { useActionHost } from "../../components/ItemMenu";
 import { Pane, PaneSection } from "./parts";
+import { RowChip } from "../../components/controls";
+import { IconPool } from "../../components/icons-actions";
 
 export function AgentAccessPane({ anchor }: { anchor?: string }): JSX.Element {
   return (
@@ -78,11 +80,11 @@ export function AgentAccessCard(): JSX.Element {
         <>
           {/* Plain rows, your pools then the projects' own under their
               heading (design review #27, #60). */}
-          <ul className="flex flex-col divide-y divide-hairline/60" data-testid="agent-access-pools">
+          <ul className="flex flex-col gap-0.5" data-testid="agent-access-pools">
             {list.slice(0, shown).map((pool, at, rows) => (
               <Fragment key={pool.id}>
                 {pool.kind === "default" && rows[at - 1]?.kind !== "default" && (
-                  <li className="pb-1 pt-3 text-meta font-semibold text-ink-2" data-testid="agent-access-project-pools">
+                  <li className="section-label px-1 pb-1 pt-3" data-testid="agent-access-project-pools">
                     Project pools
                   </li>
                 )}
@@ -108,8 +110,10 @@ function PoolRow({ pool, onOpen }: { pool: PoolInfo; onOpen?: () => void }): JSX
   const panel = `agent-access-panel-${pool.id}`;
   const rules = pool.rules.length > 0 ? ` · ${pool.rules.length} ${pool.rules.length === 1 ? "rule" : "rules"}` : "";
   return (
-    <li className="py-2" data-testid="agent-access-pool">
-      <div className="flex items-center gap-2 text-body">
+    // AJ-E1558 (D-126, PAT-SURF): each pool a row with its chip, spaced, no rules.
+    <li className="rounded-[10px] px-1 py-1.5" data-testid="agent-access-pool">
+      <div className="flex items-center gap-3 text-body">
+        <RowChip icon={IconPool} />
         {onOpen ? (
           <button
             type="button"
@@ -122,7 +126,7 @@ function PoolRow({ pool, onOpen }: { pool: PoolInfo; onOpen?: () => void }): JSX
             <span className="sr-only">: open its page</span>
           </button>
         ) : (
-          <span className="min-w-0 flex-1 truncate font-medium text-ink">{shortPoolName(pool)}</span>
+          <span className="min-w-0 flex-1 truncate font-medium text-ink" data-testid="agent-access-pool-name">{shortPoolName(pool)}</span>
         )}
         <button
           type="button"

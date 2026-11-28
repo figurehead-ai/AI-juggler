@@ -11,10 +11,15 @@ pub mod dto;
 pub mod engine;
 pub mod engines;
 pub mod jobs;
+pub mod kept;
 pub mod memory;
 pub mod models;
 pub mod router;
+pub mod run;
+#[cfg(test)]
+pub mod scripted;
 pub mod service;
+pub mod world;
 
 #[cfg(test)]
 mod router_tests;

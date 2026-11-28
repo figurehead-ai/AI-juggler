@@ -18,6 +18,7 @@ import {
   type ProcessGraphRowInfo,
 } from "../../lib/ipc/processes";
 import { checkedWords, outcomeWords, portWords } from "../../lib/process-states";
+import { IconBroom } from "../../components/icons-actions";
 
 type Line = {
   row: ProcessGraphRowInfo;
@@ -89,7 +90,7 @@ export function GroupCleanupSheet({ session, onClose }: { session: ProcessGraphR
   const ready = lines?.filter((line) => line.check === "ok").length ?? 0;
   const checking = lines?.some((line) => line.check === "checking") ?? true;
   return (
-    <Modal title={`Clean up what ${info.title || "this session"} left`} subtitle="Each one is checked now, then stopped on its own: asked politely first, forced after 5 s only if it ignores that." onClose={() => onClose(done)} wide testId="group-cleanup"
+    <Modal icon={IconBroom} title={`Clean up what ${info.title || "this session"} left`} subtitle="Each one is checked now, then stopped on its own: asked politely first, forced after 5 s only if it ignores that." onClose={() => onClose(done)} wide testId="group-cleanup"
       footer={
         <>
             <Button variant="ghost" onClick={() => onClose(done)}>

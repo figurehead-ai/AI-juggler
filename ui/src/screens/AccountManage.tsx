@@ -15,6 +15,8 @@ import { Radio } from "../components/controls";
 import { cliAppName } from "../lib/app-name";
 import { SELECTED_CARD } from "../components/controls/selected";
 import { sessionNames, shortName } from "../lib/session-titles";
+import { IconRemove } from "../components/icons-actions";
+import { IconRename } from "../components/icons-actions";
 
 /** A home-relative path, for display. */
 export function shortPath(path: string): string {
@@ -39,7 +41,7 @@ export function RenameAccountModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={`Rename ${cliAppName(account.provider, account.label)}`} onClose={onClose}
+    <Modal icon={IconRename} title={`Rename ${cliAppName(account.provider, account.label)}`} onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>
@@ -122,7 +124,7 @@ export function RemoveAccountModal({
   const moreNames = names.length - shownNames.length;
   const where = account.import_source_path ? shortPath(account.import_source_path) : null;
   return (
-    <Modal title={`Remove ${cliAppName(account.provider, account.label)}?`} onClose={onClose}
+    <Modal icon={IconRemove} title={`Remove ${cliAppName(account.provider, account.label)}?`} onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>

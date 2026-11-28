@@ -1,0 +1,326 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"hello\":true,\"protocol\":3,\"guided\":true,\"extensions\":[\"fields\",\"sampling\"],\"available\":\"available\",\"os\":\"Version 27.0.1 (Build 26A434)\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch5"
+  ],
+  "prompt_sha256": {
+   "watch5": "e3e729ab85ad6e1b0de4293680169c379780dd23a2c63acbdad20b68f6537d15"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch9",
+    "file": "watch-v9.json",
+    "sha256": "6679fde33f5da70c2f69e3fc47aa6ba082a1136f9a95ff8325ad24878533168f",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 4,
+  "wall_s": 5.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   6.7,
+   4.6,
+   4.8
+  ],
+  "load_avg_end": [
+   8.2,
+   5.0,
+   4.9
+  ],
+  "helper_cpu_s": 0.12,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 0.43
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 0.3
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.11
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.11
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 146.4,
+   "peak": 146.4,
+   "after": 156.3
+  },
+  "started": "2026-11-26 13:20:20",
+  "criteria_v9": "D-149 amendment 2: fail closed; 0 unsupported claimed, then >= 90 % exact; nearest offered >= 90 %"
+ },
+ "criteria": "D-149 and the v8 calls (2026-11-26): watches: 0 unsupported claimed, then >= 90 % exact; the feed line (A or B) on only if preferred (60 % of decided pairs, pooled); B's fabrication <= 1 %",
+ "corpora": {
+  "watch9": {
+   "watch5": {
+    "stats": {
+     "items": 60,
+     "decided_by_code": 58,
+     "model_called": 2,
+     "passed_first_attempt": 1,
+     "passed_after_a_retry": 0,
+     "fell_back": 1,
+     "passed_first_pct": 50.0,
+     "passed_with_retries_pct": 50.0,
+     "fallback_pct": 50.0,
+     "attempts_per_item": {
+      "1": 1,
+      "3": 1
+     },
+     "drafts_parsed_and_valid_pct": 100.0,
+     "latency_ms_first_attempt": {
+      "median": 1471.0,
+      "p95": 2012
+     },
+     "latency_ms_item_total": {
+      "median": 2377.5,
+      "p95": 2743
+     },
+     "kinds_shown": {
+      "watch": 23,
+      "unsupported": 34,
+      "not_a_watch": 2,
+      "form": 1
+     }
+    },
+    "severity": {
+     "items": 60,
+     "model_shown_items": 1,
+     "supported_items": 32,
+     "exact_rule_matches": 15,
+     "exact_rule_match_pct": 46.88,
+     "mismatches": [
+      {
+       "id": "V9-W01",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != always"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W03",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != always"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W28",
+       "diffs": [
+        "conditions [('asks_you', 1)] != [('asks_you', None)]"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W30",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W32",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != always"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W40",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W56",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      },
+      {
+       "id": "V9-W58",
+       "diffs": [
+        "lifetime (unsaid; ADR-0036's default) today != once"
+       ],
+       "planted": false
+      }
+     ],
+     "exact_rule_matches_with_defaults": 22,
+     "exact_rule_match_with_defaults_pct": 68.75,
+     "lifetime_default_differs": 7,
+     "unsupported_items": 28,
+     "unsupported_claimed": 0,
+     "nearest_due": 25,
+     "nearest_offered": 23,
+     "nearest_offered_pct": 92.0,
+     "nearest_matches_gold": 20,
+     "nearest_matches_gold_pct": 80.0,
+     "asked_picker": 0,
+     "false_unsupported": 8,
+     "by_language": {
+      "en/de": {
+       "supported": 32,
+       "exact_d": 22,
+       "exact": 15
+      },
+      "other": {}
+     },
+     "gold_lifetime_beyond_shape": 0,
+     "planted_mismatches": 0,
+     "outcome_kinds": {
+      "watch": 23,
+      "unsupported": 34,
+      "not_a_watch": 2,
+      "form": 1
+     },
+     "unknown_gold_types": {
+      "when an account you pick runs low": 1
+     },
+     "store_writes_by_the_job": 0,
+     "store_unchanged": true,
+     "critical_reaching_the_user": 0,
+     "critical_reaching_pct": 0.0,
+     "critical_by_detector": {},
+     "systematic": [],
+     "critical_caught_drafts": 0,
+     "critical_caught_items": 0,
+     "critical_caught_by_detector": {},
+     "omission_items": 9,
+     "omission_by_detector": {
+      "false_unsupported": 8,
+      "no_watch": 1
+     },
+     "omission_pct": 15.0,
+     "questions_or_failures_hidden": 0,
+     "feed_model_lines_on_loud_items": 0,
+     "latency_ms_item_total": {
+      "median": 2377.5,
+      "p95": 2743
+     },
+     "extra": {
+      "exact rule matches": "15 of 32",
+      "exact with ADR-0036's default for an unsaid lifetime": "22 of 32",
+      "an unsaid lifetime whose ADR default differs from gold": 7,
+      "unsupported claimed": 0,
+      "nearest offered": "23 of 25",
+      "nearest equal to gold": "20 of 25",
+      "asked (picker)": 0,
+      "exact with defaults, English/German": "22 of 32",
+      "exact with defaults, other languages (the form by design, ADR-0033)": "0 of 0",
+      "gold lifetimes beyond the draft's shape (a later date; counted with the defaults)": 0,
+      "quiet hours broken unasked": 0,
+      "quiet hours asked, drafted off": 0,
+      "unknown gold condition types": {
+       "when an account you pick runs low": 1
+      }
+     },
+     "harness_today": "2026-11-18"
+    },
+    "bar_check": [
+     {
+      "bar": "unsupported claimed (a hard bar, ahead of exact)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "exact rule matches on supported requests, an unsaid lifetime by ADR-0036's default, % (D-149: >= 90)",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": 68.75,
+      "ok": false
+     },
+     {
+      "bar": "exact rule matches on supported requests, strict, % (reported)",
+      "op": ">=",
+      "bar_value": null,
+      "measured": 46.88,
+      "ok": null
+     },
+     {
+      "bar": "unsupported conditions claimed",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "nearest option offered on unsupported requests, %",
+      "op": ">=",
+      "bar_value": 90.0,
+      "measured": 92.0,
+      "ok": true
+     },
+     {
+      "bar": "watches written by the job (only the user's click adds one)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     },
+     {
+      "bar": "mismatches on items with a planted order (candidates)",
+      "op": "==",
+      "bar_value": 0,
+      "measured": 0,
+      "ok": true
+     }
+    ]
+   }
+  }
+ },
+ "replay_mismatches": []
+}

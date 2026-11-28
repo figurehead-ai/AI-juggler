@@ -50,7 +50,9 @@ export function Segmented<T extends string>({
 }: {
   /** The group's name for screen readers ("Group sessions by"). */
   label: string;
-  value: T;
+  /** The chosen segment; `null`: none chosen yet (the first takes the
+   * keyboard; AJ-E3830's "Bot couldn't tell how long"). */
+  value: T | null;
   segments: readonly Segment<T>[];
   onChange: (value: T) => void;
   testId?: string;
@@ -61,10 +63,8 @@ export function Segmented<T extends string>({
   size?: SegmentedSize;
 }): JSX.Element {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
-  const at = Math.max(
-    0,
-    segments.findIndex((segment) => segment.value === value),
-  );
+  const chosen = segments.findIndex((segment) => segment.value === value);
+  const at = Math.max(0, chosen);
   const look = SIZES[size];
   const onKey = (event: KeyboardEvent<HTMLDivElement>) => {
     const last = segments.length - 1;
@@ -93,7 +93,8 @@ export function Segmented<T extends string>({
       className={(wrap ? "flex min-w-0 max-w-full flex-wrap " : "flex ") + SEGMENTED_FRAME + " " + className}
     >
       {segments.map((segment, index) => {
-        const on = index === at;
+        // None chosen (`null`): no segment is on; one not offered shows the first.
+        const on = value === null ? false : index === at;
         const Icon = segment.icon;
         return (
           <button
@@ -104,7 +105,7 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={on}
-            tabIndex={on ? 0 : -1}
+            tabIndex={index === at ? 0 : -1}
             title={segment.title}
             data-testid={testId ? `${testId}-${segment.value}` : undefined}
             onClick={() => onChange(segment.value)}

@@ -13,6 +13,7 @@ const job = (over: Partial<AiJobInfo> & Pick<AiJobInfo, "job" | "state">): AiJob
   model_name: null,
   why: null,
   pick: null,
+  covers: [],
   ...over,
 });
 

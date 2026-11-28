@@ -61,7 +61,8 @@ use juggler_local_ai_protocol::{
 
 use super::helper::{Health, Helper};
 use crate::features::ai::engine::{
-    AiEngine, Card, Draft, EngineError, Finish, Readiness, Reason, Request, Stop, Tier,
+    AiEngine, Card, Decoding, Draft, EngineError, Finish, Readiness, Reason, Request, Started,
+    Stop, Tier, Usage,
 };
 use crate::features::ai::models::store::Installed;
 use crate::features::ai::models::{Engine as ModelEngine, ModelEntry};
@@ -300,6 +301,31 @@ pub fn sampling_of(entry: &ModelEntry) -> Sampling {
         top_k: keep(s.top_k, bounds::TOP_K),
         min_p_milli: keep(s.min_p_milli, bounds::MIN_P_MILLI),
         presence_milli: keep(s.presence_milli, bounds::PRESENCE_MILLI),
+        seed: None,
+    }
+}
+
+/// The sampling a request decodes with: the model's tested one, or for a
+/// retry (D-149) the same with its temperature raised to the retry's and
+/// the retry's own seed.
+#[must_use]
+pub fn decoded(tested: Sampling, decoding: Decoding) -> Sampling {
+    match decoding {
+        Decoding::Tested => tested,
+        Decoding::Sampled {
+            temperature_milli,
+            seed,
+        } => Sampling {
+            temperature_milli: Some(
+                tested
+                    .temperature_milli
+                    .unwrap_or(0)
+                    .max(temperature_milli)
+                    .min(u32::try_from(bounds::TEMPERATURE_MILLI.max).unwrap_or(u32::MAX)),
+            ),
+            seed: Some(seed),
+            ..tested
+        },
     }
 }
 
@@ -341,6 +367,55 @@ fn profile_rejected(tool: &Path, program: &Path, dir: &Path) -> bool {
 }
 
 impl Local {
+    /// AJ-E3830, AJ-E3831: the engine for one listed model (`model`, an id
+    /// in `config`'s `models` section, read as a Nightly 0.5.2 Mac reads
+    /// it, targeting aside) whose file is at `<dir>/<sha256>.gguf`, as the
+    /// app's store keeps it; `program` the helper (`None`: the app's own).
+    /// The harness rounds run the app's own engine through it; nothing is
+    /// downloaded. `None` when no listed entry with a file reads.
+    #[must_use]
+    pub fn for_listed(
+        config: &serde_json::Value,
+        model: &str,
+        dir: PathBuf,
+        program: Option<PathBuf>,
+    ) -> Option<Self> {
+        use juggler_remote_config::{Channel, Facts, InstallId, Os, Version};
+        let mut section = config["sections"]["models"].clone();
+        for item in section["items"].as_array_mut().into_iter().flatten() {
+            if let Some(o) = item.as_object_mut() {
+                o.remove("when");
+            }
+        }
+        // Targeting is set aside above: any facts read the entries alike.
+        let facts = Facts {
+            install: InstallId::from_bytes([0; 16]),
+            tools: std::collections::BTreeMap::new(),
+            os_version: None,
+            os: Os::Macos,
+            channel: Channel::Nightly,
+            app_version: Version::new(0, 5, 2),
+        };
+        let entry = crate::features::ai::models::read_raw(&section, &facts)?
+            .into_iter()
+            .find(|e| e.id == model)?;
+        let download = entry.download.as_ref()?;
+        let (sha256, size_bytes) = (download.sha256.clone(), download.size_bytes);
+        Some(Self::with(Setup {
+            program,
+            models: Some((
+                dir,
+                vec![Installed {
+                    entry,
+                    sha256,
+                    size_bytes,
+                    installed_at_ms: 0,
+                }],
+            )),
+            ..Setup::default()
+        }))
+    }
+
     /// The engine over `setup`, nothing started.
     #[must_use]
     pub fn with(setup: Setup) -> Self {
@@ -600,7 +675,7 @@ impl Local {
             instructions: request.instructions.clone(),
             prompt: request.prompt.clone(),
             guide,
-            sampling: sampling_of(entry),
+            sampling: decoded(sampling_of(entry), request.decoding),
             max_tokens: u32::try_from(max_tokens).unwrap_or(1),
             timeout_ms,
         }
@@ -632,12 +707,17 @@ impl Local {
                 id: got,
                 text,
                 finish,
-                ..
+                tokens,
             }) if got == id => Ok(Ok(Draft {
                 text,
                 finish: match finish {
                     WireFinish::Stop => Finish::Stop,
                     WireFinish::Length => Finish::Length,
+                },
+                // The helper counts what it wrote, not what it read.
+                usage: Usage {
+                    input: None,
+                    output: Some(tokens),
                 },
             })),
             Ok(Answer::Error {
@@ -742,6 +822,58 @@ impl AiEngine for Local {
     }
 
     fn respond(&self, model: &str, request: &Request, stop: &Stop) -> Result<Draft, EngineError> {
+        let (mut slot, mine) = self.prepare(model, stop)?;
+        let Some(running) = slot.as_mut() else {
+            return Err(EngineError::Crashed);
+        };
+        let result = self.generate(running, &mine.entry, request, stop);
+        running.used = Instant::now();
+        if self.critical() {
+            // Stopped by critical pressure: free the model's memory now.
+            *slot = None;
+        }
+        match result {
+            Ok(answer) => answer,
+            Err(error) => {
+                *slot = None;
+                if error == EngineError::Crashed {
+                    self.health.failed();
+                }
+                Err(error)
+            }
+        }
+    }
+
+    fn start(&self, model: &str, stop: &Stop) -> Result<Started, EngineError> {
+        let (_slot, mine) = self.prepare(model, stop)?;
+        Ok(Started {
+            context_tokens: context_of(&mine.entry),
+            version: None,
+        })
+    }
+
+    fn running(&self) -> bool {
+        self.running
+            .try_lock()
+            .is_ok_and(|mut running| running.as_mut().is_some_and(|r| r.helper.alive()))
+    }
+
+    fn release(&self) {
+        if let Ok(mut running) = self.running.lock() {
+            *running = None;
+        }
+    }
+}
+
+impl Local {
+    /// The helper started (or kept) with `model` loaded, ready for a
+    /// generation: the slot held, and the model's install (AJ-E3825's
+    /// start and every respond share it).
+    fn prepare(
+        &self,
+        model: &str,
+        stop: &Stop,
+    ) -> Result<(std::sync::MutexGuard<'_, Option<Running>>, Installed), EngineError> {
         let (dir, installed) = self.models().ok_or(EngineError::Unsupported)?;
         let mine = installed
             .into_iter()
@@ -815,28 +947,7 @@ impl AiEngine for Local {
                 }
             }
         }
-        let result = self.generate(running, &mine.entry, request, stop);
-        running.used = Instant::now();
-        if self.critical() {
-            // Stopped by critical pressure: free the model's memory now.
-            *slot = None;
-        }
-        match result {
-            Ok(answer) => answer,
-            Err(error) => {
-                *slot = None;
-                if error == EngineError::Crashed {
-                    self.health.failed();
-                }
-                Err(error)
-            }
-        }
-    }
-
-    fn release(&self) {
-        if let Ok(mut running) = self.running.lock() {
-            *running = None;
-        }
+        Ok((slot, mine))
     }
 }
 

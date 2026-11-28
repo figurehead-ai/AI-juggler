@@ -11,7 +11,7 @@ import { osPromptRequest } from "../../lib/ipc/os-prompts";
 import { useEffect, useId, useMemo, useRef, useState, type JSX, type ReactNode } from "react";
 import { FlowLayout } from "../FlowLayout";
 import { Button } from "../primitives";
-import { CheckCard, DateField, Picker, Segmented, TimeField, ToggleRow, type Segment } from "../controls";
+import { CheckCard, Picker, Segmented, ToggleRow } from "../controls";
 import { Alert } from "../Alert";
 import { watchDraftWords, type CatalogueEntry, type DraftWords, type WatchDraftInfo, type WatchInfo } from "../../lib/ipc/watch-view";
 import { errorText } from "../../lib/bridge";
@@ -21,11 +21,13 @@ import { LoadingState } from "../LoadingState";
 import type { Param } from "../../types/generated/Param";
 import { WatchPreview, WatchPreviewStrip } from "./WatchPreview";
 import { WatchTargetPicker } from "./WatchTargetPicker";
-import { draftFrom, defaultParam, lifeOf, paramSteps, previewFacts, untilMs, type FormState, type LifeKind } from "./watch-form-state";
-import { MAX_CONDITIONS, splitConditions, targetKey, untilEndsOffered, type TargetOption } from "./watches-view";
-import { CONDITION_LINE, FORM, LIFE, PARAM } from "./watches-words";
+import { botLeft, codesNow, draftFrom, defaultParam, lifeAsked, lifeOf, lifeWaits, paramSteps, previewFacts, touched, untilMs, type FormState } from "./watch-form-state";
+import { MAX_CONDITIONS, splitConditions, type TargetOption } from "./watches-view";
+import { CONDITION_LINE, FORM, PARAM } from "./watches-words";
 import { CONDITION_ICONS, IconBin, IconCheckCircle, IconChevronD, IconChevronL, IconChevronR, IconEye, IconMoon } from "./watch-icons";
-import { pastWhen, whenWords } from "../../lib/time-words";
+import { pastWhen } from "../../lib/time-words";
+import { UntilChoice } from "./WatchFormUntil";
+import { BotFillNote, NearestTag, QuietLeft, consequenceOf, sectionHelps } from "./WatchFormBot";
 
 export interface WatchFormProps {
   mode: "new" | "edit";
@@ -132,16 +134,6 @@ function useDraftWords(draft: WatchDraftInfo, ready: boolean): DraftWords | null
   return words;
 }
 
-/** The line under Until: what the chosen lifetime does. */
-function lifeLine(life: LifeKind, at: number | null, past: boolean, names: string[], now: number): string {
-  if (life === "once") return LIFE.onceLine;
-  if (life === "until_ends") return LIFE.untilEndsLine(names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : (names[0] ?? "it"));
-  if (life === "today") return LIFE.todayLine;
-  if (life === "always") return LIFE.alwaysLine;
-  if (past) return LIFE.past;
-  return at === null ? LIFE.untilPick : LIFE.untilLine(whenWords(at, now));
-}
-
 /** Section 2: the conditions as cards, the four most used first. */
 function ConditionCards({ state, catalogue, onFlip, onParam, labelledBy }: { state: FormState; catalogue: ReturnType<typeof useOffered>; onFlip: (entry: CatalogueEntry, on: boolean) => void; onParam: (code: string, param: Param | undefined) => void; labelledBy: string }): JSX.Element {
   const [showMore, setShowMore] = useState(false);
@@ -198,7 +190,7 @@ function ConditionCards({ state, catalogue, onFlip, onParam, labelledBy }: { sta
               sub={CONDITION_LINE[entry.code]}
               testId={`watch-condition-${entry.code}`}
             >
-              {on && <ParamControl entry={entry} value={state.params[entry.code]} onChange={(param) => onParam(entry.code, param)} />}
+              {on ? <ParamControl entry={entry} value={state.params[entry.code]} onChange={(param) => onParam(entry.code, param)} /> : state.bot?.nearest === entry.code && botLeft(state, "condition") ? <NearestTag /> : null}
             </CheckCard>
           );
         })}
@@ -210,42 +202,6 @@ function ConditionCards({ state, catalogue, onFlip, onParam, labelledBy }: { sta
         </button>
       ) : null}
       <p className="text-meta text-muted">{FORM.upTo}</p>
-    </>
-  );
-}
-
-/** Section 3: the lifetime, its dates for Until…, and what it does. */
-function UntilChoice({ state, set, offered, book, now }: { state: FormState; set: (change: Partial<FormState>) => void; offered: CatalogueEntry[]; book: Map<string, TargetOption>; now: number }): JSX.Element {
-  const life = lifeOf(state);
-  const segments: Segment<LifeKind>[] = [
-    { value: "once", label: LIFE.once },
-    ...(untilEndsOffered(state.targets) ? [{ value: "until_ends" as const, label: state.targets.length > 1 ? LIFE.untilTheyEnd : LIFE.untilEnds }] : []),
-    { value: "today", label: LIFE.today },
-    { value: "until", label: LIFE.until },
-    { value: "always", label: LIFE.always },
-  ];
-  const at = untilMs(state.untilDay, state.untilTime);
-  const past = life === "until" && at !== null && at <= now;
-  const names = state.targets.flatMap((t) => {
-    const name = book.get(targetKey(t))?.name;
-    return name ? [`“${name}”`] : [];
-  });
-  const first = offered.find((e) => e.code === state.codes[0])?.label.toLowerCase();
-  return (
-    <>
-      <div className="flex flex-wrap items-center gap-3">
-        <Segmented label={FORM.until} value={life} onChange={(next) => set({ life: next })} segments={segments} testId="watch-lifetime-choice" className="w-fit" />
-        {state.life === null && first && <span className="text-label text-muted">{LIFE.suggested(first)}</span>}
-      </div>
-      {life === "until" && (
-        <div className="flex flex-wrap items-center gap-2">
-          <DateField value={state.untilDay} onCommit={(day) => set({ untilDay: day })} ariaLabel={LIFE.day} testId="watch-until-day" />
-          <TimeField value={state.untilTime} onCommit={(time) => set({ untilTime: time })} ariaLabel={LIFE.time} testId="watch-until-time" />
-        </div>
-      )}
-      <p className={"text-meta " + (past ? "text-danger" : "text-muted")} data-testid="watch-lifetime-line" data-past={past}>
-        {lifeLine(life, at, past, names, now)}
-      </p>
     </>
   );
 }
@@ -327,23 +283,29 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
   const { offered, loading } = catalogue;
   const draft = useMemo(() => draftFrom(state), [state]);
   const words = useDraftWords(draft, state.targets.length > 0 && state.codes.length > 0);
-  // Conditions no longer on offer for these targets leave (D-127: hidden,
-  // never shown as unsupported).
-  const kept = loading || state.targets.length === 0 ? state.codes : state.codes.filter((code) => offered.some((e) => e.code === code));
-  if (kept.length !== state.codes.length) setState((was) => ({ ...was, codes: kept }));
-  const set = (change: Partial<FormState>) => setState((was) => ({ ...was, ...change }));
+  // What is no longer on offer leaves; until the user picks, the
+  // targets' default follows them (D-127, 0.5.2 G32).
+  const held = codesNow(state, offered, loading, book);
+  if (held.codes.join("|") !== state.codes.join("|")) setState((was) => ({ ...was, codes: held.codes, params: held.entry && !was.params[held.entry.code] ? { ...was.params, [held.entry.code]: defaultParam(held.entry) } : was.params }));
+  // AJ-E3830: a field the user sets is no longer one Bot left.
+  const set = (change: Partial<FormState>) => setState((was) => touched(was, change));
   const flip = (entry: CatalogueEntry, on: boolean) =>
     setState((was) => {
-      if (!on) return { ...was, codes: was.codes.filter((c) => c !== entry.code) };
+      if (!on) return touched(was, { auto: false, codes: was.codes.filter((c) => c !== entry.code) });
       if (was.codes.length >= MAX_CONDITIONS) return was;
-      return { ...was, codes: [...was.codes, entry.code], params: { ...was.params, [entry.code]: was.params[entry.code] ?? defaultParam(entry) } };
+      return touched(was, { auto: false, codes: [...was.codes, entry.code], params: { ...was.params, [entry.code]: was.params[entry.code] ?? defaultParam(entry) } });
     });
   const at = untilMs(state.untilDay, state.untilTime);
   const past = lifeOf(state) === "until" && at !== null && at <= now;
   const was = mode === "edit" && editing && words && words.words !== editing.words ? editing.echo : null;
   const facts = previewFacts({ state, offered, echo: words?.echo ?? null, was, book, quiet, now });
   const atLimit = mode === "new" && props.count >= props.limit;
-  const canSave = savable({ loading, past, saving, atLimit, words });
+  const asked = lifeAsked(state);
+  const canSave = savable({ loading, past, saving, atLimit, words }) && !asked;
+  const helps = sectionHelps(state);
+  // 0.5.2 G60: Bot left what to watch: the picker opens on what the
+  // words matched (kept as opened: the list doesn't move as the user picks).
+  const [choices] = useState(() => (props.initial.bot && botLeft(props.initial, "target") ? props.initial.bot.choices : []));
   const save = async () => {
     setSaving(true);
     setFailed(null);
@@ -363,28 +325,31 @@ export function WatchForm(props: WatchFormProps): JSX.Element {
   return (
     <div className="-m-5 flex h-[calc(100%+2.5rem)] min-h-0 flex-col" data-testid="watch-form" data-mode={mode}>
       <FlowLayout
+        fit="room"
         label={title}
-        summary={<WatchPreviewStrip echo={words?.echo ?? null} />}
+        summary={<WatchPreviewStrip echo={facts.echo} />}
         preview={<WatchPreview facts={facts} />}
-        foot={<FormFoot mode={mode} consequence={mode === "new" ? FORM.startsNow(props.count + 1, props.limit) : FORM.changesNow} canSave={canSave} saving={saving} onCancel={props.onCancel} onRemove={mode === "edit" ? props.onRemove : undefined} onSave={() => void save()} />}
+        foot={<FormFoot mode={mode} consequence={consequenceOf(mode, asked, props.count, props.limit)} canSave={canSave} saving={saving} onCancel={props.onCancel} onRemove={mode === "edit" ? props.onRemove : undefined} onSave={() => void save()} />}
       >
         <FormHead title={title} editing={editing} now={now} onBack={props.onCancel} />
         <div className="flex flex-col gap-[26px]">
           <FormAlerts atLimit={atLimit} limit={props.limit} ended={editing?.state === "ended"} failed={failed} />
-          <FormSection n={1} done={many > 0} title={FORM.what} help={FORM.whatHelp} id={`${ids}-what`}>
-            <WatchTargetPicker picked={state.targets} book={book} onChange={(targets) => set({ targets })} labelledBy={`${ids}-what`} />
+          <BotFillNote state={state} />
+          <FormSection n={1} done={many > 0} title={FORM.what} help={helps.what} id={`${ids}-what`}>
+            <WatchTargetPicker picked={state.targets} book={book} onChange={(targets) => set({ targets })} labelledBy={`${ids}-what`} suggested={choices} startOpen={choices.length > 0} />
             {many > 1 && <Matching state={state} set={set} />}
           </FormSection>
-          <FormSection n={2} done={state.codes.length > 0} title={FORM.forWhat} help={many === 0 ? undefined : many === 2 ? FORM.forWhatBoth : FORM.forWhatHelp(many)} id={`${ids}-for`}>
-            <ConditionCards state={state} catalogue={catalogue} onFlip={flip} onParam={(code, param) => set({ params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
+          <FormSection n={2} done={state.codes.length > 0} title={FORM.forWhat} help={helps.forWhat} id={`${ids}-for`}>
+            <ConditionCards state={state} catalogue={catalogue} onFlip={flip} onParam={(code, param) => set({ auto: false, params: { ...state.params, [code]: param } })} labelledBy={`${ids}-for`} />
           </FormSection>
-          <FormSection n={3} done={state.codes.length > 0} title={FORM.until} id={`${ids}-until`}>
+          <FormSection n={3} done={state.codes.length > 0 && !asked && lifeWaits(state) === null} title={FORM.until} id={`${ids}-until`}>
             <UntilChoice state={state} set={set} offered={offered} book={book} now={now} />
           </FormSection>
           <FormSection n={4} done={false} title={FORM.quiet} id={`${ids}-quiet`}>
             {quiet ? (
               <div className="rounded-card bg-surface p-1 inset-ring-1 inset-ring-hairline/75">
                 <ToggleRow icon={IconMoon} title={FORM.quietTitle} help={FORM.quietHelp(quiet.from, quiet.to)} checked={state.quiet} onChange={(on) => set({ quiet: on })} testId="watch-quiet-toggle" />
+                {botLeft(state, "quiet_hours") && <QuietLeft />}
               </div>
             ) : (
               <p className="text-meta text-muted">{FORM.quietNone}</p>

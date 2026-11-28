@@ -17,6 +17,15 @@ import { keysOf, SHORTCUT_AREAS, SHORTCUTS, type Shortcut, type ShortcutId } fro
 import { bindingOf, DEFAULT_BINDINGS, FIXED_WHY, isChanged, onBindingsChanged, refusal, resetAll, resetBinding, restoreBindings, setBinding } from "../../lib/shortcut-bindings";
 import { GoToKeyActions, GoToKeyCap, GoToKeyError, KeyCapture, KeycapButton, useGoToKey } from "./KeyCapture";
 import { Pane, PaneSection } from "./parts";
+import { RowChip, type ControlIcon } from "../../components/controls";
+import { IconDashboard, IconFleet, IconHelpers, IconProfiles, IconProjects, IconUsage } from "../../components/icons";
+import { IconArchive, IconBell, IconComputer, IconGoTo, IconMove, IconPage, IconPlus, IconPool, IconReplay, IconSliders, IconSnooze, IconStop } from "../../components/icons-actions";
+import { IconFit, IconMessage, IconMore, IconTasks, IconZoomIn, IconZoomOut } from "../../components/icons-canvas";
+import { IconChevronLeft, IconChevronRight, IconClose, IconPlay } from "../../components/icons-controls";
+import { IconAppearance, IconGear, IconHelp, IconKeyboard, IconLeave } from "../../components/icons-menu";
+import { IconFloor, IconGrip, IconHistory, IconUpRight, IconView } from "../../components/icons-places";
+import { IconRowsTwo } from "../../components/icons-settings";
+import { IconBot, IconExpand, IconSearch, IconUndo } from "../../components/bot/bot-icons";
 import { keyboardSectionId } from "./settings-index";
 
 const labelOf = (id: ShortcutId) => SHORTCUTS.find((row) => row.id === id)?.label ?? id;
@@ -28,16 +37,33 @@ function useBindingsVersion(): number {
   return version;
 }
 
-function Row({ id, label, keys, actions, note }: { id: string; label: string; keys: JSX.Element; actions: JSX.Element | null; note?: JSX.Element | null }): JSX.Element {
+/** AJ-E1558 (D-126, ICN-4): each shortcut's row leads with the icon its
+ * action has in the menus; the go-to key, a keyboard. */
+const SHORTCUT_ICONS: Partial<Record<string, ControlIcon>> = {
+  help: IconHelp, palette: IconSearch, "new-session": IconPlus, "new-project": IconProjects, notifications: IconBell,
+  "toggle-rail": IconView, bot: IconBot, inspector: IconSliders, density: IconRowsTwo, theme: IconAppearance, undo: IconUndo,
+  close: IconClose, "row-menu": IconMore, "row-open": IconPage, "row-go-to": IconUpRight, "page-action": IconPlay,
+  "go-place": IconGoTo, "rail-move": IconGrip, "rail-view": IconView, "go-home": IconDashboard, back: IconChevronLeft,
+  forward: IconChevronRight, "go-projects": IconProjects, "go-pools": IconPool, "go-tasks": IconTasks, "go-accounts": IconProfiles,
+  "go-usage": IconUsage, "go-history": IconHistory, "go-fleet": IconFleet, settings: IconGear, floor: IconFloor,
+  processes: IconComputer, "processes-search": IconSearch, stop: IconStop, handover: IconMove, "epoch-resume": IconReplay,
+  "subagents-search": IconHelpers, "inspector-tab": IconSliders, "leave-terminal": IconLeave, "terminal-find": IconSearch,
+  "terminal-larger": IconZoomIn, "terminal-smaller": IconZoomOut, "terminal-reset": IconFit, "terminal-maximize": IconExpand,
+  "home-open": IconPage, "home-action": IconPlay, "home-reply": IconMessage, "home-handover": IconMove, "home-snooze": IconSnooze,
+  "home-archive": IconArchive, "go-to": IconKeyboard,
+};
+
+function Row({ id, label, keys, actions, note, changed = false }: { id: string; label: string; keys: JSX.Element; actions: JSX.Element | null; note?: JSX.Element | null; changed?: boolean }): JSX.Element {
   return (
-    <li className="flex flex-col gap-1 px-4 py-2.5" data-testid="keyboard-row" data-shortcut={id}>
+    <li className="flex flex-col gap-1 rounded-[10px] px-3 py-2" data-testid="keyboard-row" data-shortcut={id}>
       <div className="flex items-center gap-3">
+        <RowChip icon={SHORTCUT_ICONS[id] ?? IconKeyboard} on={changed} />
         <span className="min-w-0 flex-1 text-body text-ink">{label}</span>
         {keys}
         {/* A fixed width, so every row's keys line up (Reset, Turn off or Choose… fit). */}
         <span className="flex w-24 shrink-0 items-center justify-end gap-1">{actions}</span>
       </div>
-      {note}
+      {note && <div className="pl-[42px]">{note}</div>}
     </li>
   );
 }
@@ -115,7 +141,7 @@ function ShortcutRow({ entry }: { entry: Shortcut }): JSX.Element {
     ) : !bindable && FIXED_WHY[id] ? (
       <span className="text-label text-muted">{FIXED_WHY[id]}</span>
     ) : null;
-  return <Row id={id} label={entry.label} keys={keys} actions={actions} note={note} />;
+  return <Row id={id} label={entry.label} keys={keys} actions={actions} note={note} changed={changed} />;
 }
 
 export function KeyboardPane({ anchor }: { anchor?: string }): JSX.Element {

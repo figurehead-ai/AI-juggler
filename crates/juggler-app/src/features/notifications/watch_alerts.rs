@@ -12,6 +12,8 @@
 //! you, it looks stuck, it finished) is one notification with that need
 //! ("web asks you · you asked to be told") and takes its level; on a calm
 //! event it is a note (L1), never counted.
+//!
+//! A reminder (AJ-E2027, ADR-0039 §8) is told the same way ([`reminded`]).
 
 use std::sync::Arc;
 
@@ -67,21 +69,42 @@ struct About {
 }
 
 fn about(state: &Arc<AppState>, fire: &Fire) -> About {
-    if let Some(session) = fire.session.as_deref() {
+    about_target(state, fire.session.as_deref(), fire.target.as_ref())
+}
+
+/// What a session, else a target, is called and where a click on its
+/// notice goes (a watch's fire; a reminder about it, AJ-E2027).
+fn about_target(
+    state: &Arc<AppState>,
+    session: Option<&str>,
+    target: Option<&WatchTarget>,
+) -> About {
+    if let Some(session) = session {
         let about = super::describe(state, session);
-        return About {
-            name: about.name,
-            target: Target::Session(session.to_owned()),
-            notice: NoticeTarget {
+        // 0.5.2 G45: a session AI Juggler didn't start opens its page as
+        // the centre's other notices about one do (its account and id).
+        let notice = crate::features::sessions::seen::parse_source_key(session).map_or_else(
+            || NoticeTarget {
                 session_id: Some(session.to_owned()),
                 ..NoticeTarget::default()
             },
+            |(account, id)| NoticeTarget {
+                conversation_id: Some(id.to_owned()),
+                account_id: Some(account.to_owned()),
+                project_id: about.project_id.clone(),
+                ..NoticeTarget::default()
+            },
+        );
+        return About {
+            name: about.name,
+            target: Target::Session(session.to_owned()),
+            notice,
             project_id: about.project_id,
         };
     }
     let named = |name: Option<String>, fallback: &str| name.unwrap_or_else(|| fallback.to_owned());
     let storage = state.storage.lock().ok();
-    match &fire.target {
+    match target {
         Some(WatchTarget::Account(id)) => About {
             name: named(
                 storage.as_ref().and_then(|s| {
@@ -228,6 +251,78 @@ fn tell(
         echoes: told_as.and_then(echo_of),
         ..Item::new(key, Kind::Watch, about.target, level_of(told_as))
     })
+}
+
+/// AJ-E2027 (ADR-0039 §8): a reminder came due. Told once per schedule
+/// and due time in the one model (beside the watches the user set), and
+/// its alert handed to the notification path as something the user asked
+/// for at that time: never held by quiet hours (they picked the time), a
+/// click opens what it is about. A late one (asleep or closed) says so.
+/// Returns whether it was told now (not already).
+pub fn reminded(
+    state: &Arc<AppState>,
+    schedule_id: &str,
+    due_ms: i64,
+    title: &str,
+    about: Option<&WatchTarget>,
+    late: bool,
+) -> bool {
+    let session = match about {
+        Some(WatchTarget::Session(id)) => Some(id.as_str()),
+        _ => None,
+    };
+    let target = about.filter(|t| !matches!(t, WatchTarget::Any));
+    let named = about_target(state, session, target);
+    let key = format!("reminder:{schedule_id}:{due_ms}");
+    let mut detail = vec!["Your reminder".to_owned()];
+    if target.is_some() {
+        detail.push(format!("about {}", named.name));
+    }
+    if late {
+        detail.push("while AI Juggler was closed or asleep".to_owned());
+    }
+    let notice = NewNotice {
+        key: key.clone(),
+        kind: KIND.to_owned(),
+        title: title.to_owned(),
+        detail: detail.join(" · "),
+        project_id: named.project_id.clone(),
+        data: centre::data_of(
+            &named.notice,
+            &NoticeFacts {
+                told: Some("reminder".to_owned()),
+                ..NoticeFacts::default()
+            },
+        ),
+        action: target.map(|_| "open".to_owned()),
+        ..NewNotice::default()
+    };
+    let now = crate::commands::now_millis();
+    let told = state
+        .storage
+        .lock()
+        .ok()
+        .and_then(|storage| centre::record(&storage, &notice, now).ok().flatten());
+    if told.is_none() {
+        return false;
+    }
+    super::changed(state);
+    let body = detail.join(" · ");
+    super::hand_over(
+        state,
+        vec![Item {
+            name: title.to_owned(),
+            phrase: "reminder".to_owned(),
+            phrase_many: "reminders".to_owned(),
+            title: title.to_owned(),
+            body,
+            watch: true,
+            breakthrough: true,
+            replayed: late,
+            ..Item::new(key, Kind::Watch, named.target, 2)
+        }],
+    );
+    true
 }
 
 fn capitalised(words: &str) -> String {

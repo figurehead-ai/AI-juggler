@@ -29,6 +29,7 @@ import type { LaunchRecipeInfo } from "../types/generated/LaunchRecipeInfo";
 import { errorText } from "../lib/bridge";
 import { Disclosure } from "../components/controls";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
+import { IconPlay } from "../components/icons-controls";
 
 export { placementWords } from "./accounts/UseOriginal";
 
@@ -342,7 +343,7 @@ export function NewProfileModal({
   };
 
   return (
-    <Modal
+    <Modal icon={IconPlay}
       title={`Launch settings · ${cliAppName(account.provider, account.label)}`}
       subtitle="Launch settings applied when this app starts (model, environment)."
       onClose={onClose}

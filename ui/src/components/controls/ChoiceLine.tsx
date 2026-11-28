@@ -9,7 +9,8 @@
 import { useId, type JSX, type ReactNode, type SVGProps } from "react";
 import { IconCheck } from "../icons-controls";
 import { Checkbox, Radio, type ToggleProps } from "./Toggle";
-import { SELECTED_CARD } from "./selected";
+import { RowChip } from "./ControlRow";
+import { SELECTED_CARD, SELECTED_FILL } from "./selected";
 
 export type ControlIcon = (props: SVGProps<SVGSVGElement>) => JSX.Element;
 
@@ -116,19 +117,27 @@ export function ChoiceOption({
     ) : (
       <Checkbox {...input} {...named} title={input.title ?? shownReason} className="-my-[3px] -mr-[3px]" />
     );
+  // AJ-E1558 (D-126 rich mode): a card leads with its icon chip (the
+  // accent's soft step once chosen), and what is chosen is a fill, never
+  // the radio's dot alone: a chosen card wears SELECTED_CARD, a chosen
+  // line of a radio group the selected fill.
+  const chip = look === "card" && icon ? <RowChip icon={icon} on={Boolean(input.checked)} /> : null;
+  const chosenLine = look === "line" && type === "radio" && input.checked;
   return (
     <label
       className={
         "flex rounded-lg text-body transition-colors " +
         (look === "card"
-          ? "border px-3 py-2 " + (input.checked ? SELECTED_CARD + " " : "border-hairline ")
-          : "px-2 py-1.5 ") +
-        (input.disabled ? "text-muted" : look === "card" && input.checked ? "text-ink" : "text-ink hover:bg-surface-2") +
+          ? "items-start gap-3 border px-3 py-2.5 " + (input.checked ? SELECTED_CARD + " " : "border-hairline ")
+          : "px-2 py-1.5 " + (chosenLine ? SELECTED_FILL + " " : "")) +
+        (input.disabled ? "text-muted" : input.checked && (look === "card" || chosenLine) ? "text-ink" : "text-ink hover:bg-surface-2") +
         (className ? ` ${className}` : "")
       }
+      data-chosen={input.checked || undefined}
     >
+      {chip}
       <ChoiceLine
-        icon={icon}
+        icon={chip ? undefined : icon}
         label={label}
         hint={hint}
         reason={shownReason}

@@ -29,7 +29,8 @@ coded! {
     /// What a record holds (ADR-0037 §1.1). There is no "fact" kind: live
     /// facts are read live (§3).
     Kind {
-        /// A stated preference from a closed set of slots (`alias`, `focus`).
+        /// A stated preference from a closed set of slots (`alias`, `focus`,
+        /// and `feed`: a post's More or Less like this, AJ-E3713).
         Preference = "preference",
         /// The user's own words after "remember…".
         Note = "note",
@@ -127,6 +128,8 @@ coded! {
         WatchesView = "watches_view",
         /// Settings › AI › Memory.
         Settings = "settings",
+        /// Home's feed: a post's More or Less like this (AJ-E3713).
+        HomeFeed = "home_feed",
         /// The digest job.
         DigestJob = "digest_job",
         /// The (Beta) note job.
@@ -266,6 +269,9 @@ pub struct KindWriter {
     kinds: &'static [Kind],
     authorities: &'static [Authority],
     sources: &'static [SourceKind],
+    /// It may write Bot's world model (ADR-0038: nodes and links, through
+    /// [`super::MemoryStore::write_world`]).
+    world: bool,
 }
 
 impl KindWriter {
@@ -275,6 +281,12 @@ impl KindWriter {
         self.kinds.contains(&kind)
             && self.authorities.contains(&authority)
             && self.sources.contains(&source)
+    }
+
+    /// It may write Bot's world model (ADR-0038).
+    #[must_use]
+    pub const fn covers_world(&self) -> bool {
+        self.world
     }
     /// A writer covering everything, for the gate's own tests.
     #[cfg(test)]
@@ -300,10 +312,12 @@ impl KindWriter {
                 SourceKind::ChatTurn,
                 SourceKind::WatchesView,
                 SourceKind::Settings,
+                SourceKind::HomeFeed,
                 SourceKind::DigestJob,
                 SourceKind::NoteJob,
                 SourceKind::Maintenance,
             ],
+            world: true,
         }
     }
 }
@@ -322,6 +336,9 @@ pub struct Writers {
     /// `features/digest`: digests (the rollup by the app, items by a
     /// model, quotes as agent text).
     pub digest: KindWriter,
+    /// `features/ai/world`: Bot's world model (ADR-0038), nodes and links
+    /// only, no record kind.
+    pub world: KindWriter,
 }
 
 static ISSUED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -353,22 +370,35 @@ impl Writers {
                     SourceKind::ChatTurn,
                     SourceKind::Settings,
                     SourceKind::NoteJob,
+                    SourceKind::HomeFeed,
                 ],
+                // A remembered note's world node and its links commit with
+                // the record (ADR-0038 §1).
+                world: true,
             },
             watches: KindWriter {
                 kinds: &[Kind::StandingRequest],
                 authorities: &[Authority::User],
                 sources: &[SourceKind::WatchesView, SourceKind::ChatTurn],
+                world: false,
             },
             chat: KindWriter {
                 kinds: &[Kind::Asked, Kind::Answer],
                 authorities: &[Authority::App],
                 sources: &[SourceKind::ChatTurn],
+                world: false,
             },
             digest: KindWriter {
                 kinds: &[Kind::Digest],
                 authorities: &[Authority::App, Authority::Model, Authority::Agent],
                 sources: &[SourceKind::DigestJob],
+                world: false,
+            },
+            world: KindWriter {
+                kinds: &[],
+                authorities: &[],
+                sources: &[],
+                world: true,
             },
         }
     }
@@ -475,6 +505,9 @@ pub enum Refusal {
     /// its label isn't a [`SettingLabel`]. The caller keeps such words as a
     /// note (local only).
     PreferenceShape,
+    /// Bot's world model refused it: a node or link kind its pack doesn't
+    /// declare, out of bounds, or a lower authority (ADR-0038 §2).
+    World(gyrus::Refusal),
 }
 
 /// The longest label a preference may have (an alias, a focus's name).
@@ -496,6 +529,7 @@ impl Refusal {
             Self::NotTextFree => "not_text_free",
             Self::SubjectKey => "subject_key",
             Self::PreferenceShape => "preference_shape",
+            Self::World(refusal) => refusal.code(),
         }
     }
 }

@@ -95,7 +95,7 @@ function home(onChanged = vi.fn()) {
  * the Finished filter's ⋯ menu. */
 async function reviewAll(): Promise<HTMLElement> {
   await screen.findAllByTestId("feed-card");
-  fireEvent.click(await screen.findByRole("radio", { name: "Finished" }));
+  fireEvent.click(await screen.findByTestId("feed-state-finished"));
   fireEvent.click(screen.getByTestId("feed-more"));
   return screen.findByTestId("feed-review-all");
 }

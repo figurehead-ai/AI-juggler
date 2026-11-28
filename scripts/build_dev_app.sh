@@ -11,7 +11,8 @@
 #                                     switch, neither of which compiles in a release
 #                                     build), in $CARGO_TARGET_DIR/debug/bundle/macos,
 #                                     copied, signed and verified to
-#                                     /tmp/aij-lab-dev/AI Juggler Dev.app.
+#                                     ~/Dev/AIJuggler-shared-target/lab-dev/AI Juggler Dev.app
+#                                     ($AIJ_LAB_DEV_DIR to choose; scripts/qa/lab_dev_place.py).
 #                                     Only `lab_scenario.sh open` on a lab runs it; it
 #                                     never ships (no release workflow passes `lab`).
 #
@@ -83,7 +84,9 @@ cp "$target/$profile/juggler-local-ai" "crates/juggler-app/binaries/juggler-loca
 cargo tauri build ${flags[@]+"${flags[@]}"} --bundles app --config crates/juggler-app/tauri.dev.conf.json \
     --config crates/juggler-app/tauri.bundle.json
 app="$target/$profile/bundle/macos/AI Juggler Dev.app"
-python3 scripts/bundle_check.py "$app"
+# --local: built here, not stamped by CI (rc_version.sh); on a release
+# branch it shows the workspace's version, and every helper is still checked.
+python3 scripts/bundle_check.py --local "$app"
 scripts/build_apple_ai_helper.sh check "$app/Contents/MacOS/juggler-apple-ai" "$app"
 scripts/build_local_ai_helper.sh check "$app/Contents/MacOS/juggler-local-ai" "$app"
 check_agent "$app/Contents/MacOS/juggler-agent"
@@ -91,9 +94,13 @@ if [ "${1:-}" = lab ]; then
   # The lab keeps its copy at one stable path outside the build folder
   # (lab_scenario.sh opens it there; a build folder gets trimmed), signed
   # ad hoc as a whole and verified strictly (a debug build's linker-only
-  # signature is what makes macOS call an app damaged).
-  lab_app=/tmp/aij-lab-dev/"AI Juggler Dev.app"
-  rm -rf "$lab_app" && mkdir -p "$(dirname "$lab_app")"
+  # signature is what makes macOS call an app damaged). In a folder of
+  # the user's own (0.5.2 G38): from /tmp, which everyone can write, Dev
+  # refuses its own juggler-agent (AJ-E3013) and no launch gets hooks.
+  lab_app="$(python3 -I scripts/qa/lab_dev_place.py path)"
+  mkdir -p "$(dirname "$lab_app")"
+  python3 -I scripts/qa/lab_dev_place.py check "$lab_app/Contents/MacOS/juggler-agent"
+  rm -rf "$lab_app"
   ditto "$app" "$lab_app"
   codesign --force --deep --sign - "$lab_app" >/dev/null 2>&1
   # --deep signed the helpers again without their runtime and sandbox,

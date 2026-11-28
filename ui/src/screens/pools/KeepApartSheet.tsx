@@ -97,7 +97,7 @@ export function KeepApartSheet({
     }
   };
   return (
-    <Modal title={words.title} onClose={onClose} broad testId="keep-apart"
+    <Modal icon={IconPool} title={words.title} onClose={onClose} broad testId="keep-apart"
       footer={
         <>
             <Button variant="ghost" onClick={onClose} data-testid="keep-apart-cancel">

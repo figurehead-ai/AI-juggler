@@ -1,0 +1,7355 @@
+[
+  {
+    "id": "V8-W01",
+    "request": "Tell me if finish line styles fails today.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-fin"
+      },
+      "conditions": [
+        {
+          "type": "fails",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "tricky_name"
+    ]
+  },
+  {
+    "id": "V8-W02",
+    "request": "I want to know about failures in every project but coupon-engine, today only.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session fails today, or when one named project fails"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W03",
+    "request": "Ping me when the term merge session has been idle for 45 minutes, but not in quiet hours.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-gly"
+      },
+      "conditions": [
+        {
+          "type": "idle_for",
+          "param": 45
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "even_in_quiet_hours": false,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W04",
+    "request": "Tell me when the review on my pull request is approved.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the session working on it finishes"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W05",
+    "request": "Sag Bescheid, wenn irgendein Projekt hängt, ausgenommen backplaner.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "wenn irgendeine Sitzung hängt, oder wenn ein bestimmtes Projekt hängt"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W06",
+    "request": "Tell me when every project finishes except tide-charts.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session finishes, or when one named project finishes"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W07",
+    "request": "Notify me when each app except Cursor hits its limit.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any app hits its usage limit, or when one named app does"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W08",
+    "request": "Alert me if any session fails for the rest of the day.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [
+        {
+          "type": "fails",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "vague_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W09",
+    "request": "Sag mir, wenn die Tests für den Wartungskalender bestanden haben.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "wenn die Wartungskalender-Sitzung fertig ist oder fehlschlägt"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W10",
+    "request": "Let me know when any session mentions the word rollback.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session fails"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W11",
+    "request": "Tell me when the barcode scan session ends.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-yar"
+      },
+      "conditions": [
+        {
+          "type": "ends",
+          "param": null
+        }
+      ],
+      "lifetime": "once",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W12",
+    "request": "Tell me when the build on CI turns green for the offline sync.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the offline sync session finishes or fails"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W13",
+    "request": "Tell me when the stuck migrations session finishes.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-stu"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "tricky_name",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W14",
+    "request": "Tell me when Studio Plus falls beneath 40% and keep it until I remove it, but don't wake me at night.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "account",
+        "id": "acct-studio-plus"
+      },
+      "conditions": [
+        {
+          "type": "runway_below",
+          "param": 40
+        }
+      ],
+      "lifetime": "until_removed",
+      "even_in_quiet_hours": false,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours"
+    ]
+  },
+  {
+    "id": "V8-W15",
+    "request": "Warn me when the Cabin account has cost me more than 12 dollars today.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the Cabin account drops below a share of its room"
+    },
+    "tags": [
+      "unsupported",
+      "threshold"
+    ]
+  },
+  {
+    "id": "V8-W16",
+    "request": "Tell me when all sessions go idle for 20 minutes, excluding the Basement ones.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session is idle for 20 minutes, or when one named app is idle"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W17",
+    "request": "Tell me when the sundial-api session has used more than 80,000 tokens.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the Pantry Max account drops below a share of its room"
+    },
+    "tags": [
+      "unsupported",
+      "threshold"
+    ]
+  },
+  {
+    "id": "V8-W18",
+    "request": "Warn me when Runway drops below 20%, just this once.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "account",
+        "id": "acct-runway"
+      },
+      "conditions": [
+        {
+          "type": "runway_below",
+          "param": 20
+        }
+      ],
+      "lifetime": "once",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "tricky_name"
+    ]
+  },
+  {
+    "id": "V8-W19",
+    "request": "Both the log rotation and the gust model are running, but I only care if the log rotation goes idle for an hour.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-hng"
+      },
+      "conditions": [
+        {
+          "type": "idle_for",
+          "param": 60
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "two_names",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W20",
+    "request": "Tell me whenever Cabin hits its usage limit, from now on.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "account",
+        "id": "acct-cabin"
+      },
+      "conditions": [
+        {
+          "type": "hits_limit",
+          "param": null
+        }
+      ],
+      "lifetime": "until_removed",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W21",
+    "request": "When the glossary hub is done, restart it for me.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the glossary hub session finishes"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W22",
+    "request": "Tell me when the segment cleanup finishes or fails.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-trm"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        },
+        {
+          "type": "fails",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "combined",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W23",
+    "request": "Melde dich, wenn die Kassenbuch-Sitzung 25 Minuten hängt, auch nachts.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-ka"
+      },
+      "conditions": [
+        {
+          "type": "stuck",
+          "param": 25
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "even_in_quiet_hours": true,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W24",
+    "request": "Sag mir, wenn die Fehlerseite fertig ist.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-ra"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "tricky_name",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W25",
+    "request": "Watch the monthly rollup and tell me if it stalls for an hour and a half, even at night.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-rye"
+      },
+      "conditions": [
+        {
+          "type": "stuck",
+          "param": 90
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "even_in_quiet_hours": true,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W26",
+    "request": "Notify me when my other Mac finishes the harbor import.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the harbor import session on this Mac finishes"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W27",
+    "request": "Watch all my sessions for getting stuck 30 minutes, skipping the glossary hub.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session is stuck for 30 minutes"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W28",
+    "request": "Informiere mich, wenn die Messwerte-Sitzung 3 Stunden nichts getan hat.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-wk"
+      },
+      "conditions": [
+        {
+          "type": "idle_for",
+          "param": 180
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W29",
+    "request": "If Annex goes under 15 percent let me know, just once.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "account",
+        "id": "acct-annex"
+      },
+      "conditions": [
+        {
+          "type": "runway_below",
+          "param": 15
+        }
+      ],
+      "lifetime": "once",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W30",
+    "request": "Whenever a new session starts in mosaic-print I want to hear it, not orbit-quiz, from now on.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "project",
+        "id": "p-mos"
+      },
+      "conditions": [
+        {
+          "type": "starts",
+          "param": null
+        }
+      ],
+      "lifetime": "until_removed",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "two_names"
+    ]
+  },
+  {
+    "id": "V8-W31",
+    "request": "Tell me when the allergen labels session asks me for an approval.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-bak"
+      },
+      "conditions": [
+        {
+          "type": "asks",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W32",
+    "request": "I'm comparing the beta tracker with the glossary hub, but only alert me if the beta tracker asks me something.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-bet"
+      },
+      "conditions": [
+        {
+          "type": "asks",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "two_names",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W33",
+    "request": "Remind me at 6:30 pm to check the pier board.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the schedule board session finishes"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W34",
+    "request": "Warne mich einmalig, wenn Scheune Pro unter 30 Prozent fällt.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "account",
+        "id": "acct-scheune-pro"
+      },
+      "conditions": [
+        {
+          "type": "runway_below",
+          "param": 30
+        }
+      ],
+      "lifetime": "once",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W35",
+    "request": "Bis heute Abend: melde jeden Fehler in der Teigrezepte-Sitzung.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-ba"
+      },
+      "conditions": [
+        {
+          "type": "fails",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "vague_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W36",
+    "request": "Tell me when anything has sat idle for 2 hours.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [
+        {
+          "type": "idle_for",
+          "param": 120
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W37",
+    "request": "Sag Bescheid, wenn der Etikettendruck das Nutzungslimit erreicht.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-lf"
+      },
+      "conditions": [
+        {
+          "type": "hits_limit",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W38",
+    "request": "I want to know the moment Attic Pro has room again.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "account",
+        "id": "acct-attic-pro"
+      },
+      "conditions": [
+        {
+          "type": "runway_resets",
+          "param": null
+        }
+      ],
+      "lifetime": "once",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W39",
+    "request": "Ich will wissen, wenn die Termine-Sitzung fertig ist oder fehlschlägt, aber nicht in den Ruhezeiten.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-ge"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        },
+        {
+          "type": "fails",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "even_in_quiet_hours": false,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours",
+      "combined",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W40",
+    "request": "Tell me when the harbor import hits a usage limit.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-tid"
+      },
+      "conditions": [
+        {
+          "type": "hits_limit",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W41",
+    "request": "Ping me when the pager rules session asks me anything, even in quiet hours.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-orb",
+          "app": "Claude Code CLI · Pantry",
+          "project": "orbit-quiz",
+          "title": "Question bank"
+        },
+        {
+          "id": "s-sun",
+          "app": "Codex CLI · Pantry",
+          "project": "sundial-api",
+          "title": "Rate headers"
+        },
+        {
+          "id": "s-mos",
+          "app": "Cursor",
+          "project": "mosaic-print",
+          "title": "Tile export"
+        },
+        {
+          "id": "s-rye",
+          "app": "Claude app · Cabin",
+          "project": "rye-budget",
+          "title": "Monthly rollup"
+        },
+        {
+          "id": "s-fog",
+          "app": "OpenCode",
+          "project": "foghorn-alerts",
+          "title": "Pager rules"
+        },
+        {
+          "id": "s-yar",
+          "app": "Claude Code CLI · Cabin",
+          "project": "yarn-stock",
+          "title": "Barcode scan"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-pantry",
+          "name": "Claude Code CLI · Pantry"
+        },
+        {
+          "id": "app-codex-cli-pantry",
+          "name": "Codex CLI · Pantry"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cabin",
+          "name": "Claude app · Cabin"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cabin",
+          "name": "Claude Code CLI · Cabin"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-orb",
+          "name": "orbit-quiz"
+        },
+        {
+          "id": "p-sun",
+          "name": "sundial-api"
+        },
+        {
+          "id": "p-mos",
+          "name": "mosaic-print"
+        },
+        {
+          "id": "p-rye",
+          "name": "rye-budget"
+        },
+        {
+          "id": "p-fog",
+          "name": "foghorn-alerts"
+        },
+        {
+          "id": "p-yar",
+          "name": "yarn-stock"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-pantry-max",
+          "name": "Pantry Max"
+        },
+        {
+          "id": "acct-cabin",
+          "name": "Cabin"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-fog"
+      },
+      "conditions": [
+        {
+          "type": "asks",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "even_in_quiet_hours": true,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W42",
+    "request": "Sag mir einmal, wenn die Stockkarten eine Frage stellen, auch mitten in der Nacht.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-im"
+      },
+      "conditions": [
+        {
+          "type": "asks",
+          "param": null
+        }
+      ],
+      "lifetime": "once",
+      "even_in_quiet_hours": true,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours"
+    ]
+  },
+  {
+    "id": "V8-W43",
+    "request": "Tell me when the receipt printer one finishes, but hold it during quiet hours, once is enough.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-pep"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        }
+      ],
+      "lifetime": "once",
+      "even_in_quiet_hours": false,
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "quiet_hours",
+      "ambiguous"
+    ]
+  },
+  {
+    "id": "V8-W44",
+    "request": "Let me know every time something starts in idle-hands, until I say stop.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "project",
+        "id": "p-hands"
+      },
+      "conditions": [
+        {
+          "type": "starts",
+          "param": null
+        }
+      ],
+      "lifetime": "until_removed",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "tricky_name"
+    ]
+  },
+  {
+    "id": "V8-W45",
+    "request": "Wenn die Heizungsplan-Sitzung fertig ist, schaue ich mir die Lieferliste an. Sag mir nur Bescheid, wenn die Heizungsplan-Sitzung fertig ist.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-hz"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "two_names",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W46",
+    "request": "Alert me if any session fails apart from the kiosk firmware one.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session fails, or when one named session fails"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W47",
+    "request": "Tell me if the schedule board gets stuck for 10 minutes, tonight only.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-pie"
+      },
+      "conditions": [
+        {
+          "type": "stuck",
+          "param": 10
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "vague_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W48",
+    "request": "Once the coupon engine is done, the reminder mails can start, so ping me just once when the coupon engine finishes.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-cou"
+      },
+      "conditions": [
+        {
+          "type": "finishes",
+          "param": null
+        }
+      ],
+      "lifetime": "once",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "two_names"
+    ]
+  },
+  {
+    "id": "V8-W49",
+    "request": "Tell me when the gust model burns through 200k tokens.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hng",
+          "app": "Claude Code CLI · Attic",
+          "project": "hangar-logs",
+          "title": "Log rotation"
+        },
+        {
+          "id": "s-win",
+          "app": "Codex CLI · Attic",
+          "project": "wind-forecast",
+          "title": "Gust model"
+        },
+        {
+          "id": "s-cof",
+          "app": "Cursor",
+          "project": "coffee-roster",
+          "title": "Shift swaps"
+        },
+        {
+          "id": "s-bet",
+          "app": "Claude app · Basement",
+          "project": "beta-tracker",
+          "title": "Feedback inbox"
+        },
+        {
+          "id": "s-gly",
+          "app": "OpenCode",
+          "project": "glossary-hub",
+          "title": "Term merge"
+        },
+        {
+          "id": "s-trm",
+          "app": "Claude Code CLI · Basement",
+          "project": "translation-memory",
+          "title": "Segment cleanup"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-attic",
+          "name": "Claude Code CLI · Attic"
+        },
+        {
+          "id": "app-codex-cli-attic",
+          "name": "Codex CLI · Attic"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-basement",
+          "name": "Claude app · Basement"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-basement",
+          "name": "Claude Code CLI · Basement"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hng",
+          "name": "hangar-logs"
+        },
+        {
+          "id": "p-win",
+          "name": "wind-forecast"
+        },
+        {
+          "id": "p-cof",
+          "name": "coffee-roster"
+        },
+        {
+          "id": "p-bet",
+          "name": "beta-tracker"
+        },
+        {
+          "id": "p-gly",
+          "name": "glossary-hub"
+        },
+        {
+          "id": "p-trm",
+          "name": "translation-memory"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-attic-pro",
+          "name": "Attic Pro"
+        },
+        {
+          "id": "acct-basement",
+          "name": "Basement"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the Attic Pro account drops below a share of its room"
+    },
+    "tags": [
+      "unsupported",
+      "threshold"
+    ]
+  },
+  {
+    "id": "V8-W50",
+    "request": "Tell me if the asks page session hits a usage limit.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-ask"
+      },
+      "conditions": [
+        {
+          "type": "hits_limit",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "tricky_name",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W51",
+    "request": "Sag mir, wenn die Etikettendruck-Sitzung mehr als 25 Dateien ändert.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "wenn die Etikettendruck-Sitzung fertig ist"
+    },
+    "tags": [
+      "unsupported",
+      "threshold"
+    ]
+  },
+  {
+    "id": "V8-W52",
+    "request": "Jedes Mal, wenn in vokabelkarten eine Sitzung startet, sag es mir, bis ich es abbestelle.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "project",
+        "id": "p-vo"
+      },
+      "conditions": [
+        {
+          "type": "starts",
+          "param": null
+        }
+      ],
+      "lifetime": "until_removed",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W53",
+    "request": "Ping me whenever anything finishes other than the harbor import.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-loo",
+          "app": "Claude Code CLI · Studio",
+          "project": "loom-notes",
+          "title": "Offline sync"
+        },
+        {
+          "id": "s-tid",
+          "app": "Codex CLI · Studio",
+          "project": "tide-charts",
+          "title": "Harbor import"
+        },
+        {
+          "id": "s-pep",
+          "app": "Cursor",
+          "project": "pepper-pos",
+          "title": "Receipt printer"
+        },
+        {
+          "id": "s-anv",
+          "app": "Claude app · Annex",
+          "project": "anvil-docs",
+          "title": "Search index"
+        },
+        {
+          "id": "s-nim",
+          "app": "OpenCode",
+          "project": "nimbus-mail",
+          "title": "Spam rules"
+        },
+        {
+          "id": "s-qui",
+          "app": "Claude Code CLI · Annex",
+          "project": "quill-cms",
+          "title": "Draft autosave"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-studio",
+          "name": "Claude Code CLI · Studio"
+        },
+        {
+          "id": "app-codex-cli-studio",
+          "name": "Codex CLI · Studio"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-annex",
+          "name": "Claude app · Annex"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-annex",
+          "name": "Claude Code CLI · Annex"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-loo",
+          "name": "loom-notes"
+        },
+        {
+          "id": "p-tid",
+          "name": "tide-charts"
+        },
+        {
+          "id": "p-pep",
+          "name": "pepper-pos"
+        },
+        {
+          "id": "p-anv",
+          "name": "anvil-docs"
+        },
+        {
+          "id": "p-nim",
+          "name": "nimbus-mail"
+        },
+        {
+          "id": "p-qui",
+          "name": "quill-cms"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-studio-plus",
+          "name": "Studio Plus"
+        },
+        {
+          "id": "acct-annex",
+          "name": "Annex"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session finishes"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W54",
+    "request": "Let me know if everything but form-kit asks me a question.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when any session asks me a question, or when one named project asks"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W55",
+    "request": "Let me know whenever Cursor starts a new session, until I say stop.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "app",
+        "id": "app-cursor"
+      },
+      "conditions": [
+        {
+          "type": "starts",
+          "param": null
+        }
+      ],
+      "lifetime": "until_removed",
+      "nearest_if_unsupported": null
+    },
+    "tags": []
+  },
+  {
+    "id": "V8-W56",
+    "request": "Let me know if the firmware flash changes more than 40 files.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the firmware flash session finishes"
+    },
+    "tags": [
+      "unsupported",
+      "threshold"
+    ]
+  },
+  {
+    "id": "V8-W57",
+    "request": "Melde mir jede Sitzung, die fertig wird, außer der Wartungskalender-Sitzung.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-hz",
+          "app": "Claude Code CLI · Werkstatt",
+          "project": "heizungsplan",
+          "title": "Wartungskalender"
+        },
+        {
+          "id": "s-lf",
+          "app": "Codex CLI · Werkstatt",
+          "project": "lieferliste",
+          "title": "Etikettendruck"
+        },
+        {
+          "id": "s-ka",
+          "app": "Cursor",
+          "project": "kassenbuch",
+          "title": "Tagesabschluss"
+        },
+        {
+          "id": "s-im",
+          "app": "Claude app · Keller",
+          "project": "imkerei-app",
+          "title": "Stockkarten"
+        },
+        {
+          "id": "s-pf",
+          "app": "OpenCode",
+          "project": "pfadfinder-karte",
+          "title": "Routen-Import"
+        },
+        {
+          "id": "s-wk",
+          "app": "Claude Code CLI · Keller",
+          "project": "wetterkiste",
+          "title": "Messwerte"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-werkstatt",
+          "name": "Claude Code CLI · Werkstatt"
+        },
+        {
+          "id": "app-codex-cli-werkstatt",
+          "name": "Codex CLI · Werkstatt"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-keller",
+          "name": "Claude app · Keller"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-keller",
+          "name": "Claude Code CLI · Keller"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-hz",
+          "name": "heizungsplan"
+        },
+        {
+          "id": "p-lf",
+          "name": "lieferliste"
+        },
+        {
+          "id": "p-ka",
+          "name": "kassenbuch"
+        },
+        {
+          "id": "p-im",
+          "name": "imkerei-app"
+        },
+        {
+          "id": "p-pf",
+          "name": "pfadfinder-karte"
+        },
+        {
+          "id": "p-wk",
+          "name": "wetterkiste"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-werkstatt-plus",
+          "name": "Werkstatt Plus"
+        },
+        {
+          "id": "acct-keller",
+          "name": "Keller"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "wenn irgendeine Sitzung fertig wird, oder wenn eine bestimmte Sitzung fertig wird"
+    },
+    "tags": [
+      "unsupported",
+      "exclusion"
+    ]
+  },
+  {
+    "id": "V8-W58",
+    "request": "Tell me when the kiosk firmware session fails; it was split off from the pier board one.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fer",
+          "app": "Claude Code CLI · Loft",
+          "project": "ferry-times",
+          "title": "Timetable parser"
+        },
+        {
+          "id": "s-kio",
+          "app": "Codex CLI · Loft",
+          "project": "kiosk-fw",
+          "title": "Firmware flash"
+        },
+        {
+          "id": "s-pie",
+          "app": "Cursor",
+          "project": "pier-board",
+          "title": "Schedule board"
+        },
+        {
+          "id": "s-cou",
+          "app": "Claude app · Cellar",
+          "project": "coupon-engine",
+          "title": "Rule builder"
+        },
+        {
+          "id": "s-inv",
+          "app": "OpenCode",
+          "project": "invoice-followup",
+          "title": "Reminder mails"
+        },
+        {
+          "id": "s-bak",
+          "app": "Claude Code CLI · Cellar",
+          "project": "bakery-menu",
+          "title": "Allergen labels"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-loft",
+          "name": "Claude Code CLI · Loft"
+        },
+        {
+          "id": "app-codex-cli-loft",
+          "name": "Codex CLI · Loft"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-cellar",
+          "name": "Claude app · Cellar"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-cellar",
+          "name": "Claude Code CLI · Cellar"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fer",
+          "name": "ferry-times"
+        },
+        {
+          "id": "p-kio",
+          "name": "kiosk-fw"
+        },
+        {
+          "id": "p-pie",
+          "name": "pier-board"
+        },
+        {
+          "id": "p-cou",
+          "name": "coupon-engine"
+        },
+        {
+          "id": "p-inv",
+          "name": "invoice-followup"
+        },
+        {
+          "id": "p-bak",
+          "name": "bakery-menu"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-loft-team",
+          "name": "Loft Team"
+        },
+        {
+          "id": "acct-cellar",
+          "name": "Cellar"
+        }
+      ]
+    },
+    "gold": {
+      "supported": true,
+      "target": {
+        "kind": "session",
+        "id": "s-kio"
+      },
+      "conditions": [
+        {
+          "type": "fails",
+          "param": null
+        }
+      ],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": null
+    },
+    "tags": [
+      "two_names",
+      "unsaid_lifetime"
+    ]
+  },
+  {
+    "id": "V8-W59",
+    "request": "Erinnere mich morgen um 8 Uhr an den Wochenbericht.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-fl",
+          "app": "Claude Code CLI · Scheune",
+          "project": "flohmarkt-liste",
+          "title": "Preisschilder"
+        },
+        {
+          "id": "s-ba",
+          "app": "Codex CLI · Scheune",
+          "project": "backplaner",
+          "title": "Teigrezepte"
+        },
+        {
+          "id": "s-st",
+          "app": "Cursor",
+          "project": "stundenzettel",
+          "title": "Wochenbericht"
+        },
+        {
+          "id": "s-ge",
+          "app": "Claude app · Dachboden",
+          "project": "gemeinde-kalender",
+          "title": "Termine importieren"
+        },
+        {
+          "id": "s-vo",
+          "app": "OpenCode",
+          "project": "vokabelkarten",
+          "title": "Aussprache"
+        },
+        {
+          "id": "s-ra",
+          "app": "Claude Code CLI · Dachboden",
+          "project": "radweg-melder",
+          "title": "Fehlerseite"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-scheune",
+          "name": "Claude Code CLI · Scheune"
+        },
+        {
+          "id": "app-codex-cli-scheune",
+          "name": "Codex CLI · Scheune"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-dachboden",
+          "name": "Claude app · Dachboden"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-dachboden",
+          "name": "Claude Code CLI · Dachboden"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-fl",
+          "name": "flohmarkt-liste"
+        },
+        {
+          "id": "p-ba",
+          "name": "backplaner"
+        },
+        {
+          "id": "p-st",
+          "name": "stundenzettel"
+        },
+        {
+          "id": "p-ge",
+          "name": "gemeinde-kalender"
+        },
+        {
+          "id": "p-vo",
+          "name": "vokabelkarten"
+        },
+        {
+          "id": "p-ra",
+          "name": "radweg-melder"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-scheune-pro",
+          "name": "Scheune Pro"
+        },
+        {
+          "id": "acct-dachboden",
+          "name": "Dachboden"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "wenn die Wochenbericht-Sitzung fertig ist"
+    },
+    "tags": [
+      "unsupported"
+    ]
+  },
+  {
+    "id": "V8-W60",
+    "request": "Ping me when the token count of any session passes one million.",
+    "context": {
+      "sessions": [
+        {
+          "id": "s-stu",
+          "app": "Claude Code CLI · Dock",
+          "project": "ledger-lite",
+          "title": "Stuck migrations"
+        },
+        {
+          "id": "s-ask",
+          "app": "Codex CLI · Dock",
+          "project": "form-kit",
+          "title": "Asks page"
+        },
+        {
+          "id": "s-fin",
+          "app": "Cursor",
+          "project": "style-guide",
+          "title": "Finish line styles"
+        },
+        {
+          "id": "s-hands",
+          "app": "Claude app · Shed",
+          "project": "idle-hands",
+          "title": "Gesture input"
+        },
+        {
+          "id": "s-lim",
+          "app": "OpenCode",
+          "project": "limit-break",
+          "title": "Rate curve"
+        },
+        {
+          "id": "s-pla",
+          "app": "Claude Code CLI · Shed",
+          "project": "plant-swap",
+          "title": "Listing photos"
+        }
+      ],
+      "apps": [
+        {
+          "id": "app-claude-code-cli-dock",
+          "name": "Claude Code CLI · Dock"
+        },
+        {
+          "id": "app-codex-cli-dock",
+          "name": "Codex CLI · Dock"
+        },
+        {
+          "id": "app-cursor",
+          "name": "Cursor"
+        },
+        {
+          "id": "app-claude-app-shed",
+          "name": "Claude app · Shed"
+        },
+        {
+          "id": "app-opencode",
+          "name": "OpenCode"
+        },
+        {
+          "id": "app-claude-code-cli-shed",
+          "name": "Claude Code CLI · Shed"
+        }
+      ],
+      "projects": [
+        {
+          "id": "p-stu",
+          "name": "ledger-lite"
+        },
+        {
+          "id": "p-ask",
+          "name": "form-kit"
+        },
+        {
+          "id": "p-fin",
+          "name": "style-guide"
+        },
+        {
+          "id": "p-hands",
+          "name": "idle-hands"
+        },
+        {
+          "id": "p-lim",
+          "name": "limit-break"
+        },
+        {
+          "id": "p-pla",
+          "name": "plant-swap"
+        }
+      ],
+      "accounts": [
+        {
+          "id": "acct-runway",
+          "name": "Runway"
+        },
+        {
+          "id": "acct-shed-basic",
+          "name": "Shed Basic"
+        }
+      ]
+    },
+    "gold": {
+      "supported": false,
+      "target": {
+        "kind": "any",
+        "id": null
+      },
+      "conditions": [],
+      "lifetime": "until:2026-11-18T23:59:00Z",
+      "nearest_if_unsupported": "when the Runway account drops below a share of its room"
+    },
+    "tags": [
+      "unsupported",
+      "threshold"
+    ]
+  }
+]

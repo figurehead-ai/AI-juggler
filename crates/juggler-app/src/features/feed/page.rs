@@ -8,7 +8,9 @@ use juggler_core::storage::Storage;
 use juggler_core::storage::feed::{FeedKey, FeedScope, rank as feed_rank};
 
 use super::dto::{FeedFiltersInfo, FeedItemInfo};
-use super::items::{self, ENDINGS, MESSAGE_KINDS, MINE, TASK_CHANGES, category_of, stored_for};
+use super::items::{
+    self, ENDINGS, MESSAGE_KINDS, MINE, TASK_CHANGES, in_chip, in_state, stored_for,
+};
 use crate::error::{AppError, AppResult};
 use crate::paging::{Page, PageRequest, SortKey};
 
@@ -24,6 +26,11 @@ pub struct Ask {
     pub scope: FeedScope,
     /// The user's own acts too.
     pub include_mine: bool,
+    /// AJ-E3713 R5: one state chip (`running`, `finished`, `failed`).
+    pub state: Option<String>,
+    /// The sessions running now (the Running chip keeps their items);
+    /// `None` when it isn't asked.
+    pub running: Option<std::collections::HashSet<String>>,
 }
 
 impl Ask {
@@ -41,7 +48,19 @@ impl Ask {
                 folders: filters.folders.clone(),
             },
             include_mine: filters.include_mine,
+            state: filters
+                .state
+                .clone()
+                .filter(|state| !state.is_empty() && state != "all"),
+            running: None,
         }
+    }
+
+    /// The same ask with the sessions running now (the Running chip).
+    #[must_use]
+    pub fn with_running(mut self, running: impl IntoIterator<Item = String>) -> Self {
+        self.running = Some(running.into_iter().collect());
+        self
     }
 
     fn chip(&self) -> Option<&str> {
@@ -52,7 +71,18 @@ impl Ask {
     /// chip that shares its stored word with another, the user's acts).
     #[must_use]
     pub fn keeps(&self, item: &FeedItemInfo) -> bool {
-        (self.include_mine || !item.mine) && self.chip().is_none_or(|chip| item.category == chip)
+        (self.include_mine || !item.mine)
+            && self.chip().is_none_or(|chip| {
+                item.category == chip || (chip != "needs" && in_chip(&item.kind, chip))
+            })
+            && self.state.as_deref().is_none_or(|state| match state {
+                "running" => item.target.session_id.as_ref().is_some_and(|id| {
+                    self.running
+                        .as_ref()
+                        .is_some_and(|running| running.contains(id))
+                }),
+                state => in_state(&item.kind, state),
+            })
     }
 }
 
@@ -116,13 +146,12 @@ impl FeedSource for Notices {
             .iter()
             .filter(|(_, feed)| {
                 chip.is_none_or(|chip| {
-                    category_of(feed) == chip
-                        || (*feed == "quota" && category_of("credits") == chip)
+                    in_chip(feed, chip) || (*feed == "quota" && in_chip("credits", chip))
                 })
             })
             .map(|(stored, _)| (*stored).to_owned())
             .collect();
-        let answered: Vec<String> = if chip.is_none_or(|chip| chip == category_of("answered")) {
+        let answered: Vec<String> = if chip.is_none_or(|chip| in_chip("answered", chip)) {
             items::ANSWERED_NEEDS
                 .iter()
                 .map(|kind| (*kind).to_owned())
@@ -168,9 +197,9 @@ impl FeedSource for Switches {
         ask: &Ask,
         limit: usize,
     ) -> AppResult<Read> {
-        let wanted = ask.chip().is_none_or(|chip| {
-            chip == category_of("switch") || chip == category_of("switch_failed")
-        });
+        let wanted = ask
+            .chip()
+            .is_none_or(|chip| in_chip("switch", chip) || in_chip("switch_failed", chip));
         if !wanted {
             return Ok(Read::default());
         }
@@ -205,10 +234,7 @@ impl FeedSource for Messages {
         ask: &Ask,
         limit: usize,
     ) -> AppResult<Read> {
-        if ask
-            .chip()
-            .is_some_and(|chip| chip != category_of("message"))
-        {
+        if ask.chip().is_some_and(|chip| !in_chip("message", chip)) {
             return Ok(Read::default());
         }
         let kinds: Vec<String> = MESSAGE_KINDS
@@ -273,9 +299,23 @@ pub fn page(
     filters: &FeedFiltersInfo,
     more: Read,
 ) -> AppResult<Page<FeedItemInfo>> {
+    page_for(storage, request, &Ask::of(filters), more)
+}
+
+/// [`page`] for an ask already resolved (the Running chip's sessions).
+///
+/// # Errors
+///
+/// As [`page`].
+pub fn page_for(
+    storage: &Storage,
+    request: &PageRequest,
+    ask: &Ask,
+    more: Read,
+) -> AppResult<Page<FeedItemInfo>> {
     let limit = request.limit.map_or(FEED_PAGE, |_| request.limit());
     let before = request.cursor.as_deref().map(key_of).transpose()?;
-    let ask = Ask::of(filters);
+    let ask = ask.clone();
     let mut full = more.full;
     let mut placed = more.items;
     for source in SOURCES {

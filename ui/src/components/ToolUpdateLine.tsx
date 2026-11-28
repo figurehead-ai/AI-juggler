@@ -8,7 +8,8 @@
  */
 import { useEffect, useState } from "react";
 import { toolUpdateCheckSet, toolUpdateStatus, type ToolUpdateInfo } from "../lib/ipc/toolUpdates";
-import { Checkbox } from "./controls";
+import { SettingSwitch } from "./SettingSwitch";
+import { IconUpdate } from "./icons-menu";
 
 /** Each tool's update status, read once (a tool without a feed is absent). */
 export function useToolUpdates(tools: string[]): [Record<string, ToolUpdateInfo>, (on: boolean) => void] {
@@ -53,10 +54,18 @@ export function ToolUpdateChecks({ rows, onChange }: { rows: Record<string, Tool
   const any = Object.values(rows)[0];
   if (!any) return null;
   return (
-    <label className="flex items-center gap-2 text-label text-muted" data-testid="provider-update">
-      <Checkbox checked={any.checks_on} onChange={(event) => onChange(event.target.checked)} data-testid="provider-update-check" />
-      Look for new versions of your tools once a day
-    </label>
+    // AJ-E1558 (D-126): the kit's switch row, its chip the accent's soft step while on.
+    <div data-testid="provider-update">
+      <SettingSwitch
+        id="tool-update-checks"
+        icon={IconUpdate}
+        label="Look for new versions of your tools once a day"
+        hint="Only looks; AI Juggler never updates a tool."
+        checked={any.checks_on}
+        testId="provider-update-check"
+        onChange={onChange}
+      />
+    </div>
   );
 }
 

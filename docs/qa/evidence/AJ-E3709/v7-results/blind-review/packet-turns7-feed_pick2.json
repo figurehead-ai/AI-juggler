@@ -1,0 +1,978 @@
+[
+ {
+  "pair": "turns7-feed_pick2-001",
+  "item": "V7T01",
+  "source": "I moved the heron-queue retry delay into a config value and also fixed a stale comment above it. While there I noticed the logging helper prints twice, but I left that alone since it is out of scope. All 19 tests in the queue package pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 19,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "queue/retry.go",
+     "added": 18,
+     "removed": 7,
+     "status": "M"
+    },
+    {
+     "path": "queue/config.go",
+     "added": 9,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "queue/retry_test.go",
+     "added": 22,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Moved the heron-queue retry delay into a config value and also fixed a stale comment above it, 19 passed",
+  "second": "I moved the heron-queue retry delay into a config value and also fixed a stale comment above it."
+ },
+ {
+  "pair": "turns7-feed_pick2-002",
+  "item": "V7T02",
+  "source": "Alex asked for pagination on the otter-board activity list. It now loads 25 items at a time and fetches the next page on scroll. I also renamed two CSS classes for consistency and updated the snapshot. I did not run the tests because the sandbox has no browser.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/activity/List.tsx",
+     "added": 64,
+     "removed": 20,
+     "status": "M"
+    },
+    {
+     "path": "src/activity/list.css",
+     "added": 8,
+     "removed": 8,
+     "status": "M"
+    },
+    {
+     "path": "src/activity/__snapshots__/List.snap",
+     "added": 30,
+     "removed": 12,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Alex asked for pagination on the otter-board activity list.\nI did not run the tests because the sandbox has no browser.",
+  "second": "Renamed two CSS classes for consistency; tests were not run"
+ },
+ {
+  "pair": "turns7-feed_pick2-003",
+  "item": "V7T03",
+  "source": "Sam's request is done: the pebble-cli export command now writes UTF-8 with a byte order mark only when --excel is set. The old behaviour for everything else is unchanged. 8 of 8 export tests pass and I added one for the flag.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 8,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "cmd/export.go",
+     "added": 27,
+     "removed": 5,
+     "status": "M"
+    },
+    {
+     "path": "cmd/export_test.go",
+     "added": 19,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "The pebble-cli export command now writes UTF-8 with a byte order mark only when --excel is set, 8 passed",
+  "second": "Sam's request is done: the pebble-cli export command now writes UTF-8 with a byte order mark only when --excel is set."
+ },
+ {
+  "pair": "turns7-feed_pick2-004",
+  "item": "V7T04",
+  "source": "I replaced the hand-written date parsing in reedbed-ledger with the standard library parser, deleted 140 lines of helper code and regenerated the fixtures. Priya, the lint step reports no issues. The unit tests were not executed in this session.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "ledger/dates.py",
+     "added": 12,
+     "removed": 140,
+     "status": "M"
+    },
+    {
+     "path": "tests/fixtures/dates.json",
+     "added": 50,
+     "removed": 48,
+     "status": "M"
+    },
+    {
+     "path": "ledger/util.py",
+     "added": 0,
+     "removed": 22,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "I replaced the hand-written date parsing in reedbed-ledger with the standard library parser, deleted 140 lines of helper code and regenerated the fixtures.\nThe unit tests were not executed in this session.",
+  "second": "Regenerated the fixtures; tests were not run"
+ },
+ {
+  "pair": "turns7-feed_pick2-005",
+  "item": "V7T05",
+  "source": "Added a /health endpoint to the larch-gateway, plus a README paragraph about it. Both new tests pass but one older test (test_slow_upstream) was flaky and I reran it twice; it passed the second time. Final count: 41 passed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 41,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "gateway/health.py",
+     "added": 33,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/test_health.py",
+     "added": 40,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "README.md",
+     "added": 9,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a /health endpoint to the larch-gateway, plus a README paragraph about it.",
+  "second": "Added a /health endpoint to the larch-gateway, plus a README paragraph about it, 41 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-006",
+  "item": "V7T06",
+  "source": "The sedge-mail attachment preview now supports PDF first pages. I also bumped the thumbnail size from 96 to 128 pixels, which changes the layout slightly in the inbox list. Tests: 27 pass, 0 fail. Nothing is committed yet; the changes sit in the working tree.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "preview/pdf.ts",
+     "added": 88,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "preview/thumb.ts",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "inbox/list.css",
+     "added": 6,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "The sedge-mail attachment preview now supports PDF first pages.",
+  "second": "The sedge-mail attachment preview now supports PDF first pages, 27 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-007",
+  "item": "V7T08",
+  "source": "Fixed the off-by-one in the loon-grid column counter. The old test expected the wrong value, so I corrected the test, too. 12 pass. Please note I could not reproduce the second bug Sam mentioned (the flicker on resize), so that one is still open.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "grid/columns.js",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "grid/columns.test.js",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Fixed the off-by-one in the loon-grid column counter, 12 passed",
+  "second": "Fixed the off-by-one in the loon-grid column counter."
+ },
+ {
+  "pair": "turns7-feed_pick2-008",
+  "item": "V7T09",
+  "source": "In the thistle-forms package I made required fields show an asterisk and added aria-required on them. I also tried making the error text red but the design tokens forbid it so I kept the existing colour. 31 tests pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "forms/Field.tsx",
+     "added": 21,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "forms/Field.test.tsx",
+     "added": 26,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "In the thistle-forms package I made required fields show an asterisk and added aria-required on them.",
+  "second": "Added aria-required on them, 31 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-009",
+  "item": "V7T11",
+  "source": "Implemented the CSV import dry run in the marten-hr tool: it prints the rows that would change and exits without writing. It also logs skipped rows to /Users/someone/marten/skipped.log. 9 tests pass; I added 4 of them.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "import/dryrun.py",
+     "added": 58,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_dryrun.py",
+     "added": 64,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Implemented the CSV import dry run in the marten-hr tool: it prints the rows that would change and exits without writing.",
+  "second": "Implemented the CSV import dry run in the marten-hr tool, 9 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-010",
+  "item": "V7T12",
+  "source": "Wrote the first draft of the migration guide for plover-db v3. It is only a document, so no tests apply. The sections on rollback and downtime are marked TODO for Priya to fill in.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "docs/migrating-to-v3.md",
+     "added": 120,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Wrote the first draft of the migration guide for plover-db v3.",
+  "second": "Wrote the first draft of the migration guide for plover-db v3; tests were not run"
+ },
+ {
+  "pair": "turns7-feed_pick2-011",
+  "item": "V7T27",
+  "source": "I tried switching the dune-cache to a lock-free queue and the benchmarks got worse by 12 percent, so I dropped the change with git checkout. Only the new benchmark file remains. Tests: 6 pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 6,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "bench/queue_bench.rs",
+     "added": 44,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "cache/queue.rs",
+     "note": "the lock-free queue was discarded"
+    }
+   ],
+   "reflog": [
+    "checkout: moving from experiment to main"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept bench/queue_bench.rs (new, +44 -0); reverted cache/queue.rs\nI tried switching the dune-cache to a lock-free queue and the benchmarks got worse by 12 percent, so I dropped the change with git checkout.",
+  "second": "git: kept bench/queue_bench.rs (new, +44 -0); reverted cache/queue.rs\nI dropped the change with git checkout, 6 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-012",
+  "item": "V7T28",
+  "source": "First I replaced the whole routing layer in the cliff-web app, then Sam pointed out the old layer handled the legacy URLs. I reverted the routing change completely and only kept a unit test for the legacy URL case. 5 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "tests/legacy_urls.test.ts",
+     "added": 28,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/router.ts",
+     "note": "the new routing layer was reverted"
+    },
+    {
+     "path": "src/routes/index.ts",
+     "note": "routes reverted"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~2"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept tests/legacy_urls.test.ts (new, +28 -0); reverted src/router.ts, src/routes/index.ts\n5 tests pass",
+  "second": "git: kept tests/legacy_urls.test.ts (new, +28 -0); reverted src/router.ts, src/routes/index.ts\nThe agent says: “First I replaced the whole routing layer in the cliff-web app, then Sam pointed out the old layer handled the legacy URLs.”"
+ },
+ {
+  "pair": "turns7-feed_pick2-013",
+  "item": "V7T29",
+  "source": "Ich wollte die Mehrsprachigkeit im brombeer-Shop einbauen, habe es aber abgebrochen, weil die Übersetzungsdateien nicht zum Format passen. Geblieben ist nur ein neuer Eintrag in der Änderungsliste. Tests: 18 grün.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "CHANGES.md",
+     "added": 3,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/i18n/loader.ts",
+     "note": "Loader zurückgesetzt"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten CHANGES.md (+3 -0); zurückgenommen src/i18n/loader.ts\nGeblieben ist nur ein neuer Eintrag in der Änderungsliste",
+  "second": "git: behalten CHANGES.md (+3 -0); zurückgenommen src/i18n/loader.ts\nIch wollte die Mehrsprachigkeit im brombeer-Shop einbauen, habe es aber abgebrochen, weil die Übersetzungsdateien nicht zum Format passen."
+ },
+ {
+  "pair": "turns7-feed_pick2-014",
+  "item": "V7T30",
+  "source": "The dashboard dark mode in the osprey-admin app was merged into the working tree and then undone, because it broke the chart colours. The only thing left is a fix for a typo in the footer text. All 9 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/layout/Footer.tsx",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/theme/dark.ts",
+     "note": "dark mode theme removed"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept src/layout/Footer.tsx (+1 -1); reverted src/theme/dark.ts\nThe agent says: “The dashboard dark mode in the osprey-admin app was merged into the working tree and then undone, because it broke the chart colours.”",
+  "second": "git: kept src/layout/Footer.tsx (+1 -1); reverted src/theme/dark.ts\nThe only thing left is a fix for a typo in the footer text, 9 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-015",
+  "item": "V7T31",
+  "source": "I experimented with a Rust rewrite of the bark-parser hot loop, saw only a 3 percent gain, and threw it away. I kept one small improvement: a lookup table for the character classes. 20 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 20,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "parser/classes.py",
+     "added": 16,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "parser_rs/lib.rs",
+     "note": "the Rust rewrite was deleted"
+    }
+   ],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "git: kept parser/classes.py (+16 -5); reverted parser_rs/lib.rs\nI experimented with a Rust rewrite of the bark-parser hot loop, saw only a 3 percent gain, and threw it away.",
+  "second": "git: kept parser/classes.py (+16 -5); reverted parser_rs/lib.rs\nKept one small improvement, 20 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-016",
+  "item": "V7T32",
+  "source": "I got the first two of the five steps of the ibex-sync schema upgrade in: the new column and the backfill script. The index rebuild, the cutover and the cleanup are still to do. I paused so Alex can review the backfill.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "ran",
+    "passed": 5,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/0007_new_column.sql",
+     "added": 12,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "scripts/backfill.py",
+     "added": 66,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "I got the first two of the five steps of the ibex-sync schema upgrade in: the new column and the backfill script.",
+  "second": "The new column and the backfill script, 5 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-017",
+  "item": "V7T33",
+  "source": "Looked at why the cormorant-tts voice cache is slow. The cause is that every request rebuilds the phoneme table. I have not changed any code yet; the fix would be to build it once at startup. Waiting for a go.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Looked at why the cormorant-tts voice cache is slow; tests were not run; I have not changed any code yet",
+  "second": "Looked at why the cormorant-tts voice cache is slow.\nI have not changed any code yet; the fix would be to build it once at startup."
+ },
+ {
+  "pair": "turns7-feed_pick2-018",
+  "item": "V7T35",
+  "source": "Explained how the egret-scheduler picks the next job: it sorts by priority, then by age, then by id. No files were touched and no tests were run, since this was a read-only question.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Explained how the egret-scheduler picks the next job: it sorts by priority, then by age, then by id.\nNo files were touched and no tests were run, since this was a read-only question.",
+  "second": "Explained how the egret-scheduler picks the next job; tests were not run"
+ },
+ {
+  "pair": "turns7-feed_pick2-019",
+  "item": "V7T36",
+  "source": "Half of the importer for the jay-music library works: it reads the tags of MP3 and FLAC files. Ogg and the cover art are not done. 13 tests pass for the finished formats; the Ogg tests are skipped.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "ran",
+    "passed": 13,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "import/tags.py",
+     "added": 110,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/test_tags.py",
+     "added": 80,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "Half of the importer for the jay-music library works: it reads the tags of MP3 and FLAC files.\nOgg and the cover art are not done.",
+  "second": "13 tests pass for the finished formats; ogg and the cover art are not done"
+ },
+ {
+  "pair": "turns7-feed_pick2-020",
+  "item": "V7T37",
+  "source": "The rowan-kit CLI help text is being rewritten; I have done the first three commands and stopped because Priya wants a different tone. Nothing else changed and the tests were not needed.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "cli/help.go",
+     "added": 45,
+     "removed": 40,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "The rowan-kit CLI help text is being rewritten; I have done the first three commands and stopped because Priya wants a different tone.",
+  "second": "The rowan-kit CLI help text is being rewritten; tests were not run"
+ },
+ {
+  "pair": "turns7-feed_pick2-021",
+  "item": "V7T43",
+  "source": "I committed and pushed the sleet-api change, everything is on the remote. Git status still shows uncommitted edits in two files, the config loader and its test, which I forgot to add.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 10,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/handler.py",
+     "added": 19,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "api/config.py",
+     "added": 11,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_config.py",
+     "added": 8,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "commit: change handler"
+   ],
+   "uncommitted": true
+  },
+  "first": "The agent says: “I committed and pushed the sleet-api change, everything is on the remote.”\ngit: the changes are not committed",
+  "second": "Git status still shows uncommitted edits in two files, the config loader and its test"
+ },
+ {
+  "pair": "turns7-feed_pick2-022",
+  "item": "V7T45",
+  "source": "Wrote the retry wrapper for the lark-http client with exponential backoff. 6 tests pass and 1 is skipped because it needs network access. I also deleted an unused import.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 6,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "client/retry.py",
+     "added": 52,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "client/__init__.py",
+     "added": 0,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Wrote the retry wrapper for the lark-http client with exponential backoff, 6 passed",
+  "second": "Wrote the retry wrapper for the lark-http client with exponential backoff."
+ },
+ {
+  "pair": "turns7-feed_pick2-023",
+  "item": "V7T47",
+  "source": "I rotated the log files in the vole-ops scripts and started the job. Output so far: 3 of 8 hosts done, host 4 is slow. The job is still running in the background, so the result is not known yet.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "ops/rotate.sh",
+     "added": 21,
+     "removed": 4,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "first": "I rotated the log files in the vole-ops scripts and started the job.\nOutput so far: 3 of 8 hosts done, host 4 is slow.",
+  "second": "I rotated the log files in the vole-ops scripts and started the job; 3 of 8 hosts done"
+ },
+ {
+  "pair": "turns7-feed_pick2-024",
+  "item": "V7T48",
+  "source": "Renamed the function parseCfg to parseConfig across the snipe-lib package (31 call sites), updated the docs, and kept a deprecated alias for one release. All 52 tests pass and the type check is clean.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 52,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/config.ts",
+     "added": 14,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "src/index.ts",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "docs/api.md",
+     "added": 10,
+     "removed": 10,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Renamed the function parseCfg to parseConfig across the snipe-lib package (31 call sites), updated the docs, and kept a deprecated alias for one release.",
+  "second": "Renamed the function parseCfg to parseConfig across the snipe-lib package (31 call sites), updated the docs, 52 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-025",
+  "item": "V7T49",
+  "source": "Priya asked for a smaller bundle in the fennel-shop front end. I split the admin screens into a lazy chunk, which cuts the first load from 410 KB to 290 KB, and removed a duplicate date library. I tried to also drop the icon font but the checkout page still needs it, so I put it back. 37 tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 37,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "webpack.config.js",
+     "added": 18,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "src/admin/index.ts",
+     "added": 12,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "package.json",
+     "added": 0,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/fonts/icons.css",
+     "note": "icon font removal put back"
+    }
+   ],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "git: kept webpack.config.js (+18 -4); src/admin/index.ts (+12 -6); package.json (+0 -2); reverted src/fonts/icons.css\nPriya asked for a smaller bundle in the fennel-shop front end.",
+  "second": "git: kept webpack.config.js (+18 -4); src/admin/index.ts (+12 -6); package.json (+0 -2); reverted src/fonts/icons.css\nSplit the admin screens into a lazy chunk, 37 passed"
+ },
+ {
+  "pair": "turns7-feed_pick2-026",
+  "item": "V7T50",
+  "source": "Hier die Lage beim tulpen-Rechnungsmodul: Die Summenformel ist jetzt richtig, aber ich habe 2 von 40 Tests ausgelassen, weil sie eine echte Datenbank brauchen, und ich weiß nicht, ob sie noch laufen. Außerdem habe ich versehentlich die Datei notizen.txt gelöscht und wiederhergestellt.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 38,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "rechnung/summe.py",
+     "added": 17,
+     "removed": 9,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [
+    "checkout: restore notizen.txt"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: behalten rechnung/summe.py (+17 -9); zurückgenommen notizen.txt\nHier die Lage beim tulpen-Rechnungsmodul: Die Summenformel ist jetzt richtig, aber ich habe 2 von 40 Tests ausgelassen, weil sie eine echte Datenbank brauchen, und ich weiß nicht, ob sie noch laufen.",
+  "second": "git: behalten rechnung/summe.py (+17 -9); zurückgenommen notizen.txt\nHier die Lage beim tulpen-Rechnungsmodul; ich habe 2 von 40 Tests ausgelassen"
+ }
+]

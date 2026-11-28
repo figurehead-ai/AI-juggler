@@ -13,7 +13,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::conditions::{Memo, Registry, Verdict};
 use super::model::{Lifetime, Matching, TargetKind, Watch, WatchId, WatchTarget};
@@ -156,6 +156,44 @@ impl Live {
     }
 }
 
+/// One slot as saved: `(target index, member, condition index)`, the
+/// rule's memo, its armed deadline and its last fire.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SavedSlot {
+    /// The target's index.
+    pub target: usize,
+    /// The member (a session, an account).
+    pub member: String,
+    /// The condition's index.
+    pub condition: usize,
+    /// The rule's memo.
+    pub memo: Option<i64>,
+    /// Its armed deadline.
+    pub armed: Option<i64>,
+    /// When it last fired.
+    pub last_fire: Option<i64>,
+}
+
+/// A watch's engine state as a unit (AJ-E2027 G12): its slots with their
+/// deadlines, "all of"'s met flags, the session targets that ended, and
+/// its cursor. Saved with its schedule, restored on start, so a deadline
+/// armed before a restart or a sleep fires once, at its time.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Saved {
+    /// The slots.
+    pub slots: Vec<SavedSlot>,
+    /// "All of": which targets have met a condition.
+    pub met: Vec<bool>,
+    /// Session targets that ended.
+    pub ended: Vec<String>,
+    /// The last observation time it heard.
+    pub cursor_ms: i64,
+}
+
+/// The most slots a saved state holds (10 targets × 4 conditions × a
+/// target's members; more is refused, never truncated silently).
+pub const SAVED_SLOTS_MAX: usize = 2_000;
+
 /// Where a target is indexed: `(kind, id)`, any session under `""`.
 type IndexKey = (TargetKind, String);
 
@@ -164,7 +202,7 @@ fn index_key(target: &WatchTarget) -> IndexKey {
 }
 
 /// The target covers what the observation is about.
-fn covers(target: &WatchTarget, subject: &Subject) -> bool {
+pub(crate) fn covers(target: &WatchTarget, subject: &Subject) -> bool {
     match target {
         WatchTarget::Session(id) => subject.session.as_deref() == Some(id),
         WatchTarget::App(id) => subject.apps.iter().any(|a| a == id),
@@ -184,6 +222,21 @@ fn member(subject: &Subject) -> String {
         .or_else(|| subject.account.clone())
         .or_else(|| subject.pools.first().cloned())
         .unwrap_or_default()
+}
+
+/// The earliest time a watch needs the clock: an armed deadline (not
+/// while paused) or its "until" time.
+fn wake_of_live(live: &Live) -> Option<i64> {
+    let until = match live.watch.lifetime {
+        Lifetime::Until { at_ms } => Some(at_ms),
+        _ => None,
+    };
+    let armed = live
+        .slots
+        .values()
+        .filter(|_| !live.watch.paused)
+        .filter_map(|slot| slot.armed);
+    until.into_iter().chain(armed).min()
 }
 
 /// The watch engine.
@@ -248,19 +301,135 @@ impl Engine {
     }
 
     fn start(&self, live: &mut Live, now_ms: i64) {
-        for (t, target) in live.watch.targets.iter().enumerate() {
-            let WatchTarget::Session(session) = target else {
+        let sessions: Vec<(usize, String)> = live
+            .watch
+            .targets
+            .iter()
+            .enumerate()
+            .filter_map(|(t, target)| match target {
+                WatchTarget::Session(session) => Some((t, session.clone())),
+                _ => None,
+            })
+            .collect();
+        for (t, session) in sessions {
+            self.arm_member(live, t, &session, now_ms, true);
+        }
+    }
+
+    /// Arms what counts from the start (`idle_for`) for `session` within
+    /// target `t`; `again`: over a slot already armed, else that keeps its
+    /// time.
+    fn arm_member(&self, live: &mut Live, t: usize, session: &str, now_ms: i64, again: bool) {
+        for (c, condition) in live.watch.conditions.iter().enumerate() {
+            let Some(rule) = self.registry.get(&condition.code) else {
                 continue;
             };
-            for (c, condition) in live.watch.conditions.iter().enumerate() {
-                let Some(rule) = self.registry.get(&condition.code) else {
-                    continue;
-                };
-                if let Verdict::Arm { at_ms } = rule.on_start(condition.param.as_ref(), now_ms) {
-                    live.slots.entry((t, session.clone(), c)).or_default().armed = Some(at_ms);
+            if let Verdict::Arm { at_ms } = rule.on_start(condition.param.as_ref(), now_ms) {
+                let slot = live.slots.entry((t, session.to_owned(), c)).or_default();
+                if again || slot.armed.is_none() {
+                    slot.armed = Some(at_ms);
                 }
             }
         }
+    }
+
+    /// 0.5.2 G32: a group target's (an App, a project, any session) open
+    /// sessions are armed now for the conditions that count from the start
+    /// (`idle_for`: "a session in it stays idle for N minutes"), as a
+    /// session target is in [`Self::add`]; a session that emits nothing
+    /// (idle already) was never armed before, so the watch never fired.
+    /// `open`: every session open now, as observations name them. A slot
+    /// already armed (put back from the store, G12) keeps its time.
+    pub fn arm_open(&mut self, id: &WatchId, open: &[Subject], now_ms: i64) {
+        let Some(mut live) = self.live.remove(id) else {
+            return;
+        };
+        if !live.watch.paused {
+            let members: Vec<(usize, String)> = live
+                .watch
+                .targets
+                .iter()
+                .enumerate()
+                .filter(|(_, target)| !matches!(target, WatchTarget::Session(_)))
+                .flat_map(|(t, target)| {
+                    open.iter()
+                        .filter(|subject| covers(target, subject))
+                        .filter_map(move |subject| subject.session.clone().map(|s| (t, s)))
+                })
+                .collect();
+            for (t, session) in members {
+                self.arm_member(&mut live, t, &session, now_ms, false);
+            }
+        }
+        self.live.insert(id.clone(), live);
+    }
+
+    /// A watch's state as a unit, for saving.
+    #[must_use]
+    pub fn saved(&self, id: &WatchId) -> Option<Saved> {
+        let live = self.live.get(id)?;
+        Some(Saved {
+            slots: live
+                .slots
+                .iter()
+                .map(|((target, member, condition), slot)| SavedSlot {
+                    target: *target,
+                    member: member.clone(),
+                    condition: *condition,
+                    memo: slot.memo.value,
+                    armed: slot.armed,
+                    last_fire: slot.last_fire,
+                })
+                .collect(),
+            met: live.met.clone(),
+            ended: live.ended.iter().cloned().collect(),
+            cursor_ms: live.cursor_ms,
+        })
+    }
+
+    /// The earliest time a watch needs the clock: an armed deadline (not
+    /// while paused) or its "until" time.
+    #[must_use]
+    pub fn wake_of(&self, id: &WatchId) -> Option<i64> {
+        self.live.get(id).and_then(wake_of_live)
+    }
+
+    /// Puts back a watch's saved state (it must hold the watch already,
+    /// with the same shape): its deadlines as they were armed, not again
+    /// from now. `false` when it doesn't fit (the watch was edited since).
+    pub fn restore(&mut self, id: &WatchId, saved: &Saved) -> bool {
+        let Some(live) = self.live.get_mut(id) else {
+            return false;
+        };
+        let (targets, conditions) = (live.watch.targets.len(), live.watch.conditions.len());
+        let fits = saved.met.len() == targets
+            && saved.slots.len() <= SAVED_SLOTS_MAX
+            && saved
+                .slots
+                .iter()
+                .all(|s| s.target < targets && s.condition < conditions);
+        if !fits {
+            return false;
+        }
+        live.slots = saved
+            .slots
+            .iter()
+            .filter(|_| !live.watch.paused)
+            .map(|s| {
+                (
+                    (s.target, s.member.clone(), s.condition),
+                    Slot {
+                        memo: Memo { value: s.memo },
+                        armed: s.armed,
+                        last_fire: s.last_fire,
+                    },
+                )
+            })
+            .collect();
+        live.met.clone_from(&saved.met);
+        live.ended = saved.ended.iter().cloned().collect();
+        live.cursor_ms = saved.cursor_ms;
+        true
     }
 
     /// Stops hearing for a watch.
@@ -297,21 +466,7 @@ impl Engine {
     /// "until" time; `None` when nothing waits.
     #[must_use]
     pub fn next_wake(&self) -> Option<i64> {
-        self.live
-            .values()
-            .flat_map(|live| {
-                let until = match live.watch.lifetime {
-                    Lifetime::Until { at_ms } => Some(at_ms),
-                    _ => None,
-                };
-                let armed = live
-                    .slots
-                    .values()
-                    .filter(|_| !live.watch.paused)
-                    .filter_map(|slot| slot.armed);
-                until.into_iter().chain(armed)
-            })
-            .min()
+        self.live.values().filter_map(wake_of_live).min()
     }
 
     /// The time is now `now_ms`: what was due by then fires or ends, in

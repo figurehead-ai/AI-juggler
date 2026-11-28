@@ -15,6 +15,7 @@ import { errorText } from "../../lib/bridge";
 import { switchMoveClearOld, type MoveBackupsInfo, type MoveRecordInfo } from "../../lib/ipc/switch-move";
 import { useMoveBackups } from "../../lib/move-backups";
 import { MoveRows, freesWords } from "./MovesDoor";
+import { IconBroom } from "../icons-actions";
 
 /** "2 move backups" / "1 move backup". */
 function backupsWords(count: number): string {
@@ -24,7 +25,7 @@ function backupsWords(count: number): string {
 function ClearOldSheet({ info, busy, onCancel, onConfirm }: { info: MoveBackupsInfo; busy: boolean; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   const many = info.old_count !== 1;
   return (
-    <Modal
+    <Modal icon={IconBroom}
       title={`Clear ${backupsWords(info.old_count)} older than a day?`}
       subtitle={`${many ? "Those moves" : "That move"} can no longer be undone.`}
       onClose={onCancel}

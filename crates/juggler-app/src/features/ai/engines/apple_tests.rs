@@ -137,7 +137,7 @@ fn it_serves_only_the_built_in_entry_and_nothing_without_it() {
 /// A fake helper: says `hello`, then answers every request with `reply`
 /// (`ID` replaced by the request's id), after `pause` seconds.
 #[cfg(unix)]
-fn fake(dir: &Path, name: &str, hello: &str, reply: &str, pause: u32) -> PathBuf {
+pub(crate) fn fake(dir: &Path, name: &str, hello: &str, reply: &str, pause: u32) -> PathBuf {
     let path = dir.join(name);
     let script = format!(
         "#!/bin/sh\necho '{hello}'\nwhile read line; do\n  case \"$line\" in *'\"op\":\"quit\"'*) exit 0;; esac\n  \
@@ -146,22 +146,23 @@ fn fake(dir: &Path, name: &str, hello: &str, reply: &str, pause: u32) -> PathBuf
     crate::test_support::script(&path, &script)
 }
 
-fn hello(available: &str) -> String {
+pub(crate) fn hello(available: &str) -> String {
     format!(r#"{{"hello":true,"protocol":2,"available":"{available}","context_size":8192}}"#)
 }
 
 const OK: &str = r#"{"id":ID,"text":"fine","finish":"stop","error":null}"#;
 
-fn request() -> Request {
+pub(crate) fn request() -> Request {
     Request {
         instructions: "i".to_owned(),
         prompt: "p".to_owned(),
         shape: None,
         max_tokens: 20,
+        decoding: crate::features::ai::engine::Decoding::Tested,
     }
 }
 
-fn soon() -> Stop {
+pub(crate) fn soon() -> Stop {
     Stop::at(Instant::now() + Duration::from_secs(10))
 }
 
@@ -447,6 +448,7 @@ fn the_real_helper_answers_on_this_mac() {
                     prompt: "Say hello.".to_owned(),
                     shape: None,
                     max_tokens: 20,
+                    decoding: crate::features::ai::engine::Decoding::Tested,
                 },
                 &Stop::at(Instant::now() + Duration::from_secs(30)),
             )

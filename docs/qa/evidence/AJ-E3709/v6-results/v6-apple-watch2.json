@@ -1,0 +1,4151 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"protocol\":3,\"guided\":true,\"available\":\"available\",\"os\":\"Version 27.0.1 (Build 26A434)\",\"extensions\":[\"fields\",\"sampling\"],\"hello\":true}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "watch2"
+  ],
+  "prompt_sha256": {
+   "watch2": "249ec6d58c81c0a9373252bc03802a57f6a6c0afc6134d0b0b3bea4ecbca0e16"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "watch6",
+    "file": "watch-v6.json",
+    "sha256": "eda2bafd99021abc640da659011b27a83702746479b6e611ee4ffc33065271a0",
+    "items_in_file": 60,
+    "items_run": 60
+   }
+  ],
+  "calls": 129,
+  "wall_s": 163.9,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   4.4,
+   4.7,
+   6.3
+  ],
+  "load_avg_end": [
+   7.7,
+   6.4,
+   6.8
+  ],
+  "helper_cpu_s": 4.12,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 10.86
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 10.0
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 4.11
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 2.98
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 159.0,
+   "peak": 173.5,
+   "after": 174.7
+  },
+  "started": "2026-11-26 08:06:24"
+ },
+ "results": [
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W01",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 1635,
+     "gen_ms": 1634.3179941177368,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1399,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"finishes\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1703,
+     "gen_ms": 1702.7300596237183,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1978,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Auth middleware” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-her",
+       "ref": "s1",
+       "name": "Auth middleware"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W02",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s2\"}",
+     "finish": "stop",
+     "latency_ms": 935,
+     "gen_ms": 934.5639944076538,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1401,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"1\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"fails\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1674,
+     "gen_ms": 1673.3800172805786,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1982,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Invoice export” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-ott",
+       "ref": "s2",
+       "name": "Invoice export"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W03",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s4\"}",
+     "finish": "stop",
+     "latency_ms": 948,
+     "gen_ms": 947.3270177841187,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1400,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"asks_you\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1754,
+     "gen_ms": 1753.883957862854,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1977,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Offline merge” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-map",
+       "ref": "s4",
+       "name": "Offline merge"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W04",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s3\"}",
+     "finish": "stop",
+     "latency_ms": 936,
+     "gen_ms": 936.2070560455322,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1403,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"condition\": \"idle_for\", \"lifetime\": \"today\", \"param\": \"25\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1676,
+     "gen_ms": 1676.1280298233032,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1983,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “fern-docs” is idle for 25 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-fer",
+       "ref": "p3",
+       "name": "fern-docs"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "idle_for",
+       "param": 25
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W05",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"list\", \"target\": \"any\"}",
+     "finish": "stop",
+     "latency_ms": 978,
+     "gen_ms": 977.895975112915,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1398,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "list",
+    "shown": "You have no watches yet. Open Watches to make one.",
+    "model_text": [],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W06",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"list\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 968,
+     "gen_ms": 968.0800437927246,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1401,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "list",
+    "shown": "You have no watches yet. Open Watches to make one.",
+    "model_text": [],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W07",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"acct1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 941,
+     "gen_ms": 940.8750534057617,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1398,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"runway_below\", \"param\": \"12\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1642,
+     "gen_ms": 1641.8139934539795,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1864,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Studio Max” runs below 12 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-studio",
+       "ref": "acct1",
+       "name": "Studio Max"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 12
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W08",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"acct2\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 978,
+     "gen_ms": 978.0169725418091,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1398,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"runway_below\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"30\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1636,
+     "gen_ms": 1635.5369091033936,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1864,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Home Lab” runs below 30 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-home",
+       "ref": "acct2",
+       "name": "Home Lab"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 30
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W09",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s5\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 969,
+     "gen_ms": 969.2089557647705,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1410,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"asks_you\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1668,
+     "gen_ms": 1667.9810285568237,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1985,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Drag and drop” asks you. Until midnight today. Even during quiet hours.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-wil",
+       "ref": "s5",
+       "name": "Drag and drop"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": true
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W10",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s6\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 904,
+     "gen_ms": 903.549075126648,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1405,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"1\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"finishes\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1631,
+     "gen_ms": 1630.3279399871826,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1986,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Flag parsing” finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-emb",
+       "ref": "s6",
+       "name": "Flag parsing"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W11",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s5\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 938,
+     "gen_ms": 938.027024269104,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1400,
+     "retry_note": false,
+     "errors": [
+      "target: “Drag and drop” resolves to s3 from the request's other words, not s5"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"target\": \"s5\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 1002,
+     "gen_ms": 1001.6149282455444,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1479,
+     "retry_note": true,
+     "errors": [
+      "target: “Drag and drop” resolves to s3 from the request's other words, not s5"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"s5\"}",
+     "finish": "stop",
+     "latency_ms": 984,
+     "gen_ms": 984.2489957809448,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1479,
+     "retry_note": true,
+     "errors": [
+      "target: “Drag and drop” resolves to s3 from the request's other words, not s5"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W12",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p2\"}",
+     "finish": "stop",
+     "latency_ms": 906,
+     "gen_ms": 905.62903881073,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1403,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"fails\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1631,
+     "gen_ms": 1631.1399936676025,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1988,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “otter-ledger” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-ott",
+       "ref": "p2",
+       "name": "otter-ledger"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W13",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"any\"}",
+     "finish": "stop",
+     "latency_ms": 986,
+     "gen_ms": 985.9490394592285,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1397,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"idle_for\", \"condition2\": \"none\", \"lifetime\": \"today\", \"param\": \"60\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1762,
+     "gen_ms": 1761.3160610198975,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2055,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “any session” is idle for 60 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "any",
+       "id": "any",
+       "ref": "any",
+       "name": "any session"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "idle_for",
+       "param": 60
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W14",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"app4\"}",
+     "finish": "stop",
+     "latency_ms": 931,
+     "gen_ms": 930.5490255355835,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1402,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"once\", \"condition\": \"asks_you\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1768,
+     "gen_ms": 1768.2750225067139,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2032,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Claude app · Home” asks you. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "app",
+       "id": "app-ch",
+       "ref": "app4",
+       "name": "Claude app · Home"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W15",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p4\"}",
+     "finish": "stop",
+     "latency_ms": 910,
+     "gen_ms": 909.4219207763672,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1397,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"finishes\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1677,
+     "gen_ms": 1676.72598361969,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1982,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “maple-sync” finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-map",
+       "ref": "p4",
+       "name": "maple-sync"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W16",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s3\"}",
+     "finish": "stop",
+     "latency_ms": 950,
+     "gen_ms": 949.6760368347168,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1408,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"1\", \"condition2\": \"none\", \"condition\": \"finishes\", \"lifetime\": \"unsaid\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1632,
+     "gen_ms": 1631.3910484313965,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1986,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Getting started page” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-fer",
+       "ref": "s3",
+       "name": "Getting started page"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W17",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 940,
+     "gen_ms": 939.3740892410278,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1405,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"1\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"fails\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1712,
+     "gen_ms": 1711.3239765167236,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1994,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “heron-api” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-her",
+       "ref": "p1",
+       "name": "heron-api"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W18",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p4\"}",
+     "finish": "stop",
+     "latency_ms": 988,
+     "gen_ms": 987.5589609146118,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1406,
+     "retry_note": false,
+     "errors": [
+      "target: “maple-sync” resolves to p5 from the request's other words, not p4"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"p5\"}",
+     "finish": "stop",
+     "latency_ms": 1050,
+     "gen_ms": 1049.5569705963135,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1483,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"asks_you\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1777,
+     "gen_ms": 1777.0739793777466,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1991,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “willow-board” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-wil",
+       "ref": "p5",
+       "name": "willow-board"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W19",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 979,
+     "gen_ms": 979.072093963623,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1399,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"tests\", \"condition\": \"none\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1767,
+     "gen_ms": 1766.9309377670288,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1984,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “tests”. I can tell you when “heron-api” finishes.",
+    "model_text": [
+     "tests"
+    ],
+    "notes": [
+     "unsupported (model)"
+    ],
+    "nearest": "finishes",
+    "via": "model",
+    "asked": "tests"
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W20",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s2\"}",
+     "finish": "stop",
+     "latency_ms": 987,
+     "gen_ms": 986.6480827331543,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1404,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"hits_limit\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"param\": \"3\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1759,
+     "gen_ms": 1758.863925933838,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1985,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “costs”. I can tell you when “Codex CLI · Studio” runs below … %.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "runway_below",
+    "via": "cue net",
+    "asked": "costs"
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W21",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 941,
+     "gen_ms": 940.3619766235352,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1398,
+     "retry_note": false,
+     "errors": [
+      "target: p1 “heron-api” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 975,
+     "gen_ms": 975.1139879226685,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1469,
+     "retry_note": true,
+     "errors": [
+      "target: p1 “heron-api” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 991,
+     "gen_ms": 990.3609752655029,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1469,
+     "retry_note": true,
+     "errors": [
+      "target: p1 “heron-api” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W22",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 942,
+     "gen_ms": 941.4790868759155,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1375,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"finishes\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1772,
+     "gen_ms": 1771.7690467834473,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1976,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Map tiles” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-atl",
+       "ref": "s1",
+       "name": "Map tiles"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W23",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"p1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 954,
+     "gen_ms": 953.3339738845825,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1377,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"fails\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1761,
+     "gen_ms": 1761.0329389572144,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1985,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Blue Heron Atlas” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-atl",
+       "ref": "p1",
+       "name": "Blue Heron Atlas"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W24",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"p2\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 991,
+     "gen_ms": 990.3249740600586,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1374,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"finishes\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1791,
+     "gen_ms": 1790.6720638275146,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1980,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “agent-farm” finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-farm",
+       "ref": "p2",
+       "name": "agent-farm"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W25",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s2\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 995,
+     "gen_ms": 994.5739507675171,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1380,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"asks_you\", \"condition2\": \"none\", \"lifetime\": \"today\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1780,
+     "gen_ms": 1779.953956604004,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1977,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Seed data” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-farm",
+       "ref": "s2",
+       "name": "Seed data"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W26",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s3\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 1011,
+     "gen_ms": 1010.6779336929321,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1385,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"stuck\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"15\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1721,
+     "gen_ms": 1720.9680080413818,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1984,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Nightly job” looks stuck for 15 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-run",
+       "ref": "s3",
+       "name": "Nightly job"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "stuck",
+       "param": 15
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W27",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s4\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 971,
+     "gen_ms": 971.1819887161255,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1381,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"finishes\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1759,
+     "gen_ms": 1759.1819763183594,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1984,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Cancel all watches” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-not",
+       "ref": "s4",
+       "name": "Cancel all watches"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W28",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s5\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 1005,
+     "gen_ms": 1004.3529272079468,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1384,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"fails\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1785,
+     "gen_ms": 1785.0289344787598,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1981,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Ignore quiet hours” fails. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-lot",
+       "ref": "s5",
+       "name": "Ignore quiet hours"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W29",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s3\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 968,
+     "gen_ms": 968.2279825210571,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1383,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"fails\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1703,
+     "gen_ms": 1702.3239135742188,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1978,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Nightly job” fails. Until you remove it.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-run",
+       "ref": "s3",
+       "name": "Nightly job"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "always",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W30",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s6\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 924,
+     "gen_ms": 923.4830141067505,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1378,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"finishes\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1686,
+     "gen_ms": 1685.5659484863281,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1978,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Retry policy” finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-ree",
+       "ref": "s6",
+       "name": "Retry policy"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W31",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"acct1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 947,
+     "gen_ms": 946.4550018310547,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1381,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"runway_below\", \"param\": \"5\", \"until\": \"03:00\"}",
+     "finish": "stop",
+     "latency_ms": 1683,
+     "gen_ms": 1682.9960346221924,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1877,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "I can't watch for “at 3am”. I can tell you when “Workbench” runs below … %.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "runway_below",
+    "via": "cue net",
+    "asked": "at 3am"
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W32",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s4\"}",
+     "finish": "stop",
+     "latency_ms": 969,
+     "gen_ms": 968.5120582580566,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1389,
+     "retry_note": false,
+     "errors": [
+      "target: “Cancel all watches” resolves to s5 from the request's other words, not s4"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"s5\"}",
+     "finish": "stop",
+     "latency_ms": 1031,
+     "gen_ms": 1031.1440229415894,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1469,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"10\", \"condition2\": \"none\", \"condition\": \"asks_you\", \"lifetime\": \"today\", \"param\": \"none\", \"until\": \"22:00\"}",
+     "finish": "stop",
+     "latency_ms": 1730,
+     "gen_ms": 1729.6490669250488,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1996,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Ignore quiet hours” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-lot",
+       "ref": "s5",
+       "name": "Ignore quiet hours"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W33",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 920,
+     "gen_ms": 919.9450016021729,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1376,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"s2\"}",
+     "finish": "stop",
+     "latency_ms": 996,
+     "gen_ms": 995.4689741134644,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1447,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Seed data” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"target\": \"s2\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 1012,
+     "gen_ms": 1011.4599466323853,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1447,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Seed data” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W34",
+   "rep": 0,
+   "model_called": true,
+   "used": 1,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s6\"}",
+     "finish": "stop",
+     "latency_ms": 922,
+     "gen_ms": 921.6580390930176,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1381,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"1\", \"condition2\": \"finishes\", \"lifetime\": \"today\", \"condition\": \"asks_you\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1692,
+     "gen_ms": 1692.0210123062134,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1984,
+     "retry_note": false,
+     "errors": [
+      "param: finishes takes no parameter, got '1'"
+     ],
+     "ok": false
+    },
+    {
+     "step": "when",
+     "attempt": 1,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"asks_you\", \"condition2\": \"finishes\", \"lifetime\": \"today\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1764,
+     "gen_ms": 1763.604998588562,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 2089,
+     "retry_note": true,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Retry policy” asks you, or finishes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-ree",
+       "ref": "s6",
+       "name": "Retry policy"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      },
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W35",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p6\"}",
+     "finish": "stop",
+     "latency_ms": 924,
+     "gen_ms": 923.6290454864502,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1376,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"starts\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1663,
+     "gen_ms": 1662.3280048370361,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1982,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “reed-queue” starts a new session. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-ree",
+       "ref": "p6",
+       "name": "reed-queue"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "starts",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W36",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s2\"}",
+     "finish": "stop",
+     "latency_ms": 945,
+     "gen_ms": 945.2089071273804,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1386,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"1\", \"unsupported\": \"none\", \"condition\": \"finishes\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1685,
+     "gen_ms": 1684.35800075531,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1987,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Seed data” finishes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "b-farm",
+       "ref": "s2",
+       "name": "Seed data"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W37",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s5\"}",
+     "finish": "stop",
+     "latency_ms": 958,
+     "gen_ms": 958.0550193786621,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1380,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"idle_for\", \"condition2\": \"none\", \"lifetime\": \"today\", \"param\": \"40\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1655,
+     "gen_ms": 1654.9850702285767,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1981,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “lotus-ui” is idle for 40 minutes. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-lot",
+       "ref": "p5",
+       "name": "lotus-ui"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "idle_for",
+       "param": 40
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W38",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 908,
+     "gen_ms": 907.6529741287231,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1384,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"asks_you\", \"condition2\": \"none\", \"lifetime\": \"today\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1735,
+     "gen_ms": 1735.0380420684814,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1992,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Blue Heron Atlas” asks you. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-atl",
+       "ref": "p1",
+       "name": "Blue Heron Atlas"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W39",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 917,
+     "gen_ms": 916.4450168609619,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1384,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"s2\"}",
+     "finish": "stop",
+     "latency_ms": 1001,
+     "gen_ms": 1000.6650686264038,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1455,
+     "retry_note": true,
+     "errors": [
+      "target: s2 “Seed data” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 1015,
+     "gen_ms": 1015.2139663696289,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1455,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W40",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 914,
+     "gen_ms": 913.5019779205322,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1379,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"target\": \"s1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 952,
+     "gen_ms": 951.5599012374878,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1450,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 971,
+     "gen_ms": 970.6300497055054,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1450,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W41",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s3\"}",
+     "finish": "stop",
+     "latency_ms": 915,
+     "gen_ms": 915.2859449386597,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1376,
+     "retry_note": false,
+     "errors": [
+      "target: s3 “Nightly job” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"s6\"}",
+     "finish": "stop",
+     "latency_ms": 1000,
+     "gen_ms": 999.8440742492676,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1447,
+     "retry_note": true,
+     "errors": [
+      "target: s6 “Retry policy” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 1000,
+     "gen_ms": 1000.2670288085938,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1447,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Map tiles” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W42",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s6\", \"intent\": \"not_a_watch\"}",
+     "finish": "stop",
+     "latency_ms": 971,
+     "gen_ms": 970.6070423126221,
+     "out_tokens": 25,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1379,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": []
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W43",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"acct1\"}",
+     "finish": "stop",
+     "latency_ms": 936,
+     "gen_ms": 936.0619783401489,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1400,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"condition\": \"runway_below\", \"lifetime\": \"unsaid\", \"param\": \"3\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1633,
+     "gen_ms": 1632.910966873169,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1866,
+     "retry_note": false,
+     "errors": [
+      "param: runway_below percent 3 is outside 5..95"
+     ],
+     "ok": false
+    },
+    {
+     "step": "when",
+     "attempt": 1,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"runway_below\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1769,
+     "gen_ms": 1769.152045249939,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1972,
+     "retry_note": true,
+     "errors": [
+      "param: runway_below needs its percent"
+     ],
+     "ok": false
+    },
+    {
+     "step": "when",
+     "attempt": 2,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"condition\": \"runway_below\", \"lifetime\": \"today\", \"param\": \"3\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1662,
+     "gen_ms": 1661.302924156189,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1970,
+     "retry_note": true,
+     "errors": [
+      "param: runway_below percent 3 is outside 5..95"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "I couldn't set that up from your words. New watch… opens the form.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W44",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"acct2\"}",
+     "finish": "stop",
+     "latency_ms": 990,
+     "gen_ms": 990.2520179748535,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1402,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"runway_below\", \"condition2\": \"none\", \"lifetime\": \"today\", \"param\": \"15\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1608,
+     "gen_ms": 1607.4719429016113,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1868,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Home Lab” runs below 15 %. Until midnight today.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-home",
+       "ref": "acct2",
+       "name": "Home Lab"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 15
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W45",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s6\"}",
+     "finish": "stop",
+     "latency_ms": 974,
+     "gen_ms": 974.3059873580933,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1411,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"10\", \"condition2\": \"none\", \"lifetime\": \"once\", \"condition\": \"idle_for\", \"param\": \"10\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1777,
+     "gen_ms": 1777.2079706192017,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1993,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Tell you when “Flag parsing” is idle for 10 minutes. Once.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "a-emb",
+       "ref": "s6",
+       "name": "Flag parsing"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "idle_for",
+       "param": 10
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W46",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 975,
+     "gen_ms": 975.1830101013184,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1396,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"finishes\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1681,
+     "gen_ms": 1680.5620193481445,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1976,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Anmeldung” fertig ist. Einmal.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "c-kie",
+       "ref": "s1",
+       "name": "Anmeldung"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "once",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W47",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s3\"}",
+     "finish": "stop",
+     "latency_ms": 1037,
+     "gen_ms": 1036.83602809906,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1395,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"condition\": \"fails\", \"lifetime\": \"unsaid\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1700,
+     "gen_ms": 1699.9579668045044,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1970,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Warenkorb” fehlschlägt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "c-lin",
+       "ref": "s3",
+       "name": "Warenkorb"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W48",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s5\"}",
+     "finish": "stop",
+     "latency_ms": 1047,
+     "gen_ms": 1046.449899673462,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1399,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"asks_you\", \"condition2\": \"none\", \"lifetime\": \"today\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1697,
+     "gen_ms": 1696.4459419250488,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1976,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Terminansicht” dich etwas fragt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "c-bir",
+       "ref": "s5",
+       "name": "Terminansicht"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W49",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"acct2\"}",
+     "finish": "stop",
+     "latency_ms": 1042,
+     "gen_ms": 1041.4880514144897,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1397,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"runway_below\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"20\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1623,
+     "gen_ms": 1622.7020025253296,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1866,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Zuhause” unter 20 % Spielraum fällt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-zu",
+       "ref": "acct2",
+       "name": "Zuhause"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 20
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W50",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s4\"}",
+     "finish": "stop",
+     "latency_ms": 959,
+     "gen_ms": 958.6509466171265,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1398,
+     "retry_note": false,
+     "errors": [
+      "target: s4 “Offline-Abgleich” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"s4\"}",
+     "finish": "stop",
+     "latency_ms": 1012,
+     "gen_ms": 1011.8039846420288,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1471,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Offline-Abgleich” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"s6\"}",
+     "finish": "stop",
+     "latency_ms": 966,
+     "gen_ms": 965.3240442276001,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1471,
+     "retry_note": true,
+     "errors": [
+      "target: s6 “Argumente lesen” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W51",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"p2\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 961,
+     "gen_ms": 961.1300230026245,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1403,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"fails\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1672,
+     "gen_ms": 1671.6779470443726,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1991,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “elbe-berichte” fehlschlägt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-elb",
+       "ref": "p2",
+       "name": "elbe-berichte"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "fails",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W52",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s4\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 960,
+     "gen_ms": 960.2760076522827,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1403,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"today\", \"condition\": \"finishes\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1677,
+     "gen_ms": 1676.801085472107,
+     "out_tokens": 53,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1984,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Offline-Abgleich” fertig ist. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "c-far",
+       "ref": "s4",
+       "name": "Offline-Abgleich"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W53",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"acct1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 1015,
+     "gen_ms": 1014.9420499801636,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1396,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"until\": \"none\", \"condition\": \"runway_below\", \"param2\": \"none\", \"unsupported\": \"none\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"6\"}",
+     "finish": "stop",
+     "latency_ms": 1615,
+     "gen_ms": 1615.2279376983643,
+     "out_tokens": 59,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1862,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Büro” unter 6 % Spielraum fällt. Bis heute Mitternacht. Auch während der Ruhezeit.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "account",
+       "id": "acct-buero",
+       "ref": "acct1",
+       "name": "Büro"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "runway_below",
+       "param": 6
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": true
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W54",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"p6\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 950,
+     "gen_ms": 949.8488903045654,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1405,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"condition\": \"starts\", \"lifetime\": \"today\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1745,
+     "gen_ms": 1744.9630498886108,
+     "out_tokens": 51,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1992,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “moos-cli” eine neue Sitzung startet. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-moo",
+       "ref": "p6",
+       "name": "moos-cli"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "starts",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": true,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W55",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"p1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 1019,
+     "gen_ms": 1019.2580223083496,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1394,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"unsupported\": \"none\", \"param2\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"finishes\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1678,
+     "gen_ms": 1677.3470640182495,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1981,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “kiefer-app” fertig ist. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-kie",
+       "ref": "p1",
+       "name": "kiefer-app"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W56",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"target\": \"s1\", \"intent\": \"create\"}",
+     "finish": "stop",
+     "latency_ms": 943,
+     "gen_ms": 942.3480033874512,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1401,
+     "retry_note": false,
+     "errors": [
+      "target: s1 “Anmeldung” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 1,
+     "text": "{\"intent\": \"create\", \"target\": \"s4\"}",
+     "finish": "stop",
+     "latency_ms": 1032,
+     "gen_ms": 1032.0110321044922,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1471,
+     "retry_note": true,
+     "errors": [
+      "target: s4 “Offline-Abgleich” is not named in the request"
+     ],
+     "ok": false
+    },
+    {
+     "step": "target",
+     "attempt": 2,
+     "text": "{\"intent\": \"create\", \"target\": \"s1\"}",
+     "finish": "stop",
+     "latency_ms": 1031,
+     "gen_ms": 1030.6650400161743,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1473,
+     "retry_note": true,
+     "errors": [
+      "target: s1 “Anmeldung” is not named in the request"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "form",
+    "shown": "Das konnte ich nicht einrichten. „Neue Beobachtung…“ öffnet das Formular.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: the Watches form"
+    ]
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W57",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"s6\"}",
+     "finish": "stop",
+     "latency_ms": 1033,
+     "gen_ms": 1032.8339338302612,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1399,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition2\": \"none\", \"lifetime\": \"unsaid\", \"condition\": \"asks_you\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1772,
+     "gen_ms": 1772.1260786056519,
+     "out_tokens": 57,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1980,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “Argumente lesen” dich etwas fragt. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "session",
+       "id": "c-moo",
+       "ref": "s6",
+       "name": "Argumente lesen"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "asks_you",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W58",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p3\"}",
+     "finish": "stop",
+     "latency_ms": 963,
+     "gen_ms": 962.7829790115356,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1393,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"finishes\", \"lifetime\": \"unsaid\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1672,
+     "gen_ms": 1671.5840101242065,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1980,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "watch",
+    "shown": "Ich sage dir Bescheid, wenn “linde-shop” fertig ist. Bis heute Mitternacht.",
+    "model_text": [],
+    "notes": [
+     "a draft: written only when the user clicks Watch"
+    ],
+    "watch": {
+     "targets": [
+      {
+       "kind": "project",
+       "id": "p-lin",
+       "ref": "p3",
+       "name": "linde-shop"
+      }
+     ],
+     "matching": "each",
+     "conditions": [
+      {
+       "type": "finishes",
+       "param": null
+      }
+     ],
+     "lifetime": "today",
+     "until": null,
+     "lifetime_said": false,
+     "even_in_quiet_hours": false
+    }
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W59",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"create\", \"target\": \"p1\"}",
+     "finish": "stop",
+     "latency_ms": 1051,
+     "gen_ms": 1051.1670112609863,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1396,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "when",
+     "attempt": 0,
+     "text": "{\"param2\": \"none\", \"unsupported\": \"none\", \"condition\": \"task_changes\", \"lifetime\": \"today\", \"condition2\": \"none\", \"param\": \"none\", \"until\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1703,
+     "gen_ms": 1703.05597782135,
+     "out_tokens": 55,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1983,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "unsupported",
+    "shown": "Darauf kann ich nicht achten: „Tests“. Ich kann dir Bescheid sagen, wenn “kiefer-app” fertig ist.",
+    "model_text": [],
+    "notes": [
+     "unsupported (cue net)"
+    ],
+    "nearest": "finishes",
+    "via": "cue net",
+    "asked": "Tests"
+   }
+  },
+  {
+   "corpus": "watch6",
+   "job": "watch2",
+   "setting": "main",
+   "id": "V6-W60",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "target",
+     "attempt": 0,
+     "text": "{\"intent\": \"not_a_watch\", \"target\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 997,
+     "gen_ms": 996.7880249023438,
+     "out_tokens": 23,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1397,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "not_a_watch",
+    "shown": "",
+    "model_text": [],
+    "notes": []
+   }
+  }
+ ]
+}

@@ -14,6 +14,7 @@ import { useAccounts } from "./AccountsPane";
 import { DebugModeSection } from "./DebugModeSection";
 import { LocalCacheSection } from "./LocalCacheSection";
 import { Pane, PaneSection } from "./parts";
+import { ScheduledWorkSection } from "./ScheduledWorkSection";
 
 export function AdvancedPane({ anchor }: { anchor?: string }): JSX.Element {
   const accounts = useAccounts();
@@ -37,6 +38,7 @@ export function AdvancedPane({ anchor }: { anchor?: string }): JSX.Element {
       <PaneSection id="diagnostics" title="Diagnostics" footer="A scrubbed zip you look through and attach to a report yourself." card>
         <DiagnosticsCard />
       </PaneSection>
+      <ScheduledWorkSection />
       <DebugModeSection />
       <PaneSection
         id="account"

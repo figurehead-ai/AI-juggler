@@ -1,9 +1,11 @@
 /**
  * AJ-E2104 — the new rail's rows and place headers.
  *
- * - A **Needs you** row (D-117): the App's dot, the title in bold, why
- *   it needs you in ink-2 after its level's mark, then "project · app ·
- *   profile"; its ↗ on hover, focus or when selected.
+ * - A **Needs you** row (D-117; AJ-E1558, the 0.5.1 Nightly: no
+ *   bullet-like dot before a row): the title in bold, why it needs you in
+ *   ink-2 after its level's mark, then "project · app · profile" (the
+ *   App named there, not as a dot); its ↗ on hover, focus or when
+ *   selected.
  * - An **Open now** row, under its place: indented, a state mark, the
  *   title and the state word on one line (a need's in ink beside its
  *   amber mark, D-117); "project · viewed N min ago" in its tooltip and
@@ -27,8 +29,7 @@
  * "Asks you, …" first). Message text never shows here (D-37).
  */
 import type { JSX } from "react";
-import { ProfileBadge } from "./ProfileBadge";
-import { appTone, itemLevel } from "../lib/attention";
+import { itemLevel } from "../lib/attention";
 import { RowShell, ShellTools } from "./row/RowShell";
 import { RowProject } from "./row/RowParts";
 
@@ -59,9 +60,10 @@ interface RowProps {
   parent?: string | null;
 }
 
-/** A Needs you row (D-117): the App's 6 px dot (in full colour while it
- * needs you, muted for a note), the title in semibold ink, why in ink-2
- * after its level's mark — an amber dot at L2 (a hollow ring before a
+/** A Needs you row (D-117): its gutter left empty (AJ-E1558: no App dot
+ * before the row, the maintainer's "no bullet-like dots"; the gutter
+ * keeps every title where the rail's other rows start theirs), the title
+ * in semibold ink, why in ink-2 after its level's mark — an amber dot at L2 (a hollow ring before a
  * guess), a red ✕ at L3 — or a review's ✓ and muted words (L1), then
  * where (AJ-E3603 R5: the colour on the mark alone). One
  * quiet mark per need (D-118's mock, the 0.5 review's "loud blocks"): no
@@ -73,12 +75,6 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   const word = needWord(item);
   const where = whereWords(item);
   const level = itemLevel(item);
-  const lit = level >= 2 || props.selected;
-  const dot = (
-    <span aria-hidden="true" className={"flex shrink-0 " + (compact ? "" : "mt-[6px]")} data-testid="place-mark">
-      <ProfileBadge app={item.place.key} name={item.place.profile ?? item.accountLabel} size={6} className={appTone(lit)} />
-    </span>
-  );
   // AJ-E3603 R5: one quiet mark per need, on every page: the level's
   // colour is on its small mark alone (an amber dot, a ring for a guess,
   // a red ✕), the words beside it in calm ink, so five needs never make
@@ -89,6 +85,8 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
       {level >= 2 && <span aria-hidden="true" className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
       {level < 2 && item.need === "review" && <span aria-hidden="true" className="shrink-0 text-success">✓</span>}
       <span className="truncate">{word}</span>
+      {/* Compact has no place line: its App, named after why. */}
+      {compact && item.place.app && <span className="truncate font-normal text-muted">· {item.place.app}</span>}
     </span>
   );
   // 0.5.1 F42: its tools at the end of this line (why it needs you, short),
@@ -103,7 +101,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
   if (compact) {
     // Two lines: what, and why it needs you (where is in its name).
     return (
-      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-1.5 pl-0.5" lead={dot} toolsInline>
+      <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[44px] items-center gap-1.5 pl-0.5" toolsInline>
         <span className="flex min-w-0 flex-1 flex-col">
           <span aria-hidden="true" className="truncate text-meta font-semibold leading-[18px] text-ink">
             {item.title}
@@ -114,7 +112,7 @@ export function NeedRow({ compact = false, ...props }: RowProps): JSX.Element {
     );
   }
   return (
-    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-1.5 pb-2.5 pl-0.5 pt-2" lead={dot} toolsInline>
+    <RowShell {...props} data={data} label={`${word}, ${item.title}, ${where}`} shape="rounded-lg" className="h-[62px] items-start gap-1.5 pb-2.5 pl-0.5 pt-2" toolsInline>
       {/* Three lines, each its own width (the review of 0.1.4: the state
           beside the place cut both to "ai-jug… · T…"): what, why it
           needs you, where. */}

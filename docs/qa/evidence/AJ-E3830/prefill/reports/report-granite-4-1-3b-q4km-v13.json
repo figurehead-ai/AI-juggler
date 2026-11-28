@@ -1,0 +1,50 @@
+{
+ "meta": {
+  "engine": "local",
+  "items": 60,
+  "model": "granite-4-1-3b-q4km",
+  "wall_ms": 13456
+ },
+ "supported": 38,
+ "unsupported": 22,
+ "read_as_watch": 51,
+ "fields": {
+  "target": {
+   "right": 17,
+   "wrong": 0,
+   "left": 21
+  },
+  "condition": {
+   "right": 17,
+   "wrong": 0,
+   "left": 21
+  },
+  "lifetime": {
+   "right": 6,
+   "wrong": 0,
+   "left": 10,
+   "suggested": 22,
+   "suggested_right": 8
+  },
+  "quiet_hours": {
+   "right": 26,
+   "wrong": 0,
+   "left": 12
+  }
+ },
+ "wrong_total": 0,
+ "wrong": [],
+ "complete": 13,
+ "cards": 15,
+ "cards_right": 13,
+ "unsupported_condition_filled": 0,
+ "unsupported_targets": [],
+ "nearest_offered": 18,
+ "nearest_equal_gold": 12,
+ "calls": 26,
+ "latency_ms": {
+  "median_item": 6.5,
+  "p95_item": 237,
+  "median_first_call": 167.0
+ }
+}

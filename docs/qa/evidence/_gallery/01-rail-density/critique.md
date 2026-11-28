@@ -1,4 +1,4 @@
-<!-- captures: 5703e209eae1 -->
+<!-- captures: 75bbf980ff86 -->
 # 01-rail-density: the session rail in its three densities (comfortable, compact, minimal icons), the minimal rail's tooltip, and a row marked stale
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design fixes.
@@ -51,3 +51,7 @@ Lowest: 4 (lines 6 and 15 were 3: F55, F61 fixed).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the lens switch's chosen segment is a solid fill; rail rows carry a model mark where the model changed (F77). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured Comfortable, Compact and Minimal at 1024 and 1440, the open name tip and the stale row. What changed: no dot before an idle or ended row in Comfortable and Compact (the gutter kept, titles unmoved); in Minimal an idle icon has no corner dot, a working one keeps its static live dot (AJ-E1557). The name tip ("Group and View — show the list (⌘B)") is the one tip, unchanged in look (AJ-E1556). Home behind it also shows what HEAD already drew and this capture had not caught up with: Needs you now's two stopped sessions in one tinted block, the limit card apart below it (0.5.1's a11y batch). Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.

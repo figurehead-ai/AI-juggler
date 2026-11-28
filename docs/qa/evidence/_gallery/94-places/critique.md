@@ -1,4 +1,4 @@
-<!-- captures: 2d231f05d907 -->
+<!-- captures: 1a203965ba2e -->
 # 94-places: Home and the rail with no, one, a typical and a busy set of sessions
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -36,3 +36,7 @@ What changed, each looked at: Home and the rail as they are now (D-62 App names,
 Re-captured against 0.5.1: Home's cards and the rail at 1, 8 and 40 rows use tonal surfaces and soft shadows, the View menu's first row carries the only ring, and the amber marks are bars and words. Content did not change. A busy Home still shows the empty-feed card (F56).
 
 Nothing broken (checked both themes).
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured Home's cards, typical and busy Home, the rail at 8 and 40 rows and the View, both themes. What changed: in Open now an idle row ("Port the settings…", "Fix the date picke…") leads with no dot; the gutter stays, so titles line up with the working row's, whose live dot remains (AJ-E1557). Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.

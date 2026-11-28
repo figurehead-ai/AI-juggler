@@ -21,27 +21,22 @@ export type PaneId =
   | "keyboard"
   | "advanced";
 
-/** The tile's colour: a token from styles.css, never a hex. */
-export type PaneTone = "muted" | "accent" | "live" | "success" | "warning" | "danger" | "faint";
-
 /** A group of panes under one sidebar row (Settings › AI › Jobs, Models):
  * its name, tile and icon are the row's, and it opens `opens`. */
 export interface PaneGroup {
   id: "ai";
   label: string;
-  tone: PaneTone;
   opens: PaneId;
 }
 
 export const GROUPS: Record<PaneGroup["id"], PaneGroup> = {
   // AJ-E3812 (D-131): the AI models and the jobs they do.
-  ai: { id: "ai", label: "AI", tone: "accent", opens: "ai-models" },
+  ai: { id: "ai", label: "AI", opens: "ai-models" },
 };
 
 export interface PaneSpec {
   id: PaneId;
   label: string;
-  tone: PaneTone;
   /** It sits under a group's row, indented, with no tile of its own. */
   group?: PaneGroup["id"];
   /** When it shows in the sidebar (always, unless it says). */
@@ -54,25 +49,25 @@ export interface PaneContext {
 }
 
 export const PANES: readonly PaneSpec[] = [
-  { id: "general", label: "General", tone: "muted" },
-  { id: "desktop-apps", label: "Desktop apps", tone: "accent" },
+  { id: "general", label: "General" },
+  { id: "desktop-apps", label: "Desktop apps" },
   // AJ-E3511 (D-78): the Floor's few choices.
-  { id: "the-floor", label: "The Floor", tone: "accent" },
-  { id: "accounts", label: "Accounts", tone: "live" },
-  { id: "sessions", label: "Sessions", tone: "success" },
-  { id: "switching", label: "Switching", tone: "accent" },
+  { id: "the-floor", label: "The Floor" },
+  { id: "accounts", label: "Accounts" },
+  { id: "sessions", label: "Sessions" },
+  { id: "switching", label: "Switching" },
   // AJ-E1548 #5: the job switches live on Models, beside their model.
-  { id: "ai-models", label: "Models", tone: "accent", group: "ai" },
+  { id: "ai-models", label: "Models", group: "ai" },
   // AJ-E1702, D-28: what agents may do in each pool, and your rules.
   // Always shown: every project has its default pool (D-33), whose level
   // applies too, so these controls are in reach before you make a pool.
-  { id: "agent-access", label: "Agent access", tone: "warning" },
-  { id: "notifications", label: "Notifications", tone: "danger" },
-  { id: "privacy", label: "Privacy", tone: "live" },
-  { id: "macs", label: "Your Macs", tone: "success", shown: ({ pairedMacs }) => (pairedMacs ?? 0) > 0 },
+  { id: "agent-access", label: "Agent access" },
+  { id: "notifications", label: "Notifications" },
+  { id: "privacy", label: "Privacy" },
+  { id: "macs", label: "Your Macs", shown: ({ pairedMacs }) => (pairedMacs ?? 0) > 0 },
   // AJ-E2905: every shortcut, to change or reset.
-  { id: "keyboard", label: "Keyboard", tone: "muted" },
-  { id: "advanced", label: "Advanced", tone: "faint" },
+  { id: "keyboard", label: "Keyboard" },
+  { id: "advanced", label: "Advanced" },
 ];
 
 /** Where a link into Settings lands: a pane, and a section in it. */
@@ -102,6 +97,8 @@ const ANCHORS: Record<string, SettingsTarget> = {
   // section, landing on that row (History's empty search links here).
   search: { pane: "privacy", anchor: "stats?search words every session" },
   diagnostics: { pane: "advanced", anchor: "diagnostics" },
+  // AJ-E2027: what AI Juggler does on its own, and when.
+  scheduled: { pane: "advanced", anchor: "scheduled" },
   uninstall: { pane: "advanced", anchor: "uninstall" },
   privacy: { pane: "privacy" },
   keyboard: { pane: "keyboard" },

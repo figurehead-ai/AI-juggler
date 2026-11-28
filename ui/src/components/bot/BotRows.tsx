@@ -18,6 +18,8 @@ import type { BotRowInfo } from "../../types/generated/BotRowInfo";
 
 const DOT: Partial<Record<string, string>> = {
   working: "bg-live",
+  // 0.5.2 G45: the rail's Idle dot (STATE_TONE).
+  idle: "bg-faint",
   finished: "bg-success",
   done: "bg-success",
   blocked: "bg-faint",
@@ -36,6 +38,8 @@ function StateCell({ row, now }: { row: BotRowInfo; now: number }): JSX.Element 
       </span>
     );
   }
+  // AJ-E3832 G9: a memory says when the user said it.
+  if (row.kind === "memory") return <span className="text-meta whitespace-nowrap text-muted">{stateSub(row, now)}</span>;
   if (!row.state) return null;
   const level = stateLevel(row.state);
   const dot = DOT[row.state];
@@ -98,18 +102,21 @@ function BotRow({ row, n, now, find, onWatch, alias }: { row: BotRowInfo; n?: nu
         aria-disabled={row.gone || undefined}
         data-testid="bot-row-open"
       >
-        <span className={"flex min-w-0 items-center gap-1.5 text-body " + (row.gone ? "text-muted" : "font-medium text-ink")}>
+        {/* 0.5.2 G74 (RW1 Part T, T4): the column's width at most, so the
+            title truncates before the state cell ("…module and tes[Working]"
+            drew under it: the column's items sized to their content). */}
+        <span className={"flex w-full min-w-0 items-center gap-1.5 text-body " + (row.gone ? "text-muted" : "font-medium text-ink")} data-testid="bot-row-title">
           {n !== undefined && (
             <span className="inline-grid size-[18px] shrink-0 place-items-center rounded-md bg-accent-soft text-label font-semibold text-accent-hi">{n}</span>
           )}
           <span className="truncate">{row.name_hidden ? "A record with a hidden name" : <Marked text={row.title} words={find} />}</span>
         </span>
-        <span className="text-meta text-muted">
+        <span className="max-w-full text-meta text-muted">
           <span className="sr-only"> </span>
           {rowPlace(row)}
         </span>
       </button>
-      <span id={stateId} className={row.gone ? "" : "group-hover:invisible group-focus-within:invisible"}>
+      <span id={stateId} className={row.gone ? "" : "group-hover:invisible group-focus-within:invisible"} data-testid="bot-row-state">
         <StateCell row={row} now={now} />
       </span>
       {row.quote && (

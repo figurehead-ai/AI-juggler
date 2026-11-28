@@ -17,6 +17,7 @@ import type { MarkShows } from "../types/generated/MarkShows";
 import type { ProjectMarkInfo } from "../types/generated/ProjectMarkInfo";
 import { Radio } from "./controls";
 import { SELECTED_CARD } from "./controls/selected";
+import { IconAppearance } from "./icons-menu";
 
 export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; onClose: () => void; onDone: () => void }): JSX.Element {
   const mark: ProjectMarkInfo = project.mark ?? { letters: initialsOf(project.name), swatch: 0, shows: "letters" };
@@ -49,7 +50,7 @@ export function MarkSheet({ project, onClose, onDone }: { project: ProjectInfo; 
   };
 
   return (
-    <Modal title={`Change ${project.name}'s mark`} onClose={onClose}
+    <Modal icon={IconAppearance} title={`Change ${project.name}'s mark`} onClose={onClose}
       footer={
         <>
             {mark.choice && (

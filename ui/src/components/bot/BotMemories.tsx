@@ -6,6 +6,7 @@
  * for word). Facts about sessions and usage are never kept here: Bot reads
  * them fresh each time. Watches are counted and kept while they run.
  */
+import { takeMemoryFocus } from "../../lib/bot-memory-focus";
 import { useState, type JSX, type ReactNode } from "react";
 import { LogoTile } from "../ToolLogo";
 import { IconPool } from "../icons-actions";
@@ -20,11 +21,18 @@ import { DOORS } from "../watches/watches-words";
 
 const KIND_WORDS: Record<string, string> = { session: "Session", project: "Project", pool: "Pool", app: "App" };
 
-function Row({ memory, now }: { memory: BotMemoryInfo; now: number }): JSX.Element {
+function Row({ memory, now, focused }: { memory: BotMemoryInfo; now: number; focused: boolean }): JSX.Element {
   const icon = memory.about_kind === "pool" ? IconPool : memory.slot === "focus" ? IconFolder : IconBookmark;
   const meta = [memory.about_kind ? KIND_WORDS[memory.about_kind] : null, `you said, ${agoWords(memory.at_ms, now)}`, memory.used > 0 ? (memory.used === 1 ? "used once" : `used ${memory.used} times`) : null].filter((m): m is string => typeof m === "string" && m.length > 0);
   return (
-    <li className="grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3.5 px-3.5 py-3 [&+&]:border-t [&+&]:border-divider" data-testid="bot-memory-row">
+    <li
+      ref={(el) => {
+        if (focused && el) el.scrollIntoView?.({ block: "nearest" });
+      }}
+      className={"grid grid-cols-[32px_minmax(0,1fr)_auto] items-center gap-x-3.5 px-3.5 py-3 [&+&]:border-t [&+&]:border-divider" + (focused ? " rounded-[10px] bg-selected" : "")}
+      aria-current={focused || undefined}
+      data-testid="bot-memory-row"
+    >
       <LogoTile icon={icon} size={32} />
       <div className="min-w-0">
         <div className="text-body leading-snug text-ink-2">{memory.slot === "note" ? memory.text : <span>{memoryWords(memory, true)}</span>}</div>
@@ -50,7 +58,7 @@ function Row({ memory, now }: { memory: BotMemoryInfo; now: number }): JSX.Eleme
   );
 }
 
-function Group({ title, items, now }: { title: string; items: BotMemoryInfo[]; now: number }): JSX.Element | null {
+function Group({ title, items, now, focus }: { title: string; items: BotMemoryInfo[]; now: number; focus: string | null }): JSX.Element | null {
   if (items.length === 0) return null;
   return (
     <section className="flex flex-col gap-2.5" aria-label={title}>
@@ -60,7 +68,7 @@ function Group({ title, items, now }: { title: string; items: BotMemoryInfo[]; n
       </div>
       <ul className="rounded-[14px] bg-surface inset-ring-1 inset-ring-hairline/75">
         {items.map((m) => (
-          <Row key={m.key} memory={m} now={now} />
+          <Row key={m.key} memory={m} now={now} focused={m.key === focus} />
         ))}
       </ul>
     </section>
@@ -83,6 +91,7 @@ function Tile({ icon, title, help, aside }: { icon: typeof IconEye; title: strin
 export function BotMemories(): JSX.Element {
   const { info, error } = useMemories();
   const [now] = useState(() => Date.now());
+  const [chipKey] = useState(takeMemoryFocus);
   const items = info?.items ?? [];
   const names = items.filter((m) => m.slot === "alias");
   const focus = items.filter((m) => m.slot === "focus");
@@ -104,13 +113,13 @@ export function BotMemories(): JSX.Element {
         </div>
       )}
       <div className="flex flex-col gap-5">
-        <Group title="Names you use" items={names} now={now} />
+        <Group title="Names you use" items={names} now={now} focus={chipKey} />
         <div className="flex flex-wrap items-start gap-4">
           <div className="min-w-[280px] grow basis-0">
-            <Group title="What matters to you" items={focus} now={now} />
+            <Group title="What matters to you" items={focus} now={now} focus={chipKey} />
           </div>
           <div className="min-w-[280px] grow basis-0">
-            <Group title="Your notes" items={notes} now={now} />
+            <Group title="Your notes" items={notes} now={now} focus={chipKey} />
           </div>
         </div>
         {info && (

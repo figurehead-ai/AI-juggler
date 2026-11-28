@@ -29,7 +29,6 @@ crates/juggler-floor/src/models.rs 1978
 ui/src/components/KillSheet.tsx 589
 ui/src/components/RemoteTabs.tsx 467
 ui/src/components/RightInspector.tsx 937
-ui/src/components/UpdatesCard.tsx 417
 ui/src/components/WorkflowRail.tsx 677
 ui/src/components/indicator.tsx 490
 ui/src/screens/FirstRun.tsx 1059

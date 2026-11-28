@@ -23,7 +23,7 @@ use std::path::Path;
 
 use juggler_platform::ai::Chip as HostCpu;
 
-use super::engine::{AiEngine, Card, Draft, EngineError, Request, Stop};
+use super::engine::{AiEngine, Card, Draft, EngineError, Request, Started, Stop};
 use super::models::recommend::{HostChip, MacFacts};
 use super::models::{Chip, ModelEntry};
 
@@ -50,6 +50,12 @@ impl Registry {
             local,
             server: server::Server,
         }
+    }
+
+    /// The Apple engine (tests of its helper's lifecycle).
+    #[must_use]
+    pub const fn apple(&self) -> &apple::Apple {
+        &self.apple
     }
 
     /// Every engine, in order.
@@ -92,6 +98,27 @@ impl Registry {
             .respond(&card.model, request, stop)
     }
 
+    /// Starts `card`'s engine for its model and checks it answers
+    /// (AJ-E3825).
+    ///
+    /// # Errors
+    ///
+    /// The engine's [`EngineError`].
+    pub fn start(&self, card: &Card, stop: &Stop) -> Result<Started, EngineError> {
+        self.engines()
+            .get(card.engine)
+            .ok_or(EngineError::Unsupported)?
+            .start(&card.model, stop)
+    }
+
+    /// Whether `card`'s engine still runs what it started.
+    #[must_use]
+    pub fn running(&self, card: &Card) -> bool {
+        self.engines()
+            .get(card.engine)
+            .is_some_and(|engine| engine.running())
+    }
+
     /// Lets every engine go of what it holds.
     pub fn release(&self) {
         for engine in self.engines() {
@@ -115,6 +142,22 @@ impl Registry {
             apple_ai: self.apple.seen().apple_ai(),
         }
     }
+}
+
+/// The app's own helpers on disk, where they may run (AJ-E1555: the
+/// system prompt registry compares their signatures).
+#[must_use]
+pub fn own_helpers() -> Vec<std::path::PathBuf> {
+    [
+        juggler_platform::code_trust::own_helper(apple::PROGRAM, &apple::identifier()),
+        juggler_platform::code_trust::own_helper(
+            juggler_local_ai_protocol::PROGRAM,
+            &local::identifier(),
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 /// The network path for the model download's pause (D-52): the Apple

@@ -318,21 +318,20 @@ fn a_migration_waits_for_another_connection_that_changes_the_database() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("juggler.sqlite");
     drop(Storage::open(&db).unwrap());
-    // One version behind: the last migration (v55, each App's own Account
-    // and each reading's, AJ-E3210) is undone by dropping its tables and
-    // rolling the version back, and runs again on open.
+    // One version behind: the last migration (v57, the scheduler's
+    // table, AJ-E2027) is undone by dropping its table and rolling the
+    // version back, and runs again on open.
     let version: i64 = Connection::open(&db)
         .unwrap()
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .unwrap();
     assert_eq!(
-        version, 55,
-        "a new migration landed: undo it here instead (this test's undo is v55's)"
+        version, 57,
+        "a new migration landed: undo it here instead (this test's undo is v57's)"
     );
     {
         let conn = Connection::open(&db).unwrap();
-        conn.execute_batch("DROP TABLE app_accounts; DROP TABLE quota_sample_sign_ins;")
-            .unwrap();
+        conn.execute_batch("DROP TABLE schedules;").unwrap();
         conn.pragma_update(None, "user_version", version - 1)
             .unwrap();
     }

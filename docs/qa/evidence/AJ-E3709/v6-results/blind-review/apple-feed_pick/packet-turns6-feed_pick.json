@@ -1,0 +1,954 @@
+[
+ {
+  "pair": "turns6-feed_pick-001",
+  "item": "V6T01",
+  "source": "Added pagination to the heron-feed timeline endpoint: 20 items per page with a cursor. All 18 tests in the timeline package pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/timeline/handler.rs",
+     "added": 44,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "src/timeline/cursor.rs",
+     "added": 61,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/timeline_test.rs",
+     "added": 38,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added pagination to the heron-feed timeline endpoint: 20 items per page with a cursor.",
+  "second": "Added pagination to the heron-feed timeline endpoint, 18 passed"
+ },
+ {
+  "pair": "turns6-feed_pick-002",
+  "item": "V6T06",
+  "source": "Tried a new caching layer for the dune-search results. It made the p95 latency worse, so I threw the change away and went back to the original code. Nothing else changed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [
+    {
+     "path": "src/search/cache.ts",
+     "note": "the caching layer was rolled back"
+    },
+    {
+     "path": "src/search/index.ts",
+     "note": "the cache wiring was rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept no file; reverted src/search/cache.ts, src/search/index.ts\nWent back to the original code; tests were not run",
+  "second": "git: kept no file; reverted src/search/cache.ts, src/search/index.ts\nThe agent says: “Tried a new caching layer for the dune-search results.”"
+ },
+ {
+  "pair": "turns6-feed_pick-003",
+  "item": "V6T09",
+  "source": "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit). Alle 27 Tests laufen durch.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "agenda/dates.py",
+     "added": 14,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_dates.py",
+     "added": 22,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit)",
+  "second": "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit)."
+ },
+ {
+  "pair": "turns6-feed_pick-004",
+  "item": "V6T11",
+  "source": "I reverted my change to the mint-pay webhook signature check. It broke the sandbox replay, and I could not find a safe alternative. The old check is back; I only added a TODO comment.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/webhook/verify.ts",
+     "added": 1,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/webhook/verify.ts",
+     "note": "signature rewrite rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~2"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept no file; reverted src/webhook/verify.ts\nI reverted my change to the mint-pay webhook signature check.",
+  "second": "git: kept no file; reverted src/webhook/verify.ts\nI reverted my change to the mint-pay webhook signature check; tests were not run"
+ },
+ {
+  "pair": "turns6-feed_pick-005",
+  "item": "V6T15",
+  "source": "The nightly import for the quail-stats project now retries three times with backoff. I ran the importer tests: 8 pass, 0 fail. I also deleted the old cron script since nothing referenced it.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 8,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "import/retry.py",
+     "added": 36,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "import/tests/test_retry.py",
+     "added": 29,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "ops/nightly.sh",
+     "added": 0,
+     "removed": 22,
+     "status": "D"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "The nightly import for the quail-stats project now retries three times with backoff.",
+  "second": "Deleted the old cron script since nothing referenced it, 8 passed"
+ },
+ {
+  "pair": "turns6-feed_pick-006",
+  "item": "V6T17",
+  "source": "Added dark mode to the bramble-ui button set. All 44 snapshot tests pass after I updated 12 snapshots.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 44,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/button/theme.css",
+     "added": 65,
+     "removed": 10,
+     "status": "M"
+    },
+    {
+     "path": "src/button/__snapshots__/button.snap",
+     "added": 210,
+     "removed": 180,
+     "status": "M"
+    },
+    {
+     "path": "src/button/Button.tsx",
+     "added": 11,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added dark mode to the bramble-ui button set.",
+  "second": "Changed src/button/theme.css (+65 -10), 44 passed"
+ },
+ {
+  "pair": "turns6-feed_pick-007",
+  "item": "V6T19",
+  "source": "Renamed the config key `timeout` to `request_timeout_ms` across the pine-gateway docs and code. 2 doc files and 1 source file touched. The 9 config tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "docs/config.md",
+     "added": 6,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "docs/migration.md",
+     "added": 10,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "src/config.go",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Renamed the config key timeout to request_timeout_ms across the pine-gateway docs and code, 9 passed",
+  "second": "Renamed the config key `timeout` to `request_timeout_ms` across the pine-gateway docs and code."
+ },
+ {
+  "pair": "turns6-feed_pick-008",
+  "item": "V6T22",
+  "source": "Added a --dry-run flag to the marsh-deploy CLI. No tests exist for the CLI entry point, so I tried it by hand on a sample config and it printed the plan without applying it.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "cmd/deploy/main.go",
+     "added": 31,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "cmd/deploy/flags.go",
+     "added": 14,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a --dry-run flag to the marsh-deploy CLI; tests were not run",
+  "second": "Added a --dry-run flag to the marsh-deploy CLI."
+ },
+ {
+  "pair": "turns6-feed_pick-009",
+  "item": "V6T23",
+  "source": "Tried switching the lark-render pipeline to the GPU path. Benchmarks regressed 18 percent, so I undid it with git reset and left the CPU path as it was. I also fixed a typo in the README.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "README.md",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "render/gpu_path.cpp",
+     "note": "the GPU pipeline was rolled back"
+    },
+    {
+     "path": "render/pipeline.cpp",
+     "note": "pipeline switch rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~3"
+   ],
+   "uncommitted": false
+  },
+  "first": "git: kept README.md (+1 -1); reverted render/gpu_path.cpp, render/pipeline.cpp\nFixed a typo in the README; tests were not run",
+  "second": "git: kept README.md (+1 -1); reverted render/gpu_path.cpp, render/pipeline.cpp\nThe agent says: “Tried switching the lark-render pipeline to the GPU path.”"
+ },
+ {
+  "pair": "turns6-feed_pick-010",
+  "item": "V6T25",
+  "source": "Updated the dependency versions in the sedge-cli lockfile. The build succeeds and all 61 tests pass. One transitive package now emits a deprecation warning.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 61,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "Cargo.lock",
+     "added": 140,
+     "removed": 128,
+     "status": "M"
+    },
+    {
+     "path": "Cargo.toml",
+     "added": 4,
+     "removed": 4,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Updated the dependency versions in the sedge-cli lockfile.",
+  "second": "Changed Cargo.lock (+140 -128), 61 passed"
+ },
+ {
+  "pair": "turns6-feed_pick-011",
+  "item": "V6T27",
+  "source": "I wrote a script to backfill the missing created_at values in the cinder-orders table. I did not run it on real data, only on a copy. The dry run reported 2,310 rows it would update.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "scripts/backfill_created_at.sql",
+     "added": 26,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed scripts/backfill_created_at.sql (new, +26 -0); tests were not run",
+  "second": "I wrote a script to backfill the missing created_at values in the cinder-orders table.\nI did not run it on real data, only on a copy."
+ },
+ {
+  "pair": "turns6-feed_pick-012",
+  "item": "V6T28",
+  "source": "Fixed the memory leak in the clover-agent poller: the timer was recreated on every reconnect. Leak test passes, 4 of 4.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 4,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "agent/poller.js",
+     "added": 15,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "agent/poller.test.js",
+     "added": 28,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Fixed the memory leak in the clover-agent poller, 4 passed",
+  "second": "Fixed the memory leak in the clover-agent poller: the timer was recreated on every reconnect."
+ },
+ {
+  "pair": "turns6-feed_pick-013",
+  "item": "V6T31",
+  "source": "Added input validation for the poppy-signup form: email format, password length at least 10, and a clear error under each field. 19 tests pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 19,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "web/signup/validate.js",
+     "added": 58,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "web/signup/form.html",
+     "added": 14,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "web/signup/validate.test.js",
+     "added": 70,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added input validation for the poppy-signup form: email format, password length at least 10, and a clear error under each field.",
+  "second": "Changed web/signup/validate.js (+58 -6), 19 passed"
+ },
+ {
+  "pair": "turns6-feed_pick-014",
+  "item": "V6T32",
+  "source": "Die Migration der erle-daten auf PostgreSQL 16 ist durch. Die Tests liefen, aber ich habe nur die Hälfte (60 von 120) ausgewählt, weil der Rest zu lange dauert. Alle 60 bestehen.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 60,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/migrate_pg16.sql",
+     "added": 88,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "docker-compose.yml",
+     "added": 4,
+     "removed": 4,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Die Migration der erle-daten auf PostgreSQL 16 ist durch",
+  "second": "Die Migration der erle-daten auf PostgreSQL 16 ist durch."
+ },
+ {
+  "pair": "turns6-feed_pick-015",
+  "item": "V6T33",
+  "source": "I changed my mind midway: first I rewrote the ivy-parser tokenizer, then I restored the old file because the new one was slower, and finally I only added two missing test cases for empty input. Both pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 11,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "tests/tokenizer_test.py",
+     "added": 26,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "ivy/tokenizer.py",
+     "note": "the new tokenizer was restored to the old version"
+    }
+   ],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "git: kept tests/tokenizer_test.py (+26 -0); reverted ivy/tokenizer.py\nThe agent says: “I changed my mind midway: first I rewrote the ivy-parser tokenizer, then I restored the old file because the new one was slower, and finally I only added two missing test cases for empty input.”",
+  "second": "git: kept tests/tokenizer_test.py (+26 -0); reverted ivy/tokenizer.py\nChanged tests/tokenizer_test.py (+26 -0)"
+ },
+ {
+  "pair": "turns6-feed_pick-016",
+  "item": "V6T35",
+  "source": "Das Upgrade von ahorn-web auf die neue Router-Version ist fertig. Der Build klappt, 74 Tests grün, 0 rot. Ich habe außerdem 3 veraltete Routen gelöscht.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 74,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/router.ts",
+     "added": 44,
+     "removed": 39,
+     "status": "M"
+    },
+    {
+     "path": "src/routes/old-a.ts",
+     "added": 0,
+     "removed": 12,
+     "status": "D"
+    },
+    {
+     "path": "src/routes/old-b.ts",
+     "added": 0,
+     "removed": 9,
+     "status": "D"
+    },
+    {
+     "path": "src/routes/old-c.ts",
+     "added": 0,
+     "removed": 15,
+     "status": "D"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Das Upgrade von ahorn-web auf die neue Router-Version ist fertig.",
+  "second": "3 veraltete Routen gelöscht"
+ },
+ {
+  "pair": "turns6-feed_pick-017",
+  "item": "V6T37",
+  "source": "Cleaned up unused CSS in the crane-site stylesheet: removed 340 lines. I checked the 5 key pages by eye and they look the same. No automated tests exist for the styles.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "static/site.css",
+     "added": 3,
+     "removed": 340,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed static/site.css (+3 -340); tests were not run",
+  "second": "Cleaned up unused CSS in the crane-site stylesheet: removed 340 lines."
+ },
+ {
+  "pair": "turns6-feed_pick-018",
+  "item": "V6T38",
+  "source": "The cypress-login test is flaky: it passed twice and failed once with a timeout on the same code. I added a wait and it passed 5 times in a row, 12 total tests passing.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "e2e/login.spec.ts",
+     "added": 6,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "The cypress-login test is flaky: it passed twice and failed once with a timeout on the same code.",
+  "second": "Changed e2e/login.spec.ts (+6 -1), 12 passed"
+ },
+ {
+  "pair": "turns6-feed_pick-019",
+  "item": "V6T40",
+  "source": "Added a CHANGELOG entry and bumped the version to 2.4.0 in the finch-lib package. Nothing else changed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "CHANGELOG.md",
+     "added": 8,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "package.json",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Bumped the version to 2.4.0 in the finch-lib package; tests were not run",
+  "second": "Added a CHANGELOG entry and bumped the version to 2.4.0 in the finch-lib package."
+ },
+ {
+  "pair": "turns6-feed_pick-020",
+  "item": "V6T42",
+  "source": "Added the Italian and Polish translations to the plum-app welcome screen. The 9 locale tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "locales/it.json",
+     "added": 42,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "locales/pl.json",
+     "added": 42,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "src/welcome/i18n.ts",
+     "added": 4,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed locales/it.json (new, +42 -0), 9 passed",
+  "second": "Added the Italian and Polish translations to the plum-app welcome screen."
+ },
+ {
+  "pair": "turns6-feed_pick-021",
+  "item": "V6T43",
+  "source": "The reed-tracker export now streams rows instead of loading everything in memory. I ran the export test: 7 pass. I did not check large files, so I cannot confirm the memory limit is fixed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 7,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "export/stream.js",
+     "added": 39,
+     "removed": 18,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "The reed-tracker export now streams rows instead of loading everything in memory.\nI did not check large files, so I cannot confirm the memory limit is fixed.",
+  "second": "Changed export/stream.js (+39 -18), 7 passed; I did not check large files"
+ },
+ {
+  "pair": "turns6-feed_pick-022",
+  "item": "V6T45",
+  "source": "Implemented soft delete for the basil-recipes API. All 48 tests pass; I also added 6 new ones. Existing hard-delete callers were left on the old endpoint.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 48,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/recipes/delete.py",
+     "added": 51,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "api/recipes/models.py",
+     "added": 9,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_delete.py",
+     "added": 88,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "migrations/0017_soft_delete.py",
+     "added": 20,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Implemented soft delete for the basil-recipes API, 48 passed",
+  "second": "Implemented soft delete for the basil-recipes API."
+ },
+ {
+  "pair": "turns6-feed_pick-023",
+  "item": "V6T46",
+  "source": "I kept the willet-chat message ordering as it was; the reported bug was a client clock issue, not our code. No code changes needed. I added a comment explaining this.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "server/order.js",
+     "added": 4,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Added a comment explaining this; tests were not run",
+  "second": "I kept the willet-chat message ordering as it was; the reported bug was a client clock issue, not our code."
+ },
+ {
+  "pair": "turns6-feed_pick-024",
+  "item": "V6T48",
+  "source": "Replaced the home-grown date parser in the vetch-calendar app with the standard library. 90 tests pass. The only visible difference is that weeks now start on Monday in the German locale, which I think is correct.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 90,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "app/dates.py",
+     "added": 12,
+     "removed": 64,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_dates.py",
+     "added": 26,
+     "removed": 40,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Replaced the home-grown date parser in the vetch-calendar app with the standard library, 90 passed",
+  "second": "Replaced the home-grown date parser in the vetch-calendar app with the standard library."
+ },
+ {
+  "pair": "turns6-feed_pick-025",
+  "item": "V6T50",
+  "source": "Kicked off the full regression run for the swift-courier router. It is still running, 212 of 600 tests done, 0 failures so far. I will report when it ends.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "unknown",
+    "passed": 212,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "tests/regression_list.txt",
+     "added": 3,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "first": "Changed tests/regression_list.txt (+3 -0); 212 of 600 tests done",
+  "second": "Kicked off the full regression run for the swift-courier router.\nIt is still running, 212 of 600 tests done, 0 failures so far."
+ }
+]

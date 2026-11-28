@@ -12,8 +12,11 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { budgetRemove, budgetSave, dollars, percentOf, type BudgetInfo } from "../lib/ipc/budgets";
 import { budgets, useBudgets } from "../lib/kept-reads";
-import { Checkbox, Picker, Radio } from "./controls";
+import { CheckRow, ChoiceOption, Picker } from "./controls";
+import { IconProjects } from "./icons";
+import { IconAppWindow } from "../screens/settings/pane-icons";
 import { cliAppName } from "../lib/app-name";
+import { IconCoin } from "./icons-settings";
 
 /** What a cap counts, in words: an account's name, or its projects'. */
 export function scopeWords(cap: BudgetInfo, accounts: AccountInfo[], projects: ProjectInfo[]): string {
@@ -132,7 +135,7 @@ export function BudgetSheet({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <Modal title={cap ? `Edit ${cap.name}` : "Set a monthly cap"} subtitle="You'll hear at 80 % and 100 %. Nothing is stopped." onClose={onClose}
+    <Modal icon={IconCoin} title={cap ? `Edit ${cap.name}` : "Set a monthly cap"} subtitle="You'll hear at 80 % and 100 %. Nothing is stopped." onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>
@@ -174,10 +177,9 @@ export function BudgetSheet({
         </Field>
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1.5 text-meta font-semibold text-ink">Counts</legend>
-          <label className="flex items-center gap-2 text-sm">
-            <Radio name="cap-kind" checked={kind === "account"} onChange={() => setKind("account")} />
-            One app
-          </label>
+          {/* AJ-E1558 (D-126): each choice a line with its icon, the chosen
+              one a fill; the projects the kit's rows, on tone, no box. */}
+          <ChoiceOption type="radio" name="cap-kind" icon={IconAppWindow} label="One app" checked={kind === "account"} onChange={() => setKind("account")} />
           {kind === "account" && (
             <Picker choice
               ariaLabel="App"
@@ -185,33 +187,27 @@ export function BudgetSheet({
               onChange={setAccount}
               testId="cap-account"
               className="self-start"
-              options={accounts.map((option) => ({ value: option.id, label: cliAppName(option.provider, option.label) }))}
+              options={accounts.map((option) => ({ value: option.id, label: cliAppName(option.provider, option.label), icon: IconAppWindow }))}
             />
           )}
-          <label className="flex items-center gap-2 text-sm">
-            <Radio name="cap-kind" checked={kind === "projects"} onChange={() => setKind("projects")} />
-            A group of projects, in any app
-          </label>
+          <ChoiceOption type="radio" name="cap-kind" icon={IconProjects} label="A group of projects, in any app" checked={kind === "projects"} onChange={() => setKind("projects")} />
           {kind === "projects" && (
-            <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-xl border border-hairline p-2" data-testid="cap-projects">
+            <ul className="flex max-h-48 flex-col gap-0.5 overflow-y-auto rounded-xl bg-surface-2 p-1.5" data-testid="cap-projects">
               {projects.map((project) => (
                 <li key={project.id}>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={picked.includes(project.id)}
-                      onChange={(event) =>
-                        setPicked((now) => (event.target.checked ? [...now, project.id] : now.filter((id) => id !== project.id)))
-                      }
-                    />
-                    {project.name}
-                  </label>
+                  <CheckRow
+                    icon={IconProjects}
+                    title={project.name}
+                    checked={picked.includes(project.id)}
+                    onChange={(on) => setPicked((now) => (on ? [...now, project.id] : now.filter((id) => id !== project.id)))}
+                  />
                 </li>
               ))}
             </ul>
           )}
         </fieldset>
         {error && (
-          <p className="text-xs text-danger" role="alert">
+          <p className="text-label text-danger" role="alert">
             {error}
           </p>
         )}

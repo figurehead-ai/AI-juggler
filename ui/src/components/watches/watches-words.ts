@@ -133,7 +133,6 @@ export const EMPTY = {
   once: "Once",
   always: "Always",
   today: "Today",
-  workingNow: "working now",
   catchesMissed: "Catches a question you missed",
   illustration: "Three sessions, one watch, one bell rung once",
 } as const;
@@ -196,6 +195,29 @@ export const FORM = {
   limitReached: (limit: number) => `${limit} watches is the most AI Juggler keeps at once. Remove one first.`,
   endedNote: "This watch has ended. Saving brings it back with these choices.",
   targetGone: "What it watched is gone. Pick a new target.",
+  /** AJ-E3830 (0.5.2): the form as Bot pre-filled it. */
+  pickLifeFirst: "Pick how long first.",
+} as const;
+
+/** AJ-E3830 (0.5.2): the form Bot pre-filled from the user's words. */
+export const BOT_FILL = {
+  title: "Filled in by Bot",
+  all: "Bot read every part of your words. Check it, then click Watch.",
+  some: (left: string) => `Bot filled in what it could read. ${left} ${left.includes(" and ") ? "are" : "is"} left for you.`,
+  none: "Bot couldn't fill in any part from your words. Pick each one.",
+  asked: (words: string) => `It couldn't read “${words}”.`,
+  cant: (words: string) => `It can't watch for “${words}”.`,
+  several: "More than one matches that name: pick which one.",
+  field: { target: "What to watch", condition: "What to watch for", lifetime: "How long", quiet_hours: "Quiet hours" } as Record<string, string>,
+  targetLeft: "Bot couldn't tell which one",
+  conditionLeft: "Bot couldn't tell what for",
+  nearest: "Nearest",
+  nearestWhy: "The nearest to what you asked that this can watch",
+  lifeLeft: "Bot couldn't tell how long from your words. Pick one.",
+  lifePick: "How long is yours to pick.",
+  lifeFollows: (what: "target" | "condition") => `How long is suggested once you pick ${what === "target" ? "what to watch" : "what to watch for"}.`,
+  choices: "Your words match",
+  quietLeft: "Bot couldn't tell whether this should wake you. Check it.",
 } as const;
 
 /** The lifetime choices, and the line under them. */

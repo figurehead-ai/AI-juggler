@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type ComponentProps, type JSX, type KeyboardEvent, type ReactNode, type RefObject, type SVGProps } from "react";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
 /**
@@ -106,10 +106,15 @@ export function Modal({
   wide = false,
   broad = false,
   table = false,
+  icon: Icon,
   testId,
 }: {
   title: string;
   subtitle?: string;
+  /** AJ-E1558 (D-126, DLG anatomy): a making or editing sheet's header
+   * icon, drawn in a 36 px tile in the accent's soft step. A confirm or
+   * a plain list leaves it out. */
+  icon?: (props: SVGProps<SVGSVGElement>) => JSX.Element;
   onClose: () => void;
   children: ReactNode;
   /** The buttons (Cancel … the one primary, last), fixed at the foot. */
@@ -161,9 +166,16 @@ export function Modal({
         headerClassName="flex items-start justify-between gap-4 px-5 pt-5 pb-3"
         header={
           <>
-            <div className="min-w-0">
-              <h2 id={titleId} className="type-section">{title}</h2>
-              {subtitle && <p className="type-help mt-0.5">{subtitle}</p>}
+            <div className="flex min-w-0 items-start gap-3">
+              {Icon && (
+                <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent-soft text-accent-hi" data-testid="dialog-icon">
+                  <Icon width={20} height={20} />
+                </span>
+              )}
+              <div className="min-w-0">
+                <h2 id={titleId} className="type-section">{title}</h2>
+                {subtitle && <p className="type-help mt-0.5">{subtitle}</p>}
+              </div>
             </div>
             <button
               onClick={onClose}

@@ -10,7 +10,10 @@ import { Button, Chip, formatCountdown } from "../../components/primitives";
 import { accountSetFee } from "../../lib/ipc/accounts";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import { renewalLabel } from "../../lib/renewal";
-import { Checkbox, DateField } from "../../components/controls";
+import { CheckRow, DateField } from "../../components/controls";
+import { IconWindow } from "../../components/icons-places";
+import { IconBroom } from "../../components/icons-actions";
+import { IconRestart } from "../../components/icons-settings";
 
 /** `termsOnAccount`: its plan, renewal and fee are its Account's (D-62),
  * shown and set there, so they aren't here. */
@@ -59,12 +62,12 @@ export function AccountSettingsSection({ account, now, resetsAtMs, termsOnAccoun
           <div className="flex flex-col gap-1.5">
             <dt className="text-meta font-semibold text-ink">Desktop sessions</dt>
             <dd className="text-meta">
-              <label data-testid="account-preview-toggle" className="flex items-center gap-1.5">
-                <Checkbox
-                  aria-label="Live preview of desktop sessions (opt-in)"
+              <div data-testid="account-preview-toggle">
+                <CheckRow
+                  icon={IconWindow}
+                  title="Live preview of desktop sessions (opt-in)"
                   checked={account.preview_opt_in}
-                  onChange={(event) => {
-                    const optIn = event.target.checked;
+                  onChange={(optIn) => {
                     void import("../../lib/ipc/desktop").then((bridge) =>
                       bridge.accountSetPreviewOptIn(account.id, optIn).catch(() => {
                         /* re-reads from props on the next list refresh */
@@ -72,8 +75,7 @@ export function AccountSettingsSection({ account, now, resetsAtMs, termsOnAccoun
                     );
                   }}
                 />
-                <span className="text-muted">Live preview of desktop sessions (opt-in)</span>
-              </label>
+              </div>
             </dd>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -219,25 +221,15 @@ export function TierToggles(props: { accountId: string; initial: boolean; explai
       });
   };
   return (
-    <span className="flex flex-col gap-1" data-testid="account-tier-toggles">
-      <label data-testid="account-cleanup-toggle" className="flex items-center gap-1.5">
-        <Checkbox
-          aria-label="Automatically tidy left-behind dev servers"
-          checked={tiers.tier1}
-          disabled={!loaded}
-          onChange={(event) => set("tier1", event.target.checked)}
-        />
-        <span className="text-muted">Automatically tidy left-behind dev servers</span>
-      </label>
-      <label data-testid="account-tier2-toggle" className="flex items-center gap-1.5">
-        <Checkbox
-          aria-label="Also tidy after a crash (with notification)"
-          checked={tiers.tier2}
-          disabled={!loaded}
-          onChange={(event) => set("tier2", event.target.checked)}
-        />
-        <span className="text-muted">Also tidy after a crash (with notification)</span>
-      </label>
+    // AJ-E1558 (D-126): the kit's rows, each with its icon chip (the
+    // accent's soft step while on); the whole row is the checkbox's label.
+    <span className="flex flex-col gap-0.5" data-testid="account-tier-toggles">
+      <div data-testid="account-cleanup-toggle">
+        <CheckRow icon={IconBroom} title="Automatically tidy left-behind dev servers" checked={tiers.tier1} disabled={!loaded} onChange={(on) => set("tier1", on)} />
+      </div>
+      <div data-testid="account-tier2-toggle">
+        <CheckRow icon={IconRestart} title="Also tidy after a crash (with notification)" checked={tiers.tier2} disabled={!loaded} onChange={(on) => set("tier2", on)} />
+      </div>
       {props.explain !== false && (
         <span className="text-label leading-relaxed text-muted">
           Both off by default — only verified dev servers and watchers of this app's clean

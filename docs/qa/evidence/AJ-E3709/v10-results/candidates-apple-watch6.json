@@ -1,0 +1,111 @@
+{
+ "family": "apple",
+ "job": "watch6",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R10-W03",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Ich sage dir Bescheid, wenn “Wetterstation-Sync” fehlschlägt. Bis heute Mitternacht.",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W05",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-checko0')] != ('session', 's-chk')",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W07",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W20",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: anything … Ingest worker",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W21",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-checko0')] != ('session', 's-chk')",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W27",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W40",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “Payment flow” finishes. Once.",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W43",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W46",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W54",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-billin1')] != ('session', 's-bill'); lifetime always != today",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W59",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: Every … Landing page copy",
+   "stage": "shown",
+   "corpus": "watch10"
+  },
+  {
+   "id": "R10-W60",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “billing-sync” fails. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch10"
+  }
+ ]
+}

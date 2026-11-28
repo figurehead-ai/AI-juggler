@@ -1,6 +1,7 @@
 //! What Bot looks things up in (ADR-0034 §6.2): AI Juggler's own read
-//! models, read once per question into rows: sessions (their state from
-//! the sessions read model), tasks (the tasks store, with their pools)
+//! models, read once per question into rows: sessions (AI Juggler's, their
+//! state as the rail reads it; and, 0.5.2 G45, the ones it didn't start,
+//! from the conversation index, `sessions::seen`), tasks (the tasks store, with their pools)
 //! and Accounts (the room the usage pipeline shows). Read-only: nothing
 //! here writes, sends, switches or stops anything, and no transcript is
 //! read. Agent-written names pass the guard ([`super::guard`]).
@@ -24,7 +25,9 @@ pub struct World {
     pub now_ms: i64,
     /// Local time minus UTC, hours.
     pub offset_hours: i64,
-    /// Every session the sessions read model holds.
+    /// Every session the sessions read model holds, then (0.5.2 G45) the
+    /// sessions AI Juggler didn't start that the window's working set
+    /// holds (`sessions::seen::outside`).
     pub sessions: Vec<BotRowInfo>,
     /// The tasks, newest first.
     pub tasks: Vec<BotRowInfo>,
@@ -41,6 +44,25 @@ pub const NAME_MAX: usize = 300;
 const TASKS_READ: u32 = 400;
 
 impl World {
+    /// A project's name, from any row in it.
+    #[must_use]
+    pub fn project_name(&self, id: &str) -> Option<String> {
+        self.sessions
+            .iter()
+            .chain(&self.tasks)
+            .find(|r| r.project_id.as_deref() == Some(id))
+            .and_then(|r| r.project.clone())
+    }
+
+    /// A pool's name, from any task in it.
+    #[must_use]
+    pub fn pool_name(&self, id: &str) -> Option<String> {
+        self.tasks
+            .iter()
+            .find(|r| r.pool_id.as_deref() == Some(id))
+            .and_then(|r| r.pool.clone())
+    }
+
     /// Every row, by kind and id.
     #[must_use]
     pub fn find(&self, kind: BotRowKind, id: &str) -> Option<&BotRowInfo> {
@@ -48,6 +70,8 @@ impl World {
             BotRowKind::Session => &self.sessions,
             BotRowKind::Task => &self.tasks,
             BotRowKind::Account => &self.accounts,
+            // Memories aren't records the world reads (bot::memory does).
+            BotRowKind::Memory => return None,
         };
         rows.iter().find(|row| row.id == id)
     }
@@ -82,7 +106,7 @@ pub const fn task_state(status: TaskStatus) -> BotState {
     }
 }
 
-fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
+pub(crate) fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
     BotRowInfo {
         kind,
         id,
@@ -109,6 +133,9 @@ fn empty_row(kind: BotRowKind, id: String, title: String) -> BotRowInfo {
         quote: None,
         then_state: None,
         gone: false,
+        about: None,
+        memory_key: None,
+        need: None,
     }
 }
 
@@ -124,26 +151,49 @@ fn guarded_into(name: &str, removed: &mut Vec<String>) -> (String, bool) {
     (guarded.cleaned, hidden)
 }
 
-/// A session row from the read model's row.
+/// A session row from the read model's row, at `now_ms`.
+///
+/// 0.5.2 G57: named by the one naming rule (`needs::session_name`, the
+/// rail's: its label, its title's words, a telling branch, else its facts,
+/// "web · started 2:54 AM"), never by its folder alone: an untitled
+/// session was "web", its project's name, and Bot's answers read
+/// "“web” is ended in project “web”".
 #[must_use]
 pub fn session_row<S: BuildHasher>(
     row: &crate::features::sessions::dto::InstanceInfo,
     projects: &HashMap<String, String, S>,
+    now_ms: i64,
     removed: &mut Vec<String>,
 ) -> BotRowInfo {
-    let folder = std::path::Path::new(&row.cwd)
-        .file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| !name.is_empty());
-    let raw = row
-        .label
-        .clone()
-        .filter(|l| !l.trim().is_empty())
-        .or_else(|| row.title.clone().filter(|t| !t.trim().is_empty()))
-        .or(folder)
-        .unwrap_or_default();
+    let raw = crate::features::notifications::needs::session_name(row, now_ms);
     let (title, name_hidden) = guarded_into(&raw, removed);
-    let state = session_state(&row.status);
+    // G18: D-117's one rule, Home's Needs you: what it needs names its
+    // state ("may be stuck" while its status still reads running).
+    let need = crate::features::notifications::needs::session_kind(row);
+    let status = session_state(&row.status);
+    // 0.5.2 G45 (G34's rule): while it runs, the state its tool itself
+    // reports (its hooks, its protocol), as the rail reads it: an idle
+    // session between turns is Idle, never "working" by its status.
+    let exact = row
+        .runtime
+        .as_ref()
+        .and_then(|runtime| runtime.state.as_deref())
+        .filter(|_| status == Some(BotState::Working));
+    let state = match need {
+        Some("asks") => Some(BotState::AsksYou),
+        Some("stuck") => Some(BotState::Stuck),
+        Some("limit") => Some(BotState::Limit),
+        Some("failed") => Some(BotState::Failed),
+        // 0.5.2 G73: the rail's rule (`sessionItem`): its tool's own word
+        // while it runs, a turn that ended Idle, an ask Asks you.
+        _ => match exact {
+            Some("idle" | "done_review") => Some(BotState::Idle),
+            Some("asks_you") => Some(BotState::AsksYou),
+            Some("working") => Some(BotState::Working),
+            Some("ended") => Some(BotState::Ended),
+            _ => status,
+        },
+    };
     let at_ms = match state {
         Some(BotState::AsksYou | BotState::Stuck) => row
             .attention
@@ -159,6 +209,7 @@ pub fn session_row<S: BuildHasher>(
     BotRowInfo {
         name_hidden,
         state,
+        need,
         at_ms,
         started_ms: Some(row.started_at_ms),
         provider: Some(row.provider.clone()),
@@ -185,6 +236,78 @@ pub fn session_row<S: BuildHasher>(
     }
 }
 
+/// 0.5.2 G45 (RW1 W3): a session AI Juggler didn't start (`sessions::seen`:
+/// one started in the user's own terminal, a Codex thread, a Claude app's
+/// session), by its key where a session id goes, named and in the state
+/// its rail row says: open, working, idle or asking (its need, Home's
+/// Needs you: an ask); closed, ended (how isn't known).
+#[must_use]
+pub fn outside_row<S: BuildHasher>(
+    row: &crate::features::conversations::dto::ConversationInfo,
+    projects: &HashMap<String, String, S>,
+    now_ms: i64,
+    removed: &mut Vec<String>,
+) -> BotRowInfo {
+    use crate::features::sessions::seen;
+    let raw = crate::features::notifications::needs::conversation_name(row, now_ms);
+    let (title, name_hidden) = guarded_into(&raw, removed);
+    let state = if seen::open(row) {
+        match row.state.as_deref() {
+            Some("working") => BotState::Working,
+            Some("asks_you") => BotState::AsksYou,
+            _ => BotState::Idle,
+        }
+    } else {
+        BotState::Ended
+    };
+    BotRowInfo {
+        name_hidden,
+        state: Some(state),
+        need: (state == BotState::AsksYou).then_some("asks"),
+        at_ms: row.last_activity_ms.or(row.started_ms),
+        started_ms: row.started_ms,
+        provider: Some(row.tool.clone()),
+        app_id: row.app.clone(),
+        app_label: Some(guarded_into(&row.account_label, removed).0).filter(|l| !l.is_empty()),
+        desktop: row
+            .app
+            .as_deref()
+            .is_some_and(|app| !app.starts_with("cli:")),
+        project: row
+            .project_id
+            .as_ref()
+            .and_then(|id| projects.get(id).cloned()),
+        project_id: row.project_id.clone(),
+        branch: row
+            .git_branch
+            .as_deref()
+            .map(|b| guarded_into(b, removed).0)
+            .filter(|b| !b.is_empty()),
+        ..empty_row(BotRowKind::Session, seen::key_of(row), title)
+    }
+}
+
+/// 0.5.2 G37: each task that waits on the user by Home's Needs you
+/// (`tasks::needs::needs`, the one rule Home and the bell read): `review`,
+/// `ask` or `launch`, by task id.
+fn task_needs(state: &Arc<AppState>) -> HashMap<String, &'static str> {
+    crate::features::tasks::needs::needs(state)
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|need| {
+            let kind = match need.kind.as_str() {
+                "review" => "review",
+                "launch" => "launch",
+                _ => "ask",
+            };
+            let task = need
+                .task_id
+                .or_else(|| need.id.strip_prefix("review:").map(str::to_owned))?;
+            Some((task, kind))
+        })
+        .collect()
+}
+
 /// Reads the records now.
 ///
 /// # Errors
@@ -197,7 +320,19 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
         crate::features::sessions::read_model::session_infos_snapshot(&storage).unwrap_or_default()
     };
+    // 0.5.2 G73 (RW1 Part T, T4): each row with its runtime, as the
+    // window's list has it (`runtime::described`): without it no row ever
+    // carried its tool's own word, and a session whose turn had ended read
+    // "working" by its stored status while the rail read it Idle.
+    let rows = crate::features::runtime::described(state, rows);
     let rows = crate::features::conversations::titled(state, rows).unwrap_or_default();
+    // 0.5.2 G45: and the sessions AI Juggler didn't start (the window's
+    // other list), read before the store's lock below.
+    let outside = crate::features::sessions::seen::outside(state, now_ms);
+    // 0.5.2 G37: a task's need by Home's one rule (its Needs you:
+    // a task in review, an agent's change or new session held for the
+    // user), never Bot's own waiting states.
+    let task_needs = task_needs(state);
     // Read under the lock, guarded after it (I3).
     let (projects, pools, tasks, accounts) = {
         let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
@@ -228,10 +363,15 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
             )
         })
         .collect();
-    let sessions = rows
+    let mut sessions: Vec<BotRowInfo> = rows
         .iter()
-        .map(|row| session_row(row, &projects, &mut removed))
+        .map(|row| session_row(row, &projects, now_ms, &mut removed))
         .collect();
+    sessions.extend(
+        outside
+            .iter()
+            .map(|row| outside_row(row, &projects, now_ms, &mut removed)),
+    );
     let tasks = tasks
         .into_iter()
         .map(|task| {
@@ -241,6 +381,7 @@ pub fn gather(state: &Arc<AppState>) -> AppResult<World> {
             BotRowInfo {
                 name_hidden,
                 state: Some(task_state(task.status)),
+                need: task_needs.get(&task.id).copied(),
                 at_ms: Some(task.updated_at),
                 project: project_id.as_ref().and_then(|id| projects.get(id).cloned()),
                 project_id,
@@ -331,11 +472,22 @@ fn accounts(
 pub mod tests_support {
     use super::{BotRowInfo, BotRowKind, BotState, empty_row};
 
-    /// A row of `kind` named `title`, its id the title.
+    /// A row of `kind` named `title`, its id the title; a session in a
+    /// state Home's Needs you counts (asks, stuck, limit, failed) needs
+    /// the user, as [`super::session_row`] reads one that isn't parked.
     #[must_use]
     pub fn row(kind: BotRowKind, title: &str, state: Option<BotState>) -> BotRowInfo {
         BotRowInfo {
             state,
+            need: match (kind, state) {
+                (BotRowKind::Session, Some(BotState::AsksYou)) => Some("asks"),
+                (BotRowKind::Session, Some(BotState::Stuck)) => Some("stuck"),
+                (BotRowKind::Session, Some(BotState::Limit)) => Some("limit"),
+                (BotRowKind::Session, Some(BotState::Failed)) => Some("failed"),
+                // G37: a task in review waits on the user (Home's rule).
+                (BotRowKind::Task, Some(BotState::InReview)) => Some("review"),
+                _ => None,
+            },
             ..empty_row(kind, title.to_owned(), title.to_owned())
         }
     }

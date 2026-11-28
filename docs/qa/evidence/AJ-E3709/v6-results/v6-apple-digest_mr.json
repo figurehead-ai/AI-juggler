@@ -1,0 +1,2024 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"os\":\"Version 27.0.1 (Build 26A434)\",\"extensions\":[\"fields\",\"sampling\"],\"hello\":true,\"guided\":true,\"protocol\":3,\"available\":\"available\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "digest_mr"
+  ],
+  "prompt_sha256": {
+   "digest_mr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "digest6",
+    "file": "digest-v6.json",
+    "sha256": "0dca2af1eed016aeee53bc59b10e69ab2f82c740f9f6eb85d41a537662c2cc5f",
+    "items_in_file": 30,
+    "items_run": 30
+   }
+  ],
+  "calls": 25,
+  "wall_s": 26.6,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   7.3,
+   6.5,
+   6.8
+  ],
+  "load_avg_end": [
+   7.1,
+   6.5,
+   6.8
+  ],
+  "helper_cpu_s": 0.63,
+  "cpu_deltas": [
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 1.67
+   },
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 1.63
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.62
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.46
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 164.5,
+   "peak": 175.8,
+   "after": 176.3
+  },
+  "started": "2026-11-26 08:09:52"
+ },
+ "results": [
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D01",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"added\"}",
+     "finish": "stop",
+     "latency_ms": 986,
+     "gen_ms": 985.8629703521729,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1677,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a3",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"fixed\"}",
+     "finish": "stop",
+     "latency_ms": 1020,
+     "gen_ms": 1019.8899507522583,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1670,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:10 · 3 agents\nalder-docs · asks you: “MIT or Apache header?”\nheron-queue · ended · Added retry with backoff to the heron-queue consumer, 22 passed\ncress-ui · ended · Fixed the focus ring on the cress-ui tabs, 9 passed",
+    "model_text": [
+     "Added retry with backoff to the heron-queue consumer, 22 passed",
+     "Fixed the focus ring on the cress-ui tabs, 9 passed"
+    ],
+    "notes": [
+     "2 agent line(s) picked by the model, 1 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "alder-docs · asks you: “MIT or Apache header?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "heron-queue · ended · Added retry with backoff to the heron-queue consumer, 22 passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Added retry with backoff to the heron-queue consumer, 22 passed"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d01-a",
+        "turn_id": "v6d01-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "cress-ui · ended · Fixed the focus ring on the cress-ui tabs, 9 passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Fixed the focus ring on the cress-ui tabs, 9 passed"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d01-c",
+        "turn_id": "v6d01-c-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D02",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a2",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"added\"}",
+     "finish": "stop",
+     "latency_ms": 1066,
+     "gen_ms": 1065.9799575805664,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1649,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:15 · 3 agents\nquail-pay · failed: “provider sandbox 500 x3”\nmist-cli · ended · Added shell completion for mist-cli; I did not run the tests\ndock-scout · working",
+    "model_text": [
+     "Added shell completion for mist-cli; I did not run the tests"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "quail-pay · failed: “provider sandbox 500 x3”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "mist-cli · ended · Added shell completion for mist-cli; I did not run the tests",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Added shell completion for mist-cli; I did not run the tests"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d02-b",
+        "turn_id": "v6d02-b-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "dock-scout · working",
+      "notable": false,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D03",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:30 · 2 agents\nlarch-web · failed: “profile page: 2 tests fail” · tests failed\nlarch-api · ended · 1 turn · tests passed · last: “Renamed three endpoints in larch-api.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "larch-web · failed: “profile page: 2 tests fail” · tests failed",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "larch-api · ended · 1 turn · tests passed · last: “Renamed three endpoints in larch-api.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D04",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:20 · 4 agents\ndrift-notes · asks you: “Keep both copies or prefer newest?”\npearl-ui · ended · 1 turn · tests passed · last: “Spacing scale updated in pearl-ui.”\ncoral-search (Codex CLI · Studio) · ended · 1 turn · tests passed · last: “Ranking tweak done; benchmark improved 4 percent.”\ncoral-search (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “Indexing step for coral-search finished.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 4 by code"
+    ],
+    "items": [
+     {
+      "agent": "a3",
+      "line": "drift-notes · asks you: “Keep both copies or prefer newest?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a4",
+      "line": "pearl-ui · ended · 1 turn · tests passed · last: “Spacing scale updated in pearl-ui.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "coral-search (Codex CLI · Studio) · ended · 1 turn · tests passed · last: “Ranking tweak done; benchmark improved 4 percent.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "coral-search (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “Indexing step for coral-search finished.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a3",
+     "a4",
+     "a2",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D05",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1055,
+     "gen_ms": 1054.3090105056763,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1678,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a3",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1046,
+     "gen_ms": 1045.8829402923584,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1659,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:25 · 3 agents\nesche-api · failed: “Zertifikat abgelaufen”\nbuche-shop · ended · Der Warenkorb der buche-shop speichert jetzt Gutscheine · tests passed\nquelle-app · ended · Ich habe die Texte der quelle-app überarbeitet; tests wurden nicht ausgeführt",
+    "model_text": [
+     "Der Warenkorb der buche-shop speichert jetzt Gutscheine",
+     "Ich habe die Texte der quelle-app überarbeitet; tests wurden nicht ausgeführt"
+    ],
+    "notes": [
+     "2 agent line(s) picked by the model, 1 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "esche-api · failed: “Zertifikat abgelaufen”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "buche-shop · ended · Der Warenkorb der buche-shop speichert jetzt Gutscheine · tests passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Der Warenkorb der buche-shop speichert jetzt Gutscheine"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d05-a",
+        "turn_id": "v6d05-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "quelle-app · ended · Ich habe die Texte der quelle-app überarbeitet; tests wurden nicht ausgeführt",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Ich habe die Texte der quelle-app überarbeitet; tests wurden nicht ausgeführt"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d05-c",
+        "turn_id": "v6d05-c-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D06",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 03:00 · 2 agents\nkelp-cli · working\nbay-maps · working\n1 quiet",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "kelp-cli · working",
+      "notable": false,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "bay-maps · working",
+      "notable": false,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D07",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"deleted\"}",
+     "finish": "stop",
+     "latency_ms": 1023,
+     "gen_ms": 1022.6300954818726,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1706,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:40 · 3 agents\nmoth-ledger (Codex CLI · Studio) · failed: “rounding of 0.125 fails” · tests failed\nridge-ui · stuck · stuck for 25 min · 1 turn · last: “Still running the visual comparison for ridge-ui, 60 of 120 pages compared.”\nmoth-ledger (Claude Code CLI · Studio) · ended · Deleted a stale table, 58 passed",
+    "model_text": [
+     "Deleted a stale table, 58 passed"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "moth-ledger (Codex CLI · Studio) · failed: “rounding of 0.125 fails” · tests failed",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "ridge-ui · stuck · stuck for 25 min · 1 turn · last: “Still running the visual comparison for ridge-ui, 60 of 120 pages compared.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "moth-ledger (Claude Code CLI · Studio) · ended · Deleted a stale table, 58 passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Deleted a stale table, 58 passed"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d07-a",
+        "turn_id": "v6d07-a-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a2",
+     "a3",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D08",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1030,
+     "gen_ms": 1029.2879343032837,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1688,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a2",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"wrote\"}",
+     "finish": "stop",
+     "latency_ms": 1019,
+     "gen_ms": 1018.9279317855835,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1650,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 2 agents\norchid-app · ended · Biometric unlock now falls back to PIN after three failed scans\nmoss-docs · ended · Wrote the moss-docs FAQ; I could not check the links",
+    "model_text": [
+     "Biometric unlock now falls back to PIN after three failed scans",
+     "Wrote the moss-docs FAQ; I could not check the links"
+    ],
+    "notes": [
+     "2 agent line(s) picked by the model, 0 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "orchid-app · ended · Biometric unlock now falls back to PIN after three failed scans",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Biometric unlock now falls back to PIN after three failed scans"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d08-a",
+        "turn_id": "v6d08-a-t2"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "moss-docs · ended · Wrote the moss-docs FAQ; I could not check the links",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Wrote the moss-docs FAQ; I could not check the links"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d08-b",
+        "turn_id": "v6d08-b-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D09",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1134,
+     "gen_ms": 1133.5710287094116,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1696,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 3 agents\nsand-api · asks you: “UTC or the customer's timezone?”\nwave-stream · ended · Wave-stream buffer fix, 11 passed\nsand-web · ended · 1 turn · tests passed · last: “Report page in sand-web restyled.”",
+    "model_text": [
+     "Wave-stream buffer fix, 11 passed"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "sand-api · asks you: “UTC or the customer's timezone?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "wave-stream · ended · Wave-stream buffer fix, 11 passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Wave-stream buffer fix, 11 passed"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d09-a",
+        "turn_id": "v6d09-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "sand-web · ended · 1 turn · tests passed · last: “Report page in sand-web restyled.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D10",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:44 · 4 agents\ngull-bot (Codex CLI · Studio) · failed: “rate limiter expected 5 got 6” · tests failed\ngull-bot (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “gull-bot slash commands now support aliases.”\ntern-cli · ended · 1 turn · tests passed · last: “tern-cli update checker finished, 10 tests pass.”\npike-tools · working",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 4 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "gull-bot (Codex CLI · Studio) · failed: “rate limiter expected 5 got 6” · tests failed",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "gull-bot (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “gull-bot slash commands now support aliases.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "tern-cli · ended · 1 turn · tests passed · last: “tern-cli update checker finished, 10 tests pass.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a4",
+      "line": "pike-tools · working",
+      "notable": false,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3",
+     "a4"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D11",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1046,
+     "gen_ms": 1045.3850030899048,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1682,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:36 · 3 agents\ncove-api · failed: “receiver returns 410”\nvole-sync · ended · No code changes remain\ndew-ui · ended · 1 turn · tests passed · last: “Toast animations in dew-ui now respect reduced motion.”",
+    "model_text": [
+     "No code changes remain"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a3",
+      "line": "cove-api · failed: “receiver returns 410”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "vole-sync · ended · No code changes remain",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "No code changes remain"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d11-a",
+        "turn_id": "v6d11-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "dew-ui · ended · 1 turn · tests passed · last: “Toast animations in dew-ui now respect reduced motion.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a3",
+     "a1",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D12",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1038,
+     "gen_ms": 1038.0260944366455,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1656,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:15 · 3 agents\nweide-api · asks you: “Alte Tokens sofort oder nach 24 Stunden sperren?”\ntulpe-planer · ended · Feiertage für Bayern ergänzt · tests passed\nheide-cli · working",
+    "model_text": [
+     "Feiertage für Bayern ergänzt"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "weide-api · asks you: “Alte Tokens sofort oder nach 24 Stunden sperren?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "tulpe-planer · ended · Feiertage für Bayern ergänzt · tests passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Feiertage für Bayern ergänzt"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d12-a",
+        "turn_id": "v6d12-a-t2"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "heide-cli · working",
+      "notable": false,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D13",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a2",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1049,
+     "gen_ms": 1048.2879877090454,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1698,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:50 · 3 agents\nlynx-proxy (Codex CLI · Studio) · stuck · stuck for 40 min · I am still compiling the lynx-proxy integration images\nlynx-proxy (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “lynx-proxy TLS config updated.”\nhare-board · ended · 1 turn · tests passed · last: “hare-board card sorting fixed.”",
+    "model_text": [
+     "I am still compiling the lynx-proxy integration images"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "lynx-proxy (Codex CLI · Studio) · stuck · stuck for 40 min · I am still compiling the lynx-proxy integration images",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "I am still compiling the lynx-proxy integration images"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d13-b",
+        "turn_id": "v6d13-b-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a1",
+      "line": "lynx-proxy (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “lynx-proxy TLS config updated.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "hare-board · ended · 1 turn · tests passed · last: “hare-board card sorting fixed.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D14",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:10 · 3 agents\nstag-web · failed: “login test timeout” · tests failed\nstag-core · failed: “linker error: cannot find libz”\nstag-docs · ended · 1 turn · tests passed · last: “stag-docs sidebar fixed.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 3 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "stag-web · failed: “login test timeout” · tests failed",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "stag-core · failed: “linker error: cannot find libz”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "stag-docs · ended · 1 turn · tests passed · last: “stag-docs sidebar fixed.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D15",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1064,
+     "gen_ms": 1064.060926437378,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1672,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 2 agents\nclam-notes (Claude app · Home) · ended · No changes remain\nclam-notes (OpenCode) · ended · 1 turn · tests passed · last: “Added word count to clam-notes status bar.”",
+    "model_text": [
+     "No changes remain"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 1 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "clam-notes (Claude app · Home) · ended · No changes remain",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "No changes remain"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d15-a",
+        "turn_id": "v6d15-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "clam-notes (OpenCode) · ended · 1 turn · tests passed · last: “Added word count to clam-notes status bar.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D16",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1067,
+     "gen_ms": 1066.912055015564,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1654,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a2",
+     "attempt": 0,
+     "text": "{\"fact\": \"2\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1086,
+     "gen_ms": 1086.037039756775,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1668,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 3 agents\nmink-pay (Claude Code CLI · Studio) · ended · Mink-pay fraud rules changed; tests were not run because the fixtures are missing\nmink-pay (Codex CLI · Studio) · ended · 4 tests pass\nyarrow-api · ended · 1 turn · tests passed · last: “yarrow-api pagination done.”",
+    "model_text": [
+     "Mink-pay fraud rules changed; tests were not run because the fixtures are missing",
+     "4 tests pass"
+    ],
+    "notes": [
+     "2 agent line(s) picked by the model, 1 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "mink-pay (Claude Code CLI · Studio) · ended · Mink-pay fraud rules changed; tests were not run because the fixtures are missing",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Mink-pay fraud rules changed; tests were not run because the fixtures are missing"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d16-a",
+        "turn_id": "v6d16-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "mink-pay (Codex CLI · Studio) · ended · 4 tests pass",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "4 tests pass"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d16-b",
+        "turn_id": "v6d16-b-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "yarrow-api · ended · 1 turn · tests passed · last: “yarrow-api pagination done.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D17",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:28 · 3 agents\nortie-api · failed: “base en lecture seule”\nsureau-cli · asks you: “Supprimer les anciens fichiers temporaires automatiquement ?”\nlierre-ui · ended · 1 turn · tests passed · last: “Le thème sombre de lierre-ui est terminé.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 3 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "ortie-api · failed: “base en lecture seule”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "sureau-cli · asks you: “Supprimer les anciens fichiers temporaires automatiquement ?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "lierre-ui · ended · 1 turn · tests passed · last: “Le thème sombre de lierre-ui est terminé.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a3",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D18",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a2",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1042,
+     "gen_ms": 1041.9859886169434,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1658,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a3",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1058,
+     "gen_ms": 1057.5180053710938,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1667,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:55 · 4 agents\nfox-ci (Claude app · Home) · asks you: “Retry failed jobs automatically, once or twice?”\nfox-ci (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “fox-ci cache keys fixed; 10 tests pass.”\nfox-ci (Codex CLI · Studio) · ended · Fox-ci runner pool resized\nfox-ci (Cursor) · ended · Fox-ci log output now truncated at 5 MB, 3 passed",
+    "model_text": [
+     "Fox-ci runner pool resized",
+     "Fox-ci log output now truncated at 5 MB, 3 passed"
+    ],
+    "notes": [
+     "2 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a4",
+      "line": "fox-ci (Claude app · Home) · asks you: “Retry failed jobs automatically, once or twice?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "fox-ci (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “fox-ci cache keys fixed; 10 tests pass.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "fox-ci (Codex CLI · Studio) · ended · Fox-ci runner pool resized",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Fox-ci runner pool resized"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d18-b",
+        "turn_id": "v6d18-b-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "fox-ci (Cursor) · ended · Fox-ci log output now truncated at 5 MB, 3 passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Fox-ci log output now truncated at 5 MB, 3 passed"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d18-c",
+        "turn_id": "v6d18-c-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a4",
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D19",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:41 · 2 agents\njay-kit (OpenCode) · failed: “2 contrast issues remain”\njay-kit (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “Implemented the jay-kit color picker.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "jay-kit (OpenCode) · failed: “2 contrast issues remain”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "jay-kit (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “Implemented the jay-kit color picker.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D20",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:07 · 2 agents\nthrush-app (Claude app · Home) · asks you: “Should I add expiry to the image cache?”\nthrush-app (Cursor) · ended · 1 turn · tests passed · last: “thrush-app onboarding finished.”\n1 quiet",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "thrush-app (Claude app · Home) · asks you: “Should I add expiry to the image cache?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "thrush-app (Cursor) · ended · 1 turn · tests passed · last: “thrush-app onboarding finished.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D21",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1051,
+     "gen_ms": 1051.2290000915527,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1678,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a3",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1089,
+     "gen_ms": 1088.644027709961,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1665,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:18 · 3 agents\nkranich-api (Codex CLI · Studio) · failed: “3 Tests der Ratenbegrenzung schlagen fehl” · tests failed\nkranich-api (Claude Code CLI · Studio) · ended · Die Passwort-Zurücksetzung in der kranich-api ist fertig · tests passed\nspecht-ui · ended · Das Menü der specht-ui ist jetzt per Tastatur bedienbar; tests nicht ausgeführt",
+    "model_text": [
+     "Die Passwort-Zurücksetzung in der kranich-api ist fertig",
+     "Das Menü der specht-ui ist jetzt per Tastatur bedienbar; tests nicht ausgeführt"
+    ],
+    "notes": [
+     "2 agent line(s) picked by the model, 1 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "kranich-api (Codex CLI · Studio) · failed: “3 Tests der Ratenbegrenzung schlagen fehl” · tests failed",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "kranich-api (Claude Code CLI · Studio) · ended · Die Passwort-Zurücksetzung in der kranich-api ist fertig · tests passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Die Passwort-Zurücksetzung in der kranich-api ist fertig"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d21-a",
+        "turn_id": "v6d21-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "specht-ui · ended · Das Menü der specht-ui ist jetzt per Tastatur bedienbar; tests nicht ausgeführt",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Das Menü der specht-ui ist jetzt per Tastatur bedienbar; tests nicht ausgeführt"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d21-c",
+        "turn_id": "v6d21-c-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D22",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:02 · 3 agents\npuffin-etl (Codex CLI · Studio) · failed: “4,100 rows missing key”\ninlet-ui · ended · 1 turn · tests passed · last: “inlet-ui tooltip positions fixed.”\npuffin-etl (Claude Code CLI · Studio) · finished · 1 turn · last: “puffin-etl nightly load completed: 1.2 million rows, 0 rejected.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 3 by code"
+    ],
+    "items": [
+     {
+      "agent": "a2",
+      "line": "puffin-etl (Codex CLI · Studio) · failed: “4,100 rows missing key”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "inlet-ui · ended · 1 turn · tests passed · last: “inlet-ui tooltip positions fixed.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "puffin-etl (Claude Code CLI · Studio) · finished · 1 turn · last: “puffin-etl nightly load completed: 1.2 million rows, 0 rejected.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a2",
+     "a3",
+     "a1"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D23",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 22:00 · 2 agents\nwick-cli · ended · 1 turn · tests passed · last: “wick-cli help text reworded.”\ndale-app · working",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "wick-cli · ended · 1 turn · tests passed · last: “wick-cli help text reworded.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "dale-app · working",
+      "notable": false,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D24",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:30 · 3 agents\nonyx-chat (Claude Code CLI · Studio) · failed: “emoji picker: 2 tests fail” · tests failed\nlinnet-mail · asks you: “Show muted threads in the inbox as read?”\nonyx-chat (Cursor) · ended · 1 turn · tests passed · last: “onyx-chat notification sound options added.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 3 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "onyx-chat (Claude Code CLI · Studio) · failed: “emoji picker: 2 tests fail” · tests failed",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "linnet-mail · asks you: “Show muted threads in the inbox as read?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "onyx-chat (Cursor) · ended · 1 turn · tests passed · last: “onyx-chat notification sound options added.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a3",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D25",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1080,
+     "gen_ms": 1079.8919200897217,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1746,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 3 agents\nsnipe-pay · ended · Snipe-pay fee calculation now rounds up per item, 26 passed\ncairn-ui · ended · 1 turn · tests passed · last: “cairn-ui breadcrumbs added.”\ncairn-api · ended · 1 turn · tests passed · last: “cairn-api cache headers updated.”",
+    "model_text": [
+     "Snipe-pay fee calculation now rounds up per item, 26 passed"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "snipe-pay · ended · Snipe-pay fee calculation now rounds up per item, 26 passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Snipe-pay fee calculation now rounds up per item, 26 passed"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d25-a",
+        "turn_id": "v6d25-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "cairn-ui · ended · 1 turn · tests passed · last: “cairn-ui breadcrumbs added.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "cairn-api · ended · 1 turn · tests passed · last: “cairn-api cache headers updated.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D26",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:12 · 2 agents\narroyo-api · failed: “falta DB_URL”\nsauce-ui · ended · 1 turn · tests passed · last: “El formulario de sauce-ui valida el correo.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "arroyo-api · failed: “falta DB_URL”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "sauce-ui · ended · 1 turn · tests passed · last: “El formulario de sauce-ui valida el correo.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D27",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"moved\"}",
+     "finish": "stop",
+     "latency_ms": 1037,
+     "gen_ms": 1036.8330478668213,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1725,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 3 agents\ncrest-mono · ended · Moved 38 files in crest-mono from CommonJS to ESM, 140 passed; the end-to-end suite has not been run\nrill-api · ended · 1 turn · tests passed · last: “rill-api health endpoint added.”\nrill-web · ended · 1 turn · tests passed · last: “rill-web status page done.”",
+    "model_text": [
+     "Moved 38 files in crest-mono from CommonJS to ESM, 140 passed; the end-to-end suite has not been run"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "crest-mono · ended · Moved 38 files in crest-mono from CommonJS to ESM, 140 passed; the end-to-end suite has not been run",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Moved 38 files in crest-mono from CommonJS to ESM, 140 passed; the end-to-end suite has not been run"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d27-a",
+        "turn_id": "v6d27-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "rill-api · ended · 1 turn · tests passed · last: “rill-api health endpoint added.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "rill-web · ended · 1 turn · tests passed · last: “rill-web status page done.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D28",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "rollup",
+    "shown": "Digest · 07:35 · 4 agents\nvale-cli · failed: “unknown rule strict-null”\nbluff-app (Codex CLI · Studio) · asks you: “Delete the old uploads folder with 3,000 files?”\nbluff-app (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “bluff-app search bar done.”\nbluff-app (Cursor) · ended · 1 turn · tests passed · last: “bluff-app dark theme colours tuned.”",
+    "model_text": [],
+    "notes": [
+     "0 agent line(s) picked by the model, 4 by code"
+    ],
+    "items": [
+     {
+      "agent": "a4",
+      "line": "vale-cli · failed: “unknown rule strict-null”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a2",
+      "line": "bluff-app (Codex CLI · Studio) · asks you: “Delete the old uploads folder with 3,000 files?”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a1",
+      "line": "bluff-app (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “bluff-app search bar done.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "bluff-app (Cursor) · ended · 1 turn · tests passed · last: “bluff-app dark theme colours tuned.”",
+      "notable": true,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a4",
+     "a2",
+     "a1",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D29",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1070,
+     "gen_ms": 1069.4400072097778,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1690,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a2",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1075,
+     "gen_ms": 1074.5949745178223,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1681,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    },
+    {
+     "step": "pick:a3",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1095,
+     "gen_ms": 1094.6789979934692,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1662,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:50 · 3 agents\nginster-api · stuck · stuck for 50 min · Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr\nraute-ui · ended · Die Tabelle in der raute-ui lässt sich jetzt sortieren · tests passed\nraute-api · ended · Paginierung der raute-api ist fertig · tests passed",
+    "model_text": [
+     "Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr",
+     "Die Tabelle in der raute-ui lässt sich jetzt sortieren",
+     "Paginierung der raute-api ist fertig"
+    ],
+    "notes": [
+     "3 agent line(s) picked by the model, 0 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "ginster-api · stuck · stuck for 50 min · Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d29-a",
+        "turn_id": "v6d29-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "raute-ui · ended · Die Tabelle in der raute-ui lässt sich jetzt sortieren · tests passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Die Tabelle in der raute-ui lässt sich jetzt sortieren"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d29-b",
+        "turn_id": "v6d29-b-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a3",
+      "line": "raute-api · ended · Paginierung der raute-api ist fertig · tests passed",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "Paginierung der raute-api ist fertig"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d29-c",
+        "turn_id": "v6d29-c-t1"
+       }
+      ]
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  },
+  {
+   "corpus": "digest6",
+   "job": "digest_mr",
+   "setting": "main",
+   "id": "V6-D30",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick:a1",
+     "attempt": 0,
+     "text": "{\"fact\": \"1\", \"verb\": \"none\"}",
+     "finish": "stop",
+     "latency_ms": 1039,
+     "gen_ms": 1039.1820669174194,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1689,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "ai",
+    "shown": "Digest · 07:00 · 3 agents\nterrace-app (Claude Code CLI · Studio) · ended · The old form is back · reverted\nterrace-app (Claude app · Home) · ended · 1 turn · tests passed · last: “terrace-app receipts email template updated.”\norbit-lab · working",
+    "model_text": [
+     "The old form is back"
+    ],
+    "notes": [
+     "1 agent line(s) picked by the model, 2 by code"
+    ],
+    "items": [
+     {
+      "agent": "a1",
+      "line": "terrace-app (Claude Code CLI · Studio) · ended · The old form is back · reverted",
+      "notable": true,
+      "source": "ai",
+      "words": [
+       "The old form is back"
+      ],
+      "cites": [
+       {
+        "session_id": "v6d30-a",
+        "turn_id": "v6d30-a-t1"
+       }
+      ]
+     },
+     {
+      "agent": "a2",
+      "line": "terrace-app (Claude app · Home) · ended · 1 turn · tests passed · last: “terrace-app receipts email template updated.”",
+      "notable": true,
+      "source": "rollup"
+     },
+     {
+      "agent": "a3",
+      "line": "orbit-lab · working",
+      "notable": false,
+      "source": "rollup"
+     }
+    ],
+    "visible": [
+     "a1",
+     "a2",
+     "a3"
+    ]
+   }
+  }
+ ]
+}

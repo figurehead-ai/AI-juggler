@@ -7,6 +7,10 @@
 use super::dto::{BotLang, BotState, BotUnknown};
 
 /// What a question asks.
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "each is its own reading of the question's words, never a state machine"
+)]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Reading {
     /// Its language.
@@ -29,6 +33,17 @@ pub struct Reading {
     pub out_of_scope: bool,
     /// "Remember …": the words to keep.
     pub remember: Option<String>,
+    /// AJ-E3825: it asks about the user's own work (a state, a kind of
+    /// record, a time, something AI Juggler doesn't record, "my …"): it
+    /// always goes the grounded route, never a general answer.
+    pub work: bool,
+    /// AJ-E3825: "which model are you": answered from the engine's own
+    /// name and version.
+    pub which_model: bool,
+    /// 0.5.2 G18: it asks what needs the user ("what needs me"): a
+    /// session by Home's Needs you (a failure included), a task by the
+    /// states it waits in.
+    pub needs: bool,
 }
 
 /// The kinds of record named.
@@ -162,6 +177,27 @@ pub fn language(text: &str) -> BotLang {
 
 /// Words that say nothing of the subject (the harness's `STOP`, trimmed
 /// to Bot's records).
+/// AJ-E3832 R6 (Apple's model): words of the question itself, never part of
+/// a record's name: "which app is web running in?" and "what did I ask you
+/// to remember about api?" found nothing while they stayed in the name.
+const QUESTION_WORDS: &[&str] = &[
+    "app",
+    "apps",
+    "running",
+    "runs",
+    "remember",
+    "remembered",
+    "asked",
+    "told",
+    "about",
+    "läuft",
+    "laufen",
+    "erinnern",
+    "gemerkt",
+    "gesagt",
+    "über",
+];
+
 const STOP: &[&str] = &[
     "happen",
     "happened",
@@ -501,6 +537,8 @@ const STATE_CUES: &[(&[&str], &[BotState])] = &[
         &["review", "reviews", "prüfung", "überprüfung"],
         &[BotState::InReview],
     ),
+    // 0.5.2 G45: open, between turns (the rail's Idle).
+    (&["idle", "inaktiv", "leerlauf"], &[BotState::Idle]),
 ];
 
 const HELP: &[&str] = &[
@@ -524,6 +562,98 @@ const CODE_WORK: &[&str] = &[
     "übersetze",
     "erkläre",
     "explain",
+];
+
+/// "My …": the user's own things (AJ-E3825: the grounded route).
+const MINE: &[&str] = &["my", "mine", "mein", "meine", "meinen", "meiner", "meinem"];
+
+/// Words that point back at the conversation (0.5.2 G16): "it", "that
+/// one", "why", "what about …", "and …", "more". English and German.
+const BACK: &[&str] = &[
+    "it", "its", "it's", "that", "this", "those", "these", "they", "them", "their", "theirs",
+    "then", "one", "ones", "same", "again", "more", "else", "too", "other", "others", "another",
+    "instead", "why", "previous", "last", "earlier", "before", "above", "just", "former", "latter",
+    "first", "second", "es", "das", "dies", "diese", "dieser", "dieses", "denen", "dort", "dann",
+    "ihn", "ihm", "warum", "wieso", "weshalb", "nochmal", "wieder", "mehr", "sonst", "andere",
+    "anderen", "erste", "letzte", "vorhin", "oben", "beide",
+];
+
+/// 0.5.2 G16: whether a question refers back to the conversation, so the
+/// topic's last exchanges and what it connects to go with it. One that
+/// doesn't ("3+5" after a question about sessions) is read on its own:
+/// its grounding is decided by its own words, never inherited from the
+/// topic's last answer.
+#[must_use]
+pub fn refers_back(text: &str) -> bool {
+    let words = tokens(text);
+    words.iter().any(|w| BACK.contains(&w.as_str()))
+        || words
+            .first()
+            .is_some_and(|w| matches!(w.as_str(), "and" | "und" | "or" | "oder" | "also" | "so"))
+        || words
+            .windows(2)
+            .any(|pair| matches!(pair, [a, b] if (a == "what" || a == "how") && b == "about"))
+        || words
+            .windows(2)
+            .any(|pair| matches!(pair, [a, b] if a == "und" && b == "was"))
+}
+
+/// 0.5.2 G59: the user's own words after the feed's "About this post:
+/// “…”" (Ask Bot on a post starts the question with the post's sentence;
+/// the post's record rides on the chip, by its key). The sentence's
+/// closing quote is found by its pairs, a session's quoted name inside it
+/// included. The whole text when it doesn't start so, or nothing follows.
+#[must_use]
+pub fn after_post(text: &str) -> &str {
+    let Some(rest) = text.trim_start().strip_prefix("About this post:") else {
+        return text;
+    };
+    let rest = rest.trim_start();
+    if !rest.starts_with('\u{201c}') {
+        return text;
+    }
+    let mut depth = 0_u32;
+    for (at, c) in rest.char_indices() {
+        match c {
+            '\u{201c}' => depth += 1,
+            '\u{201d}' => {
+                depth = depth.saturating_sub(1);
+                if depth == 0 {
+                    let own = rest[at + c.len_utf8()..].trim();
+                    return if own.is_empty() { text } else { own };
+                }
+            }
+            _ => {}
+        }
+    }
+    text
+}
+
+impl Reading {
+    /// 0.5.2 G53, G58: the question names the user's work: a record by its
+    /// words, a state, a kind, a time, something not recorded or a work
+    /// word. "What is 3+5" names none of it (D-144: never refused by the
+    /// records; [`super::answer`]).
+    #[must_use]
+    pub fn names_work(&self) -> bool {
+        self.work
+            || !self.subject.is_empty()
+            || !self.states.is_empty()
+            || self.kinds.any()
+            || self.when != When::Any
+            || self.unknown.is_some()
+    }
+}
+
+/// A model, as "which model are you" names it.
+const MODEL_WORDS: &[&str] = &[
+    "model",
+    "llm",
+    "ai",
+    "engine",
+    "modell",
+    "ki",
+    "sprachmodell",
 ];
 
 const REMEMBER: &[&str] = &[
@@ -669,6 +799,7 @@ pub fn read(text: &str) -> Reading {
     }
     // "needs me" is Home's Needs you; "asks" alone is only asks.
     reading.states = states;
+    reading.needs = has(&words, &["needs", "need", "braucht", "brauchen"]);
     reading.kinds = Kinds {
         sessions: has(&words, SESSION_WORDS),
         tasks: has(&words, TASK_WORDS),
@@ -685,6 +816,7 @@ pub fn read(text: &str) -> Reading {
             "tests", "test", "long", "lange", "much", "most", "meisten", "did", "dauer",
             "duration", "else", "sonst",
         ])
+        .chain(QUESTION_WORDS.iter().copied())
         .collect();
     reading.subject = words
         .iter()
@@ -698,6 +830,15 @@ pub fn read(text: &str) -> Reading {
         || reading.kinds.any()
         || reading.when != When::Any
         || reading.unknown.is_some();
+    reading.work = asks_anything || reading.most_room || has(&words, MINE);
+    reading.which_model = !reading.kinds.any()
+        && has(&words, MODEL_WORDS)
+        && has(
+            &words,
+            &[
+                "you", "your", "yourself", "du", "dich", "dein", "deine", "bist",
+            ],
+        );
     if !asks_anything
         && words.iter().all(|w| {
             HELP.contains(&w.as_str())
@@ -720,6 +861,50 @@ pub fn read(text: &str) -> Reading {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// 0.5.2 G16: a question is a follow-up only when its words point back
+    /// at the conversation; "3+5" after a question about sessions isn't.
+    #[test]
+    fn a_follow_up_is_known_by_its_own_words() {
+        for standalone in [
+            "3+5",
+            "what is 3+5",
+            "what needs me",
+            "what are my sessions",
+            "Is the front agent working?",
+            "Welche Sitzungen laufen gerade?",
+        ] {
+            assert!(!refers_back(standalone), "{standalone}");
+        }
+        for follow_up in [
+            "and api?",
+            "what about api?",
+            "why is it waiting?",
+            "tell me more",
+            "which one?",
+            "And is the front agent working?",
+            "und was ist mit api?",
+            "warum hängt es?",
+        ] {
+            assert!(refers_back(follow_up), "{follow_up}");
+        }
+    }
+
+    /// 0.5.2 G59: Ask Bot on a post asks the user's own words; the post's
+    /// sentence (its quoted names too) isn't read as the question.
+    #[test]
+    fn a_post_s_sentence_is_not_the_question() {
+        let asked = "About this post: \u{201c}\u{201c}Fix the login\u{201d} finished in shop, in under a minute.\u{201d} did it finish cleanly?";
+        assert_eq!(after_post(asked), "did it finish cleanly?");
+        assert_eq!(read(after_post(asked)).subject, ["cleanly"]);
+        let bare = "About this post: \u{201c}Fix the login finished.\u{201d} ";
+        assert_eq!(after_post(bare), bare, "nothing asked after it");
+        assert_eq!(after_post("what is 3+5"), "what is 3+5");
+        assert_eq!(
+            after_post("About this post: no quote here"),
+            "About this post: no quote here"
+        );
+    }
 
     #[test]
     fn states_kinds_and_time_come_from_the_question_s_own_words() {
@@ -756,6 +941,34 @@ mod tests {
             read("Did the deploy to staging work?").subject,
             ["deploy", "staging", "work"]
         );
+    }
+
+    /// AJ-E3825: a question about the user's own work always goes the
+    /// grounded route; "which model are you" is told apart; a general
+    /// question is neither.
+    #[test]
+    fn work_and_which_model_are_told_apart() {
+        for work in [
+            "Tell me about my session",
+            "What needs me?",
+            "Which sessions finished today?",
+            "Welche Sitzungen sind fertig?",
+            "Which account has the most room?",
+        ] {
+            assert!(read(work).work, "{work}");
+        }
+        for general in ["what is 3+5", "What is the capital of France?", "Hi!"] {
+            let r = read(general);
+            assert!(!r.work && !r.which_model, "{general}");
+        }
+        for which in [
+            "what LLM model are you",
+            "Which model are you?",
+            "Welches Modell bist du?",
+        ] {
+            assert!(read(which).which_model, "{which}");
+        }
+        assert!(!read("Which model does my api session use?").which_model);
     }
 
     #[test]

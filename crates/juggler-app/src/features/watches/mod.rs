@@ -42,9 +42,13 @@
 pub mod catalogue;
 pub mod commands;
 pub mod conditions;
+pub mod draft;
+pub mod durable;
 pub mod echo;
 pub mod engine;
+pub mod fail_closed;
 pub mod model;
+pub mod resolve;
 pub mod runtime;
 pub mod store;
 pub mod words;

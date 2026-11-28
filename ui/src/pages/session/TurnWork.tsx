@@ -5,7 +5,7 @@
  * elements while it works and after (no remount: what the reader opened
  * stays open), the row shown once it's done.
  */
-import { useState, type JSX } from "react";
+import { useState, type JSX, type ReactNode } from "react";
 import type { TurnInfo, TurnBlockInfo } from "../../lib/ipc/conversations";
 import { ageWords } from "../../lib/process-states";
 import { Markdown } from "./Markdown";
@@ -47,6 +47,25 @@ export function Blocks({ blocks }: { blocks: TurnBlockInfo[] }): JSX.Element {
   return <>{blocks.map((block, index) => (block.kind === "steps" ? block.steps.length > 0 && <Steps key={index} block={block} /> : <Markdown key={index} text={block.text} />))}</>;
 }
 
+/** A folded row that opens onto what it names (a turn's work, its
+ * review, AJ-E3820): a chevron and its words, muted until hovered. */
+export function FoldRow({ open, onToggle, testId, children }: { open: boolean; onToggle: () => void; testId: string; children: ReactNode }): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      onClick={onToggle}
+      className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-meta font-medium text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
+      data-testid={testId}
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={"shrink-0 transition-transform " + (open ? "rotate-90" : "")}>
+        <path d="M9 6l6 6-6 6" />
+      </svg>
+      <span className="truncate">{children}</span>
+    </button>
+  );
+}
+
 /** A turn's work, folded: one row that opens onto it, as it was written.
  * While it works (`live`) its blocks show as they come, with no row. */
 export function Work({ work, words, live = false }: { work: TurnBlockInfo[]; words: string; live?: boolean }): JSX.Element {
@@ -62,18 +81,9 @@ export function Work({ work, words, live = false }: { work: TurnBlockInfo[]; wor
   }
   return (
     <div className="flex flex-col" data-testid="last-turn-work">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="inline-flex w-fit max-w-full items-center gap-2 rounded-lg px-1 py-1 text-left text-meta font-medium text-muted outline-none transition-colors hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
-        data-testid="last-turn-work-toggle"
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={"shrink-0 transition-transform " + (open ? "rotate-90" : "")}>
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-        <span className="truncate">{words}</span>
-      </button>
+      <FoldRow open={open} onToggle={() => setOpen(!open)} testId="last-turn-work-toggle">
+        {words}
+      </FoldRow>
       {open && (
         <div className="mt-2 flex flex-col gap-3 border-l border-hairline pl-4" data-testid="last-turn-work-blocks">
           <Blocks blocks={work} />

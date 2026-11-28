@@ -32,7 +32,7 @@ import { PinMark } from "../RailProjectRows";
 import type { Arrangeable } from "../RowTools";
 import { shortHeavy, useHeavyNote } from "../../lib/machine";
 import { STATE_TONE, needWord, type RailItem } from "../../lib/rail-items";
-import { itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
+import { hasStateMark, itemLevel, levelTone, type AttentionLevel } from "../../lib/attention";
 import { agoWords } from "../../lib/time-words";
 import { parkedWords } from "../../lib/parked";
 import type { AppRef } from "../../lib/app-of";
@@ -104,9 +104,10 @@ export function rowState(item: RailItem, now?: number): { word: string; text: st
   return { word: parked?.chip ?? needWord(item), ...STATE_TONE[item.state], level };
 }
 
-export function StateMark({ item, level, dot }: { item: RailItem; level: AttentionLevel; dot: string }): JSX.Element {
+export function StateMark({ item, level, dot }: { item: RailItem; level: AttentionLevel; dot: string }): JSX.Element | null {
   if (level >= 2) return <span aria-hidden="true" data-state-dot={item.state} data-level={level} data-probably={item.probably ? "true" : undefined} className="level-mark" />;
   if (item.need === "review") return <span aria-hidden="true" data-state-dot={item.state} className="flex w-1.5 shrink-0 justify-center overflow-visible text-label leading-none text-success">✓</span>;
+  if (!hasStateMark(item, level)) return null;
   return <span aria-hidden="true" data-state-dot={item.state} className={"size-1.5 shrink-0 rounded-full " + dot} />;
 }
 

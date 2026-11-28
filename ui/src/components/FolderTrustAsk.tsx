@@ -13,6 +13,7 @@ import { Modal } from "./form";
 import { Button } from "./primitives";
 import { errorText } from "../lib/bridge";
 import { runtimeTrust, runtimeTrustChoose, type FolderTrustInfo } from "../lib/ipc/runtime";
+import { IconShield } from "./icons";
 
 export function useFolderTrust(): { confirm: (profileId: string, cwd: string | null) => Promise<boolean>; element: JSX.Element | null } {
   const [asking, setAsking] = useState<{ info: FolderTrustInfo; profileId: string; cwd: string | null } | null>(null);
@@ -40,7 +41,7 @@ export function useFolderTrust(): { confirm: (profileId: string, cwd: string | n
     );
   };
   const element = asking ? (
-    <Modal title={asking.info.question} subtitle={asking.info.folder} onClose={() => done(false)} testId="folder-trust"
+    <Modal icon={IconShield} title={asking.info.question} subtitle={asking.info.folder} onClose={() => done(false)} testId="folder-trust"
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={() => done(false)}>

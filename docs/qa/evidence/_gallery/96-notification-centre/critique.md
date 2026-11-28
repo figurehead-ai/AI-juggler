@@ -1,4 +1,4 @@
-<!-- captures: 0584a7218058 -->
+<!-- captures: 03268568bf4f -->
 # 96-notification-centre: notifications, banners, toasts and your menu
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -85,3 +85,17 @@ Lowest: 4 (after the fix; line 9 was 2 before it).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80); the same cards in the popover. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 G52 (2026-11-27, Opus, both themes)
+
+Re-captured from the worktree at HEAD (ea6bda3e2) with the family's own spec; each frame compared pixel by pixel with the one before, and every changed frame opened by eye, light and dark side by side. Only `centre-muted-*` is replaced. The run re-captured every state, and every frame also differed behind the panel (Home's feed and the rail as they now look), with the panel itself unchanged; those frames are left as they were, so only the muted state shows today's Home behind it.
+
+**What changed.** The muted line read "Muted until 09:00 — Needs you still tracks 6."; it now reads "Muted until 9:00 AM — Needs you still tracks 6.", the quiet hours' end by the system's clock (G52, ea6bda3e2). Behind the panel: Home's feed rows with their author icons and actions, the feed's filter chips and counts (Running 3, Finished 0, Failed 0), the rail without the leading dots.
+
+**Judged.** The line stays on one line in the panel at 1280; the panel is otherwise unchanged.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 11 | Plain words | 4 | The time reads as the system writes it. |
+| 14 | Consistency | 4 | Same time rule as Settings' quiet hours. |
+| 19 | Rich-mode colour | 4 | Unchanged panel: the needs' icon tiles, Open in the accent, the muted line calm; no bright edge. |

@@ -136,10 +136,11 @@ const fn rank(state: Option<BotState>) -> u8 {
         Some(BotState::Blocked) => 4,
         Some(BotState::InReview) => 5,
         Some(BotState::Working) => 6,
-        Some(BotState::Finished) => 7,
-        Some(BotState::Done) => 8,
-        Some(BotState::Ended) => 9,
-        _ => 10,
+        Some(BotState::Idle) => 7,
+        Some(BotState::Finished) => 8,
+        Some(BotState::Done) => 9,
+        Some(BotState::Ended) => 10,
+        _ => 11,
     }
 }
 
@@ -193,9 +194,62 @@ fn candidates<'w>(
     pool
 }
 
+/// 0.5.2 G59: a chip on one record (a session, an Account: the post's
+/// own, by its key) is what the question is about: its words name no
+/// other record to match, so none of them leaves it out. Ask Bot from a
+/// post sent the post's sentence as the question, and its words, matched
+/// as names, found nothing ("Nothing matches “post claude code cli …”").
+fn of_scope(reading: &Reading, scope: Option<&BotScope>) -> Option<Reading> {
+    scope
+        .filter(|s| matches!(s.kind, BotScopeKind::Session | BotScopeKind::Account))
+        .filter(|_| !reading.subject.is_empty())
+        .map(|_| Reading {
+            subject: Vec::new(),
+            ..reading.clone()
+        })
+}
+
+/// 0.5.2 G58 (RW1 F-RW2-11): at most `room` of `rows`, in their order,
+/// each tool (Claude Code, Codex, …) not among `shown` first, its first
+/// row, then the rest in order: with four of AI Juggler's Claude Code
+/// sessions newer than two Codex threads, "what are my sessions" named no
+/// Codex thread at all.
+fn each_tool_kept<'w>(
+    rows: Vec<&'w BotRowInfo>,
+    shown: &[&BotRowInfo],
+    room: usize,
+) -> Vec<&'w BotRowInfo> {
+    let mut tools: Vec<Option<&str>> = shown.iter().map(|r| r.provider.as_deref()).collect();
+    let mut taken = 0;
+    let mut picked: Vec<bool> = rows
+        .iter()
+        .map(|row| {
+            let tool = row.provider.as_deref();
+            let first = taken < room && !tools.contains(&tool);
+            if first {
+                tools.push(tool);
+                taken += 1;
+            }
+            first
+        })
+        .collect();
+    for flag in &mut picked {
+        if taken < room && !*flag {
+            *flag = true;
+            taken += 1;
+        }
+    }
+    rows.into_iter()
+        .zip(picked)
+        .filter_map(|(row, kept)| kept.then_some(row))
+        .collect()
+}
+
 /// The question over the records.
 #[must_use]
 pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Found {
+    let scoped = of_scope(reading, scope);
+    let reading = scoped.as_ref().unwrap_or(reading);
     let accounts_only = reading.kinds.accounts && !reading.kinds.sessions && !reading.kinds.tasks;
     let pool = candidates(reading, world, scope);
     // An Account named by name answers "how much of Work did I use".
@@ -275,8 +329,63 @@ pub fn look_up(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Fo
     }
 }
 
+/// The most nearest records an answer gets when nothing is in the state
+/// asked about (G15): few, so a short answer can name each one.
+pub const NEAREST: usize = 3;
+
+/// 0.5.2 G15: a question naming no record, no time and nothing unrecorded
+/// whose states matched nothing ("what needs me", or "what are my
+/// sessions" with nothing open): the most recent records it asks about,
+/// what needs a look first, each with its own state, so Bot's answer
+/// cites what is there instead of nothing. `None` when the look-up found
+/// rows, the question names a subject or time, or there are no records.
+/// Bot's only: Search (⌘K) keeps showing just what matched.
+#[must_use]
+pub fn nearest(reading: &Reading, world: &World, scope: Option<&BotScope>) -> Option<Found> {
+    let scoped = of_scope(reading, scope);
+    let reading = scoped.as_ref().unwrap_or(reading);
+    let accounts_only = reading.kinds.accounts && !reading.kinds.sessions && !reading.kinds.tasks;
+    if !reading.subject.is_empty()
+        || reading.when != When::Any
+        || reading.unknown.is_some()
+        || accounts_only
+    {
+        return None;
+    }
+    let mut pool: Vec<&BotRowInfo> = candidates(reading, world, scope)
+        .into_iter()
+        .filter(|row| row.kind != BotRowKind::Account && row.state.is_some())
+        .collect();
+    if pool.is_empty() {
+        return None;
+    }
+    // What is worth a look (a failure) first, then the most recent.
+    pool.sort_by_key(|row| {
+        (
+            std::cmp::Reverse(row.state.map_or(0, BotState::level)),
+            std::cmp::Reverse(row.at_ms.unwrap_or(0)),
+        )
+    });
+    let reach = if scope.is_some() {
+        "scope"
+    } else {
+        "everything"
+    };
+    Some(Found {
+        total: u32::try_from(pool.len()).unwrap_or(u32::MAX),
+        tallies: tally(&pool),
+        rows: each_tool_kept(pool, &[], NEAREST)
+            .into_iter()
+            .cloned()
+            .collect(),
+        unknown: None,
+        shortcut: Some(shortcut_for(reading)),
+        looked: looked(reach, scope.cloned()),
+    })
+}
+
 /// Every matched row counted by kind and state, in first-seen order.
-fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
+pub(crate) fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
     let mut out: Vec<BotTally> = Vec::new();
     for row in answer {
         match out
@@ -294,6 +403,29 @@ fn tally(answer: &[&BotRowInfo]) -> Vec<BotTally> {
     out
 }
 
+/// G18: a state "needs me" asks about: for a session, Home's Needs you
+/// (its `need`) decides, never the state alone (a parked limit is calm);
+/// G37: for a task too (in review, or a change held for the user: a
+/// blocked task waits on another task, not on the user).
+const fn needs_state(state: Option<BotState>) -> bool {
+    matches!(
+        state,
+        Some(
+            BotState::AsksYou
+                | BotState::Stuck
+                | BotState::Limit
+                | BotState::Blocked
+                | BotState::InReview
+        )
+    )
+}
+
+/// Whether "needs me" is read of `row` by Home's rule (its `need`): a
+/// session (G18) or a task (G37).
+fn by_need(row: &BotRowInfo) -> bool {
+    matches!(row.kind, BotRowKind::Session | BotRowKind::Task)
+}
+
 /// The matched rows narrowed by the question's states and time, in the
 /// order they are shown.
 fn narrow<'w>(
@@ -309,7 +441,9 @@ fn narrow<'w>(
     if !reading.states.is_empty() {
         answer.retain(|row| {
             row.kind == BotRowKind::Account
-                || row.state.is_some_and(|s| reading.states.contains(&s))
+                || (reading.needs && by_need(row) && row.need.is_some())
+                || (!(reading.needs && by_need(row) && needs_state(row.state))
+                    && row.state.is_some_and(|s| reading.states.contains(&s)))
         });
     }
     if let Some((from, to)) = window(reading.when, world.now_ms, world.offset_hours) {
@@ -329,20 +463,29 @@ fn narrow<'w>(
         && !accounts_only
     {
         // "What's going on?": what is open now, never every past session.
-        answer.retain(|row| {
+        let open = |row: &&BotRowInfo| {
             row.kind == BotRowKind::Account
-                || row.state.is_some_and(|s| {
-                    matches!(
-                        s,
-                        BotState::AsksYou
-                            | BotState::Stuck
-                            | BotState::Limit
-                            | BotState::Working
-                            | BotState::Blocked
-                            | BotState::InReview
-                    )
-                })
-        });
+                || row.state.is_some_and(|s| super::check::OPEN.contains(&s))
+        };
+        let mut recent: Vec<&BotRowInfo> = answer
+            .iter()
+            .copied()
+            .filter(|row| row.kind == BotRowKind::Session && !open(row) && row.state.is_some())
+            .collect();
+        answer.retain(open);
+        // 0.5.2 G45 (G15's bound): "what are my sessions" names the open
+        // ones first, then the most recent others, a few (none open: the
+        // nearest records, G15's note).
+        if reading.kinds.sessions && !answer.is_empty() {
+            recent.sort_by_key(|row| std::cmp::Reverse(row.at_ms.unwrap_or(0)));
+            let room = SHOWN.saturating_sub(answer.len()).min(NEAREST);
+            let mut open_first: Vec<&BotRowInfo> = std::mem::take(&mut answer);
+            open_first
+                .sort_by_key(|row| (rank(row.state), std::cmp::Reverse(row.at_ms.unwrap_or(0))));
+            let kept = each_tool_kept(recent, &open_first, room);
+            open_first.extend(kept);
+            return open_first;
+        }
     }
     if reading.most_room || accounts_only {
         answer.sort_by_key(|row| (row.used_percent.unwrap_or(101), row.title.to_lowercase()));

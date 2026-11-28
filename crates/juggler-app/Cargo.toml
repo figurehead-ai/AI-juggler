@@ -41,6 +41,9 @@ lab-bridge = ["dev-bridge", "juggler-adapters/lab-sign-ins"]
 workspace = true
 
 [dependencies]
+# ADR-0038 (AJ-E3832): Bot's world model engine; the kind pack is
+# features/ai/world (no new crate in the lock: gyrus is ours).
+gyrus = { version = "0.1.0", path = "../gyrus" }
 # D-26: open at login (a safe stub off macOS).
 juggler-login-item = { version = "0.5.0", path = "../juggler-login-item" }
 base64 = { workspace = true }
@@ -73,6 +76,11 @@ juggler-stats = { version = "0.5.0", path = "../juggler-stats", optional = true 
 thread-priority = { version = "3.1.1", optional = true }
 juggler-supervisor = { version = "0.5.0", path = "../juggler-supervisor" }
 getrandom = { workspace = true }
+# D-151 (ADR-0039 §10): local wall time with DST rules for the scheduler's
+# Calendar triggers and windows. Already locked (through serde_with); only
+# the system zone database: /usr/share/zoneinfo on macOS and Linux, the
+# platform bundle only where a system has none (Windows).
+jiff = { version = "=0.2.38", default-features = false, features = ["std", "tz-system", "tzdb-zoneinfo", "tzdb-bundle-platform"] }
 # D-108 (AJ-E1107 R5): crash reports go to Sentry through its SDK. No
 # default features: no transport (reports go over the app's own HTTPS
 # client, juggler-account's ureq + rustls), no integrations that read the

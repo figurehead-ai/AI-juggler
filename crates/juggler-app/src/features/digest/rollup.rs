@@ -176,6 +176,12 @@ pub struct DigestLineInfo {
     /// Its newest activity in the window.
     #[ts(type = "number")]
     pub at_ms: i64,
+    /// D-149's map step: the turn's feed line as the model picked it from
+    /// the agent's own checked words, rendered by code (in place of its
+    /// last words); none on the rollup's lines.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub picked: Option<String>,
 }
 
 /// A digest: every changed agent's line, in order, and the quiet count.
@@ -425,15 +431,19 @@ pub fn line_of(agent: &AgentFacts) -> Option<DigestLineInfo> {
         .map(|turn| turn.tests)
         .find(|tests| *tests != Tests::Unknown)
         .unwrap_or_default();
-    let reverted = newest
+    // G49: facts are read from the guarded words only (a report of planted
+    // text never says "reverted"); G48: the shared reading (sentence by
+    // sentence, negation-aware, never a verify-and-restore).
+    let words = newest
         .and_then(|turn| turn.words.as_deref())
-        .is_some_and(says_undone);
+        .map(|w| crate::features::bot::guard::guard(w).cleaned);
+    let reverted = words
+        .as_deref()
+        .is_some_and(crate::features::review::turn::undone_in);
     let level = now.level();
     let blocks = level == 2
         || task == Some(TaskState::Blocked)
-        || newest
-            .and_then(|turn| turn.words.as_deref())
-            .is_some_and(says_blocked);
+        || words.as_deref().is_some_and(says_blocked);
     let caveat = newest
         .and_then(|turn| turn.caveat)
         .filter(|caveat| caveat_holds(*caveat, &agent.turns, tests, reverted, blocks));
@@ -480,6 +490,7 @@ pub fn line_of(agent: &AgentFacts) -> Option<DigestLineInfo> {
         quote,
         quote_kind,
         at_ms,
+        picked: None,
     })
 }
 
@@ -505,15 +516,21 @@ fn caveat_holds(
 }
 
 /// The agent's own words a line quotes: its question when it asks, its
-/// failure when it failed, else its last words' first sentence.
+/// failure when it failed, else its last words' sentence saying a part
+/// isn't done or that it waits on the user (0.5.2 G50), else their first
+/// sentence; every one through Bot's input guard first (G49: words shown
+/// are guarded words).
 fn quote_of(now: Now, agent: &AgentFacts) -> (Option<String>, Option<String>) {
+    let guarded = |text: &str| crate::features::bot::guard::guard(text).cleaned;
     let newest_first = || agent.turns.iter().rev();
     let pick = match now {
         Now::Asks => newest_first()
-            .find_map(|turn| turn.question.clone())
+            .find_map(|turn| turn.question.as_deref().map(guarded))
+            .filter(|q| !q.trim().is_empty())
             .map(|q| (q, "asks")),
         Now::Failed => newest_first()
-            .find_map(|turn| turn.failure.clone())
+            .find_map(|turn| turn.failure.as_deref().map(guarded))
+            .filter(|f| !f.trim().is_empty())
             .map(|f| (f, "failure")),
         _ => None,
     }
@@ -522,7 +539,11 @@ fn quote_of(now: Now, agent: &AgentFacts) -> (Option<String>, Option<String>) {
             .turns
             .last()
             .and_then(|turn| turn.words.as_deref())
-            .map(first_sentence)
+            .map(|words| {
+                let words = guarded(words);
+                crate::features::review::turn::lead(&words)
+                    .unwrap_or_else(|| first_sentence(&words))
+            })
             .filter(|words| !words.is_empty())
             .map(|words| (words, "last"))
     });
@@ -532,7 +553,9 @@ fn quote_of(now: Now, agent: &AgentFacts) -> (Option<String>, Option<String>) {
     }
 }
 
-fn first_sentence(text: &str) -> String {
+/// A text's first sentence (to its first `.`, `!` or `?` before a space).
+#[must_use]
+pub fn first_sentence(text: &str) -> String {
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let end = text
         .char_indices()

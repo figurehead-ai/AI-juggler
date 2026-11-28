@@ -27,7 +27,9 @@ import { onOsPromptAsk, onOsPromptOutcome, osPromptAnswer, type OsPromptInfo, ty
 export type SheetPhase = { kind: "ask" } | { kind: "waiting" } | { kind: "done"; outcome: OsPromptOutcomeInfo };
 
 /** What Not now comes to (0.5.1 F28): nothing asked, what still works,
- * and where (or when) it's offered again. The next click asks again. */
+ * and where (or when) it's offered again. For an entry offered again
+ * from its setting, Not now is remembered (0.5.2 G33): only that setting
+ * asks again; an entry offered again at its next use asks there. */
 export function notNowOutcome(prompt: OsPromptInfo): OsPromptOutcomeInfo {
   return {
     id: prompt.id,
@@ -37,12 +39,20 @@ export function notNowOutcome(prompt: OsPromptInfo): OsPromptOutcomeInfo {
   };
 }
 
-/** The sheet's heading for each phase. */
-export function sheetTitle(prompt: OsPromptInfo, phase: SheetPhase): string {
-  if (phase.kind === "done" && phase.outcome.result === "not_now") return `${prompt.title}: not now`;
-  if (phase.kind === "done") return phase.outcome.status === "allowed" ? `${prompt.title}: allowed` : prompt.title;
-  if (phase.kind === "waiting") return `Answer ${SYSTEM_NAME}'s dialog`;
-  return `${SYSTEM_NAME} will now ask`;
+/** AJ-E1555: the sheet's heading is the registry's title in every phase
+ * (what it makes possible), never repeated below it. */
+export function sheetTitle(prompt: OsPromptInfo): string {
+  return prompt.title;
+}
+
+/** The line under the heading: where the sheet is, in words that never
+ * repeat the title; none once it's done (the body says what happened).
+ * It says a dialog is coming only when one will (0.5.2 G36). */
+export function sheetSubtitle(phase: SheetPhase, prompt?: OsPromptInfo): string | null {
+  const asks = prompt?.dialog_follows ?? true;
+  if (phase.kind === "ask") return asks ? `${SYSTEM_NAME} will ask next. Here’s why, and what to click.` : `${SYSTEM_NAME} won’t ask anything. Here’s what it does.`;
+  if (phase.kind === "waiting") return asks ? `Answer ${SYSTEM_NAME}’s dialog.` : null;
+  return null;
 }
 
 export function OsPromptSheet({
@@ -74,6 +84,10 @@ export function OsPromptSheet({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase.kind, onNotNow, onDone]);
+  // 0.5.2 G36: whether the system shows a dialog after Continue (Bot's
+  // helper's first start brings none).
+  const asks = prompt.dialog_follows;
+  const subtitle = sheetSubtitle(phase, prompt);
   const footer =
     phase.kind === "ask" ? (
       <>
@@ -89,7 +103,7 @@ export function OsPromptSheet({
         Done
       </Button>
     ) : (
-      <output className="text-xs text-muted">Waiting for your answer in {SYSTEM_NAME}'s dialog…</output>
+      <output className="text-xs text-muted">{asks ? `Waiting for your answer in ${SYSTEM_NAME}'s dialog…` : "Starting it now…"}</output>
     );
   return (
     <DialogOverlay ref={boxRef}>
@@ -108,9 +122,13 @@ export function OsPromptSheet({
         header={
           <>
             <h2 id="os-prompt-title" className="type-section">
-              {sheetTitle(prompt, phase)}
+              {sheetTitle(prompt)}
             </h2>
-            <p className="mt-1 text-xs text-muted">{prompt.title}</p>
+            {subtitle && (
+              <p className="mt-1 text-xs text-muted" data-testid="os-prompt-subtitle">
+                {subtitle}
+              </p>
+            )}
           </>
         }
         bodyClassName="flex flex-col gap-3 px-5 pb-4"
@@ -130,10 +148,14 @@ export function OsPromptSheet({
             <p id="os-prompt-why" className="text-xs leading-relaxed text-ink-2">
               {prompt.why}
             </p>
-            {prompt.dialog && <OsPromptPicture dialog={prompt.dialog} />}
+            {asks && prompt.dialog && <OsPromptPicture dialog={prompt.dialog} />}
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
-              <dt className="font-medium text-ink">What to click</dt>
-              <dd className="text-ink-2" data-testid="os-prompt-click">{prompt.click}</dd>
+              {asks && (
+                <>
+                  <dt className="font-medium text-ink">What to click</dt>
+                  <dd className="text-ink-2" data-testid="os-prompt-click">{prompt.click}</dd>
+                </>
+              )}
               <dt className="font-medium text-ink">If you don't</dt>
               <dd className="text-ink-2">{prompt.if_declined}</dd>
               {prompt.change_later && (

@@ -7,10 +7,11 @@ import type { JSX } from "react";
 import { Modal } from "../../components/form";
 import { Button } from "../../components/primitives";
 import { trustOpen } from "../../lib/ipc/trust";
+import { IconTidy } from "../../components/icons-canvas";
 
 export function RecreateSheet({ example, onCancel, onConfirm }: { example: string | null; onCancel: () => void; onConfirm: () => void }): JSX.Element {
   return (
-    <Modal title="Re-create the office?" subtitle="Every area gets a new look and desk layout." onClose={onCancel} testId="floor-recreate-sheet"
+    <Modal icon={IconTidy} title="Re-create the office?" subtitle="Every area gets a new look and desk layout." onClose={onCancel} testId="floor-recreate-sheet"
       footer={
         <>
             <button type="button" className="mr-auto text-meta text-accent-hi hover:underline" onClick={() => void trustOpen({ kind: "guide", id: "the-floor" })}>

@@ -11,6 +11,7 @@ import { SessionTerminal, forgetKept } from "./SessionTerminal";
 import { endedCause } from "../../lib/ended-how";
 import { pastWhen } from "../../lib/time-words";
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import { review } from "../../preview/turn-review";
 
 const NOW = 1_800_000_000_000;
 
@@ -108,6 +109,25 @@ describe("an ended terminal session's main pane (P2)", () => {
 
 // SK-5 (the 0.4.6 soak, K3): an errored session's page said only "Error
 // 8:35 AM" and "No output was kept…".
+describe("0.5.2 G28: its last turn's review under the replayed terminal", () => {
+  afterEach(() => {
+    for (const key of ["__AIJ_REVIEWS__", "__AIJ_AI_JOBS__"]) Reflect.deleteProperty(window, key);
+  });
+  it("shows for a tool the review covers, as its post's does; none for one it doesn't", async () => {
+    window.__AIJ_AI_JOBS__ = [{ job: "review", state: "beta_off", beta: false, beta_on: false, model_id: null, model_name: null, why: null, pick: null, covers: ["claude-code", "codex"] }];
+    window.__AIJ_REVIEWS__ = { "sess-old": review({ turn: "t", changed: [{ name: "src/format.ts", added: 1, removed: 1, about: null }], reverted: ["src/locale.ts"], tests: "not_run", risk: "medium", risk_why: ["tests_not_run", "reverted"] }) };
+    keep(["sess-old"]);
+    const view = render(<SessionTerminal session={ended({ conversation_id: "conv-1" })} live={false} terminal={terminal} now={NOW} />);
+    const toggle = await view.findByTestId("turn-review-toggle");
+    expect(toggle.textContent).toBe("Turn review · 2 files · Medium risk");
+    cleanup();
+    forgetKept();
+    const other = render(<SessionTerminal session={ended({ conversation_id: "conv-1", provider: "opencode" })} live={false} terminal={terminal} now={NOW} />);
+    await other.findByTestId("ended-terminal-kept");
+    expect(other.queryByTestId("ended-terminal-review")).toBeNull();
+  });
+});
+
 describe("an errored session says why it stopped (SK-5)", () => {
   const at = pastWhen(NOW - 3 * 86_400_000 + 600_000, NOW);
 

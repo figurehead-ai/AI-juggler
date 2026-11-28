@@ -2145,6 +2145,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gyrus"
+version = "0.1.0"
+dependencies = [
+ "rusqlite",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2933,10 +2943,12 @@ dependencies = [
  "ed25519-dalek",
  "flate2",
  "getrandom 0.4.3",
+ "gyrus",
  "http-body",
  "http-body-util",
  "hyper",
  "hyper-util",
+ "jiff",
  "juggler-account",
  "juggler-adapter",
  "juggler-adapters",
@@ -2998,6 +3010,7 @@ name = "juggler-core"
 version = "0.5.0"
 dependencies = [
  "flate2",
+ "gyrus",
  "proptest",
  "rusqlite",
  "serde",

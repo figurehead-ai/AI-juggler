@@ -217,7 +217,7 @@ pub fn render_tasks(items: &[TaskItem]) -> String {
 }
 
 /// The last two parts of a path (`src/calc.py`), never the home folder.
-fn tail_of_path(path: &str) -> String {
+pub(crate) fn tail_of_path(path: &str) -> String {
     let parts: Vec<&str> = path.split('/').filter(|part| !part.is_empty()).collect();
     match parts.as_slice() {
         [] => path.to_owned(),

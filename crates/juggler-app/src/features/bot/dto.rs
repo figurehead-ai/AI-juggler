@@ -5,6 +5,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::features::ai::run::{AiCount, AiFailure};
+
 /// What kind of record a row is: its link opens that page.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "snake_case")]
@@ -16,6 +18,11 @@ pub enum BotRowKind {
     Task,
     /// An Account (its page).
     Account,
+    /// Something the user told Bot to remember (AJ-E3832 G9): their own
+    /// words, shown only to them; its chip opens What Bot remembers on it.
+    /// Its id is the memory's random subject id (a turn keeps nothing
+    /// else of it: the words are read again, or it is gone).
+    Memory,
 }
 
 /// A row's state, from the owning module's facts. Never merged: each row
@@ -40,6 +47,8 @@ pub enum BotState {
     InReview,
     /// It is working (a task: in progress).
     Working,
+    /// 0.5.2 G45: the session is open, between turns (the rail's Idle).
+    Idle,
     /// The session finished.
     Finished,
     /// The session was ended (stopped, handed over).
@@ -76,6 +85,7 @@ impl BotState {
             Self::Blocked => "blocked",
             Self::InReview => "in_review",
             Self::Working => "working",
+            Self::Idle => "idle",
             Self::Finished => "finished",
             Self::Ended => "ended",
             Self::Done => "done",
@@ -162,6 +172,21 @@ pub struct BotRowInfo {
     /// History: it no longer exists.
     #[serde(default)]
     pub gone: bool,
+    /// A memory: the record it names (a name the user gave to "api").
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub about: Option<String>,
+    /// A memory: its key in What Bot remembers (never kept with a turn).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub memory_key: Option<String>,
+    /// 0.5.2 G18: a session that needs the user now, by D-117's one rule
+    /// (Home's Needs you, `notifications::needs::session_kind`):
+    /// it asks, may be stuck, hit its limit or stopped with an error. Read
+    /// by the look-up and the answer's check; never sent or kept.
+    #[serde(skip)]
+    #[ts(skip)]
+    pub need: Option<&'static str>,
 }
 
 /// What a question was asked about (D-136 point 3): the chip "About:
@@ -218,6 +243,13 @@ pub enum BotOutcome {
     Refused,
     /// A watch set from a confirm card.
     WatchSet,
+    /// AJ-E3830: Bot filled the Watches form (the user adds the watch).
+    WatchDraft,
+    /// D-148: the model's own short answer to a question with no records
+    /// in it, labelled general (never from the records).
+    General,
+    /// AJ-E3825: the engine failed: one plain line with its fix.
+    Failed,
 }
 
 impl BotOutcome {
@@ -233,6 +265,9 @@ impl BotOutcome {
             Self::Remembered => "remembered",
             Self::Refused => "refused",
             Self::WatchSet => "watch_set",
+            Self::WatchDraft => "watch_draft",
+            Self::General => "general",
+            Self::Failed => "failed",
         }
     }
 
@@ -247,6 +282,9 @@ impl BotOutcome {
             "remembered" => Self::Remembered,
             "refused" => Self::Refused,
             "watch_set" => Self::WatchSet,
+            "watch_draft" => Self::WatchDraft,
+            "general" => Self::General,
+            "failed" => Self::Failed,
             _ => Self::Rows,
         }
     }
@@ -327,6 +365,134 @@ pub struct BotWrittenPart {
     pub cites: Vec<u32>,
 }
 
+/// D-148: the model's own answer to a question with no records in it.
+/// Shown as Bot's own answer, never with record chips.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotGeneral {
+    /// The model's words.
+    pub text: String,
+    /// The model's display name.
+    pub model_name: String,
+    /// The question was outside AI Juggler: the window adds that Bot is
+    /// here for your AI apps and sessions.
+    pub off_topic: bool,
+}
+
+/// One part of what was sent to the model (the context breakdown).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub enum BotContextPart {
+    /// Bot's instructions (the system part).
+    Instructions,
+    /// What the user told Bot to remember, used in this turn.
+    Memory,
+    /// The records looked up, and what isn't recorded.
+    Records,
+    /// Earlier exchanges in this topic.
+    History,
+    /// The question itself.
+    Question,
+    /// What Bot's world model connected to the question, read live
+    /// (ADR-0038 §5).
+    World,
+}
+
+/// One thing Bot's world model put into a turn's context, and why
+/// (ADR-0038 §5, from `explain`), in plain words.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotWorldItemInfo {
+    /// What it is: `session`, `project`, `App`, `Account`, `pool`, `task`,
+    /// `memory`, `earlier question` or `note`.
+    pub kind: String,
+    /// Its name (a session's, the user's words for a memory).
+    pub name: String,
+    /// Why it went in: "named in your question", "your own name for it",
+    /// "matches your words", "connected to web".
+    pub why: String,
+    /// It is something the user said or set (counted under memory).
+    pub memory: bool,
+}
+
+/// One part's size.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotContextShare {
+    /// The part.
+    pub part: BotContextPart,
+    /// Its tokens.
+    pub tokens: AiCount,
+}
+
+/// A turn's context use: what went to the model, against its window.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotContext {
+    /// The model's context window, in tokens (the engine's own figure).
+    pub window: u32,
+    /// What the request filled: the engine's count when it gave one.
+    pub used: AiCount,
+    /// The most the answer could take.
+    pub answer_room: u32,
+    /// Each part, estimated (labelled) unless the engine counted it.
+    pub parts: Vec<BotContextShare>,
+}
+
+/// One kind of memory in a turn.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotMemoryShare {
+    /// `preferences`, `notes`, `asked` (earlier questions and answers)
+    /// or `watches`.
+    pub kind: String,
+    /// How many records.
+    pub n: u32,
+    /// Their tokens.
+    pub tokens: AiCount,
+}
+
+/// AJ-E3825 R8/R9: an answer's calm details line and its breakdowns.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotDetails {
+    /// The model's display name.
+    pub model_name: String,
+    /// Tokens read.
+    pub tokens_in: AiCount,
+    /// Tokens written.
+    pub tokens_out: AiCount,
+    /// How long the answer took, in milliseconds (the helpers don't
+    /// stream, so there is no first-token time).
+    #[ts(type = "number")]
+    pub ms: u64,
+    /// Records sent as grounding.
+    pub records: u32,
+    /// The context breakdown.
+    pub context: BotContext,
+    /// The memory in this turn, by kind.
+    pub memory: Vec<BotMemoryShare>,
+    /// What the world model connected, and why (empty when it wasn't
+    /// ready or found nothing).
+    pub world: Vec<BotWorldItemInfo>,
+}
+
+/// The topic's running totals (AJ-E3825 R8): tokens this topic and the
+/// latest turn's context and memory.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotTopicUsageInfo {
+    /// Answers in this topic.
+    pub answers: u32,
+    /// Tokens read this topic.
+    pub tokens_in: AiCount,
+    /// Tokens written this topic.
+    pub tokens_out: AiCount,
+    /// The latest answer's details (its context and memory).
+    pub latest: Option<BotDetails>,
+}
+
 /// A memory used or kept (the echo, the "Looked at" receipt).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
@@ -395,6 +561,39 @@ pub struct BotTurnInfo {
     /// The user said "This is wrong" about its written answer.
     #[serde(default)]
     pub flagged: bool,
+    /// D-148: the model's general answer.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub general: Option<BotGeneral>,
+    /// AJ-E3825: why the engine failed.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub failure: Option<AiFailure>,
+    /// AJ-E3825: the answer's details line.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub details: Option<BotDetails>,
+    /// AJ-E3830: the Watches form to open, filled in (only on the turn
+    /// just asked: the form opens once; a past turn keeps its line).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub watch_draft: Option<crate::features::watches::draft::WatchDrafted>,
+    /// 0.5.2 G30: a turn that drafted a reminder, read back (after a
+    /// relaunch its draft is gone): whether the user set it, and which.
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub past_reminder: Option<BotPastReminder>,
+}
+
+/// 0.5.2 G30: a reminder turn as it ended: the reminder set from it (its
+/// schedule id), or none when it was never set.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
+#[ts(export, export_to = "../../../ui/src/types/generated/")]
+pub struct BotPastReminder {
+    /// The reminder set from it, by id (the Reminders list opens on it).
+    #[serde(default)]
+    #[ts(optional = nullable)]
+    pub set: Option<String>,
 }
 
 /// The languages the words cover.

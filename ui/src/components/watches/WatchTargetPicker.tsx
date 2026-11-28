@@ -5,12 +5,17 @@
  * use), then All by kind with counts, with search on top and "N picked ·
  * up to 10" at its foot. ↑↓ move, Space picks, Esc closes. "Any session"
  * watches everything, so it never sits beside other targets.
+ *
+ * 0.5.2 G60: Bot's pre-fill with the target left opens it on what the
+ * request's words match ("web": the project and the open session in it),
+ * open sessions first, above the usual lists; nothing is picked for the
+ * user.
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type JSX } from "react";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
 import { TargetMark } from "./WatchParts";
-import { KIND_ORDER, MAX_TARGETS, kindList, optionOf, pickerLists, sameTarget, type TargetOption } from "./watches-view";
-import { PICKER } from "./watches-words";
+import { KIND_ORDER, MAX_TARGETS, kindList, optionOf, pickerLists, sameTarget, targetKey, type TargetOption } from "./watches-view";
+import { BOT_FILL, PICKER } from "./watches-words";
 import { IconCheckCircle, IconChevronL, IconChevronR, IconCross, IconFind, IconFolderShut, IconPersonOutline, IconPoolRing, IconTerminal, IconTiles, type WatchIcon } from "./watch-icons";
 
 const KIND_WORDS: Record<WatchTarget["kind"], string> = { session: PICKER.sessions, app: PICKER.apps, project: PICKER.projects, pool: PICKER.pools, account: PICKER.accounts, any: PICKER.any };
@@ -61,8 +66,25 @@ function Heading({ children }: { children: string }): JSX.Element {
   return <div className="px-2.5 pb-1 pt-2 text-label font-medium uppercase tracking-[0.07em] text-section-label">{children}</div>;
 }
 
-export function WatchTargetPicker({ picked, book, onChange, invalid = false, labelledBy }: { picked: readonly WatchTarget[]; book: Map<string, TargetOption>; onChange: (next: WatchTarget[]) => void; invalid?: boolean; labelledBy: string }): JSX.Element {
-  const [open, setOpen] = useState(false);
+/** What the request's words matched, as the book holds them: open
+ * sessions first, then in Bot's order (unknown ones left out). */
+function matchedOptions(book: Map<string, TargetOption>, suggested: readonly WatchTarget[]): TargetOption[] {
+  const known = suggested.filter((target) => book.has(targetKey(target))).map((target) => optionOf(book, target));
+  return [...known.filter((o) => o.open), ...known.filter((o) => !o.open)];
+}
+
+export function WatchTargetPicker({ picked, book, onChange, invalid = false, labelledBy, suggested = [], startOpen = false }: { picked: readonly WatchTarget[]; book: Map<string, TargetOption>; onChange: (next: WatchTarget[]) => void; invalid?: boolean; labelledBy: string; suggested?: readonly WatchTarget[]; startOpen?: boolean }): JSX.Element {
+  const matched = useMemo(() => matchedOptions(book, suggested), [book, suggested]);
+  const [open, setOpen] = useState(startOpen && matched.length > 0);
+  // 0.5.2 G68 (RW1 S10, S11): on the real app the form opens before this
+  // Mac's lists are read, so the matches came after the first frame and
+  // the picker stayed shut. It opens once, when the matches first show.
+  const opened = useRef(open);
+  useEffect(() => {
+    if (!startOpen || opened.current || matched.length === 0 || picked.length > 0) return;
+    opened.current = true;
+    setOpen(true);
+  }, [startOpen, matched.length, picked.length]);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<WatchTarget["kind"] | null>(null);
   const wrap = useRef<HTMLDivElement>(null);
@@ -118,6 +140,10 @@ export function WatchTargetPicker({ picked, book, onChange, invalid = false, lab
     return () => node?.removeEventListener("keydown", listen);
   }, []);
   const options = picked.map((target) => optionOf(book, target));
+  // A match is listed once, under the matches.
+  const unmatched = (rows: TargetOption[]) => rows.filter((o) => !matched.some((m) => m.key === o.key));
+  const openNow = unmatched(lists.openNow);
+  const recent = unmatched(lists.recent);
   const shown = (rows: TargetOption[]) => rows.map((option) => <Option key={option.key} option={option} on={isOn(option)} onFlip={() => flip(option)} />);
   return (
     <div ref={wrap} className="relative">
@@ -156,16 +182,22 @@ export function WatchTargetPicker({ picked, book, onChange, invalid = false, lab
               </>
             ) : (
               <>
-                {lists.openNow.length > 0 && (
-                  <div>
-                    <Heading>{`${PICKER.openNow}  ${lists.openNow.length}`}</Heading>
-                    {shown(lists.openNow)}
+                {matched.length > 0 && (
+                  <div data-testid="watch-picker-matches">
+                    <Heading>{BOT_FILL.choices}</Heading>
+                    {shown(matched)}
                   </div>
                 )}
-                {lists.recent.length > 0 && (
+                {openNow.length > 0 && (
+                  <div>
+                    <Heading>{`${PICKER.openNow}  ${openNow.length}`}</Heading>
+                    {shown(openNow)}
+                  </div>
+                )}
+                {recent.length > 0 && (
                   <div>
                     <Heading>{PICKER.recent}</Heading>
-                    {shown(lists.recent)}
+                    {shown(recent)}
                   </div>
                 )}
                 <hr className="mx-1.5 my-1 border-t border-divider" />

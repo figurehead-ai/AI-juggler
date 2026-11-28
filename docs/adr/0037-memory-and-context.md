@@ -29,7 +29,7 @@ One store, in AI Juggler's existing database, written only through one service (
 
 | Kind | Built in | What it holds | Authority | Written only by | Subject key |
 |---|---|---|---|---|---|
-| `preference` | 0.5 | a stated preference from a closed set of slots: `alias` (the user's own name for a session, App, project or pool: "the api agent") and `focus` (what the user cares about most, per scope) | user; model only through §2.4's gate | `features/ai/memory/` (Chat's remember flow, Settings) | `alias:<entity kind>:<id>`, `focus:<scope>` |
+| `preference` | 0.5 | a stated preference from a closed set of slots: `alias` (the user's own name for a session, App, project or pool: "the api agent"), `focus` (what the user cares about most, per scope) and, from 0.5.2, `feed` (a Home feed post's More or Less like this, scoped to the kind of event, the App and the project; AJ-E3713) | user; model only through §2.4's gate | `features/ai/memory/` (Chat's remember flow, Settings), its writer lent to Bot's remember flow and the feed's gesture (`features/feed/commands/prefs.rs`, source `home_feed`) | `alias:<entity kind>:<id>`, `focus:<scope>`, `feed:<group>:<scope hash>` |
 | `note` | 0.5 | the user's own words after "remember…" | user; model only through §2.4's gate | `features/ai/memory/` | `note:<hash of the normalised text>` |
 | `standing_request` | 0.5 | a confirmed watch; the payload is ADR-0036's typed `Watch` | user | `features/watches/` (its three commands) | `watch:<WatchId>` |
 | `asked` | 0.5 | a question the user asked, in their words, with the entities it resolved to | app (recorded by code) | `features/ai/chat/` | `asked:<normalised question hash>:<entity ids>` |
@@ -283,7 +283,7 @@ A record is *used* only when it is included in an assembled context or shown in 
 #### 4.4 Later, behind the same trait
 
 - **Embeddings:** an on-device embedder's vectors beside FTS5, fused with BM25 by reciprocal rank fusion. Added only if the recall harness (§10.2) shows keyword recall missing what users ask, and never by a download without the user's click (D-131).
-- **Entity relations:** recall widened through AI Juggler's own `relations` tables (a pool's members, a project's sessions), no graph store.
+- **Entity relations:** recall widened through AI Juggler's own `relations` tables (a pool's members, a project's sessions), no graph store. *Superseded by [ADR-0038](./0038-world-model-engine.md) (2026-11-26): the world model is a typed graph kept in memory over this SQLite store, the `gyrus` crate.*
 - Each is a new `Retriever` impl chosen per job by its budget row; the trait's contract tests run over every impl, so callers never change.
 
 ### 5. One context assembler
@@ -496,7 +496,7 @@ D-123 places the bot in 0.6 as an extension of Chat. It uses this store, this lo
 
 #### 8.3 The research ideas that don't fit now, and where the bot may use them
 
-- **A graph store and many typed edge kinds:** AI Juggler's entity set is closed and relational. The bot gets the narrow `memory_links` table (§8.1), not a graph database.
+- **A graph store and many typed edge kinds:** AI Juggler's entity set is closed and relational. The bot gets the narrow `memory_links` table (§8.1), not a graph database. *Superseded by [ADR-0038](./0038-world-model-engine.md) (2026-11-26): a typed in-memory graph over SQLite, still no separate graph database.*
 - **Dense embeddings and a re-ranking model:** they need extra models and memory that a 4K budget can't spare. Behind the `Retriever` trait if recall tests fail, and on larger engine rows for the bot (§4.4).
 - **Multi-writer authority classes and a supersede review:** Chat has one user, and the user's edits rule. The bot is a second writer, so §8.2 brings them in.
 - **Confidence driven by verification:** Chat has no verifier. The bot's outcomes are one (§8.2).

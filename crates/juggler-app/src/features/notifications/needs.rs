@@ -117,12 +117,39 @@ fn place_of(row: &InstanceInfo, projects: &HashMap<String, String>) -> (String, 
 /// its facts (D-96, D-103.8: "“billing · started 1:14 AM” needs your
 /// reply"), its Account in the notice's detail, never in its name.
 pub(crate) fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
-    let folder = folder(Some(&row.cwd));
-    let started = started_words(Some(row.started_at_ms), now_ms);
+    name_of(&Named::of(row), now_ms)
+}
+
+/// What a session's short name is made of (its row's fields).
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Named<'a> {
+    pub(crate) label: Option<&'a str>,
+    pub(crate) title: Option<&'a str>,
+    pub(crate) branch: Option<&'a str>,
+    pub(crate) cwd: &'a str,
+    pub(crate) started_ms: i64,
+}
+
+impl<'a> Named<'a> {
+    pub(crate) fn of(row: &'a InstanceInfo) -> Self {
+        Self {
+            label: row.label.as_deref(),
+            title: row.title.as_deref(),
+            branch: row.git_branch.as_deref(),
+            cwd: &row.cwd,
+            started_ms: row.started_at_ms,
+        }
+    }
+}
+
+/// [`session_name`] over its parts.
+pub(crate) fn name_of(named: &Named<'_>, now_ms: i64) -> String {
+    let folder = folder(Some(named.cwd));
+    let started = started_words(Some(named.started_ms), now_ms);
     juggler_core::naming::short_name(
-        row.label.as_deref(),
-        row.title.as_deref(),
-        row.git_branch.as_deref(),
+        named.label,
+        named.title,
+        named.branch,
         &juggler_core::naming::Facts {
             folder: folder.as_deref(),
             started: started.as_deref(),
@@ -131,7 +158,7 @@ pub(crate) fn session_name(row: &InstanceInfo, now_ms: i64) -> String {
 }
 
 /// Another app's session's name as its rail row says it (the same rule).
-fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
+pub(crate) fn conversation_name(c: &ConversationInfo, now_ms: i64) -> String {
     let folder = folder(c.cwd.as_deref());
     let started = started_words(c.started_ms, now_ms);
     juggler_core::naming::short_name(
@@ -192,8 +219,9 @@ fn join(parts: impl IntoIterator<Item = Option<String>>) -> String {
 /// An own session's need: its attention, else a status that is one;
 /// none at level 0 (D-117, the shared table: a session parked until its
 /// reset is calm whatever its need), as the window reads it, so the count
-/// and the window's lit marks never part.
-fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
+/// and the window's lit marks never part. Bot reads it too (0.5.2 G18), so
+/// its "what needs me" is Home's Needs you.
+pub(crate) fn session_kind(row: &InstanceInfo) -> Option<&'static str> {
     let facts = centre::LevelFacts {
         parked: row.parked.is_some(),
         ..centre::LevelFacts::default()

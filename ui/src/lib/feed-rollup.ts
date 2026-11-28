@@ -43,7 +43,8 @@ function thingsOf(items: readonly FeedItemInfo[]): FeedThing[] {
   const things: FeedThing[] = [];
   const at = new Map<string, FeedThing>();
   for (const item of items) {
-    const key = item.coalesce ?? `id:${item.id}`;
+    // AJ-E3713 R2: a task's changes are one thread too, as a session's are.
+    const key = item.coalesce ?? (item.target.task_id ? `task:${item.target.task_id}` : `id:${item.id}`);
     const thing = at.get(key);
     if (thing) {
       if (!thing.items.some((one) => one.id === item.id)) thing.items.push(item);
@@ -72,24 +73,11 @@ function levelOf(thing: FeedThing): number {
   return Math.max(...thing.items.map((item) => item.level));
 }
 
-/** AJ-E2314 L5 (the 0.5.0 re-walk, DW1): a digest says each agent's
- * finish in its window, so the finished cards of the same sessions in that
- * window aren't shown again beside it (the feed showed web and api
- * finished twice). Ids of the items a digest in `items` covers. */
-export function digestCovered(items: readonly FeedItemInfo[]): Set<string> {
-  const finishes = items.flatMap(({ digest, at_ms }) => (digest ? digest.lines.filter((line) => line.state === "finished").map((line) => ({ session: line.session_id, from: digest.start_ms, to: Math.max(digest.end_ms, at_ms) })) : []));
-  if (finishes.length === 0) return new Set();
-  return new Set(
-    items
-      .filter((item) => item.digest === null && item.kind === "finished" && finishes.some((one) => one.session === item.target.session_id && item.at_ms >= one.from && item.at_ms <= one.to))
-      .map((item) => item.id),
-  );
-}
-
-/** The cards: things coalesced, then rolled up by key and window. */
-export function cardsOf(given: readonly FeedItemInfo[]): FeedCard[] {
-  const covered = digestCovered(given);
-  const items = covered.size === 0 ? given : given.filter((item) => !covered.has(item.id));
+/** The cards: things coalesced, then rolled up by key and window. A
+ * digest never hides a post (0.5.2 G21, over AJ-E2314 L5): a finished
+ * post keeps its diff stat and its review, the digest only says it again
+ * in a line. */
+export function cardsOf(items: readonly FeedItemInfo[]): FeedCard[] {
   const cards: FeedCard[] = [];
   // Rollup key → the card still open for it, and the scope it belongs to.
   const open = new Map<string, { card: FeedCard; scope: string | null }>();
@@ -115,6 +103,30 @@ export function cardsOf(given: readonly FeedItemInfo[]): FeedCard[] {
     if (key) open.set(key, { card, scope: state.scope });
   }
   return cards;
+}
+
+/** Two items of one thing this close, of one kind, are one event told
+ * twice (a session's ending and its finished notice). */
+const SAME_EVENT_MS = 5 * 60_000;
+
+/** AJ-E3713 R2: a thing as a post and its thread: the post is its first
+ * item, the follow-ups what came next, oldest first ("↳ 2 min later ·
+ * finished"). One event told by two journals is one. */
+export interface Thread {
+  post: FeedItemInfo;
+  follow: FeedItemInfo[];
+}
+
+/** A thing's thread. */
+export function threadOf(thing: FeedThing): Thread {
+  const items = [...thing.items].sort((a, b) => a.at_ms - b.at_ms || (a.id < b.id ? -1 : 1));
+  const told: FeedItemInfo[] = [];
+  for (const item of items) {
+    const twice = told.some((one) => one.kind === item.kind && Math.abs(one.at_ms - item.at_ms) <= SAME_EVENT_MS);
+    if (!twice) told.push(item);
+  }
+  const [post, ...follow] = told;
+  return { post: post ?? thing.head, follow };
 }
 
 /** The away boundary is shown when the last look is this long ago. */

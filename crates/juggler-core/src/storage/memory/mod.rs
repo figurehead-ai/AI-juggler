@@ -93,6 +93,7 @@ pub mod schema;
 mod secure;
 mod store;
 mod types;
+pub mod world;
 
 #[cfg(test)]
 mod tests;
@@ -133,5 +134,12 @@ impl super::Storage {
     #[must_use]
     pub fn ai_log(&self) -> AiLog<'_> {
         AiLog::new(&self.conn)
+    }
+
+    /// Reads of Bot's world model (ADR-0038; V56's tables). Its writes go
+    /// through [`MemoryStore::write_world`].
+    #[must_use]
+    pub fn world(&self) -> world::WorldReader<'_> {
+        world::WorldReader::new(&self.conn)
     }
 }

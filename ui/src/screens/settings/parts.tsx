@@ -3,11 +3,18 @@
  * sections (a header, a rounded card, a one-line footer saying what it
  * does), rows (a title, a line of why, and a control on the right) and
  * the switch. One look for every pane.
+ *
+ * AJ-E1558 (D-126 rich mode, PAT-SURF, PAT-COLOR): a section's rows sit
+ * on its card's tone, no outline, no rule between them, no shadow; every
+ * row leads with its icon chip (the accent's soft step while it is on) or
+ * its App's own logo; the switch is the kit's (the accent's fill while on).
  */
 import { useEffect, useId, useRef, type JSX, type ReactNode } from "react";
 import { InSettingsSection } from "../../components/CardTitle";
+import { RowLead, type RowIcon } from "../../components/controls";
+
+export type { RowIcon };
 import { IconWarn } from "../../components/icons-menu";
-import type { PaneTone } from "./panes";
 import { matchedRow, splitAnchor } from "./settings-index";
 
 /** What the user does that ends a pane's landing: from then on the
@@ -161,19 +168,20 @@ export function PaneSection({
         {card ? (
           <div className="flex flex-col gap-3">{children}</div>
         ) : (
-          <ul className="flex flex-col divide-y divide-hairline rounded-card border border-hairline bg-surface shadow-card">{children}</ul>
+          <ul className="flex flex-col gap-0.5 rounded-card bg-surface p-1.5 inset-ring-1 inset-ring-frame">{children}</ul>
         )}
       </InSettingsSection.Provider>
-      {footer && <p className="px-1 text-xs leading-relaxed text-ink-2">{footer}</p>}
+      {footer && <p className="px-1 text-meta text-ink-2">{footer}</p>}
     </section>
   );
 }
 
-/** One row: what it is, one line of why, and its control. */
+/** One row: its icon, what it is, one line of why, and its control. */
 export function SettingRow({
   title,
   description,
   icon,
+  on = false,
   control,
   testId,
   titleId,
@@ -182,7 +190,10 @@ export function SettingRow({
 }: {
   title: ReactNode;
   description?: ReactNode;
-  icon?: ReactNode;
+  /** Every row leads with one (D-126 rich mode, TGL-2). */
+  icon: RowIcon;
+  /** The row is on or chosen: its chip takes the accent's soft step. */
+  on?: boolean;
   control?: ReactNode;
   testId?: string;
   titleId?: string;
@@ -191,14 +202,14 @@ export function SettingRow({
   children?: ReactNode;
 }): JSX.Element {
   return (
-    <li className="flex items-center gap-3 px-4 py-3" data-testid={testId}>
-      {icon && <span className="flex size-7 shrink-0 items-center justify-center text-muted">{icon}</span>}
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span id={titleId} className="text-sm font-semibold text-ink">
+    <li className="flex items-center gap-3 rounded-[10px] px-3 py-[9px]" data-testid={testId}>
+      <RowLead icon={icon} on={on} />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span id={titleId} className="text-body font-medium text-ink">
           {title}
         </span>
         {description && (
-          <span id={descriptionId} className="text-xs leading-relaxed text-muted">
+          <span id={descriptionId} className="text-meta text-muted">
             {description}
           </span>
         )}
@@ -224,7 +235,7 @@ export function SwitchRow({
 }: {
   title: string;
   description: ReactNode;
-  icon?: ReactNode;
+  icon: RowIcon;
   checked: boolean;
   disabled?: boolean;
   onChange: (on: boolean) => void;
@@ -241,6 +252,7 @@ export function SwitchRow({
       description={description}
       descriptionId={`${id}-why`}
       icon={icon}
+      on={checked && !disabled}
       testId={testId}
       control={
         <Switch checked={checked} disabled={disabled} onChange={onChange} labelledBy={`${id}-title`} describedBy={`${id}-why`} testId={testId ? `${testId}-switch` : undefined} />
@@ -258,14 +270,14 @@ export type RowNoteTone = "info" | "warning";
 export function RowNote({ tone = "info", children, testId }: { tone?: RowNoteTone; children: ReactNode; testId?: string }): JSX.Element {
   if (tone === "warning") {
     return (
-      <span className="mt-1 flex items-start gap-1.5 text-xs leading-relaxed text-warning" role="status" data-tone="warning" data-testid={testId}>
+      <span className="mt-1 flex items-start gap-1.5 text-label text-warning" role="status" data-tone="warning" data-testid={testId}>
         <IconWarn aria-hidden="true" width={14} height={14} className="mt-px shrink-0" />
         <span>{children}</span>
       </span>
     );
   }
   return (
-    <span className="text-xs text-ink" role="status" data-testid={testId}>
+    <span className="text-label text-ink-2" role="status" data-testid={testId}>
       {children}
     </span>
   );
@@ -301,33 +313,28 @@ export function Switch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={
-        "relative h-5 w-9 shrink-0 rounded-full border transition-colors disabled:opacity-40 " +
-        (checked ? "border-accent bg-accent" : "border-faint bg-surface-3")
+        // AJ-E1558: the kit's switch (ToggleRow's): the accent's fill
+        // while on, the surface's third step with a quiet rim while off.
+        "relative h-5 w-[34px] shrink-0 rounded-full transition-colors disabled:opacity-40 " +
+        (checked ? "bg-accent-fill" : "bg-surface-3 inset-ring-1 inset-ring-hairline")
       }
       data-testid={testId}
     >
       <span
         aria-hidden="true"
-        className={"absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-all " + (checked ? "left-[18px]" : "left-0.5")}
+        className={"absolute top-[3px] size-3.5 rounded-full transition-[left] " + (checked ? "left-[17px] bg-white" : "left-[3px] bg-faint")}
       />
     </button>
   );
 }
 
-const TILE: Record<PaneTone, string> = {
-  muted: "bg-muted",
-  accent: "bg-accent",
-  live: "bg-live",
-  success: "bg-success",
-  warning: "bg-warning",
-  danger: "bg-danger",
-  faint: "bg-faint",
-};
-
-/** A pane's 24 px tile: its colour, and a white stroke icon. */
-export function PaneTile({ tone, children }: { tone: PaneTone; children: ReactNode }): JSX.Element {
+/** A pane's 24 px tile and its icon (AJ-E1558, PAT-COLOR: the brand
+ * violet means navigation): the accent's soft step on every pane, so the
+ * icons are what tell them apart; the pane shown takes the strong step,
+ * the accent's fill with a white glyph. */
+export function PaneTile({ current = false, children }: { current?: boolean; children: ReactNode }): JSX.Element {
   return (
-    <span aria-hidden="true" className={`flex size-6 shrink-0 items-center justify-center rounded-md text-white ${TILE[tone]}`}>
+    <span aria-hidden="true" data-current={current || undefined} className={"flex size-6 shrink-0 items-center justify-center rounded-md transition-colors " + (current ? "bg-accent-fill text-white" : "bg-accent-soft text-accent-hi")}>
       {children}
     </span>
   );

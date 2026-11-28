@@ -1,0 +1,1581 @@
+[
+ {
+  "pair": "digest6-digest_mr-001",
+  "item": "V6-D01",
+  "agents": [
+   {
+    "agent": "heron-queue",
+    "app": "Claude Code CLI · Studio",
+    "project": "heron-queue",
+    "session_id": "v6d01-a",
+    "turns": [
+     {
+      "turn_id": "v6d01-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Added retry with backoff to the heron-queue consumer. 22 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 22,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "alder-docs",
+    "app": "Codex CLI · Studio",
+    "project": "alder-docs",
+    "session_id": "v6d01-b",
+    "turns": [
+     {
+      "turn_id": "v6d01-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Which license header should alder-docs files carry, MIT or Apache? I stopped before touching 40 files.",
+      "facts": {
+       "outcome": "question",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "MIT or Apache header?"
+       ],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:10:00Z",
+      "detail": "license header choice"
+     }
+    ]
+   },
+   {
+    "agent": "cress-ui",
+    "app": "Cursor",
+    "project": "cress-ui",
+    "session_id": "v6d01-c",
+    "turns": [
+     {
+      "turn_id": "v6d01-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Fixed the focus ring on the cress-ui tabs. 9 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:10 · 3 agents\nalder-docs · asks you: “MIT or Apache header?”\nheron-queue · ended · 1 turn · tests passed · last: “Added retry with backoff to the heron-queue consumer.”\ncress-ui · ended · 1 turn · tests passed · last: “Fixed the focus ring on the cress-ui tabs.”",
+  "second": "Digest · 07:10 · 3 agents\nalder-docs · asks you: “MIT or Apache header?”\nheron-queue · ended · Added retry with backoff to the heron-queue consumer, 22 passed\ncress-ui · ended · Fixed the focus ring on the cress-ui tabs, 9 passed"
+ },
+ {
+  "pair": "digest6-digest_mr-002",
+  "item": "V6-D02",
+  "agents": [
+   {
+    "agent": "quail-pay",
+    "app": "Claude app · Home",
+    "project": "quail-pay",
+    "session_id": "v6d02-a",
+    "turns": [
+     {
+      "turn_id": "v6d02-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "The quail-pay refund job failed: the provider sandbox returned a 500 on all 3 tries. Nothing was refunded.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "provider sandbox 500 x3"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:15:00Z",
+      "detail": "sandbox error"
+     }
+    ]
+   },
+   {
+    "agent": "mist-cli",
+    "app": "OpenCode",
+    "project": "mist-cli",
+    "session_id": "v6d02-b",
+    "turns": [
+     {
+      "turn_id": "v6d02-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Added shell completion for mist-cli. I did not run the tests.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "dock-scout",
+    "app": "Claude Code CLI · Home",
+    "project": "dock-scout",
+    "session_id": "v6d02-c",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T05:50:00Z",
+      "detail": "opened this morning, no turns"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:15 · 3 agents\nquail-pay · failed: “provider sandbox 500 x3”\nmist-cli · ended · Added shell completion for mist-cli; I did not run the tests\ndock-scout · working",
+  "second": "Digest · 07:15 · 3 agents\nquail-pay · failed: “provider sandbox 500 x3”\nmist-cli · ended · 1 turn · last: “Added shell completion for mist-cli.” (I did not run the tests.)\ndock-scout · working"
+ },
+ {
+  "pair": "digest6-digest_mr-003",
+  "item": "V6-D05",
+  "agents": [
+   {
+    "agent": "buche-shop",
+    "app": "Claude Code CLI · Studio",
+    "project": "buche-shop",
+    "session_id": "v6d05-a",
+    "turns": [
+     {
+      "turn_id": "v6d05-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Der Warenkorb der buche-shop speichert jetzt Gutscheine. 25 Tests bestehen.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 25,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "esche-api",
+    "app": "Codex CLI · Studio",
+    "project": "esche-api",
+    "session_id": "v6d05-b",
+    "turns": [
+     {
+      "turn_id": "v6d05-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Das Deployment der esche-api ist fehlgeschlagen: das Zertifikat ist abgelaufen. Nichts wurde veröffentlicht.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "Zertifikat abgelaufen"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:25:00Z",
+      "detail": "Zertifikat"
+     }
+    ]
+   },
+   {
+    "agent": "quelle-app",
+    "app": "Cursor",
+    "project": "quelle-app",
+    "session_id": "v6d05-c",
+    "turns": [
+     {
+      "turn_id": "v6d05-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Ich habe die Texte der quelle-app überarbeitet. Tests wurden nicht ausgeführt.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:25 · 3 agents\nesche-api · failed: “Zertifikat abgelaufen”\nbuche-shop · ended · Der Warenkorb der buche-shop speichert jetzt Gutscheine · tests passed\nquelle-app · ended · Ich habe die Texte der quelle-app überarbeitet; tests wurden nicht ausgeführt",
+  "second": "Digest · 07:25 · 3 agents\nesche-api · failed: “Zertifikat abgelaufen”\nbuche-shop · ended · 1 turn · tests passed · last: “Der Warenkorb der buche-shop speichert jetzt Gutscheine.”\nquelle-app · ended · 1 turn · last: “Ich habe die Texte der quelle-app überarbeitet.” (Tests wurden nicht ausgeführt.)"
+ },
+ {
+  "pair": "digest6-digest_mr-004",
+  "item": "V6-D07",
+  "agents": [
+   {
+    "agent": "moth-ledger (Claude Code CLI · Studio)",
+    "app": "Claude Code CLI · Studio",
+    "project": "moth-ledger",
+    "session_id": "v6d07-a",
+    "turns": [
+     {
+      "turn_id": "v6d07-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Migration of moth-ledger to the new currency table done, 58 tests pass. I also deleted a stale table.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 58,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "moth-ledger (Codex CLI · Studio)",
+    "app": "Codex CLI · Studio",
+    "project": "moth-ledger",
+    "session_id": "v6d07-b",
+    "turns": [
+     {
+      "turn_id": "v6d07-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Report totals now round half-even. 7 tests pass, 1 fails (rounding of 0.125).",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 7,
+        "failed": 1
+       },
+       "questions": [],
+       "failures": [
+        "rounding of 0.125 fails"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:33:00Z",
+      "detail": "1 test fails"
+     }
+    ]
+   },
+   {
+    "agent": "ridge-ui",
+    "app": "OpenCode",
+    "project": "ridge-ui",
+    "session_id": "v6d07-c",
+    "turns": [
+     {
+      "turn_id": "v6d07-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Still running the visual comparison for ridge-ui, 60 of 120 pages compared.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T07:40:00Z",
+      "detail": "no output for 25 minutes"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:40 · 3 agents\nmoth-ledger (Codex CLI · Studio) · failed: “rounding of 0.125 fails” · tests failed\nridge-ui · stuck · stuck for 25 min · 1 turn · last: “Still running the visual comparison for ridge-ui, 60 of 120 pages compared.”\nmoth-ledger (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “Migration of moth-ledger to the new currency table done, 58 tests pass.”",
+  "second": "Digest · 07:40 · 3 agents\nmoth-ledger (Codex CLI · Studio) · failed: “rounding of 0.125 fails” · tests failed\nridge-ui · stuck · stuck for 25 min · 1 turn · last: “Still running the visual comparison for ridge-ui, 60 of 120 pages compared.”\nmoth-ledger (Claude Code CLI · Studio) · ended · Deleted a stale table, 58 passed"
+ },
+ {
+  "pair": "digest6-digest_mr-005",
+  "item": "V6-D08",
+  "agents": [
+   {
+    "agent": "orchid-app",
+    "app": "Cursor",
+    "project": "orchid-app",
+    "session_id": "v6d08-a",
+    "turns": [
+     {
+      "turn_id": "v6d08-a-t1",
+      "ended_at": "2026-11-18T05:00:00Z",
+      "source": "Added biometric unlock to orchid-app. 17 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 17,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     },
+     {
+      "turn_id": "v6d08-a-t2",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Biometric unlock now falls back to PIN after three failed scans. 20 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 20,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "moss-docs",
+    "app": "Claude app · Home",
+    "project": "moss-docs",
+    "session_id": "v6d08-b",
+    "turns": [
+     {
+      "turn_id": "v6d08-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Wrote the moss-docs FAQ. I could not check the links, no network here.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 2 agents\norchid-app · ended · 2 turns · tests passed · last: “Biometric unlock now falls back to PIN after three failed scans.”\nmoss-docs · ended · 1 turn · last: “Wrote the moss-docs FAQ.” (I could not check the links, no network here.)",
+  "second": "Digest · 07:00 · 2 agents\norchid-app · ended · Biometric unlock now falls back to PIN after three failed scans\nmoss-docs · ended · Wrote the moss-docs FAQ; I could not check the links"
+ },
+ {
+  "pair": "digest6-digest_mr-006",
+  "item": "V6-D09",
+  "agents": [
+   {
+    "agent": "wave-stream",
+    "app": "Claude Code CLI · Studio",
+    "project": "wave-stream",
+    "session_id": "v6d09-a",
+    "turns": [
+     {
+      "turn_id": "v6d09-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "wave-stream buffer fix: 11 tests pass. The streaming test is skipped on this machine.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {
+        "passed": 11,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "sand-api",
+    "app": "Codex CLI · Studio",
+    "project": "sand-api",
+    "session_id": "v6d09-b",
+    "turns": [
+     {
+      "turn_id": "v6d09-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Which timezone should sand-api use for daily reports, UTC or the customer's?",
+      "facts": {
+       "outcome": "question",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "UTC or the customer's timezone?"
+       ],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "timezone"
+     }
+    ]
+   },
+   {
+    "agent": "sand-web",
+    "app": "Cursor",
+    "project": "sand-web",
+    "session_id": "v6d09-c",
+    "turns": [
+     {
+      "turn_id": "v6d09-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Report page in sand-web restyled. 5 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 5,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 3 agents\nsand-api · asks you: “UTC or the customer's timezone?”\nwave-stream · ended · 1 turn · tests passed · last: “wave-stream buffer fix: 11 tests pass.”\nsand-web · ended · 1 turn · tests passed · last: “Report page in sand-web restyled.”",
+  "second": "Digest · 07:00 · 3 agents\nsand-api · asks you: “UTC or the customer's timezone?”\nwave-stream · ended · Wave-stream buffer fix, 11 passed\nsand-web · ended · 1 turn · tests passed · last: “Report page in sand-web restyled.”"
+ },
+ {
+  "pair": "digest6-digest_mr-007",
+  "item": "V6-D11",
+  "agents": [
+   {
+    "agent": "vole-sync",
+    "app": "Cursor",
+    "project": "vole-sync",
+    "session_id": "v6d11-a",
+    "turns": [
+     {
+      "turn_id": "v6d11-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Tried the new diff algorithm in vole-sync; slower, so I dropped it. No code changes remain.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "dew-ui",
+    "app": "OpenCode",
+    "project": "dew-ui",
+    "session_id": "v6d11-b",
+    "turns": [
+     {
+      "turn_id": "v6d11-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Toast animations in dew-ui now respect reduced motion. 13 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 13,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "cove-api",
+    "app": "Claude Code CLI · Studio",
+    "project": "cove-api",
+    "session_id": "v6d11-c",
+    "turns": [
+     {
+      "turn_id": "v6d11-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "cove-api webhook retries failed: the receiver returns 410 permanently. Nothing was retried successfully.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {},
+       "questions": [],
+       "failures": [
+        "receiver returns 410"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:36:00Z",
+      "detail": "410 from receiver"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:36 · 3 agents\ncove-api · failed: “receiver returns 410”\nvole-sync · ended · No code changes remain\ndew-ui · ended · 1 turn · tests passed · last: “Toast animations in dew-ui now respect reduced motion.”",
+  "second": "Digest · 07:36 · 3 agents\ncove-api · failed: “receiver returns 410”\nvole-sync · ended · 1 turn · last: “Tried the new diff algorithm in vole-sync; slower, so I dropped it.”\ndew-ui · ended · 1 turn · tests passed · last: “Toast animations in dew-ui now respect reduced motion.”"
+ },
+ {
+  "pair": "digest6-digest_mr-008",
+  "item": "V6-D12",
+  "agents": [
+   {
+    "agent": "tulpe-planer",
+    "app": "Claude Code CLI · Studio",
+    "project": "tulpe-planer",
+    "session_id": "v6d12-a",
+    "turns": [
+     {
+      "turn_id": "v6d12-a-t1",
+      "ended_at": "2026-11-18T05:10:00Z",
+      "source": "Die Wochenansicht im tulpe-planer zeigt jetzt Feiertage. 19 Tests bestehen.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 19,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     },
+     {
+      "turn_id": "v6d12-a-t2",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Feiertage für Bayern ergänzt. 21 Tests bestehen.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 21,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "weide-api",
+    "app": "Codex CLI · Studio",
+    "project": "weide-api",
+    "session_id": "v6d12-b",
+    "turns": [
+     {
+      "turn_id": "v6d12-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Soll die weide-api alte Tokens sofort oder nach 24 Stunden sperren?",
+      "facts": {
+       "outcome": "question",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Alte Tokens sofort oder nach 24 Stunden sperren?"
+       ],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:15:00Z",
+      "detail": "Token-Sperre"
+     }
+    ]
+   },
+   {
+    "agent": "heide-cli",
+    "app": "Cursor",
+    "project": "heide-cli",
+    "session_id": "v6d12-c",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T01:00:00Z",
+      "detail": "gestern Abend geöffnet, keine Turns"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:15 · 3 agents\nweide-api · asks you: “Alte Tokens sofort oder nach 24 Stunden sperren?”\ntulpe-planer · ended · Feiertage für Bayern ergänzt · tests passed\nheide-cli · working",
+  "second": "Digest · 07:15 · 3 agents\nweide-api · asks you: “Alte Tokens sofort oder nach 24 Stunden sperren?”\ntulpe-planer · ended · 2 turns · tests passed · last: “Feiertage für Bayern ergänzt.”\nheide-cli · working"
+ },
+ {
+  "pair": "digest6-digest_mr-009",
+  "item": "V6-D13",
+  "agents": [
+   {
+    "agent": "lynx-proxy (Claude Code CLI · Studio)",
+    "app": "Claude Code CLI · Studio",
+    "project": "lynx-proxy",
+    "session_id": "v6d13-a",
+    "turns": [
+     {
+      "turn_id": "v6d13-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "lynx-proxy TLS config updated. Tests pass: 15.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 15,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "lynx-proxy (Codex CLI · Studio)",
+    "app": "Codex CLI · Studio",
+    "project": "lynx-proxy",
+    "session_id": "v6d13-b",
+    "turns": [
+     {
+      "turn_id": "v6d13-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "I am still compiling the lynx-proxy integration images; 40 minutes so far with no progress output.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T07:50:00Z",
+      "detail": "no progress for 40 minutes"
+     }
+    ]
+   },
+   {
+    "agent": "hare-board",
+    "app": "Claude app · Home",
+    "project": "hare-board",
+    "session_id": "v6d13-c",
+    "turns": [
+     {
+      "turn_id": "v6d13-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "hare-board card sorting fixed. 8 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 8,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:50 · 3 agents\nlynx-proxy (Codex CLI · Studio) · stuck · stuck for 40 min · I am still compiling the lynx-proxy integration images\nlynx-proxy (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “lynx-proxy TLS config updated.”\nhare-board · ended · 1 turn · tests passed · last: “hare-board card sorting fixed.”",
+  "second": "Digest · 07:50 · 3 agents\nlynx-proxy (Codex CLI · Studio) · stuck · stuck for 40 min · 1 turn · last: “I am still compiling the lynx-proxy integration images; 40 minutes so far with no progress output.”\nlynx-proxy (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “lynx-proxy TLS config updated.”\nhare-board · ended · 1 turn · tests passed · last: “hare-board card sorting fixed.”"
+ },
+ {
+  "pair": "digest6-digest_mr-010",
+  "item": "V6-D15",
+  "agents": [
+   {
+    "agent": "clam-notes (Claude app · Home)",
+    "app": "Claude app · Home",
+    "project": "clam-notes",
+    "session_id": "v6d15-a",
+    "turns": [
+     {
+      "turn_id": "v6d15-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Rewrote the clam-notes editor toolbar, then restored the old version because the new one broke keyboard shortcuts. No changes remain.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "clam-notes (OpenCode)",
+    "app": "OpenCode",
+    "project": "clam-notes",
+    "session_id": "v6d15-b",
+    "turns": [
+     {
+      "turn_id": "v6d15-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Added word count to clam-notes status bar. 12 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 12,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 2 agents\nclam-notes (Claude app · Home) · ended · 1 turn · last: “Rewrote the clam-notes editor toolbar, then restored the old version because the new one broke…”\nclam-notes (OpenCode) · ended · 1 turn · tests passed · last: “Added word count to clam-notes status bar.”",
+  "second": "Digest · 07:00 · 2 agents\nclam-notes (Claude app · Home) · ended · No changes remain\nclam-notes (OpenCode) · ended · 1 turn · tests passed · last: “Added word count to clam-notes status bar.”"
+ },
+ {
+  "pair": "digest6-digest_mr-011",
+  "item": "V6-D16",
+  "agents": [
+   {
+    "agent": "mink-pay (Claude Code CLI · Studio)",
+    "app": "Claude Code CLI · Studio",
+    "project": "mink-pay",
+    "session_id": "v6d16-a",
+    "turns": [
+     {
+      "turn_id": "v6d16-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "mink-pay fraud rules changed. Tests were not run because the fixtures are missing.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "mink-pay (Codex CLI · Studio)",
+    "app": "Codex CLI · Studio",
+    "project": "mink-pay",
+    "session_id": "v6d16-b",
+    "turns": [
+     {
+      "turn_id": "v6d16-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "mink-pay dashboard shows the new rule counts. 4 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 4,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "yarrow-api",
+    "app": "Claude Code CLI · Home",
+    "project": "yarrow-api",
+    "session_id": "v6d16-c",
+    "turns": [
+     {
+      "turn_id": "v6d16-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "yarrow-api pagination done. 27 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 27,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 3 agents\nmink-pay (Claude Code CLI · Studio) · ended · Mink-pay fraud rules changed; tests were not run because the fixtures are missing\nmink-pay (Codex CLI · Studio) · ended · 4 tests pass\nyarrow-api · ended · 1 turn · tests passed · last: “yarrow-api pagination done.”",
+  "second": "Digest · 07:00 · 3 agents\nmink-pay (Claude Code CLI · Studio) · ended · 1 turn · last: “mink-pay fraud rules changed.” (Tests were not run because the fixtures are missing.)\nmink-pay (Codex CLI · Studio) · ended · 1 turn · tests passed · last: “mink-pay dashboard shows the new rule counts.”\nyarrow-api · ended · 1 turn · tests passed · last: “yarrow-api pagination done.”"
+ },
+ {
+  "pair": "digest6-digest_mr-012",
+  "item": "V6-D18",
+  "agents": [
+   {
+    "agent": "fox-ci (Claude Code CLI · Studio)",
+    "app": "Claude Code CLI · Studio",
+    "project": "fox-ci",
+    "session_id": "v6d18-a",
+    "turns": [
+     {
+      "turn_id": "v6d18-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "fox-ci cache keys fixed; 10 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 10,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "fox-ci (Codex CLI · Studio)",
+    "app": "Codex CLI · Studio",
+    "project": "fox-ci",
+    "session_id": "v6d18-b",
+    "turns": [
+     {
+      "turn_id": "v6d18-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "fox-ci runner pool resized. No tests exist for this.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "fox-ci (Cursor)",
+    "app": "Cursor",
+    "project": "fox-ci",
+    "session_id": "v6d18-c",
+    "turns": [
+     {
+      "turn_id": "v6d18-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "fox-ci log output now truncated at 5 MB. 3 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 3,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "fox-ci (Claude app · Home)",
+    "app": "Claude app · Home",
+    "project": "fox-ci",
+    "session_id": "v6d18-d",
+    "turns": [
+     {
+      "turn_id": "v6d18-d-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "fox-ci needs your call: should failed jobs be retried automatically, once or twice?",
+      "facts": {
+       "outcome": "question",
+       "level": "attention",
+       "tests": {},
+       "questions": [
+        "Retry failed jobs automatically, once or twice?"
+       ],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "asked",
+      "at": "2026-11-18T07:55:00Z",
+      "detail": "retry count"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:55 · 4 agents\nfox-ci (Claude app · Home) · asks you: “Retry failed jobs automatically, once or twice?”\nfox-ci (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “fox-ci cache keys fixed; 10 tests pass.”\nfox-ci (Codex CLI · Studio) · ended · Fox-ci runner pool resized\nfox-ci (Cursor) · ended · Fox-ci log output now truncated at 5 MB, 3 passed",
+  "second": "Digest · 07:55 · 4 agents\nfox-ci (Claude app · Home) · asks you: “Retry failed jobs automatically, once or twice?”\nfox-ci (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “fox-ci cache keys fixed; 10 tests pass.”\nfox-ci (Codex CLI · Studio) · ended · 1 turn · last: “fox-ci runner pool resized.”\nfox-ci (Cursor) · ended · 1 turn · tests passed · last: “fox-ci log output now truncated at 5 MB.”"
+ },
+ {
+  "pair": "digest6-digest_mr-013",
+  "item": "V6-D21",
+  "agents": [
+   {
+    "agent": "kranich-api (Claude Code CLI · Studio)",
+    "app": "Claude Code CLI · Studio",
+    "project": "kranich-api",
+    "session_id": "v6d21-a",
+    "turns": [
+     {
+      "turn_id": "v6d21-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Die Passwort-Zurücksetzung in der kranich-api ist fertig. 34 Tests bestehen.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 34,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "kranich-api (Codex CLI · Studio)",
+    "app": "Codex CLI · Studio",
+    "project": "kranich-api",
+    "session_id": "v6d21-b",
+    "turns": [
+     {
+      "turn_id": "v6d21-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Ratenbegrenzung für die kranich-api: 12 Tests bestehen, 3 schlagen fehl.",
+      "facts": {
+       "outcome": "failed",
+       "level": "attention",
+       "tests": {
+        "passed": 12,
+        "failed": 3
+       },
+       "questions": [],
+       "failures": [
+        "3 Tests der Ratenbegrenzung schlagen fehl"
+       ]
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "failed",
+      "at": "2026-11-18T07:18:00Z",
+      "detail": "3 Tests"
+     }
+    ]
+   },
+   {
+    "agent": "specht-ui",
+    "app": "Claude app · Home",
+    "project": "specht-ui",
+    "session_id": "v6d21-c",
+    "turns": [
+     {
+      "turn_id": "v6d21-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Das Menü der specht-ui ist jetzt per Tastatur bedienbar. Tests nicht ausgeführt.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:18 · 3 agents\nkranich-api (Codex CLI · Studio) · failed: “3 Tests der Ratenbegrenzung schlagen fehl” · tests failed\nkranich-api (Claude Code CLI · Studio) · ended · 1 turn · tests passed · last: “Die Passwort-Zurücksetzung in der kranich-api ist fertig.”\nspecht-ui · ended · 1 turn · last: “Das Menü der specht-ui ist jetzt per Tastatur bedienbar.” (Tests nicht ausgeführt.)",
+  "second": "Digest · 07:18 · 3 agents\nkranich-api (Codex CLI · Studio) · failed: “3 Tests der Ratenbegrenzung schlagen fehl” · tests failed\nkranich-api (Claude Code CLI · Studio) · ended · Die Passwort-Zurücksetzung in der kranich-api ist fertig · tests passed\nspecht-ui · ended · Das Menü der specht-ui ist jetzt per Tastatur bedienbar; tests nicht ausgeführt"
+ },
+ {
+  "pair": "digest6-digest_mr-014",
+  "item": "V6-D25",
+  "agents": [
+   {
+    "agent": "snipe-pay",
+    "app": "Claude Code CLI · Studio",
+    "project": "snipe-pay",
+    "session_id": "v6d25-a",
+    "turns": [
+     {
+      "turn_id": "v6d25-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "snipe-pay fee calculation now rounds up per item. 26 tests pass. This changes totals by up to 3 cents, which I think is the intent.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {
+        "passed": 26,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "cairn-ui",
+    "app": "Codex CLI · Studio",
+    "project": "cairn-ui",
+    "session_id": "v6d25-b",
+    "turns": [
+     {
+      "turn_id": "v6d25-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "cairn-ui breadcrumbs added. 9 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "cairn-api",
+    "app": "Cursor",
+    "project": "cairn-api",
+    "session_id": "v6d25-c",
+    "turns": [
+     {
+      "turn_id": "v6d25-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "cairn-api cache headers updated. 11 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 11,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 3 agents\nsnipe-pay · ended · Snipe-pay fee calculation now rounds up per item, 26 passed\ncairn-ui · ended · 1 turn · tests passed · last: “cairn-ui breadcrumbs added.”\ncairn-api · ended · 1 turn · tests passed · last: “cairn-api cache headers updated.”",
+  "second": "Digest · 07:00 · 3 agents\nsnipe-pay · ended · 1 turn · tests passed · last: “snipe-pay fee calculation now rounds up per item.”\ncairn-ui · ended · 1 turn · tests passed · last: “cairn-ui breadcrumbs added.”\ncairn-api · ended · 1 turn · tests passed · last: “cairn-api cache headers updated.”"
+ },
+ {
+  "pair": "digest6-digest_mr-015",
+  "item": "V6-D27",
+  "agents": [
+   {
+    "agent": "crest-mono",
+    "app": "Claude Code CLI · Studio",
+    "project": "crest-mono",
+    "session_id": "v6d27-a",
+    "turns": [
+     {
+      "turn_id": "v6d27-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Moved 38 files in crest-mono from CommonJS to ESM. Build passes; 140 of 140 unit tests pass. The end-to-end suite has not been run.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {
+        "passed": 140,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "rill-api",
+    "app": "Codex CLI · Studio",
+    "project": "rill-api",
+    "session_id": "v6d27-b",
+    "turns": [
+     {
+      "turn_id": "v6d27-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "rill-api health endpoint added. 3 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 3,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "rill-web",
+    "app": "OpenCode",
+    "project": "rill-web",
+    "session_id": "v6d27-c",
+    "turns": [
+     {
+      "turn_id": "v6d27-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "rill-web status page done. 4 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 4,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 3 agents\ncrest-mono · ended · 1 turn · tests passed · last: “Moved 38 files in crest-mono from CommonJS to ESM.” (The end-to-end suite has not been run.)\nrill-api · ended · 1 turn · tests passed · last: “rill-api health endpoint added.”\nrill-web · ended · 1 turn · tests passed · last: “rill-web status page done.”",
+  "second": "Digest · 07:00 · 3 agents\ncrest-mono · ended · Moved 38 files in crest-mono from CommonJS to ESM, 140 passed; the end-to-end suite has not been run\nrill-api · ended · 1 turn · tests passed · last: “rill-api health endpoint added.”\nrill-web · ended · 1 turn · tests passed · last: “rill-web status page done.”"
+ },
+ {
+  "pair": "digest6-digest_mr-016",
+  "item": "V6-D29",
+  "agents": [
+   {
+    "agent": "ginster-api",
+    "app": "Claude Code CLI · Studio",
+    "project": "ginster-api",
+    "session_id": "v6d29-a",
+    "turns": [
+     {
+      "turn_id": "v6d29-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr.",
+      "facts": {
+       "outcome": "running",
+       "level": "info",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "stuck",
+      "at": "2026-11-18T07:50:00Z",
+      "detail": "50 Minuten ohne Ausgabe"
+     }
+    ]
+   },
+   {
+    "agent": "raute-ui",
+    "app": "Codex CLI · Studio",
+    "project": "raute-ui",
+    "session_id": "v6d29-b",
+    "turns": [
+     {
+      "turn_id": "v6d29-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Die Tabelle in der raute-ui lässt sich jetzt sortieren. 13 Tests bestehen.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 13,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "raute-api",
+    "app": "Cursor",
+    "project": "raute-api",
+    "session_id": "v6d29-c",
+    "turns": [
+     {
+      "turn_id": "v6d29-c-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "Paginierung der raute-api ist fertig. 9 Tests bestehen.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 9,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:50 · 3 agents\nginster-api · stuck · stuck for 50 min · 1 turn · last: “Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr.”\nraute-ui · ended · 1 turn · tests passed · last: “Die Tabelle in der raute-ui lässt sich jetzt sortieren.”\nraute-api · ended · 1 turn · tests passed · last: “Paginierung der raute-api ist fertig.”",
+  "second": "Digest · 07:50 · 3 agents\nginster-api · stuck · stuck for 50 min · Ich warte seit 50 Minuten auf den Integrationstest der ginster-api, es gibt keine Ausgabe mehr\nraute-ui · ended · Die Tabelle in der raute-ui lässt sich jetzt sortieren · tests passed\nraute-api · ended · Paginierung der raute-api ist fertig · tests passed"
+ },
+ {
+  "pair": "digest6-digest_mr-017",
+  "item": "V6-D30",
+  "agents": [
+   {
+    "agent": "terrace-app (Claude Code CLI · Studio)",
+    "app": "Claude Code CLI · Studio",
+    "project": "terrace-app",
+    "session_id": "v6d30-a",
+    "turns": [
+     {
+      "turn_id": "v6d30-a-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "terrace-app: reverted my payment form rewrite after card tests failed. The old form is back; one small label fix remains.",
+      "facts": {
+       "outcome": "success",
+       "level": "warn",
+       "tests": {},
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "terrace-app (Claude app · Home)",
+    "app": "Claude app · Home",
+    "project": "terrace-app",
+    "session_id": "v6d30-b",
+    "turns": [
+     {
+      "turn_id": "v6d30-b-t1",
+      "ended_at": "2026-11-18T06:40:00Z",
+      "source": "terrace-app receipts email template updated. 8 tests pass.",
+      "facts": {
+       "outcome": "success",
+       "level": "info",
+       "tests": {
+        "passed": 8,
+        "failed": 0
+       },
+       "questions": [],
+       "failures": []
+      }
+     }
+    ],
+    "events": [
+     {
+      "kind": "ended",
+      "at": "2026-11-18T07:00:00Z",
+      "detail": "finished"
+     }
+    ]
+   },
+   {
+    "agent": "orbit-lab",
+    "app": "OpenCode",
+    "project": "orbit-lab",
+    "session_id": "v6d30-c",
+    "turns": [],
+    "events": [
+     {
+      "kind": "started",
+      "at": "2026-11-18T06:00:00Z",
+      "detail": "opened, no turns"
+     }
+    ]
+   }
+  ],
+  "first": "Digest · 07:00 · 3 agents\nterrace-app (Claude Code CLI · Studio) · ended · The old form is back · reverted\nterrace-app (Claude app · Home) · ended · 1 turn · tests passed · last: “terrace-app receipts email template updated.”\norbit-lab · working",
+  "second": "Digest · 07:00 · 3 agents\nterrace-app (Claude Code CLI · Studio) · ended · 1 turn · reverted · last: “terrace-app: reverted my payment form rewrite after card tests failed.”\nterrace-app (Claude app · Home) · ended · 1 turn · tests passed · last: “terrace-app receipts email template updated.”\norbit-lab · working"
+ }
+]

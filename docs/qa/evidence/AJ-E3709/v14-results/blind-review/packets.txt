@@ -1,0 +1,3 @@
+packet-1 = apple-on
+packet-2 = qwen-off
+packet-3 = granite-on

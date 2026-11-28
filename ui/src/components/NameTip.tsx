@@ -8,11 +8,7 @@
  * control's accessible name (`aria-label`); the tip only shows it.
  */
 import { type ButtonHTMLAttributes, type JSX, type ReactNode } from "react";
-import { createPortal } from "react-dom";
-import { keyboardFocus, useTipSpot } from "./WhyTip";
-
-/** The tip's drawing, as the why-tip's. */
-const TIP = "pointer-events-none fixed z-50 w-max max-w-64 rounded-lg border border-hairline bg-overlay px-2.5 py-1.5 text-label leading-snug text-ink shadow-popover";
+import { TipLayer, keyboardFocus, useTipSpot } from "./WhyTip";
 
 /** The name tip's place: to the element's right, centred on it. */
 function beside(box: DOMRect): { left: number; top: number } {
@@ -23,14 +19,11 @@ function beside(box: DOMRect): { left: number; top: number } {
  * and the tip (`null` while hidden). */
 function useNameTip<T extends HTMLElement>(words: string, testId: string) {
   const { ref, at, show, hide } = useTipSpot<T>(beside);
-  const tip: ReactNode =
-    at &&
-    createPortal(
-      <span role="tooltip" style={{ left: at.left, top: at.top, transform: "translateY(-50%)" }} className={TIP} data-testid={testId}>
-        {words}
-      </span>,
-      document.body,
-    );
+  const tip: ReactNode = at && (
+    <TipLayer at={at} centred testId={testId}>
+      {words}
+    </TipLayer>
+  );
   return { ref, show, hide, shown: at !== null, tip };
 }
 

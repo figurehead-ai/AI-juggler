@@ -18,6 +18,13 @@ import { ChoiceOption, Picker } from "../../../components/controls";
 import { SELECTED_FILL } from "../../../components/controls/selected";
 import { Explain } from "../../../components/switch/Explain";
 import { OWN_LABEL, OWN_LEVELS, OWN_SCOPE, POOLS_GUIDE, SAME_AS_POOL, asOwnLevel, ownLabel, type OwnLevel } from "../../../lib/pool-words";
+import { IconView } from "../../../components/icons-places";
+import { IconMessage } from "../../../components/icons-canvas";
+import { IconKey, IconPool, IconSliders } from "../../../components/icons-actions";
+import type { ControlIcon } from "../../../components/controls";
+
+/** AJ-E1558 (D-126): each level's icon: look, talk, act freely. */
+const OWN_ICONS: Record<string, ControlIcon> = { read: IconView, work_together: IconMessage, full: IconKey };
 
 /** The guide's section on what agents may do. */
 const GUIDE = `${POOLS_GUIDE}#what-agents-may-do`;
@@ -58,7 +65,7 @@ export function OwnLevelChoice({
         prefix="On their own (everyone in this pool):"
         value={value}
         disabled={disabled}
-        options={[...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line })), ...(onCustom ? [{ value: "custom", label: CUSTOM.label, hint: CUSTOM.line }] : [])]}
+        options={[...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line, icon: OWN_ICONS[one.id] })), ...(onCustom ? [{ value: "custom", label: CUSTOM.label, hint: CUSTOM.line, icon: IconSliders }] : [])]}
         onChange={(next) => (next === "custom" ? onCustom?.() : onChange(asOwnLevel(next)))}
         testId={testId}
       />
@@ -80,6 +87,7 @@ export function OwnLevelChoice({
               checked={on}
               disabled={disabled}
               onChange={() => onChange(one.id)}
+              icon={OWN_ICONS[one.id]}
               label={one.label}
               hint={
                 <>
@@ -105,6 +113,7 @@ export function OwnLevelChoice({
             checked={value === "custom"}
             disabled={disabled}
             onChange={onCustom}
+            icon={IconSliders}
             label={CUSTOM.label}
             hint={CUSTOM.line}
             className={value === "custom" ? SELECTED_FILL : ""}
@@ -161,8 +170,8 @@ export function MemberOwnLevel({
       value={value ?? "pool"}
       disabled={disabled}
       options={[
-        { value: "pool", label: kept ?? `${SAME_AS_POOL} (${ownLabel(poolLevel)})`, hint: kept ? "Follows that member's choice, now and when it changes." : "Follows the pool's choice, now and when it changes." },
-        ...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line })),
+        { value: "pool", label: kept ?? `${SAME_AS_POOL} (${ownLabel(poolLevel)})`, hint: kept ? "Follows that member's choice, now and when it changes." : "Follows the pool's choice, now and when it changes.", icon: IconPool },
+        ...OWN_LEVELS.map((one) => ({ value: one.id, label: one.label, hint: one.line, icon: OWN_ICONS[one.id] })),
       ]}
       onChange={(next) => onChange(next === "pool" ? null : asOwnLevel(next))}
       testId={testId}

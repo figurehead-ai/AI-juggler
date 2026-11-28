@@ -1,0 +1,85 @@
+{
+ "judge": "Sonnet round judge, blind",
+ "entries": [
+  {
+   "pair": "turns8-feed_pick3-001",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-002",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns8-feed_pick3-003",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-004",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns8-feed_pick3-005",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-006",
+   "prefer": "same"
+  },
+  {
+   "pair": "turns8-feed_pick3-007",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-008",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns8-feed_pick3-009",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-010",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-011",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-012",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-013",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-014",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-015",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-016",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-017",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns8-feed_pick3-018",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns8-feed_pick3-019",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns8-feed_pick3-020",
+   "prefer": "first"
+  }
+ ]
+}

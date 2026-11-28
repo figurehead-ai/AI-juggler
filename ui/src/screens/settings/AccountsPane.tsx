@@ -15,6 +15,7 @@ import { installWords } from "../../lib/providers";
 import { useTools } from "../../lib/tools";
 import { Pane, PaneSection, SettingRow } from "./parts";
 import { useActionHost } from "../../components/ItemMenu";
+import { IconProfiles } from "../../components/icons";
 
 /** What this Mac has of each tool, read once (null while reading). */
 function useInstalls(): ProviderInstallData[] | null {
@@ -89,7 +90,7 @@ export function AccountsPane({ anchor }: { anchor?: string }): JSX.Element {
         title="Accounts and apps"
         footer="An account is a subscription you pay for. An app is where you work with it, one tool with its own sign-in, like Claude Code · Work Max; several apps can share one account."
       >
-        <SettingRow
+        <SettingRow icon={IconProfiles}
           title="Your accounts"
           description="Each subscription with its limits, and the apps signed in to it."
           control={

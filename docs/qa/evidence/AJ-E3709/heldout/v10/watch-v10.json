@@ -1,0 +1,7126 @@
+[
+ {
+  "id": "R10-W01",
+  "request": "Tell me when any app but Cursor starts a session",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any app starts a session"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W02",
+  "request": "Don't buzz me during quiet hours, just tell me when the ingest worker asks something",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ing"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "R10-W03",
+  "request": "Warne mich bei Fehlern, aber nur bei solchen, die nicht von der Wetterstation kommen",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "wenn eine Sitzung fehlschlägt"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W04",
+  "request": "Tell me when the embedding refresh is done",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-emb"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W05",
+  "request": "Wake me up, even during quiet hours, if checkout-api fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-chk"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "R10-W06",
+  "request": "Let me know when the storybook cleanup ends, for the rest of today",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-sto"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W07",
+  "request": "Tell me when the storybook cleanup session closes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-sto"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W08",
+  "request": "Warn me when the Cabin account goes below 15 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-cabin"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 15
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W09",
+  "request": "Tell me when atlas-db has been idle for 20 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-atlas2"
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 20
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W10",
+  "request": "Warne mich auch nachts, wenn das Konto Büro unter 25 Prozent fällt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-buero"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 25
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "R10-W11",
+  "request": "Tell me when the dashboard filters session logs grow past 500 megabytes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when the dashboard filters session finishes"
+  },
+  "tags": [
+   "numeric_unit"
+  ]
+ },
+ {
+  "id": "R10-W12",
+  "request": "The next time the docs link checker fails, let me know",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-doc"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W13",
+  "request": "Warn me when Cabin has spent more than 12 euros",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when the account's allowance drops below a percentage"
+  },
+  "tags": [
+   "numeric_unit"
+  ]
+ },
+ {
+  "id": "R10-W14",
+  "request": "Ping me when the Claude app on Cabin wants an answer from me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cla"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W15",
+  "request": "Keep watching the dashboard filters session and ping me if it gets stuck for 15 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-dsh"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W16",
+  "request": "Alert me when the ingest worker has changed over 300 files",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when the ingest worker finishes"
+  },
+  "tags": [
+   "numeric_unit"
+  ]
+ },
+ {
+  "id": "R10-W17",
+  "request": "Notify me when ledger-lab finishes or fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-ledger0"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    },
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "combined"
+  ]
+ },
+ {
+  "id": "R10-W18",
+  "request": "Tell me when any account hits its limit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W19",
+  "request": "Tell me when the checkout-api session has used more than 2 million tokens",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when the account's allowance drops below a percentage"
+  },
+  "tags": [
+   "numeric_unit"
+  ]
+ },
+ {
+  "id": "R10-W20",
+  "request": "From now on, tell me when the ingest worker asks me anything",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ing"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W21",
+  "request": "Of all my sessions, ping me when checkout-api fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-chk"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W22",
+  "request": "Of every app, Cursor is the one: tell me if it sits idle for 45 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 45
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W23",
+  "request": "Alert me when sessions get stuck, excluding anything in ledger-lab",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any session gets stuck"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W24",
+  "request": "Sag mir dauerhaft Bescheid, wenn der Rechnungsexport fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-rech"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W25",
+  "request": "If anything sits idle for 90 minutes, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 90
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W26",
+  "request": "Out of everything running right now, I only want to hear when the payout reconciler gets stuck for 10 minutes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-pay"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 10
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W27",
+  "request": "Tell me if any session looks stuck for half an hour",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 30
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W28",
+  "request": "Let me know when OpenCode hits a usage limit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-oc"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W29",
+  "request": "Sag mir Bescheid, wenn die Terminerinnerung etwas fragt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ter"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W30",
+  "request": "Sag mir einmal Bescheid, wenn der Fotoalbum-Import fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-fot"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W31",
+  "request": "Egal welches Konto, ich meine das Konto Privat: melde dich, wenn es sein Limit erreicht",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-privat"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W32",
+  "request": "Bis heute Abend: sag mir, wenn die Terminerinnerung fertig ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ter"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W33",
+  "request": "Even at night, tell me when Studio Max drops below 10 percent",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-studio"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 10
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "R10-W34",
+  "request": "Among every project I have, let me know when hello-site starts a new session",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-hello3"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W35",
+  "request": "Everywhere at once is too noisy, so just the Studio Max account: warn me when its runway drops under 30%",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-studio"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 30
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W36",
+  "request": "Sag Bescheid, wenn der Rechnungsexport mehr als 40 Zeilen Code geändert hat",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "wenn der Rechnungsexport fertig ist"
+  },
+  "tags": [
+   "numeric_unit"
+  ]
+ },
+ {
+  "id": "R10-W37",
+  "request": "Let me know when a session asks me something, but not the embedding one",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any session asks you something"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W38",
+  "request": "Tell me when sessions finish, except the storybook cleanup",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any session finishes"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W39",
+  "request": "Melde dich immer, wenn die Wetterstation-Sync nachfragt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-wet"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W40",
+  "request": "Tell me when the payment flow finishes unless it ran for under an hour",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when the checkout-api session finishes"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W41",
+  "request": "Tell me when a new session starts in Cursor",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W42",
+  "request": "Ping me when anything fails apart from the docs link checker",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any session fails"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W43",
+  "request": "Across all my apps, tell me when the scan deskew session finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ocr"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W44",
+  "request": "Just this once, tell me when the embedding refresh finishes",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-emb"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W45",
+  "request": "Von allen Sitzungen interessiert mich nur der Lagerbestand-Abgleich: sag mir, wenn er fehlschlägt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lag"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W46",
+  "request": "Tell me when the scan deskew session finishes, but hold it until quiet hours end",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ocr"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "R10-W47",
+  "request": "Melde dich, wenn etwas nachfragt, ausgenommen die Terminerinnerung",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "wenn eine Sitzung nachfragt"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W48",
+  "request": "Sag mir, wenn das Projekt stationsnetz 20 Minuten hängt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "p-statio1"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 20
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W49",
+  "request": "Melde dich nur beim nächsten Mal, wenn der Lagerbestand-Abgleich hängen bleibt",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lag"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": null
+    }
+   ],
+   "lifetime": "once",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W50",
+  "request": "Let me know if the iOS widget session crashes or errors out",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-ios"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": []
+ },
+ {
+  "id": "R10-W51",
+  "request": "Whichever account it is, I mean Personal Plus: tell me when it hits its limit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "acct-plus"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W52",
+  "request": "Sag mir, wenn eine Sitzung fertig ist, außer dem Fotoalbum-Import",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "wenn eine Sitzung fertig ist"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W53",
+  "request": "Let me know when the ingest worker finishes, and skip the first time it does",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when the ingest worker finishes"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W54",
+  "request": "Any time the billing-sync session asks me something, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-bill"
+   },
+   "conditions": [
+    {
+     "type": "asks",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "entity_among_broad"
+  ]
+ },
+ {
+  "id": "R10-W55",
+  "request": "Permanently notify me whenever the schema migration session fails",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-mig"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W56",
+  "request": "Melde mir, wenn in Cursor eine neue Sitzung beginnt, aber nicht in der Ruhezeit",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-rech",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "buchhaltung-tool",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "s-wet",
+     "app": "Codex CLI · Werkstatt",
+     "project": "stationsnetz",
+     "title": "Wetterstation-Sync"
+    },
+    {
+     "id": "s-ter",
+     "app": "Claude-App · Zuhause",
+     "project": "praxis-app",
+     "title": "Terminerinnerung"
+    },
+    {
+     "id": "s-lag",
+     "app": "Cursor",
+     "project": "lager-web",
+     "title": "Lagerbestand-Abgleich"
+    },
+    {
+     "id": "s-fot",
+     "app": "Claude Code CLI · Zuhause",
+     "project": "familien-archiv",
+     "title": "Fotoalbum-Import"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Werkstatt"
+    },
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Werkstatt"
+    },
+    {
+     "id": "app-clz",
+     "name": "Claude-App · Zuhause"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccz",
+     "name": "Claude Code CLI · Zuhause"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-buchha0",
+     "name": "buchhaltung-tool"
+    },
+    {
+     "id": "p-statio1",
+     "name": "stationsnetz"
+    },
+    {
+     "id": "p-praxis2",
+     "name": "praxis-app"
+    },
+    {
+     "id": "p-lager3",
+     "name": "lager-web"
+    },
+    {
+     "id": "p-famili4",
+     "name": "familien-archiv"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-buero",
+     "name": "Büro"
+    },
+    {
+     "id": "acct-privat",
+     "name": "Privat"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "app-cur"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": null,
+   "even_in_quiet_hours": false
+  },
+  "tags": [
+   "quiet_hours"
+  ]
+ },
+ {
+  "id": "R10-W57",
+  "request": "Ping me when all sessions end, with checkout-api left out",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any session ends"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W58",
+  "request": "Notify me about failures, but only the ones that aren't timeouts",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-pay",
+     "app": "Codex CLI · Workshop",
+     "project": "ledger-lab",
+     "title": "Payout reconciler"
+    },
+    {
+     "id": "s-ocr",
+     "app": "Cursor",
+     "project": "paper-trail",
+     "title": "Scan deskew"
+    },
+    {
+     "id": "s-ing",
+     "app": "Claude Code CLI · Workshop",
+     "project": "pipe-yard",
+     "title": "Ingest worker"
+    },
+    {
+     "id": "s-dsh",
+     "app": "Claude app · Plus",
+     "project": "glance-board",
+     "title": "Dashboard filters"
+    },
+    {
+     "id": "s-doc",
+     "app": "OpenCode",
+     "project": "handbook",
+     "title": "Docs link checker"
+    },
+    {
+     "id": "s-ios",
+     "app": "Claude Code CLI · Plus",
+     "project": "pocket-app",
+     "title": "iOS widget"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-cxw",
+     "name": "Codex CLI · Workshop"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-ccw",
+     "name": "Claude Code CLI · Workshop"
+    },
+    {
+     "id": "app-clp",
+     "name": "Claude app · Plus"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccp",
+     "name": "Claude Code CLI · Plus"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-ledger0",
+     "name": "ledger-lab"
+    },
+    {
+     "id": "p-paper1",
+     "name": "paper-trail"
+    },
+    {
+     "id": "p-pipe2",
+     "name": "pipe-yard"
+    },
+    {
+     "id": "p-glance3",
+     "name": "glance-board"
+    },
+    {
+     "id": "p-handbo4",
+     "name": "handbook"
+    },
+    {
+     "id": "p-pocket5",
+     "name": "pocket-app"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-work",
+     "name": "Workshop"
+    },
+    {
+     "id": "acct-plus",
+     "name": "Personal Plus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when any session fails"
+  },
+  "tags": [
+   "meaning_changer"
+  ]
+ },
+ {
+  "id": "R10-W59",
+  "request": "Every time the landing page copy session finishes, let me know",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "s-lan"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed",
+   "nearest_if_unsupported": null
+  },
+  "tags": [
+   "lifetime_words"
+  ]
+ },
+ {
+  "id": "R10-W60",
+  "request": "Ping me if billing-sync has made 8 failed retries in a row",
+  "context": {
+   "sessions": [
+    {
+     "id": "s-chk",
+     "app": "Claude Code CLI · Studio",
+     "project": "checkout-api",
+     "title": "Payment flow"
+    },
+    {
+     "id": "s-bill",
+     "app": "Codex CLI · Studio",
+     "project": "billing-sync",
+     "title": "Invoice sync"
+    },
+    {
+     "id": "s-mig",
+     "app": "Cursor",
+     "project": "atlas-db",
+     "title": "Schema migration"
+    },
+    {
+     "id": "s-lan",
+     "app": "Claude app · Cabin",
+     "project": "hello-site",
+     "title": "Landing page copy"
+    },
+    {
+     "id": "s-emb",
+     "app": "OpenCode",
+     "project": "vector-lab",
+     "title": "Embedding refresh"
+    },
+    {
+     "id": "s-sto",
+     "app": "Claude Code CLI · Cabin",
+     "project": "ui-kit",
+     "title": "Storybook cleanup"
+    }
+   ],
+   "apps": [
+    {
+     "id": "app-ccs",
+     "name": "Claude Code CLI · Studio"
+    },
+    {
+     "id": "app-cxs",
+     "name": "Codex CLI · Studio"
+    },
+    {
+     "id": "app-cur",
+     "name": "Cursor"
+    },
+    {
+     "id": "app-cla",
+     "name": "Claude app · Cabin"
+    },
+    {
+     "id": "app-oc",
+     "name": "OpenCode"
+    },
+    {
+     "id": "app-ccc",
+     "name": "Claude Code CLI · Cabin"
+    }
+   ],
+   "projects": [
+    {
+     "id": "p-checko0",
+     "name": "checkout-api"
+    },
+    {
+     "id": "p-billin1",
+     "name": "billing-sync"
+    },
+    {
+     "id": "p-atlas2",
+     "name": "atlas-db"
+    },
+    {
+     "id": "p-hello3",
+     "name": "hello-site"
+    },
+    {
+     "id": "p-vector4",
+     "name": "vector-lab"
+    },
+    {
+     "id": "p-ui5",
+     "name": "ui-kit"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "acct-studio",
+     "name": "Studio Max"
+    },
+    {
+     "id": "acct-cabin",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [],
+   "lifetime": "until:2026-11-18T23:59:00Z",
+   "nearest_if_unsupported": "when billing-sync fails"
+  },
+  "tags": [
+   "numeric_unit"
+  ]
+ }
+]

@@ -40,7 +40,7 @@ import type { FeedItemInfo } from "../lib/ipc/feed";
 import { headCount, needsHeading, needsParts } from "../lib/home-needs";
 import { itemsOf, openNow } from "../lib/rail-items";
 import { useNoticeSummary } from "../lib/notices-store";
-import { homeCounts } from "../lib/home-counts";
+import { homeCounts, runningNow } from "../lib/home-counts";
 import { isSnoozed } from "../lib/railview";
 import { useShownConversations } from "../lib/shown-apps";
 import { useSeen } from "../lib/seen";
@@ -323,8 +323,7 @@ export function HomeScreen({
   });
   // The heading's parts, said with it (its visible words are one count).
   const parts = needCount > 0 ? needsParts(allNeeds, { caps: capNeeds.caps.map(capTitle), messages: messageNeeds.length, tasks: taskNeeds.length }) : [];
-  const openCount = items.filter(openNow).length;
-  const counts = homeCounts({ open: openCount, finishedToday, toReview: notes, inactive: items.filter((item) => item.inactive).length, hidden: hiddenApps });
+  const counts = homeCounts({ open: items.filter(openNow).length, finishedToday, toReview: notes, inactive: items.filter((item) => item.inactive).length, hidden: hiddenApps });
   // D-118: the feed (its handlers are Home's: the session's page, Mark
   // reviewed as Home marks it, the rail's row for ↗).
   const feed = (
@@ -334,7 +333,7 @@ export function HomeScreen({
       // Filled only once the needs are read and none waits (D-118: else the
       // first pinned need holds the one fill; an unread list counts as one).
       quiet={needsNow.known && allNeeds.length + capNeeds.caps.length + messageNeeds.length + taskNeeds.length === 0}
-      scroller={scroller}
+      scroller={scroller} running={runningNow(sessions)}
       nameOf={nameOf}
       facets={{ projects, accounts, subscriptions, pools }}
       toReview={toPick.total}
@@ -349,6 +348,7 @@ export function HomeScreen({
           else void instanceMarkReviewed(id).then(() => onChanged?.(), (cause) => showToast({ tone: "warning", message: errorText(cause) }));
         },
         railOf: (item) => railRowOf(item, items),
+        sessionOf: (id) => items.find((row) => row.session?.id === id) ?? null,
       }}
     />
   );

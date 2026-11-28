@@ -1,0 +1,215 @@
+{
+ "family": "apple",
+ "job": "watch3",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V7-W05",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “any session” finishes. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W08",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W13",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W14",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('idle_for', 40)] != [('stuck', 40)]",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W15",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W19",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “any session” fails. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W23",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-reed')] != ('project', 'p-reed-sessions')",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W26",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W27",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W28",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W29",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('app', 'app-5')] != ('app', 'app-4')",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W32",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “any session” fails. Once.",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W33",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('fails', None), ('finishes', None)] != [('finishes', None)]",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W37",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('asks_you', 1)] != [('asks_you', None)]",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W38",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W40",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('idle_for', 25)] != [('stuck', 25)]",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W41",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W42",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W43",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “Webhook retries” hits a usage limit. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W44",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-tell')] != ('any', None); lifetime today; gold: a date beyond the draft's shape",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W48",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W51",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Ich sage dir Bescheid, wenn “any session” fertig ist. Bis heute Mitternacht.",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W54",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W55",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != always",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W57",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch7"
+  },
+  {
+   "id": "V7-W60",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime today; gold: a date beyond the draft's shape",
+   "stage": "shown",
+   "corpus": "watch7"
+  }
+ ]
+}

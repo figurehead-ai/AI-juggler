@@ -1,0 +1,109 @@
+{
+ "reviewer": "Sonnet 5.5 (blind, key unopened)",
+ "entries": [
+  {
+   "pair": "turns7-feed_pick2-001",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-002",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-003",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-004",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-005",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-006",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-007",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-008",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-009",
+   "prefer": "same"
+  },
+  {
+   "pair": "turns7-feed_pick2-010",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-011",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-012",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-013",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-014",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-015",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-016",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-017",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-018",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-019",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-020",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-021",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-022",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-023",
+   "prefer": "same"
+  },
+  {
+   "pair": "turns7-feed_pick2-024",
+   "prefer": "first"
+  },
+  {
+   "pair": "turns7-feed_pick2-025",
+   "prefer": "second"
+  },
+  {
+   "pair": "turns7-feed_pick2-026",
+   "prefer": "first"
+  }
+ ]
+}

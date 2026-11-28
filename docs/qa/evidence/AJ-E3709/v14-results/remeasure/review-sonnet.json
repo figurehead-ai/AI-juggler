@@ -1,0 +1,261 @@
+{
+ "P01": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P02": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P03": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P04": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P05": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": "hides the question"
+  }
+ },
+ "P06": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P07": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P08": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P09": {
+  "pick": "B",
+  "critical": {
+   "A": "Not done contradicts done",
+   "B": null
+  }
+ },
+ "P10": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P11": {
+  "pick": "same",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P12": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P13": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P14": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P15": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P16": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P17": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": "hides the question"
+  }
+ },
+ "P18": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P19": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P20": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": "omits staging check not done"
+  }
+ },
+ "P21": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P22": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P23": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": "tests pass false"
+  }
+ },
+ "P24": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P25": {
+  "pick": "B",
+  "critical": {
+   "A": "tests fail not run",
+   "B": null
+  }
+ },
+ "P26": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": "other changes you asked for false"
+  }
+ },
+ "P27": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P28": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P29": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P30": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P31": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P32": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P33": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P34": {
+  "pick": "A",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P35": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P36": {
+  "pick": "B",
+  "critical": {
+   "A": null,
+   "B": null
+  }
+ },
+ "P37": {
+  "pick": "B",
+  "critical": {
+   "A": "states sync done to team drive",
+   "B": null
+  }
+ }
+}

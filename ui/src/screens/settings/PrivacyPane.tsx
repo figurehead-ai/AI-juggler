@@ -13,6 +13,10 @@ import { PrivacyClaims } from "../PrivacyScreen";
 import { Pane, PaneSection, SettingRow, SwitchRow } from "./parts";
 import { onRemoteChanged, remoteAbout, remoteCheckSet } from "../../lib/ipc/remote";
 import { errorText } from "../../lib/bridge";
+import { IconMessage } from "../../components/icons-canvas";
+import { IconSessions } from "../../components/icons";
+import { IconStorage } from "../../components/icons-settings";
+import { IconUpdate } from "../../components/icons-menu";
 
 const openSection = (section: string) => window.dispatchEvent(new CustomEvent("aij:open-settings", { detail: { section } }));
 
@@ -32,7 +36,7 @@ function ConfigCheckRow(): JSX.Element {
     };
   }, []);
   return (
-    <SwitchRow
+    <SwitchRow icon={IconUpdate}
       title="Check for configuration updates"
       description="At most once a day, AI Juggler downloads its signed configuration file: which tool versions and models work here, and short notices. The download carries nothing about you, and a file that doesn't verify is never used."
       checked={on ?? true}
@@ -60,12 +64,12 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
         title="What AI Juggler reads"
         footer="All of it on this computer. Every line below names the tests that check it."
       >
-        <SettingRow
+        <SettingRow icon={IconSessions}
           title="To know what's open"
           description="Each tool's own session files, and the names of running programs and the apps that started them. Never a program's environment, where the Claude app keeps a sign-in token."
           testId="privacy-reads-open"
         />
-        <SettingRow
+        <SettingRow icon={IconMessage}
           title="For Last messages"
           description="The end of a session's transcript, read while its page is open, held in memory until a minute after it closes, and never written down. Off with one switch."
           testId="privacy-reads-last"
@@ -75,7 +79,7 @@ export function PrivacyPane({ anchor }: { anchor?: string }): JSX.Element {
             </Button>
           }
         />
-        <SettingRow
+        <SettingRow icon={IconStorage}
           title="What it keeps to be quick"
           description="A cache on this computer, never sent: subagent lists (their prompts and results only while Last messages are on), app icons and the search index. Clear it or turn it off in Local cache."
           testId="privacy-reads-cache"

@@ -9,7 +9,7 @@ import { cleanup, fireEvent, render, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeFeedDigest } from "./HomeFeedDigest";
 import { whenOf } from "./HomeFeedCard";
-import { cardsOf, digestCovered } from "../lib/feed-rollup";
+import { cardsOf } from "../lib/feed-rollup";
 import { digestHeader, digestLineWords, digestMoreWords } from "../lib/feed-words";
 import { feedItem } from "../preview/feed";
 import type { DigestInfo } from "../types/generated/DigestInfo";
@@ -57,6 +57,8 @@ describe("AJ-E3712 — the digest's words", () => {
     [line("ui", { state: "working" }), "ui · working"],
     [line("svc", { state: "working", restarted: true }), "svc · working · restarted after a crash"],
     [line("db", { state: "idle", tests: "not_run", caveat: "not_run" }), "db · idle · tests not run"],
+    // D-149's map step: the model's pick of the agent's own words, in place of its last words.
+    [line("sync", { state: "finished", turns: 1, picked: "Added a flush after the final batch, 14 passed", quote: "Done.", quote_kind: "last" }), "sync · finished · 1 turn · Added a flush after the final batch, 14 passed"],
   ])("%#: says the facts it holds", (one, words) => {
     expect(said(one)).toBe(words);
   });
@@ -94,7 +96,7 @@ describe("AJ-E3712 — the digest item", () => {
   it.each([1, 3, 7])("with %i sessions shows at most six, the rest behind one fold", (count) => {
     const onOpen = vi.fn();
     const { getByTestId, queryByTestId } = render(<HomeFeedDigest item={item} digest={digest(count, 2)} when="10:45 AM" onOpen={onOpen} />);
-    expect(getByTestId("digest-header").textContent).toBe(`${count} ${count === 1 ? "session" : "sessions"}`);
+    expect(getByTestId("digest-header").textContent).toBe(`${count} ${count === 1 ? "session" : "sessions"} changed:`);
     expect(within(getByTestId("digest-lines")).getAllByTestId("digest-line")).toHaveLength(Math.min(6, count));
     if (count > 6) {
       const more = getByTestId("digest-more");
@@ -118,12 +120,33 @@ describe("AJ-E3712 — the digest item", () => {
   it("AJ-E1548 #20: two sessions with one name are told apart, by when each changed", () => {
     const twins: DigestInfo = { start_ms: 0, end_ms: 1_000, lines: [line("api", { session_id: "s-b", at_ms: 900 }), line("api", { session_id: "s-a", at_ms: 400 }), line("web")], shown: 3, quiet: 0, ai: false };
     const { getAllByRole, getByTestId } = render(<HomeFeedDigest item={item} digest={twins} when="10:45 AM" onOpen={() => {}} />);
-    expect(getByTestId("digest-header").textContent).toBe("3 sessions");
+    expect(getByTestId("digest-header").textContent).toBe("3 sessions changed:");
     expect(getAllByRole("button").map((b) => b.textContent)).toEqual(["api (2)", "api (1)", "web"]);
   });
 });
 
-describe("AJ-E2314 L5: after a digest, Home's feed says each finish once", () => {
+describe("0.5.2 G21: a digest's sessions as the rail says them now", () => {
+  const item = feedItem({ id: "d:9", at_ms: 1_000, kind: "agent_digest", category: "digest" });
+  it("names each by the rail's name and its state now; one the rail doesn't list keeps the digest's words", () => {
+    const made: DigestInfo = {
+      start_ms: 0, end_ms: 1_000, shown: 3, quiet: 0, ai: false,
+      lines: [line("web", { session_id: "s-1", state: "working", at_ms: 900 }), line("web", { session_id: "s-2", state: "finished", at_ms: 400 }), line("api", { session_id: "s-3", state: "working" })],
+    };
+    const rail: Record<string, { name: string; state: string }> = {
+      "s-1": { name: "Update the summary cell in the report notebook", state: "Idle" },
+      "s-2": { name: "Split the cart total into its own module and test it", state: "Finished" },
+    };
+    const { getAllByTestId, getAllByRole } = render(<HomeFeedDigest item={item} digest={made} when="6:44 PM" onOpen={() => {}} live={(id) => rail[id] ?? null} />);
+    expect(getAllByRole("button").map((b) => b.textContent)).toEqual(["Update the summary cell in the report notebook", "Split the cart total into its own module and test it", "api"]);
+    expect(getAllByTestId("digest-line").map((l) => l.textContent)).toEqual([
+      "Update the summary cell in the report notebook · idle",
+      "Split the cart total into its own module and test it · finished",
+      "api · working",
+    ]);
+  });
+});
+
+describe("0.5.2 G21: a digest never hides a post", () => {
   const NOW = 10_000_000;
   const MIN = 60_000;
   const done = (session: string, at: number, project: string) =>
@@ -131,14 +154,10 @@ describe("AJ-E2314 L5: after a digest, Home's feed says each finish once", () =>
   const told: DigestInfo = { start_ms: NOW - 3 * MIN, end_ms: NOW - MIN, lines: [line("web", { session_id: "s-web", state: "finished" }), line("api", { session_id: "s-api1", state: "finished" }), line("api", { session_id: "s-api2", state: "finished" })], shown: 3, quiet: 0, ai: false };
   const summary = feedItem({ id: "d:1", at_ms: NOW - MIN, kind: "digest", category: "finished", digest: told });
 
-  it("the finishes its digest tells aren't cards beside it; one outside its window or not in it still is", () => {
-    const older = done("s-old", NOW - 30 * MIN, "docs");
-    const other = done("s-other", NOW - 2 * MIN, "notes");
-    const items = [summary, done("s-web", NOW - 2 * MIN, "web"), done("s-api1", NOW - 2 * MIN, "api"), done("s-api2", NOW - 2 * MIN + 5_000, "api"), other, older];
-    expect([...digestCovered(items)].sort()).toEqual(["l:s-api1", "l:s-api2", "l:s-web"]);
-    expect(cardsOf(items).map((card) => card.head.id)).toEqual(["d:1", "l:s-other", "l:s-old"]);
-    // Without its digest (the Finished filter), each finish shows.
-    expect(digestCovered(items.slice(1)).size).toBe(0);
+  it("the finishes its digest tells stay posts beside it, their diff stat and review with them (the RW1 walk: they went into it)", () => {
+    const items = [summary, done("s-web", NOW - 2 * MIN, "web"), done("s-api1", NOW - 2 * MIN, "api"), done("s-api2", NOW - 2 * MIN + 5_000, "api"), done("s-old", NOW - 30 * MIN, "docs")];
+    const shown = cardsOf(items).flatMap((card) => card.things.flatMap((thing) => thing.items.map((one) => one.id)));
+    expect(shown.sort()).toEqual(["d:1", "l:s-api1", "l:s-api2", "l:s-old", "l:s-web"]);
   });
 
   it("a rollup of two finishes of the same age reads one time, never “2 min–2 min”", () => {

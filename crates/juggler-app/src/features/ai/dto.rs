@@ -157,6 +157,11 @@ pub struct AiJobInfo {
     /// The user's own model for the job (AJ-E3812), when they picked one
     /// rather than Automatic; it wins whenever it can run.
     pub pick: Option<String>,
+    /// AJ-E3820 R5: the tools a job covers when it covers only some (tool
+    /// ids): the turn review only a turn whose end AI Juggler sees (a
+    /// command-line App whose tool reports each turn's end and whose
+    /// transcripts it reads). Empty: every tool.
+    pub covers: Vec<String>,
 }
 
 impl AiJobInfo {
@@ -191,6 +196,7 @@ impl AiJobInfo {
             model_id,
             why,
             pick: None,
+            covers: Vec::new(),
         }
     }
 }

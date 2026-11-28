@@ -21,21 +21,21 @@ const ACCOUNTS = [
 ];
 const RECIPES = [{ id: "rec-main", name: "Main", account_id: "claude-work", account_label: "Work Max", provider: "claude-code", model: null, default_cwd: null, restart_on_crash: null }];
 
-async function seed(page: Page, fixture: Record<string, unknown>, size: { width: number; height: number }) {
+async function seed(page: Page, fixture: Record<string, unknown>, size: { width: number; height: number }, theme: "dark" | "light" = "dark") {
   await page.addInitScript(
-    ({ fixture, known, recipes, t0 }) => {
+    ({ fixture, known, recipes, t0, theme }) => {
       const w = window as unknown as Record<string, unknown>;
       w.__AIJ_FIXTURE__ = fixture;
       w.__AIJ_PLACES__ = known;
       w.__AIJ_RECIPES__ = recipes;
-      localStorage.setItem("aij.theme", "dark");
+      localStorage.setItem("aij.theme", theme);
       localStorage.setItem("aij.onboarding.dismissed", "1");
       sessionStorage.setItem("aij.ready.skipped", "1");
       Date.now = () => t0;
     },
-    { fixture, known: knownPlacesPreview(T0), recipes: RECIPES, t0: T0 },
+    { fixture, known: knownPlacesPreview(T0), recipes: RECIPES, t0: T0, theme },
   );
-  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark" });
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: theme });
   await page.setViewportSize(size);
   await page.goto("/");
   await expect(page.getByTestId("rail")).toBeVisible();
@@ -195,3 +195,96 @@ test("A8: a rail row's state word stays whole beside its title — 1280", async 
   const cutWords = await words.evaluateAll((all) => all.filter((el) => el.scrollWidth > el.clientWidth).map((el) => el.textContent));
   expect(cutWords, "a state word cut").toEqual([]);
 });
+
+/** 0.5.2 (PR #257's Happo review): Home's feed tabs stay on one row at
+ * every width walked, the ones without room in the ⋯ menu ("This Mac"
+ * first); the chosen tab stays in the row, whichever it is. At 1200 and
+ * 1024 "This Mac" sat alone on a second line. */
+for (const size of [
+  { width: 1280, height: 800 },
+  { width: 1200, height: 800 },
+  { width: 1024, height: 700 },
+]) {
+  test(`Home's feed tabs keep to one row, the rest in ⋯ — ${size.width}`, async ({ page }) => {
+    await seed(page, { accounts: ACCOUNTS, projects: [], sessions: MOCK_SESSIONS, conversations: placesConversations(T0) }, size);
+    const row = page.getByTestId("feed-chip");
+    await expect(row).toBeVisible();
+    const tops = () => row.locator("button").evaluateAll((tabs) => [...new Set(tabs.map((tab) => Math.round(tab.getBoundingClientRect().top)))]);
+    const inside = () =>
+      row.evaluate((box) => {
+        const edge = box.getBoundingClientRect().right;
+        return [...box.querySelectorAll("button")].every((tab) => tab.getBoundingClientRect().right <= edge + 0.5);
+      });
+    expect(await tops(), "one row").toHaveLength(1);
+    expect(await inside(), "every tab within the row").toBe(true);
+    const hidden = ((await row.getAttribute("data-hidden")) ?? "").split(",").filter(Boolean);
+    const all = ["all", "needs", "sessions", "tasks", "pools", "switches", "mac"];
+    // Hidden from the end, This Mac first.
+    expect(hidden, "hidden from the end").toEqual(all.slice(all.length - hidden.length));
+    if (hidden.length > 0) {
+      await page.getByTestId("feed-more").click();
+      for (const value of hidden) await expect(page.getByTestId(`feed-more-tab-${value}`)).toBeVisible();
+      // Chosen from ⋯, it stays in the row, and the row stays one line.
+      await page.getByTestId(`feed-more-tab-${hidden[0]}`).click();
+      const chosen = page.getByTestId(`feed-chip-${hidden[0]}`);
+      await expect(chosen).toHaveAttribute("aria-pressed", "true");
+      expect(await tops(), "still one row").toHaveLength(1);
+      expect(await inside(), "every tab still within the row").toBe(true);
+    }
+  });
+}
+
+/** No tab shows in part: every tab on the row's visible line ends at
+ * least the toolbar's gap (8 px) before the ⋯ button; one that doesn't fit
+ * is out of sight whole. */
+async function noPartTab(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const row = document.querySelector<HTMLElement>("[data-testid='feed-chip']");
+    const more = document.querySelector<HTMLElement>("[data-testid='feed-more']");
+    if (!row || !more) return ["no row or no ⋯"];
+    const box = row.getBoundingClientRect();
+    const edge = more.getBoundingClientRect().left - 8;
+    return [...row.querySelectorAll<HTMLElement>("button")]
+      .filter((tab) => tab.getBoundingClientRect().top < box.bottom - 1)
+      .filter((tab) => tab.getBoundingClientRect().right > Math.min(edge, box.right) + 0.5)
+      .map((tab) => `${tab.textContent}: ends at ${tab.getBoundingClientRect().right.toFixed(1)}, the ⋯ at ${more.getBoundingClientRect().left.toFixed(1)}`);
+  });
+}
+
+/** PR #257's second Happo check ("This Ma" cut against the ⋯ at
+ * chrome-min, 1024 x 680): at every width walked and Happo's chrome-min,
+ * both themes, no tab shows in part. Then as Happo draws it: the page's
+ * DOM laid out at 1280 shown at 1024 with no script re-fitting it (no
+ * ResizeObserver): a tab that no longer fits drops whole out of sight. */
+for (const theme of ["dark", "light"] as const) {
+  for (const size of [
+    { width: 1280, height: 800 },
+    { width: 1200, height: 900 },
+    { width: 1024, height: 700 },
+    { width: 1024, height: 680 },
+  ]) {
+    test(`Home's feed tabs: none shows in part — ${size.width}x${size.height} — ${theme}`, async ({ page }) => {
+      await seed(page, { accounts: ACCOUNTS, projects: [], sessions: MOCK_SESSIONS, conversations: placesConversations(T0) }, size, theme);
+      await expect(page.getByTestId("feed-chip")).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      expect(await noPartTab(page)).toEqual([]);
+    });
+  }
+  test(`Home's feed tabs: none shows in part with the DOM of a wider layout — ${theme}`, async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { ResizeObserver: unknown }).ResizeObserver = class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      };
+    });
+    await seed(page, { accounts: ACCOUNTS, projects: [], sessions: MOCK_SESSIONS, conversations: placesConversations(T0) }, { width: 1280, height: 800 }, theme);
+    await expect(page.getByTestId("feed-chip")).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    for (const size of [{ width: 1024, height: 680 }, { width: 1100, height: 680 }]) {
+      await page.setViewportSize(size);
+      await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
+      expect(await noPartTab(page), `at ${size.width}`).toEqual([]);
+    }
+  });
+}

@@ -71,3 +71,7 @@ What the figures say:
 - No call site changes now. The rule in Decision 2 is what reviews check; the three long holds are named follow-ups (AJ-E2017's manifest lists them).
 - `storage_contention.rs` stays in the tree, so the trigger is checked with the same seed and the same paths each time it's asked.
 - When the pool comes, it lands behind one accessor, and only reads move. A feature whose read must see its own write keeps using the writer.
+
+## Amendment: durable commits on macOS (AJ-E2026, 0.5.2)
+
+On macOS a plain `fsync` leaves the drive's cache unflushed; only `F_FULLFSYNC` flushes it, and the bundled SQLite leaves `fullfsync` and `checkpoint_fullfsync` off. Every connection AI Juggler opens (`storage::harden`, through `open_hardened`) now sets `checkpoint_fullfsync=ON`. With WAL and `synchronous=NORMAL`, commits don't sync and checkpoints do, so this costs only at checkpoints (a forced checkpoint measured 8.6 ms on the reference Mac). `Storage::make_durable` forces one after a write that must survive a power cut. The paths that must already checkpoint right after committing (the memory store's forget, ADR-0037 §1.5; a backup's export) now flush fully. A move's journal and manifest are files: `sync_all` (which is `F_FULLFSYNC` on Apple) and the folder synced after each rename. Test: `crates/juggler-core/tests/durable_storage.rs`.

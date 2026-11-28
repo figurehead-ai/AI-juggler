@@ -1,4 +1,4 @@
-<!-- captures: ccffbc576762 -->
+<!-- captures: 752d15b41d25 -->
 # 51-identity: a session's identity chip on its page, and the wrong-account dialog that stops a launch
 
 Design critique (D-57, AJ-E2814). First critique of this family, written at the 0.3.2 re-render from its captures as they are now; updated after the 0.3.2 design passes.
@@ -19,3 +19,7 @@ Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail'
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Behind the dialog the rail and Needs you are in their 0.5.1 style; the dialog itself is unchanged. Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured `rail-and-chip` and `wrong-account` at 1024 and 1280, both themes. What changed: no dot before the idle and ended rows (behind the dialog, their soft blots gone); the chip, the dialog and the words are unchanged (AJ-E1557). Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.

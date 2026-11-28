@@ -105,6 +105,26 @@ fn slice(cpu: u32, team: Option<&str>) -> Vec<u8> {
     out
 }
 
+/// AJ-E1555: a team-signed helper's fingerprint is its team (a rebuild
+/// by the same team doesn't "differ"); an ad-hoc or unsigned one's is its
+/// bytes (every rebuild differs); a missing file has none.
+#[test]
+fn a_helpers_signature_is_its_team_or_its_bytes() {
+    let dir = tempfile::tempdir().unwrap();
+    let arm = 0x0100_000c;
+    let team = dir.path().join("team");
+    std::fs::write(&team, slice(arm, Some("ABCDE12345"))).unwrap();
+    assert_eq!(signature_of(&team).as_deref(), Some("team:ABCDE12345"));
+    let local = dir.path().join("local");
+    std::fs::write(&local, b"one build").unwrap();
+    let first = signature_of(&local).unwrap();
+    assert!(first.starts_with("file:"), "{first}");
+    assert_eq!(signature_of(&local).unwrap(), first, "stable");
+    std::fs::write(&local, b"another build").unwrap();
+    assert_ne!(signature_of(&local).unwrap(), first);
+    assert_eq!(signature_of(&dir.path().join("none")), None);
+}
+
 #[test]
 fn the_team_is_read_from_the_code_directory() {
     let arm = 0x0100_000c;

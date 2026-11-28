@@ -1,0 +1,223 @@
+{
+ "family": "apple",
+ "job": "watch8",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R12-W01",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: egal, aber",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W02",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-chk')] != ('session', 's-chk')",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W09",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: don't care about the rest of my apps",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W12",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Bis ich es wieder lösche: warne mich, wenn das Depot-Pro-Konto",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W16",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: but keep it silent at night",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W17",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W19",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: wieder Luft",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W20",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: noch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W23",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W24",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: durch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W27",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W30",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: don't matter",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W31",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W33",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Across all projects, the one",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W34",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: say",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W35",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: fine, but",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W38",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Onboarding-flow Sitzung nach 10 Minuten immer noch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W40",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W42",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Ende",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W44",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: interessiert",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W48",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W49",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: wurde",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W50",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "code: nicht",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W52",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: until I delete",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W54",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Einmalig",
+   "stage": "shown",
+   "corpus": "watch12"
+  },
+  {
+   "id": "R12-W59",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: egal, nur beim Garage-Konto: sag mir, wenn wieder Platz",
+   "stage": "shown",
+   "corpus": "watch12"
+  }
+ ]
+}

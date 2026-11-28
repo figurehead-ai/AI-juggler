@@ -1,0 +1,5908 @@
+[
+ {
+  "id": "R13-W01",
+  "request": "Warne mich, wenn der Suchindex insgesamt länger als zwei Stunden braucht.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "stuck"
+  },
+  "tags": [
+   "counts",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W02",
+  "request": "Von allen Apps zählt für mich nur Cursor, melde, wenn dort eine neue Session startet.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "da2"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W03",
+  "request": "Sag mir jedes Mal Bescheid, wenn der Rechnungsexport fertig ist, bis ich es entferne.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "bs1"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed"
+  },
+  "tags": [
+   "lifetime",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W04",
+  "request": "Sag mir, wann der Dunkelmodus fertig ist, aber nicht, wenn er scheitert.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W05",
+  "request": "Whatever else is running, tell me when the PDF export session finishes.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "cs2"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W06",
+  "request": "Dauerhaft warnen, wenn das Konto Gartenhaus sein Limit erreicht.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "dc2"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed"
+  },
+  "tags": [
+   "lifetime",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W07",
+  "request": "Heute noch Bescheid geben, falls der Ratenbegrenzer abstürzt.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "ds3"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "lifetime",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W08",
+  "request": "Just for today, let me know if the rate limiter run fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "cs3"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "lifetime",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W09",
+  "request": "if any session just sits idle for 45 minutes, tell me",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 45
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W10",
+  "request": "Tell me if a new commit lands in quill-docs",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "cp2"
+   },
+   "conditions": [
+    {
+     "type": "commits",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W11",
+  "request": "Nur ein einziges Mal: melde dich, sobald der Login-Umbau eine Rückfrage hat.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "bs3"
+   },
+   "conditions": [
+    {
+     "type": "asks_you",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  },
+  "tags": [
+   "lifetime",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W12",
+  "request": "tell me when the search index rebuild has been stuck for 15 min",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "cs1"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W13",
+  "request": "Warn me whenever a session ends without leaving processes behind.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "leaves_processes"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W14",
+  "request": "Ping mich an, wenn das Dunkelmodus-Ding durch ist",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "bs2"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W15",
+  "request": "need to know if the map tiles session crashes",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "cs4"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W16",
+  "request": "Tell me once the billing export has asked for its third approval today.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "asks_you"
+  },
+  "tags": [
+   "counts",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W17",
+  "request": "Permanently alert me when Cabin hits its usage limit.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "cc2"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed"
+  },
+  "tags": [
+   "lifetime",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W18",
+  "request": "Tell me when any ledger-sync session fails, except the flaky tests one.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W19",
+  "request": "yo, shout when the dark mode toggle is done",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "as2"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W20",
+  "request": "Alles andere ist mir egal, aber wenn der Changelog fertig ist, möchte ich es wissen.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "ds5"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W21",
+  "request": "Tell me when the map tiles session asks me something, even at night.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "cs4"
+   },
+   "conditions": [
+    {
+     "type": "asks_you",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z",
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W22",
+  "request": "Melde jede Session im Projekt kassenbuch, die fehlschlägt, außer dem Testlauf.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W23",
+  "request": "Egal welche Session, mich interessiert nur das Projekt kassenbuch: sag Bescheid, wenn dort etwas fehlschlägt.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "bp1"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W24",
+  "request": "Tell me when something goes idle, but only if it isn't waiting on me.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "idle_for"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W25",
+  "request": "Across all my accounts I only care about Loft: tell me when its runway resets.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "ac2"
+   },
+   "conditions": [
+    {
+     "type": "runway_resets",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W26",
+  "request": "Ich will nur bei echten Fragen gestört werden, nicht bei Genehmigungen des Login-Umbaus.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "asks_you"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W27",
+  "request": "Bei allen Konten schaue ich nur auf Dachboden: Bescheid, wenn wieder Platz da ist.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "bc2"
+   },
+   "conditions": [
+    {
+     "type": "runway_resets",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W28",
+  "request": "let me know when the release notes session wants something from me",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "cs5"
+   },
+   "conditions": [
+    {
+     "type": "asks_you",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W29",
+  "request": "Falls irgendeine Session 60 Minuten nichts tut, bitte melden",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "any",
+    "id": null
+   },
+   "conditions": [
+    {
+     "type": "idle_for",
+     "param": 60
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W30",
+  "request": "Sag Bescheid, wenn mehr als vier Sessions gleichzeitig laufen.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "starts"
+  },
+  "tags": [
+   "counts",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W31",
+  "request": "heads up if Attic Team drops below 25% runway",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "cc1"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 25
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W32",
+  "request": "Tell me when Hangar Max hits its limit, yes, even overnight.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "ac1"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z",
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W33",
+  "request": "Wenn der Ratenbegrenzer eine Frage hat, sag es mir auch in der Ruhezeit.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "ds3"
+   },
+   "conditions": [
+    {
+     "type": "asks_you",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z",
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W34",
+  "request": "Anything weird in ledger-sync? Tell me when any session there fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "ap1"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W35",
+  "request": "Benachrichtige mich nach jeder zehnten fertigen Session.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  },
+  "tags": [
+   "counts",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W36",
+  "request": "Ping me when more than five sessions are running at once.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "starts"
+  },
+  "tags": [
+   "counts",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W37",
+  "request": "Keep telling me whenever the billing export finishes, until I remove it.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "as1"
+   },
+   "conditions": [
+    {
+     "type": "finishes",
+     "param": null
+    }
+   ],
+   "lifetime": "until_removed"
+  },
+  "tags": [
+   "lifetime",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W38",
+  "request": "Sag Bescheid, wenn irgendeine Session hängt, nur nicht die Kartenkacheln.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "stuck"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W39",
+  "request": "Even if it's quiet hours, wake me when the auth migration fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "as3"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z",
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W40",
+  "request": "One time only: ping me when the auth migration asks for an approval.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "as3"
+   },
+   "conditions": [
+    {
+     "type": "asks_you",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  },
+  "tags": [
+   "lifetime",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W41",
+  "request": "Melde mir das Limit von Werkstatt Pro, selbst in den Ruhezeiten.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "bc1"
+   },
+   "conditions": [
+    {
+     "type": "hits_limit",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z",
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W42",
+  "request": "Tell me about every session that finishes unless it belongs to quill-docs.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W43",
+  "request": "Sobald die Testlauf-Session beendet ist, kurz melden, danach nicht mehr.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "bs4"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  },
+  "tags": [
+   "lifetime",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W44",
+  "request": "The first time the flaky tests session ends, tell me, and after that forget about it.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "as4"
+   },
+   "conditions": [
+    {
+     "type": "ends",
+     "param": null
+    }
+   ],
+   "lifetime": "once"
+  },
+  "tags": [
+   "lifetime",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W45",
+  "request": "I don't care about individual sessions, just let me know when OpenCode starts a new one.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "app",
+    "id": "ca5"
+   },
+   "conditions": [
+    {
+     "type": "starts",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "entity",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W46",
+  "request": "Gib mir Laut, sobald Werkstatt Pro unter 30 Prozent Reichweite rutscht",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "account",
+    "id": "bc1"
+   },
+   "conditions": [
+    {
+     "type": "runway_below",
+     "param": 30
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W47",
+  "request": "Melde dich, wenn der Testlauf zum dritten Mal hintereinander fehlschlägt.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  },
+  "tags": [
+   "counts",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W48",
+  "request": "Wenn der Suchindex 15 Minuten lang festhängt, kurz melden",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "ds1"
+   },
+   "conditions": [
+    {
+     "type": "stuck",
+     "param": 15
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W49",
+  "request": "Sag mir, wenn die Willkommensmails Hilfe brauchen oder eine Frage haben",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "bs5"
+   },
+   "conditions": [
+    {
+     "type": "asks_you",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W50",
+  "request": "Tell me when the billing export finishes, but not if it fails.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W51",
+  "request": "Warne mich, wenn eine Session endet, ohne Prozesse zurückzulassen.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "leaves_processes"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W52",
+  "request": "Let me know when anything asks me a question, apart from plain approvals.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "asks_you"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W53",
+  "request": "Gib Bescheid, wenn die Willkommensmails nicht bis heute Abend fertig werden.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W54",
+  "request": "Ping me if the dark mode toggle does NOT finish by tonight.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "finishes"
+  },
+  "tags": [
+   "negation",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W55",
+  "request": "Melde jeden neuen Commit im Projekt federkiel",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "project",
+    "id": "dp2"
+   },
+   "conditions": [
+    {
+     "type": "commits",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W56",
+  "request": "Sag Bescheid, falls die Kartenkacheln-Session abschmiert",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "ds4"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z"
+  },
+  "tags": [
+   "plain",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W57",
+  "request": "Auch nachts bitte: Bescheid, wenn der Rechnungsexport fehlschlägt.",
+  "context": {
+   "sessions": [
+    {
+     "id": "bs1",
+     "app": "Claude Code CLI · Werkstatt",
+     "project": "kassenbuch",
+     "title": "Rechnungsexport"
+    },
+    {
+     "id": "bs2",
+     "app": "Cursor",
+     "project": "bildschmiede",
+     "title": "Dunkelmodus"
+    },
+    {
+     "id": "bs3",
+     "app": "Codex CLI · Werkstatt",
+     "project": "hafen-api",
+     "title": "Login-Umbau"
+    },
+    {
+     "id": "bs4",
+     "app": "OpenCode",
+     "project": "kassenbuch",
+     "title": "Testlauf reparieren"
+    },
+    {
+     "id": "bs5",
+     "app": "Claude app · Dachboden",
+     "project": "postfach",
+     "title": "Willkommensmails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ba1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "ba2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "ba3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "ba4",
+     "name": "postfach"
+    }
+   ],
+   "projects": [
+    {
+     "id": "bp1",
+     "name": "kassenbuch"
+    },
+    {
+     "id": "bp2",
+     "name": "bildschmiede"
+    },
+    {
+     "id": "bp3",
+     "name": "hafen-api"
+    },
+    {
+     "id": "bp4",
+     "name": "postfach"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "bc1",
+     "name": "Werkstatt Pro"
+    },
+    {
+     "id": "bc2",
+     "name": "Dachboden"
+    }
+   ]
+  },
+  "gold": {
+   "supported": true,
+   "target": {
+    "kind": "session",
+    "id": "bs1"
+   },
+   "conditions": [
+    {
+     "type": "fails",
+     "param": null
+    }
+   ],
+   "lifetime": "until:2026-11-26T23:59:00Z",
+   "even_in_quiet_hours": true
+  },
+  "tags": [
+   "quiet",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W58",
+  "request": "Benachrichtige mich bei jedem Ende einer Session, nur nicht bei Cursor.",
+  "context": {
+   "sessions": [
+    {
+     "id": "ds1",
+     "app": "Claude Code CLI · Keller",
+     "project": "leuchtturm-suche",
+     "title": "Suchindex neu bauen"
+    },
+    {
+     "id": "ds2",
+     "app": "Cursor",
+     "project": "federkiel",
+     "title": "PDF-Export"
+    },
+    {
+     "id": "ds3",
+     "app": "Codex CLI · Keller",
+     "project": "torwaechter",
+     "title": "Ratenbegrenzer"
+    },
+    {
+     "id": "ds4",
+     "app": "Claude app · Gartenhaus",
+     "project": "wanderpfad",
+     "title": "Kartenkacheln"
+    },
+    {
+     "id": "ds5",
+     "app": "OpenCode",
+     "project": "federkiel",
+     "title": "Changelog"
+    }
+   ],
+   "apps": [
+    {
+     "id": "da1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "da2",
+     "name": "federkiel"
+    },
+    {
+     "id": "da3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "da4",
+     "name": "wanderpfad"
+    }
+   ],
+   "projects": [
+    {
+     "id": "dp1",
+     "name": "leuchtturm-suche"
+    },
+    {
+     "id": "dp2",
+     "name": "federkiel"
+    },
+    {
+     "id": "dp3",
+     "name": "torwaechter"
+    },
+    {
+     "id": "dp4",
+     "name": "wanderpfad"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "dc1",
+     "name": "Keller Team"
+    },
+    {
+     "id": "dc2",
+     "name": "Gartenhaus"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "ends"
+  },
+  "tags": [
+   "negation",
+   "de"
+  ]
+ },
+ {
+  "id": "R13-W59",
+  "request": "Alert me if the search index rebuild takes longer than two hours in total.",
+  "context": {
+   "sessions": [
+    {
+     "id": "cs1",
+     "app": "Claude Code CLI · Attic",
+     "project": "lantern-search",
+     "title": "Search index rebuild"
+    },
+    {
+     "id": "cs2",
+     "app": "Cursor",
+     "project": "quill-docs",
+     "title": "PDF export"
+    },
+    {
+     "id": "cs3",
+     "app": "Codex CLI · Attic",
+     "project": "gatekeeper",
+     "title": "Rate limiter"
+    },
+    {
+     "id": "cs4",
+     "app": "Claude app · Cabin",
+     "project": "trailhead",
+     "title": "Map tiles"
+    },
+    {
+     "id": "cs5",
+     "app": "OpenCode",
+     "project": "quill-docs",
+     "title": "Release notes"
+    }
+   ],
+   "apps": [
+    {
+     "id": "ca1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "ca2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "ca3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "ca4",
+     "name": "trailhead"
+    }
+   ],
+   "projects": [
+    {
+     "id": "cp1",
+     "name": "lantern-search"
+    },
+    {
+     "id": "cp2",
+     "name": "quill-docs"
+    },
+    {
+     "id": "cp3",
+     "name": "gatekeeper"
+    },
+    {
+     "id": "cp4",
+     "name": "trailhead"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "cc1",
+     "name": "Attic Team"
+    },
+    {
+     "id": "cc2",
+     "name": "Cabin"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "stuck"
+  },
+  "tags": [
+   "counts",
+   "en"
+  ]
+ },
+ {
+  "id": "R13-W60",
+  "request": "Tell me after the flaky tests session has failed three times in a row.",
+  "context": {
+   "sessions": [
+    {
+     "id": "as1",
+     "app": "Claude Code CLI · Hangar",
+     "project": "ledger-sync",
+     "title": "Billing export"
+    },
+    {
+     "id": "as2",
+     "app": "Cursor",
+     "project": "pixel-forge",
+     "title": "Dark mode toggle"
+    },
+    {
+     "id": "as3",
+     "app": "Codex CLI · Hangar",
+     "project": "harbor-api",
+     "title": "Auth migration"
+    },
+    {
+     "id": "as4",
+     "app": "OpenCode",
+     "project": "ledger-sync",
+     "title": "Flaky tests"
+    },
+    {
+     "id": "as5",
+     "app": "Claude app · Loft",
+     "project": "mailroom",
+     "title": "Onboarding emails"
+    }
+   ],
+   "apps": [
+    {
+     "id": "aa1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "aa2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "aa3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "aa4",
+     "name": "mailroom"
+    }
+   ],
+   "projects": [
+    {
+     "id": "ap1",
+     "name": "ledger-sync"
+    },
+    {
+     "id": "ap2",
+     "name": "pixel-forge"
+    },
+    {
+     "id": "ap3",
+     "name": "harbor-api"
+    },
+    {
+     "id": "ap4",
+     "name": "mailroom"
+    }
+   ],
+   "accounts": [
+    {
+     "id": "ac1",
+     "name": "Hangar Max"
+    },
+    {
+     "id": "ac2",
+     "name": "Loft"
+    }
+   ]
+  },
+  "gold": {
+   "supported": false,
+   "nearest_if_unsupported": "fails"
+  },
+  "tags": [
+   "counts",
+   "en"
+  ]
+ }
+]

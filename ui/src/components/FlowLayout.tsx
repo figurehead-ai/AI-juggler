@@ -4,7 +4,9 @@
  * form filling to 680 px, a live preview of 320–380 px on the right, and
  * the actions at the foot. At most 1180 px wide and left-aligned to the
  * steps, never a narrow column centred on empty space. Under 960 px the
- * preview folds above the form as a summary strip (`summary`).
+ * preview folds above the form as a summary strip (`summary`); with
+ * `fit="room"` (AJ-E3830: the Watches form opened beside Bot's docked
+ * panel) it folds by the room the flow has, under 700 px of it.
  *
  * - `FlowSteps`: the steps, in groups, each with its value under its
  *   name; done ones go back, the current one is marked.
@@ -16,6 +18,13 @@ import { forwardRef, useId, useLayoutEffect, useRef, type JSX, type ReactNode, t
 import { Button } from "./primitives";
 import { IconCheck } from "./icons-controls";
 
+/** Where the preview folds: under 960 px of window, or (`room`) under
+ * 700 px of the flow's own room (the window's 960 less the rail). */
+const FOLD = {
+  window: { body: "max-[960px]:flex-col max-[960px]:gap-5 max-[960px]:px-6", summary: "max-[960px]:block", form: "max-[960px]:w-full", preview: "max-[960px]:hidden" },
+  room: { body: "@max-[700px]:flex-col @max-[700px]:gap-5 @max-[700px]:px-6", summary: "@max-[700px]:block", form: "@max-[700px]:w-full", preview: "@max-[700px]:hidden" },
+} as const;
+
 export function FlowLayout({
   steps,
   preview,
@@ -25,6 +34,7 @@ export function FlowLayout({
   label,
   at,
   testId,
+  fit = "window",
 }: {
   /** The steps beside the form (`FlowSteps`). */
   steps?: ReactNode;
@@ -41,6 +51,9 @@ export function FlowLayout({
   /** The form's name (a named region; the window has its own main). */
   label?: string;
   testId?: string;
+  /** What folds the preview: the window's width (the default), or the
+   * room the flow itself has (a panel docked beside it narrows it). */
+  fit?: "window" | "room";
 }): JSX.Element {
   // The rc3 critique (Review filled): a step scrolled down to its last
   // control (On their own's seal) left the next one opened mid-way, its
@@ -60,18 +73,18 @@ export function FlowLayout({
             {steps}
           </div>
         )}
-        <section ref={form} aria-label={label} className="min-w-0 flex-1 overflow-y-auto bg-canvas" data-testid="flow-scroll">
-          <div className="flex max-w-[1180px] items-start gap-10 px-8 pb-6 pt-7 max-[960px]:flex-col max-[960px]:gap-5 max-[960px]:px-6 min-[1360px]:px-12 min-[1360px]:pt-9" data-testid="flow-body">
+        <section ref={form} aria-label={label} className={"min-w-0 flex-1 overflow-y-auto bg-canvas" + (fit === "room" ? " @container" : "")} data-testid="flow-scroll">
+          <div className={"flex max-w-[1180px] items-start gap-10 px-8 pb-6 pt-7 min-[1360px]:px-12 min-[1360px]:pt-9 " + FOLD[fit].body} data-testid="flow-body">
             {summary && (
-              <div className="hidden w-full max-[960px]:block" data-testid="flow-summary">
+              <div className={"hidden w-full " + FOLD[fit].summary} data-testid="flow-summary">
                 {summary}
               </div>
             )}
-            <div className="flex min-w-0 max-w-[680px] flex-1 flex-col max-[960px]:w-full" data-testid="flow-form">
+            <div className={"flex min-w-0 max-w-[680px] flex-1 flex-col " + FOLD[fit].form} data-testid="flow-form">
               {children}
             </div>
             {preview && (
-              <div className="sticky top-0 w-[clamp(320px,28vw,380px)] shrink-0 max-[960px]:hidden" data-testid="flow-preview">
+              <div className={"sticky top-0 w-[clamp(320px,28vw,380px)] shrink-0 " + FOLD[fit].preview} data-testid="flow-preview">
                 {preview}
               </div>
             )}

@@ -12,6 +12,7 @@ import { keepTabInside, useDialogFocus } from "../../../components/form";
 import { IconClose } from "../../../components/icons-controls";
 import { Button } from "../../../components/primitives";
 import { Pill } from "../../../components/Pill";
+import type { AiJob } from "../../../lib/ipc/ai";
 import type { CatalogModel } from "../../../lib/ipc/models";
 import { IconDownload, IconLock } from "./model-icons";
 import { ModelTile } from "./ModelParts";
@@ -38,6 +39,7 @@ export function ApprovalDialog({
   totalNow,
   free,
   tag,
+  absent = [],
   onDownload,
   onNotNow,
   onClose,
@@ -50,6 +52,8 @@ export function ApprovalDialog({
   /** This Mac's free disk, bytes. */
   free: number;
   tag?: ModelTag;
+  /** The jobs this version doesn't have now (AJ-E3826): not named. */
+  absent?: readonly AiJob[];
   onDownload: () => void;
   onNotNow: () => void;
   onClose: () => void;
@@ -74,7 +78,7 @@ export function ApprovalDialog({
   }, [onClose]);
   const size = model.size_bytes ?? 0;
   const after = totalNow + size;
-  const adds = jobsOf(model).passed.map((job) => JOB_NAMES[job]);
+  const adds = jobsOf(model, absent).passed.map((job) => JOB_NAMES[job]);
   return (
     <DialogOverlay>
       <dialog

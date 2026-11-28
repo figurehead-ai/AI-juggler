@@ -132,7 +132,7 @@ export function InstalledSection({
           </p>
           {count >= 2 ? <DiskBar models={info.installed} total={info.total_bytes} /> : <span className="text-label text-muted">{legend}</span>}
         </div>
-        <ul className="flex flex-col divide-y divide-divider p-1.5">
+        <ul className="flex flex-col gap-0.5 p-1.5">
           {builtIn && (
             <li>
             <Row

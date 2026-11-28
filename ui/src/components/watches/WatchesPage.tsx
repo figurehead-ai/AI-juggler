@@ -23,6 +23,7 @@ import { onWatchesIntent, takeWatchesIntent, type WatchesIntent } from "../../li
 import { watchCreate, watchesPage, watchesSummary, watchPause, watchRemove, watchRestore, watchUpdate, type WatchDraftInfo, type WatchInfo, type WatchSummaryInfo } from "../../lib/ipc/watch-view";
 import type { NotificationPrefsInfo } from "../../types/generated/NotificationPrefsInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
+import type { WatchPrefill } from "../../types/generated/WatchPrefill";
 import { WatchForm } from "./WatchForm";
 import type { WatchRowActions } from "./WatchRow";
 import type { EndedActions } from "./WatchEndedRow";
@@ -30,11 +31,12 @@ import { WatchesEmpty, startersFor, type Starter } from "./WatchesEmpty";
 import { LimitAlert, QuietLine, WatchesHead, type ToolbarState } from "./WatchesHead";
 import { watchesChanged } from "./WatchDoor";
 import { EndedSection, WatchingSection } from "./WatchesLists";
-import { stateFrom } from "./watch-form-state";
-import { appOfSession, draftOf, nextMidnight, pickerLists, quietHours, targetBook, type TargetOption, type TargetSources } from "./watches-view";
+import { RemindersSection } from "./RemindersSection";
+import { stateFrom, stateFromPrefill } from "./watch-form-state";
+import { draftOf, nextMidnight, pickerLists, quietHours, seenSessions, targetBook, type TargetOption, type TargetSources } from "./watches-view";
 import { PAGE, TOAST } from "./watches-words";
 
-type View = { kind: "list" } | { kind: "form"; mode: "new" | "edit"; draft: WatchDraftInfo | null; editing: WatchInfo | null };
+type View = { kind: "list" } | { kind: "form"; mode: "new" | "edit"; draft: WatchDraftInfo | null; editing: WatchInfo | null; prefill?: WatchPrefill };
 type Only = { target: WatchTarget; name: string } | null;
 
 const EMPTY_DRAFT: WatchDraftInfo = { targets: [], matching: "each", conditions: [], lifetime: { kind: "unsaid" }, evenInQuietHours: false };
@@ -85,16 +87,18 @@ const editOf = (info: WatchInfo): View => ({ kind: "form", mode: "edit", draft: 
 
 /** What a door asks for, as the page's view (a watch to edit is read first). */
 function viewOfIntent(intent: WatchesIntent | null): View | null {
+  if (intent?.kind === "new" && intent.prefill) return { kind: "form", mode: "new", draft: intent.prefill.draft, editing: null, prefill: intent.prefill };
   if (intent?.kind === "new") return { kind: "form", mode: "new", draft: intent.draft ?? (intent.target ? { ...EMPTY_DRAFT, targets: [intent.target] } : null), editing: null };
-  if (intent?.kind === "list" || intent?.kind === "filter") return { kind: "list" };
+  if (intent?.kind === "list" || intent?.kind === "filter" || intent?.kind === "reminder") return { kind: "list" };
   return null;
 }
 
 /** The doors: the intent the page opened on, and any while it is open. */
-function useIntents(first: WatchesIntent | null, setView: (view: View) => void, setOnly: (only: Only) => void): void {
+function useIntents(first: WatchesIntent | null, setView: (view: View) => void, setOnly: (only: Only) => void, setReminder: (id: string | null) => void): void {
   const apply = useRef((intent: WatchesIntent | null) => {
     const view = viewOfIntent(intent);
     if (view) setView(view);
+    if (intent) setReminder(intent.kind === "reminder" ? intent.id : null);
     if (intent?.kind === "filter") setOnly({ target: intent.target, name: intent.name });
     if (intent?.kind === "edit")
       void watchesPage("all", { cursor: null, limit: 200 }).then((page) => {
@@ -151,13 +155,17 @@ function useWatchActions(input: { refresh: () => void; book: Map<string, TargetO
 
 /** New or Edit, in place of the list. */
 function FormView({ view, book, quiet, count, limit, now, onClose, onSaved, remove }: { view: Extract<View, { kind: "form" }>; book: Map<string, TargetOption>; quiet: { from: string; to: string } | null; count: number; limit: number; now: number; onClose: () => void; onSaved: () => void; remove: (info: WatchInfo) => void }): JSX.Element {
-  const initial = stateFrom(view.draft ?? EMPTY_DRAFT, now);
-  // Finishes, the common choice, is picked already (the mock's).
-  if (view.mode === "new" && initial.codes.length === 0) initial.codes = ["finishes"];
+  // AJ-E3830: Bot's pre-fill keeps what it left empty (no default is
+  // picked for the user where Bot couldn't tell).
+  const initial = view.prefill ? stateFromPrefill(view.prefill, now) : stateFrom(view.draft ?? EMPTY_DRAFT, now);
+  // 0.5.2 G32: a new watch starts with the targets' default condition
+  // (Its turn ends for a session, the mock's), which follows the targets
+  // until the user picks one.
+  if (view.mode === "new" && initial.codes.length === 0 && !view.prefill) initial.auto = true;
   const editing = view.editing;
   return (
     <WatchForm
-      key={editing?.watch.id ?? JSON.stringify(view.draft)}
+      key={editing?.watch.id ?? JSON.stringify([view.draft, view.prefill?.left])}
       mode={view.mode}
       initial={initial}
       editing={editing}
@@ -222,7 +230,9 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
   const [first] = useState(takeWatchesIntent);
   const [view, setView] = useState<View>(() => viewOfIntent(first) ?? { kind: "list" });
   const [only, setOnly] = useState<Only>(() => (first?.kind === "filter" ? { target: first.target, name: first.name } : null));
-  useIntents(first, setView, setOnly);
+  // 0.5.2 G23: the reminder a door opened the page on (by its id).
+  const [reminder, setReminder] = useState<string | null>(() => (first?.kind === "reminder" ? first.id : null));
+  useIntents(first, setView, setOnly, setReminder);
   const [limitShown, setLimitShown] = useState(false);
   const [toolbar, setToolbar] = useState<ToolbarState>({ query: "", filter: "all", sort: "last" });
   const empty = !live.loading && live.items.length === 0 && countsOf(summary, []).ended === 0;
@@ -244,8 +254,8 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
   const acts = useWatchActions({ refresh, book, onGoTo, openNew, setView: go });
   if (view.kind === "form") return <FormView view={view} book={book} quiet={quiet} count={count} limit={limit} now={now} onClose={() => go({ kind: "list" })} onSaved={refresh} remove={acts.remove} />;
   const appOf = (sessionId: string) => {
-    const session = sources.sessions.find((s) => s.id === sessionId);
-    const app = session ? appOfSession(session, sources.apps) : null;
+    // 0.5.2 G45: one AI Juggler didn't start too.
+    const app = seenSessions(sources).find((s) => s.id === sessionId)?.app ?? null;
     return app ? { id: app.id, name: app.name } : null;
   };
   return (
@@ -286,6 +296,7 @@ export function WatchesPage({ sources, onGoTo, onAskBot, onQuietHours }: { sourc
             />
             {counts.ended > 0 && <EndedSection count={counts.ended} open={endedOpen} onToggle={() => setEndedOpen((open) => !open)} book={book} now={now} appOf={appOf} actions={acts.ended} />}
         </LoadingState>
+        <RemindersSection book={book} now={now} focus={reminder} />
       </div>
     </div>
   );

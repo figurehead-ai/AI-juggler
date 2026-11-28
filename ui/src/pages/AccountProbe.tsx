@@ -12,6 +12,7 @@ import { errorText } from "../lib/bridge";
 import { agoWords } from "../lib/quotaWindow";
 import { probeRun, probeStatus, probeTurnOff, probeTurnOn, type ProbeStatusInfo } from "../lib/ipc/probe";
 import { probeOutcome } from "../components/MeasureLimits";
+import { IconGauge } from "../components/bot/bot-icons";
 
 export function AccountProbe({ accountId }: { accountId: string }): JSX.Element | null {
   const [status, setStatus] = useState<ProbeStatusInfo | null>(null);
@@ -68,7 +69,7 @@ export function AccountProbe({ accountId }: { accountId: string }): JSX.Element 
         )}
       </div>
       {asking && (
-        <Modal title="Ask Claude Code for its account's limits" onClose={() => setAsking(false)} testId="account-probe-sheet"
+        <Modal icon={IconGauge} title="Ask Claude Code for its account's limits" onClose={() => setAsking(false)} testId="account-probe-sheet"
           footer={
             <>
                 <Button size="sm" variant="secondary" onClick={() => setAsking(false)}>

@@ -7,6 +7,7 @@
  * list's search, filters and sort.
  */
 import type { InstanceInfo } from "../../types/generated/InstanceInfo";
+import type { ConversationInfo } from "../../types/generated/ConversationInfo";
 import type { AccountInfo } from "../../types/generated/AccountInfo";
 import type { CatalogueEntry } from "../../types/generated/CatalogueEntry";
 import type { LifetimeChoice } from "../../types/generated/LifetimeChoice";
@@ -15,7 +16,10 @@ import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
 import type { WatchInfo } from "../../types/generated/WatchInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
 import { shortName } from "../../lib/session-titles";
-import { clock, pastDay, pastWhen } from "../../lib/time-words";
+import { conversationItem, needWord, openNow as railOpenNow, sessionState } from "../../lib/rail-items";
+import { conversationTitle } from "../../lib/conversations";
+import { switchSourceOf } from "../../lib/ipc/conversations";
+import { clock, hourWords, pastDay, pastWhen } from "../../lib/time-words";
 import { ENDED, KIND, ROW } from "./watches-words";
 
 /** The most targets a watch has (the backend's MAX_TARGETS). */
@@ -28,8 +32,23 @@ export const MANY_AT = 8;
 export const FIRST_ROWS = 10;
 export const MORE_ROWS = 20;
 
-/** Sessions that count as open now. */
-const OPEN = new Set(["running", "waiting_user", "stuck", "starting", "quota_blocked", "idle"]);
+/** 0.5.2 G34 (RW1: the picker listed idle sessions as "Working"): a
+ * session's state and its word are the rail's, by one rule
+ * (`sessionState`: the live state its hooks report, its need by D-117),
+ * never its stored status alone. Open: any state but ended. */
+function liveState(session: InstanceInfo): { open: boolean; word: string } {
+  const now = sessionState(session);
+  return { open: now.state !== "ended", word: now.word };
+}
+
+/** 0.5.2 G45: a session AI Juggler didn't start (one in the user's own
+ * terminal, another app's), by the same rule and words as its rail row
+ * (`conversationItem`): its word, and whether Open now lists it
+ * (`openNow`). */
+function conversationState(c: ConversationInfo): { open: boolean; word: string } {
+  const item = conversationItem(c, () => null, null);
+  return { open: railOpenNow(item), word: needWord(item) };
+}
 
 /** An App as the Watches view needs it (an `AppModel`): its App id
  * (`cli:<folder>`, `app:<host>:<instance>`), the one every surface uses. */
@@ -65,6 +84,9 @@ interface PoolLike {
 /** What the picker and the rows know about this Mac's targets. */
 export interface TargetSources {
   sessions: readonly InstanceInfo[];
+  /** 0.5.2 G45: the sessions AI Juggler didn't start, as the rail has
+   * them (`useConversations`); none when left out. */
+  conversations?: readonly ConversationInfo[];
   apps: readonly AppLike[];
   projects: readonly { id: string; name: string; last_activity_ms?: number | null }[];
   pools: readonly PoolLike[];
@@ -86,6 +108,8 @@ export interface TargetOption {
   open: boolean;
   /** When it was last active, for Recent. */
   at: number;
+  /** 0.5.2 G32: its sessions open now (an App, a project, any session). */
+  openSessions?: number;
 }
 
 export function targetKey(target: WatchTarget): string {
@@ -96,32 +120,70 @@ export function sameTarget(a: WatchTarget, b: WatchTarget): boolean {
   return targetKey(a) === targetKey(b);
 }
 
-const STATUS_WORDS: Record<string, string> = { running: "Working", waiting_user: "Asks you", stuck: "Looks stuck", starting: "Starting", quota_blocked: "At its limit", idle: "Idle" };
-
 function projectName(sources: TargetSources, id: string | null): string | null {
   return id === null ? null : (sources.projects.find((p) => p.id === id)?.name ?? null);
+}
+
+/** One session as the Watches view reads it, wherever it was started. */
+export interface SeenSession {
+  /** Its id where a session id goes: AI Juggler's own, or (another app's,
+   * one in the user's own terminal) its key, `conversation:<account>:<id>`. */
+  id: string;
+  name: string;
+  /** Its state in the rail's words. */
+  word: string;
+  /** Open now, as Open now lists it. */
+  open: boolean;
+  app: AppLike | null;
+  appName: string;
+  projectId: string | null;
+  accountId: string | null;
+  tool: string;
+  at: number;
+}
+
+/** 0.5.2 G45 (RW1 W1): every session this Mac sees, in one read: AI
+ * Juggler's own and the ones it didn't start, as the rail lists them
+ * (`itemsOf`: no AI Juggler session on it, not put away), each in its
+ * rail state. The picker, a target's open sessions and its counts read
+ * only this. */
+export function seenSessions(sources: TargetSources): SeenSession[] {
+  const own = sources.sessions.map((session): SeenSession => {
+    const { open, word } = liveState(session);
+    const app = appOfSession(session, sources.apps);
+    return { id: session.id, name: shortName(session, sources.now), word, open, app, appName: app?.name ?? session.account_label, projectId: session.project_id, accountId: session.account_id, tool: session.provider, at: session.last_activity_ms ?? session.started_at_ms };
+  });
+  const outside = (sources.conversations ?? [])
+    .filter((c) => c.session_id === null && c.app_archived !== true && c.archived_here !== true && c.app_unlisted !== true)
+    .map((c): SeenSession => {
+      const { open, word } = conversationState(c);
+      const app = sources.apps.find((a) => a.id === c.app) ?? null;
+      return { id: switchSourceOf(c), name: conversationTitle(c, sources.now), word, open, app, appName: app?.name ?? c.account_label, projectId: c.project_id, accountId: c.account_id, tool: c.tool, at: c.last_activity_ms ?? c.started_ms ?? 0 };
+    });
+  return [...own, ...outside];
 }
 
 /** Every target this Mac has, by key. */
 export function targetBook(sources: TargetSources): Map<string, TargetOption> {
   const book = new Map<string, TargetOption>();
   const add = (option: TargetOption) => book.set(option.key, option);
+  const seen = seenSessions(sources);
 
-  for (const session of sources.sessions) {
+  for (const session of seen) {
     const target: WatchTarget = { kind: "session", id: session.id };
-    const open = OPEN.has(session.status);
-    const parts = [appOfSession(session, sources.apps)?.name ?? session.account_label, projectName(sources, session.project_id), open ? (STATUS_WORDS[session.status] ?? null) : "Ended"].filter(Boolean);
-    add({ target, key: targetKey(target), kind: "session", name: shortName(session, sources.now), line: parts.join(" · "), tool: session.provider, open, at: session.last_activity_ms ?? session.started_at_ms });
+    const parts = [session.appName, projectName(sources, session.projectId), session.word].filter(Boolean);
+    add({ target, key: targetKey(target), kind: "session", name: session.name, line: parts.join(" · "), tool: session.tool, open: session.open, at: session.at });
   }
   for (const app of sources.apps) {
     const target: WatchTarget = { kind: "app", id: app.id };
-    const last = Math.max(0, ...sources.sessions.filter((s) => appOfSession(s, sources.apps)?.id === app.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
-    add({ target, key: targetKey(target), kind: "app", name: app.name, line: `${KIND.app} · ${KIND.everySessionInIt}`, tool: app.tool, open: false, at: last });
+    const its = seen.filter((s) => s.app?.id === app.id);
+    const last = Math.max(0, ...its.map((s) => s.at));
+    add({ target, key: targetKey(target), kind: "app", name: app.name, line: `${KIND.app} · ${KIND.everySessionInIt}`, tool: app.tool, open: false, at: last, openSessions: its.filter((s) => s.open).length });
   }
   for (const project of sources.projects) {
     const target: WatchTarget = { kind: "project", id: project.id };
-    const open = sources.sessions.filter((s) => s.project_id === project.id && OPEN.has(s.status)).length;
-    add({ target, key: targetKey(target), kind: "project", name: project.name, line: open > 0 ? `${KIND.project} · ${KIND.openSessions(open)}` : `${KIND.project} · ${KIND.everySessionInIt}`, tool: null, open: false, at: project.last_activity_ms ?? 0 });
+    const open = seen.filter((s) => s.projectId === project.id && s.open).length;
+    add({ target, key: targetKey(target), kind: "project", name: project.name, line: open > 0 ? `${KIND.project} · ${KIND.openSessions(open)}` : `${KIND.project} · ${KIND.everySessionInIt}`, tool: null, open: false, at: project.last_activity_ms ?? 0, openSessions: open });
   }
   for (const pool of sources.pools) {
     const target: WatchTarget = { kind: "pool", id: pool.id };
@@ -132,10 +194,10 @@ export function targetBook(sources: TargetSources): Map<string, TargetOption> {
   for (const account of sources.accounts) {
     const target: WatchTarget = { kind: "account", id: account.id };
     const signIns = sources.apps.filter((app) => app.folder?.id === account.id).length;
-    const last = Math.max(0, ...sources.sessions.filter((s) => s.account_id === account.id).map((s) => s.last_activity_ms ?? s.started_at_ms));
+    const last = Math.max(0, ...seen.filter((s) => s.accountId === account.id).map((s) => s.at));
     add({ target, key: targetKey(target), kind: "account", name: account.label, line: signIns > 0 ? `${KIND.account} · ${KIND.appsSignIn(signIns)}` : `${KIND.account} · ${KIND.roomAndLimits}`, tool: null, open: false, at: last });
   }
-  add({ target: { kind: "any" }, key: "any", kind: "any", name: "Any session", line: KIND.any, tool: null, open: false, at: 0 });
+  add({ target: { kind: "any" }, key: "any", kind: "any", name: "Any session", line: KIND.any, tool: null, open: false, at: 0, openSessions: seen.filter((s) => s.open).length });
   return book;
 }
 
@@ -305,9 +367,5 @@ export function shownWatches(list: readonly WatchInfo[], opts: { query: string; 
 /** Quiet hours as the user set them; `null` when they have none. */
 export function quietHours(prefs: { quiet_start: number; quiet_end: number } | null): { from: string; to: string } | null {
   if (!prefs || prefs.quiet_start === prefs.quiet_end) return null;
-  const at = (hour: number) => {
-    const d = new Date(2026, 0, 1, hour, 0, 0, 0);
-    return clock(d.getTime());
-  };
-  return { from: at(prefs.quiet_start), to: at(prefs.quiet_end) };
+  return { from: hourWords(prefs.quiet_start), to: hourWords(prefs.quiet_end) };
 }

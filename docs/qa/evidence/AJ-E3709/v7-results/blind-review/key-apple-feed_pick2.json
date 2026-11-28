@@ -1,0 +1,158 @@
+[
+ {
+  "pair": "turns7-feed_pick2-001",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-002",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-003",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-004",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-005",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-006",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-007",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-008",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-009",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-010",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-011",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-012",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-013",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-014",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-015",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-016",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-017",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-018",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-019",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-020",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-021",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-022",
+  "job": "feed_pick2",
+  "first": "model",
+  "second": "non-AI"
+ },
+ {
+  "pair": "turns7-feed_pick2-023",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-024",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-025",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ },
+ {
+  "pair": "turns7-feed_pick2-026",
+  "job": "feed_pick2",
+  "first": "non-AI",
+  "second": "model"
+ }
+]

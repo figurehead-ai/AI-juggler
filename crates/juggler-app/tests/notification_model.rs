@@ -85,6 +85,25 @@ fn session(state: &Arc<AppState>, folder: &Path, id: &str, account: &str) -> Str
     id.to_owned()
 }
 
+/// 0.5.2 (PR #257 CI): the untitled session `id`'s name by its facts as
+/// this system says it (D-96, the rail's one rule): "<folder> · started
+/// <time>" where the system's clock gives the words (macOS), the folder
+/// alone where it can't (`juggler_platform::clock::started_words` is
+/// `None` there). Built from the same platform words the naming uses.
+fn facts_name(state: &Arc<AppState>, id: &str, folder: &str) -> String {
+    let started = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&SessionId::new(id))
+        .unwrap()
+        .started_at
+        .millis();
+    juggler_platform::clock::started_words(started, Timestamp::now().millis())
+        .map_or_else(|| folder.to_owned(), |words| format!("{folder} · {words}"))
+}
+
 fn daytime(state: &Arc<AppState>) {
     state
         .notifier
@@ -134,7 +153,11 @@ fn a_finish_is_written_once_under_earlier() {
     notifications::session_status(&state, &id, "finished");
     notifications::session_status(&state, &id, "running");
     notifications::session_status(&state, &id, "finished");
-    assert_eq!(earlier_titles(&state), ["“payments-api” finished"]);
+    // 0.5.2 G27: a session is named by the rail's one rule. This one has no
+    // label, title or telling branch, so its name is its facts (D-96),
+    // never a second rule.
+    let name = facts_name(&state, &id, "payments-api");
+    assert_eq!(earlier_titles(&state), [format!("“{name}” finished")]);
 }
 
 #[test]
@@ -164,16 +187,16 @@ fn a_crash_restarted_says_so_in_plain_words_and_may_interrupt() {
     );
     sources::restarted(&state, &crashed, &again, 1, 3);
     sources::restarted(&state, &crashed, &again, 1, 3);
-    assert_eq!(
-        earlier_titles(&state),
-        ["“nightly-fix” crashed and was restarted (try 1 of 3)"]
+    // 0.5.2 G27: the untitled session is named by its facts (D-96, the
+    // rail's one rule).
+    let restarted = format!(
+        "“{}” crashed and was restarted (try 1 of 3)",
+        facts_name(&state, &crashed, "nightly-fix")
     );
+    assert_eq!(earlier_titles(&state), std::slice::from_ref(&restarted));
     let told = list.lock().unwrap().clone();
     assert_eq!(told.len(), 1, "told once");
-    assert_eq!(
-        told[0].title,
-        "“nightly-fix” crashed and was restarted (try 1 of 3)"
-    );
+    assert_eq!(told[0].title, restarted);
     assert_eq!(
         state.notifier.target_of(told[0].id),
         Some(Opens::Target(Target::Session(again)))
@@ -1207,7 +1230,10 @@ fn archiving_a_failed_session_takes_its_need_away_at_once_and_unarchiving_brings
     // say a time); D-103.8: its Account is in the detail, never its name.
     let said = rows();
     assert_eq!(said.len(), 1, "the failed session needs you");
-    let lead = if cfg!(target_os = "macos") {
+    // Whether the system's clock gives the words (macOS's formatter; none
+    // elsewhere): the same platform words the naming uses (PR #257).
+    let now = Timestamp::now().millis();
+    let lead = if juggler_platform::clock::started_words(now, now).is_some() {
         "“billing · started "
     } else {
         "“billing”"

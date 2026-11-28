@@ -2,19 +2,24 @@
  * AJ-E3816 — the doors into the Watches page: what it should open on, by
  * the watch's or the target's id (actions target by id). A session row's
  * Watch…, a page's chip, a watch alert's Edit watch, Bot's Change… and
- * the notification centre's link each call `openWatches`; the page takes
+ * the notification centre's link each call `openWatches` (Bot's pre-fill
+ * carries what it left for the user, AJ-E3830); the page takes
  * the intent when it opens (or at once, when it is open already).
  */
 import type { WatchDraftInfo } from "../types/generated/WatchDraftInfo";
 import type { WatchTarget } from "../types/generated/WatchTarget";
+import type { WatchPrefill } from "../types/generated/WatchPrefill";
 
 export type WatchesIntent =
   /** The form, new, filled in (a target picked, or a whole draft). */
-  | { kind: "new"; draft?: WatchDraftInfo; target?: WatchTarget }
+  | { kind: "new"; draft?: WatchDraftInfo; target?: WatchTarget; prefill?: WatchPrefill }
   /** The form, editing one watch. */
   | { kind: "edit"; id: string }
   /** The list, showing only what watches one target. */
   | { kind: "filter"; target: WatchTarget; name: string }
+  /** The list, at one reminder (a Remind me toast's Open reminder, Bot's
+   * set reminder: 0.5.2 G23). */
+  | { kind: "reminder"; id: string }
   /** The list. */
   | { kind: "list" };
 

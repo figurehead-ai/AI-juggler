@@ -60,9 +60,13 @@ pub async fn notifications_page(
 ) -> AppResult<Page<NoticeInfo>> {
     crate::ipc::blocking(state.inner(), "notifications", move |state| {
         let now = crate::commands::now_millis();
-        locked(state, |storage| {
+        let mut page = locked(state, |storage| {
             centre::page(storage, &section, &request, now)
-        })
+        })?;
+        // 0.5.2 G57: each entry about a session by its name now (the
+        // storage lock is released first).
+        super::renamed(state, &mut page.items);
+        Ok(page)
     })
     .await
 }

@@ -14,7 +14,7 @@ import { showTab } from "../../pages/PageShell";
 import { markHasSubagents } from "../../pages/session/useSubagents";
 import { placeWords, type RailItem } from "../../lib/rail-items";
 import { usePrimary } from "./RowShell";
-import { IconGitBranch } from "../icons";
+import { IconHelpers } from "../icons";
 
 const LINK =
   "pointer-events-auto relative z-10 -mb-2.5 min-h-6 truncate rounded pb-2.5 text-left text-muted outline-none hover:bg-surface-3 hover:text-ink hover:underline focus-visible:ring-1 focus-visible:ring-accent/60";
@@ -31,8 +31,9 @@ export function openSubagents(item: RailItem, open: () => void): void {
 }
 
 /** AJ-E1520: a row's subagent count, its own way in: the session's page
- * on its Subagents tab. AJ-E1554 R3: a branch and the number, quiet
- * (muted, tabular), what it counts in its tooltip and name. */
+ * on its Subagents tab. AJ-E1554 R3: a mark and the number, quiet
+ * (muted, tabular), what it counts in its tooltip and name; AJ-E1557: the
+ * mark is a cluster of helpers (a branch read as git). */
 export function RowSubagents({ item, words, onSelect }: { item: RailItem; words: string; onSelect: (id: string) => void }): JSX.Element {
   const primary = usePrimary(item, onSelect);
   return (
@@ -47,7 +48,7 @@ export function RowSubagents({ item, words, onSelect }: { item: RailItem; words:
       }}
       className="pointer-events-auto relative z-10 flex h-6 shrink-0 items-center gap-0.5 rounded px-1 text-label tabular-nums text-muted outline-none hover:bg-hover hover:text-ink focus-visible:ring-1 focus-visible:ring-accent/60"
     >
-      <IconGitBranch width={11} height={11} aria-hidden="true" />
+      <IconHelpers width={12} height={12} aria-hidden="true" />
       {item.subagents}
     </button>
   );

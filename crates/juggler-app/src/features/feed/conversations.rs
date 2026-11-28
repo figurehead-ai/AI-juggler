@@ -9,7 +9,7 @@ use std::sync::Arc;
 use juggler_core::storage::feed::FeedKey;
 
 use super::dto::{FeedAuthorInfo, FeedFactsInfo, FeedItemInfo};
-use super::items::{SAME_VERB_MS, category_of};
+use super::items::{SAME_VERB_MS, category_of, in_chip};
 use super::page::{Ask, CONVERSATIONS, Read};
 use crate::error::AppResult;
 use crate::features::conversations::dto::ConversationInfo;
@@ -101,7 +101,12 @@ pub fn read(
     ask: &Ask,
     limit: usize,
 ) -> AppResult<Read> {
-    if ask.scope.pool.is_some() || ask.category.is_some() {
+    if ask.scope.pool.is_some()
+        || ask
+            .category
+            .as_deref()
+            .is_some_and(|chip| !in_chip("worked", chip))
+    {
         return Ok(Read::default());
     }
     let start = before.map_or(i64::MAX, |key| key.at_ms);

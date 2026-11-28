@@ -251,10 +251,19 @@ macro_rules! app_commands {
             Write remote::fleet_remote_clean,
             Read  overnight::overnight_summary,
             Read  features::feed::commands::feed_page,
+            Write features::feed::commands::prefs::feed_lean,
+            Read  features::feed::commands::prefs::feed_leans,
+            Write features::feed::commands::prefs::feed_unlean,
+            Read  features::feed::summary::feed_line,
+            Write features::feed::summary::feed_line_wrong,
+            Read  features::review::commands::review_turn,
+            Read  features::review::commands::review_turn_ai,
+            Write features::review::commands::review_wrong,
             Write features::bot::commands::bot_ask,
             Read  features::bot::commands::bot_page,
             Read  features::bot::commands::bot_find,
             Read  features::bot::commands::bot_count,
+            Read  features::bot::commands::bot_topic_usage,
             Write features::bot::commands::bot_new_topic,
             Write features::bot::commands::bot_clear,
             Write features::bot::commands::bot_wrong,
@@ -270,6 +279,13 @@ macro_rules! app_commands {
             Write features::watches::commands::watches_pause,
             Write features::watches::commands::watches_remove,
             Write features::watches::commands::watches_restore,
+            Write features::schedule::commands::schedule_remind,
+            Read  features::schedule::commands::schedule_list,
+            Read  features::schedule::commands::schedule_summary,
+            Write features::schedule::commands::schedule_update,
+            Write features::schedule::commands::schedule_pause,
+            Write features::schedule::commands::schedule_pause_all,
+            Write features::schedule::commands::schedule_remove,
             Write overnight::overnight_summary_seen,
             Write parked::instance_park,
             Write lifecycle::instance_mark_reviewed,
@@ -494,6 +510,8 @@ macro_rules! app_commands {
             Read  features::ai::commands::ai_jobs,
             Write features::ai::commands::ai_beta_set,
             Write features::ai::commands::ai_job_pick_set,
+            Read  features::ai::commands::ai_engine_status,
+            Write features::ai::commands::ai_engine_start,
             Read  features::ai::models::commands::ai_models_installed,
             Read  features::ai::models::commands::ai_models_catalog,
             Read  features::ai::models::commands::ai_engines_check,
@@ -1143,6 +1161,18 @@ pub fn run() {
             );
             // AJ-E3814: the watches hear the observation bus from here on.
             features::watches::runtime::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // AJ-E2027 (ADR-0039): the one scheduler; what came due while
+            // AI Juggler was closed runs under its policy now.
+            features::schedule::start(&tauri::Manager::state::<Arc<state::AppState>>(app));
+            // 0.5.2 G30: each run ends with the window's lists read again.
+            {
+                let handle = app.handle().clone();
+                tauri::Manager::state::<Arc<state::AppState>>(app)
+                    .schedules
+                    .on_ran(Box::new(move || {
+                        handle.emit_event(AppEvent::SchedulesChanged, ());
+                    }));
+            }
             // QA on real data: only with AIJ_DEV_BRIDGE=1, in a debug
             // build with the feature (docs/qa/DEV-BRIDGE.md). Before the
             // read model's first pass: a lab's scope (ADR-0027 conditions
@@ -1178,7 +1208,7 @@ pub fn run() {
                 &cloud_backup_state.data_dir,
                 juggler_core::model::Timestamp::now().millis(),
             );
-            cloud_backup::spawn_schedule(cloud_backup_state);
+            // AJ-E2027: its hourly check is a schedule (`schedule::upkeep`).
             // AJ-E1102: usage stats start only if the user opted in (and
             // no override says off); off creates nothing.
             usage_stats::start(stats_state, launched.elapsed());

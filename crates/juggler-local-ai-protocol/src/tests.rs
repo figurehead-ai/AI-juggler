@@ -14,6 +14,7 @@ fn generate() -> Request {
             top_k: Some(20),
             min_p_milli: Some(0),
             presence_milli: Some(1_500),
+            seed: None,
         },
         max_tokens: 60,
         timeout_ms: 10_000,

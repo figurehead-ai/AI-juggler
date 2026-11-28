@@ -425,7 +425,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 
 **Inputs:** captures at 1024×680 and 1280×800, dark and light (calm dashboards also at 1680 and 2000); the matching mock-up from `~/Dev/AIJuggler-design-refs/` side by side at full size; the screen's mode from the registry; Sonnet's draft critique and hand-walk scores; N19's colour-vision and blur copies.
 
-**Score each line 1–5. Ship only at ≥ 4 on every line.** A line that doesn't apply says "n/a" with why.
+**Score each line 1–5. Ship only at ≥ 4 on every line.** A line that doesn't apply says "n/a" with why. Line 19 is checked by `scripts/critique_check.py` for the create, edit and settings families (from 0.5.2): under 4 fails the gate.
 
 | # | Question | 1 = | 5 = |
 |---|---|---|---|
@@ -447,6 +447,7 @@ Legend: **A** = existing automated, **N#** = new automated (§3), **R** = Opus r
 | 16 | **Hand walk.** Every element clicked in the real Dev app or the preview, every path (success, refusal, error, empty, many), at 1024 and 1280, both themes; each scored works / speed / clarity / layout. (M:test-by-hand) | not walked | walked, each element ≥ 4 |
 | 17 | **System prompts.** What system prompts can this cause? Each is in the registry (`docs/design/os-prompts.md`), primed in setup or by the gate's sheet before the call, its outcome said after; none from background work. The walk's dialog log shows no unprimed one. (PAT-OSP, AJ-E1547) | an unannounced system dialog | every one told first |
 | 18 | **Usability reasoning.** The task's six answers (PAT-USE) still hold on the built screen: who and what they expect from the name and icon; a newcomer sees every term, size, download and choice named, explained and recommended; the value is in the one right place with no duplicate surface; unavailable or empty is hidden or a guided setup; its system prompts are primed; nothing surprises a sensible person. | the answers don't match the screen | each answer true on the screen |
+| 19 | **Rich-mode colour** (create, edit, settings and picker surfaces; a hard line: scored on every such critique, and a 3 blocks). Every section, row and option that holds a choice leads with its icon or the App's logo; on, chosen and progress take the accent's soft step (a chip, a tag, a fill) and status keeps its own hue in soft steps (PAT-COLOR); what is chosen is a fill, never only a ring or a dot; no bright border (PAT-SURF); AA contrast in both themes. `scripts/rich_mode_lint.py` (verify-static) fails a choice built from neutral tokens alone; `scripts/critique_check.py` fails a latest critique scoring this line under 4. Calm families say "n/a (calm)". (D-126, PAT-COLOR, TGL-2, RC-2, PCK; AJ-E1558, the 0.5.1 Nightly's "monochrome hell") | monochrome: neutral rows, bare checkboxes, a ring or dot for chosen | every choice its icon, colour that means on or chosen, a fill for what is chosen |
 
 **Dialog add-on (every dialog, sheet and window sheet):** header and footer fixed; the body alone scrolls; the choices visible on open at 1024×680; the primary visible at every scroll position (scroll it and look); divider and fade when it scrolls; focus in on open and back on close; Escape behaviour honest during long actions. N1 measures these; the reviewer still looks.
 

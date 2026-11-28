@@ -11,6 +11,7 @@ import { showToast } from "../../components/Toast";
 import { launchSettingsName } from "../../lib/account-words";
 import { errorText } from "../../lib/bridge";
 import type { LaunchRecipeInfo } from "../../types/generated/LaunchRecipeInfo";
+import { IconTrash } from "../../components/icons-actions";
 
 export function DeleteLaunchSettingsModal({
   recipe,
@@ -25,7 +26,7 @@ export function DeleteLaunchSettingsModal({
   const [error, setError] = useState<string | null>(null);
   const name = launchSettingsName(recipe.name);
   return (
-    <Modal title={`Delete the launch settings “${name}”?`} onClose={onClose}
+    <Modal icon={IconTrash} title={`Delete the launch settings “${name}”?`} onClose={onClose}
       footer={
         <>
             <Button size="sm" variant="ghost" onClick={onClose}>

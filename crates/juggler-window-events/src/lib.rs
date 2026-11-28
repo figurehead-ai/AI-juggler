@@ -26,6 +26,12 @@
 //!    reads the notification, and only calls the caller's own function).
 //!    The observers live as long as the app, so none is ever removed.
 //!
+//!    ADR-0039 §3 (AJ-E2027) reads three more names the same way, under the
+//!    same two units: `AppKit`'s wake notification (on the workspace's
+//!    center), and Foundation's clock and time-zone change notifications
+//!    (on the default center), for [`watch_time_changes`]: the scheduler
+//!    recomputes when the Mac wakes and when the clock or zone changes.
+//!
 //! D-113 added one, for quitting: the quit Apple event's handler, one
 //! audited unit (7) of four `unsafe` markers in [`answer_quit_events`]'s
 //! macOS half, each with its SAFETY note:
@@ -252,6 +258,31 @@ pub fn reduce_motion() -> bool {
 /// [`Error::Unsupported`], with why, where it can't yet.
 pub fn watch_apps(on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
     imp::watch_apps(on_change)
+}
+
+/// ADR-0039 §3: what moved the time under the scheduler.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimeChange {
+    /// The Mac woke from sleep.
+    Wake,
+    /// The system clock was set.
+    Clock,
+    /// The system time zone changed.
+    Zone,
+}
+
+/// ADR-0039 §3: calls `on_change` each time the Mac wakes and each time
+/// the system clock or time zone changes, for the rest of the app's life
+/// (audits 5 and 6). Where the system can't tell, the caller's own check
+/// of the wall clock against the monotonic one stands in.
+///
+/// # Errors
+///
+/// [`Error::Unsupported`], with why, where it can't yet.
+pub fn watch_time_changes(
+    on_change: impl Fn(TimeChange) + Send + Sync + 'static,
+) -> Result<(), Error> {
+    imp::watch_time_changes(on_change)
 }
 
 /// D-112: calls `on_exit` each time `window` has left full screen, its
@@ -698,33 +729,77 @@ mod imp {
         objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldReduceMotion()
     }
 
+    /// Observes `names` on `center` for the app's whole life (audit 6): no
+    /// object or queue; the block is Send + Sync, never reads the
+    /// notification, and calls `tell` with the name's own value.
+    fn observe_all<T: Copy + Send + Sync + 'static>(
+        center: &objc2_foundation::NSNotificationCenter,
+        names: &[(&objc2_foundation::NSNotificationName, T)],
+        tell: &std::sync::Arc<dyn Fn(T) + Send + Sync>,
+    ) {
+        for (name, value) in names {
+            let (tell, value) = (std::sync::Arc::clone(tell), *value);
+            let block = block2::RcBlock::new(
+                move |_note: std::ptr::NonNull<objc2_foundation::NSNotification>| tell(value),
+            );
+            // SAFETY (audit 6): no object or queue; the block is Send + Sync
+            // and never reads the notification.
+            let token = unsafe {
+                center.addObserverForName_object_queue_usingBlock(Some(*name), None, None, &block)
+            };
+            // Observed for the app's whole life: never removed.
+            std::mem::forget(token);
+        }
+    }
+
     pub(super) fn watch_apps(on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
         use objc2_app_kit::{
             NSWorkspace, NSWorkspaceDidLaunchApplicationNotification,
             NSWorkspaceDidTerminateApplicationNotification,
         };
         let center = NSWorkspace::sharedWorkspace().notificationCenter();
-        let on_change = std::sync::Arc::new(on_change);
+        let tell: std::sync::Arc<dyn Fn(()) + Send + Sync> =
+            std::sync::Arc::new(move |()| on_change());
         // SAFETY (audit 5): AppKit's own constant names, read only.
         let names = unsafe {
             [
-                NSWorkspaceDidLaunchApplicationNotification,
-                NSWorkspaceDidTerminateApplicationNotification,
+                (NSWorkspaceDidLaunchApplicationNotification, ()),
+                (NSWorkspaceDidTerminateApplicationNotification, ()),
             ]
         };
-        for name in names {
-            let tell = std::sync::Arc::clone(&on_change);
-            let block = block2::RcBlock::new(
-                move |_note: std::ptr::NonNull<objc2_foundation::NSNotification>| tell(),
-            );
-            // SAFETY (audit 6): no object or queue; the block is Send + Sync
-            // and never reads the notification.
-            let token = unsafe {
-                center.addObserverForName_object_queue_usingBlock(Some(name), None, None, &block)
-            };
-            // Observed for the app's whole life: never removed.
-            std::mem::forget(token);
-        }
+        observe_all(&center, &names, &tell);
+        Ok(())
+    }
+
+    pub(super) fn watch_time_changes(
+        on_change: impl Fn(super::TimeChange) + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        use objc2_app_kit::{NSWorkspace, NSWorkspaceDidWakeNotification};
+        use objc2_foundation::{
+            NSNotificationCenter, NSSystemClockDidChangeNotification,
+            NSSystemTimeZoneDidChangeNotification,
+        };
+        let tell: std::sync::Arc<dyn Fn(super::TimeChange) + Send + Sync> =
+            std::sync::Arc::new(on_change);
+        // SAFETY (audit 5): AppKit's and Foundation's own constant names,
+        // read only.
+        let (wake, clock, zone) = unsafe {
+            (
+                NSWorkspaceDidWakeNotification,
+                NSSystemClockDidChangeNotification,
+                NSSystemTimeZoneDidChangeNotification,
+            )
+        };
+        let workspace = NSWorkspace::sharedWorkspace().notificationCenter();
+        observe_all(&workspace, &[(wake, super::TimeChange::Wake)], &tell);
+        observe_all(
+            &NSNotificationCenter::defaultCenter(),
+            &[
+                (clock, super::TimeChange::Clock),
+                (zone, super::TimeChange::Zone),
+            ],
+            &tell,
+        );
         Ok(())
     }
 
@@ -884,6 +959,14 @@ mod imp {
 
     pub(super) fn watch_apps(_on_change: impl Fn() + Send + Sync + 'static) -> Result<(), Error> {
         Err(Error::Unsupported(WHY))
+    }
+
+    pub(super) fn watch_time_changes(
+        _on_change: impl Fn(super::TimeChange) + Send + Sync + 'static,
+    ) -> Result<(), Error> {
+        Err(Error::Unsupported(
+            "the scheduler checks the wall clock against the monotonic clock instead",
+        ))
     }
 
     pub(super) fn watch_full_screen_exit(

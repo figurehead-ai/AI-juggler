@@ -14,7 +14,8 @@ import {
   type OutsideSearchInfo,
 } from "../lib/ipc/outsideSearch";
 import { byteSize } from "../lib/compact";
-import { Checkbox } from "./controls";
+import { RowChip, SwitchBox } from "./controls";
+import { IconSearch } from "./bot/bot-icons";
 
 /** The line under the switch, for where the index stands. */
 export function indexWords(info: OutsideSearchInfo, estimate: OutsideSearchEstimateInfo | null): string {
@@ -71,9 +72,13 @@ export function OutsideSearchSetting(): JSX.Element | null {
   }, [info, estimate]);
   if (!info) return null;
   return (
-    <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-outside-search" data-settings-row>
-      <label className="flex items-center gap-2 text-label text-ink">
-        <Checkbox
+    // AJ-E1558 (D-126, TGL-1): a setting that takes effect at once: the
+    // kit's switch row, its chip; spacing, not a rule.
+    <div className="flex flex-col gap-1.5 pt-2" data-testid="privacy-outside-search" data-settings-row>
+      <label className="flex items-center gap-3 text-body text-ink">
+        <RowChip icon={IconSearch} on={info.enabled} />
+        <span className="flex-1 font-medium">Search the words of every session</span>
+        <SwitchBox
           checked={info.enabled}
           disabled={busy}
           onChange={(event) => {
@@ -86,14 +91,13 @@ export function OutsideSearchSetting(): JSX.Element | null {
           }}
           data-testid="outside-search-switch"
         />
-        <span className="font-medium">Search the words of every session</span>
       </label>
-      <p className="text-label text-muted">
+      <p className="pl-[42px] text-label text-muted">
         History can find what was said in sessions started outside AI Juggler too. For that, AI Juggler keeps an index
         of their words on this computer, read from the tools&apos; own files, which it never changes. Off by default; turning
         it off deletes the index.
       </p>
-      <p className="text-label text-ink" data-testid="outside-search-size" aria-live="polite">
+      <p className="pl-[42px] text-label text-ink" data-testid="outside-search-size" aria-live="polite">
         {indexWords(info, estimate)}
       </p>
       {error && (

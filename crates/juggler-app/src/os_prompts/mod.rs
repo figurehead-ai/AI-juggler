@@ -43,6 +43,10 @@ use registry::Entry;
 /// One system prompt, as the window shows it (setup's cards, the sheet).
 #[derive(Clone, PartialEq, Eq, Debug, serde::Serialize, ts_rs::TS)]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "a wire DTO: each flag is its own fact the sheet and setup read"
+)]
 pub struct OsPromptInfo {
     /// The registry's short, stable id.
     pub id: String,
@@ -73,6 +77,11 @@ pub struct OsPromptInfo {
     pub never_shown: bool,
     /// The system's dialog, for the picture the sheet and cards draw.
     pub dialog: Option<OsPromptDialogInfo>,
+    /// 0.5.2 G36: whether the system shows a dialog after Continue. Bot's
+    /// helper's first start brings none (macOS asks only when the helper
+    /// on disk changed since it last opened, `helper-changed`), so its
+    /// sheet never says "macOS will ask next" and draws no dialog.
+    pub dialog_follows: bool,
 }
 
 /// The system's dialog in its own words: what the picture is drawn from.
@@ -98,7 +107,8 @@ pub struct OsPromptOutcomeInfo {
     /// The entry.
     pub id: String,
     /// `called` (the system may have asked) | `not_now` (nothing was
-    /// asked; the next click asks again) | `waiting` (nobody was there) |
+    /// asked: said now, or remembered for an entry offered again from its
+    /// setting, 0.5.2 G33) | `waiting` (nobody was there) |
     /// `already` (primed or decided before: nothing was asked).
     pub result: String,
     /// What the system says now (the info's `status` words).
@@ -111,6 +121,28 @@ pub struct OsPromptOutcomeInfo {
 pub const ASK_WAIT: Duration = Duration::from_secs(600);
 
 const PRIMED_PREFIX: &str = "os_prompt_primed:";
+
+/// 0.5.2 G33 (PAT-OSP): the user said Not now to an entry's sheet. For an
+/// entry offered again from its setting ([`registry::Again::Setting`]) it
+/// is remembered: a use elsewhere asks nothing more, only that setting.
+const NOT_NOW_PREFIX: &str = "os_prompt_not_now:";
+
+/// Whether the user said Not now to `id`'s sheet before.
+#[must_use]
+pub fn said_not_now(state: &AppState, id: &str) -> bool {
+    state
+        .app_setting(&format!("{NOT_NOW_PREFIX}{id}"))
+        .as_deref()
+        == Some("1")
+}
+
+fn remember_not_now(state: &AppState, id: &str) {
+    if let Ok(storage) = state.storage.lock() {
+        let _ = storage
+            .app_settings()
+            .set(&format!("{NOT_NOW_PREFIX}{id}"), "1");
+    }
+}
 
 /// The marks earlier versions left that say the user already went
 /// through an entry's prompt (so it isn't primed a second time).
@@ -209,11 +241,27 @@ impl Primer for WindowPrimer {
     }
 
     fn told(&self, prompt: Prompt, outcome: &Outcome) {
-        self.app.emit_event(
-            AppEvent::OsPromptOutcome,
-            outcome_info(prompt.id, "called", outcome),
-        );
+        // 0.5.2 G36: the helper's start says what came of it (its probe:
+        // started, stopped, not answered yet), told by `prime_call`; the
+        // system won't say, so the gate's outcome would be "If you allowed
+        // it… If not…".
+        if is_helper(prompt.id) {
+            return;
+        }
+        self.tell(&outcome_info(prompt.id, "called", outcome));
     }
+}
+
+impl WindowPrimer {
+    /// The sheet's outcome, said.
+    fn tell(&self, outcome: &OsPromptOutcomeInfo) {
+        self.app
+            .emit_event(AppEvent::OsPromptOutcome, outcome.clone());
+    }
+}
+
+fn is_helper(id: &str) -> bool {
+    id == registry::HELPER.id || id == registry::HELPER_CHANGED.id
 }
 
 static PRIMER: std::sync::OnceLock<Arc<WindowPrimer>> = std::sync::OnceLock::new();
@@ -234,10 +282,7 @@ impl Primer for Shared {
 /// Installs the ledger and the window's sheet into the seam, once, at
 /// start (before anything can ask).
 pub fn install(app: &tauri::AppHandle, state: &Arc<AppState>) {
-    HELPER_RENAMED.store(
-        helper_renamed_here(crate::edition::current(), &state.data_dir),
-        std::sync::atomic::Ordering::Relaxed,
-    );
+    let _ = STATE.set(Arc::clone(state));
     let primer = Arc::new(WindowPrimer::new(app.clone(), Arc::clone(state)));
     let _ = PRIMER.set(Arc::clone(&primer));
     os_prompt::install(
@@ -267,19 +312,40 @@ pub fn may_read(path: &std::path::Path) -> bool {
 /// may. Called by the helpers' one client right before it spawns.
 #[must_use]
 pub fn helper_may_start(command: &std::process::Command) -> bool {
-    let ours = std::iter::once(command.get_program())
+    let Some(path) = ours_in(command) else {
+        return true;
+    };
+    let changed = STATE
+        .get()
+        .is_some_and(|state| helper_changed_at(state, &path));
+    helper_start_through(os_prompt::gate(), changed)
+}
+
+/// The app's own helper `command` runs (as its program or a program it
+/// runs), when it runs one.
+fn ours_in(command: &std::process::Command) -> Option<std::path::PathBuf> {
+    std::iter::once(command.get_program())
         .chain(command.get_args())
-        .any(|part| juggler_platform::code_trust::beside_app(std::path::Path::new(part)));
-    !ours || helper_start_through(os_prompt::gate(), helper_renamed())
+        .map(std::path::Path::new)
+        .find(|part| juggler_platform::code_trust::beside_app(part))
+        .map(std::path::Path::to_path_buf)
+}
+
+/// After one of the app's own helpers said hello (`command`'s): its
+/// signature on disk is the one last opened (AJ-E1555).
+pub fn helper_opened(command: &std::process::Command) {
+    if let (Some(path), Some(state)) = (ours_in(command), STATE.get()) {
+        note_opened(state, &path);
+    }
 }
 
 /// The gate's half of [`helper_may_start`]: a start nobody clicked passes
 /// only once the helper's entry now ([`helper_prompt`]) is primed.
 #[must_use]
-pub fn helper_start_through(gate: os_prompt::Gate<'_>, renamed: bool) -> bool {
+pub fn helper_start_through(gate: os_prompt::Gate<'_>, changed: bool) -> bool {
     matches!(
         gate.through(
-            helper_prompt(gate, renamed),
+            helper_prompt(gate, changed),
             Presence::Background,
             &|| None,
             || ()
@@ -288,41 +354,81 @@ pub fn helper_start_through(gate: os_prompt::Gate<'_>, renamed: bool) -> bool {
     )
 }
 
-/// Whether a build with the helpers' old identifiers ran on this computer
-/// (decided at [`install`] by [`helper_renamed_here`]).
-static HELPER_RENAMED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// The app, for the helper checks the seam makes without one.
+static STATE: std::sync::OnceLock<Arc<AppState>> = std::sync::OnceLock::new();
 
-/// Whether macOS may ask about Bot's helper once after this update
-/// (AJ-E3822): before 0.5.1 a Dev build signed the helpers' identifiers
-/// ad hoc under the very names AI Juggler and Nightly sign with the
-/// team's ID, so the next start under the other signer "differs from
-/// previously opened versions". Only those two editions can see it, and
-/// only where Dev's data folder sits beside theirs (a Dev build ran
-/// here; its folder's presence is read, nothing in it). Dev's helpers now
-/// carry Dev's own names, never seen before, so Dev itself never asks.
-#[must_use]
-pub fn helper_renamed_here(edition: crate::edition::Edition, data_dir: &std::path::Path) -> bool {
-    let dev = crate::edition::Edition::Dev;
-    edition != dev
-        && data_dir
-            .parent()
-            .is_some_and(|parent| parent.join(dev.data_dir_name()).is_dir())
+/// Where the signature of the helper last opened is kept, per helper.
+const OPENED_PREFIX: &str = "os_prompt_helper_opened:";
+
+fn opened_key(path: &std::path::Path) -> Option<String> {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| format!("{OPENED_PREFIX}{name}"))
 }
 
-/// What [`helper_renamed_here`] said at start.
+/// AJ-E1555: macOS asks whether to open a program that "differs from
+/// previously opened versions" only when its signature changed since it
+/// last opened: `stored` (the one last opened) and `now` (on disk) both
+/// known and different. Never because some other build ran here.
 #[must_use]
-pub fn helper_renamed() -> bool {
-    HELPER_RENAMED.load(std::sync::atomic::Ordering::Relaxed)
+pub fn signature_changed(stored: Option<&str>, now: Option<&str>) -> bool {
+    matches!((stored, now), (Some(stored), Some(now)) if stored != now)
+}
+
+/// Whether the helper at `path` changed on disk since it last opened.
+#[must_use]
+pub fn helper_changed_at(state: &AppState, path: &std::path::Path) -> bool {
+    let Some(key) = opened_key(path) else {
+        return false;
+    };
+    signature_changed(
+        state.app_setting(&key).as_deref(),
+        juggler_platform::code_trust::signature_of(path).as_deref(),
+    )
+}
+
+/// Whether any of the app's own helpers changed on disk since it last
+/// opened (the `helper-changed` entry's `needed`).
+#[must_use]
+pub fn helper_changed_here(state: &AppState) -> bool {
+    crate::features::ai::engines::own_helpers()
+        .iter()
+        .any(|path| helper_changed_at(state, path))
+}
+
+/// Keeps `path`'s signature as the one last opened; a change seen means
+/// the next change is told again (its `helper-changed` priming is spent).
+pub fn note_opened(state: &AppState, path: &std::path::Path) {
+    let (Some(key), Some(now)) = (
+        opened_key(path),
+        juggler_platform::code_trust::signature_of(path),
+    ) else {
+        return;
+    };
+    let changed = helper_changed_at(state, path);
+    if let Ok(storage) = state.storage.lock() {
+        let settings = storage.app_settings();
+        let _ = settings.set(&key, &now);
+        if changed {
+            let _ = settings.set(
+                &format!("{PRIMED_PREFIX}{}", registry::HELPER_CHANGED.id),
+                "0",
+            );
+        }
+    }
+}
+
+fn changed_now() -> bool {
+    STATE.get().is_some_and(|state| helper_changed_here(state))
 }
 
 /// The entry the helper's next start goes through: `helper-changed`
-/// after an update where macOS may ask about the renamed helper
-/// (`renamed`) until that entry is primed once, else `helper`. Priming
-/// `helper-changed` primes `helper` too ([`prime_call`]): one sheet, never
-/// two.
+/// while the helper on disk differs from the one last opened (`changed`)
+/// until that entry is primed, else `helper`. Priming `helper-changed`
+/// primes `helper` too ([`prime_call`]): one sheet, never two.
 #[must_use]
-pub fn helper_prompt(gate: os_prompt::Gate<'_>, renamed: bool) -> Prompt {
-    if renamed && !gate.primed(registry::HELPER_CHANGED.id) {
+pub fn helper_prompt(gate: os_prompt::Gate<'_>, changed: bool) -> Prompt {
+    if changed && !gate.primed(registry::HELPER_CHANGED.id) {
         registry::HELPER_CHANGED
     } else {
         registry::HELPER
@@ -336,7 +442,7 @@ fn helper_entry_now(entry: &Entry) -> &Entry {
     if id != registry::HELPER.id && id != registry::HELPER_CHANGED.id {
         return entry;
     }
-    registry::entry(helper_prompt(os_prompt::gate(), helper_renamed()).id).unwrap_or(entry)
+    registry::entry(helper_prompt(os_prompt::gate(), changed_now()).id).unwrap_or(entry)
 }
 
 /// What the system says of `prompt` now, never asking.
@@ -399,7 +505,8 @@ pub fn status_of(state: &Arc<AppState>, prompt: Prompt) -> Status {
 #[must_use]
 pub fn info(state: &Arc<AppState>, entry: &Entry) -> OsPromptInfo {
     let app = crate::edition::current().app_name();
-    let dialog = os_prompt::dialog(entry.prompt.kind, app);
+    let dialog_follows = dialog_follows(entry);
+    let dialog = os_prompt::dialog(entry.prompt.kind, app).filter(|_| dialog_follows);
     let place = os_prompt::settings_place(entry.prompt.kind);
     OsPromptInfo {
         id: entry.prompt.id.to_owned(),
@@ -435,7 +542,17 @@ pub fn info(state: &Arc<AppState>, entry: &Entry) -> OsPromptInfo {
             buttons: dialog.buttons.iter().map(|b| (*b).to_owned()).collect(),
             click: dialog.click.to_owned(),
         }),
+        dialog_follows,
     }
+}
+
+/// 0.5.2 G36: whether the system shows a dialog after `entry`'s Continue.
+/// Bot's helper's first start (`helper`) brings none; only a helper that
+/// changed on disk since it last opened (`helper-changed`) may be asked
+/// about. Every other entry's call makes the system ask.
+#[must_use]
+pub fn dialog_follows(entry: &Entry) -> bool {
+    entry.prompt.id != registry::HELPER.id
 }
 
 /// What to click, in words: the button, and for a dialog that sends the
@@ -457,7 +574,35 @@ fn outcome_info(id: &str, result: &str, outcome: &Outcome) -> OsPromptOutcomeInf
         id: id.to_owned(),
         result: result.to_owned(),
         status: outcome.status.as_str().to_owned(),
-        words: outcome.words.clone(),
+        words: registry::entry(id).map_or_else(
+            || outcome.words.clone(),
+            |entry| outcome_words(entry, outcome.status),
+        ),
+    }
+}
+
+/// AJ-E1555: what the sheet says after the call, from the registry's own
+/// words: what works now, or what declining means and where to change
+/// it; never a state word ("Asked.", "Allowed") as the body.
+#[must_use]
+pub fn outcome_words(entry: &Entry, status: Status) -> String {
+    let place = os_prompt::settings_place(entry.prompt.kind);
+    let later = |lead: &str| match place {
+        Some(place) => format!("{lead} You can change it any time in {place}."),
+        None => lead.to_owned(),
+    };
+    match status {
+        Status::Allowed => entry.after.to_owned(),
+        Status::NotAllowed => later(entry.if_declined),
+        Status::NotAsked => format!(
+            "The system didn't ask, so nothing changed. {}",
+            entry.offered_again
+        ),
+        // The system won't say what was answered: what follows either way.
+        Status::Asked => later(&format!(
+            "If you allowed it: {} If not: {}",
+            entry.after, entry.if_declined
+        )),
     }
 }
 
@@ -469,7 +614,7 @@ fn gated_info<T>(state: &Arc<AppState>, prompt: Prompt, gated: &Gated<T>) -> OsP
             id: prompt.id.to_owned(),
             result: "not_now".to_owned(),
             status: status_of(state, prompt).as_str().to_owned(),
-            words: "Nothing was asked. It will ask again the next time you use it.".to_owned(),
+            words: not_now_words(prompt.id),
         },
         Gated::Waiting => OsPromptOutcomeInfo {
             id: prompt.id.to_owned(),
@@ -477,6 +622,47 @@ fn gated_info<T>(state: &Arc<AppState>, prompt: Prompt, gated: &Gated<T>) -> OsP
             status: status_of(state, prompt).as_str().to_owned(),
             words: "Nothing was asked: it waits for you.".to_owned(),
         },
+    }
+}
+
+/// After Not now: nothing was asked, and where (or when) it's offered
+/// again, the registry's own sentence.
+fn not_now_words(id: &str) -> String {
+    registry::entry(id).map_or_else(
+        || "Nothing was asked.".to_owned(),
+        |entry| format!("Nothing was asked. {}", entry.offered_again),
+    )
+}
+
+/// What came of starting the helper (its probe's reading of this Mac):
+/// it started and said hello, the system stopped it, or it hasn't
+/// answered yet.
+fn helper_outcome(
+    prompt: Prompt,
+    mac: Option<&crate::features::ai::models::recommend::MacFacts>,
+) -> OsPromptOutcomeInfo {
+    use crate::features::ai::models::recommend::AppleAi;
+    let Some(entry) = registry::entry(prompt.id) else {
+        return outcome_info(prompt.id, "called", &Outcome::of(prompt.kind, None));
+    };
+    let (status, words) = match mac.map(|mac| mac.apple_ai) {
+        Some(AppleAi::On | AppleAi::Off | AppleAi::Preparing | AppleAi::Unavailable) => {
+            (Status::Allowed, entry.after.to_owned())
+        }
+        Some(AppleAi::Blocked) => (Status::NotAllowed, entry.if_declined.to_owned()),
+        _ => (
+            Status::Asked,
+            format!(
+                "Bot's helper hasn't answered yet; nothing else changed. {}",
+                entry.offered_again
+            ),
+        ),
+    };
+    OsPromptOutcomeInfo {
+        id: prompt.id.to_owned(),
+        result: "called".to_owned(),
+        status: status.as_str().to_owned(),
+        words,
     }
 }
 
@@ -569,13 +755,26 @@ pub fn prime_call(
         // first, once; that primes `helper` too.
         "helper" | "helper-changed" => {
             let prompt = helper_entry_now(entry).prompt;
+            let sheet_shown = matches!(presence, Presence::User(_)) && !gate.primed(prompt.id);
             let gated = gate.through(prompt, presence, &|| None, || {
                 if prompt.id == registry::HELPER_CHANGED.id {
                     AppLedger(Arc::clone(state)).set_primed(registry::HELPER.id);
                 }
-                let _ = crate::features::ai::service::mac_checked(state);
+                crate::features::ai::service::mac_checked(state)
             });
-            gated_info(state, prompt, &gated)
+            // AJ-E1555 R3: the helper's start is the action; the sheet says
+            // what came of it, never "asked" for a prompt that didn't come.
+            match &gated {
+                Gated::Called { value, .. } => {
+                    let outcome = helper_outcome(prompt, value.as_ref());
+                    // 0.5.2 G36: the sheet says what came of the start.
+                    if sheet_shown && let Some(primer) = PRIMER.get() {
+                        primer.tell(&outcome);
+                    }
+                    outcome
+                }
+                _ => gated_info(state, prompt, &gated),
+            }
         }
         "keychain" | "first-open" => {
             return Err(AppError::Refused(
@@ -664,11 +863,14 @@ pub async fn os_prompt_prime(
 }
 
 /// A click that is about to use what `id` guards (the Watches form's
-/// Watch button for `notifications`, a Settings switch): the sheet first
-/// when the entry isn't primed and the system hasn't decided, then the
-/// call, then the outcome. An entry already primed or decided asks
-/// nothing and calls nothing (never the same sheet twice, never a sheet
-/// with no dialog after it).
+/// Watch button for `notifications`, a reminder's Set; `from_setting`
+/// for the entry's own setting, Check this computer for Bot's helper):
+/// the sheet first when the entry isn't primed and the system hasn't
+/// decided, then the call, then the outcome. An entry already primed or
+/// decided asks nothing and calls nothing (never the same sheet twice,
+/// never a sheet with no dialog after it), and so does an entry offered
+/// again from its setting that the user said Not now to, unless this is
+/// that setting (0.5.2 G33).
 ///
 /// # Errors
 ///
@@ -677,14 +879,40 @@ pub async fn os_prompt_prime(
 pub async fn os_prompt_request(
     state: tauri::State<'_, Arc<AppState>>,
     id: String,
+    from_setting: Option<bool>,
 ) -> AppResult<OsPromptOutcomeInfo> {
+    let from = if from_setting.unwrap_or(false) {
+        Asked::FromSetting
+    } else {
+        Asked::ByUse
+    };
     crate::ipc::blocking_with(
         state.inner(),
         "os prompt request",
         crate::ipc::Wait::Person,
-        move |state| request_impl(state, entry_of(&id)?),
+        move |state| request_impl(state, entry_of(&id)?, from),
     )
     .await
+}
+
+/// Where a request comes from (0.5.2 G33).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Asked {
+    /// A use of what the entry guards (a watch's Watch, a reminder's Set,
+    /// a move's link).
+    ByUse,
+    /// The entry's own setting (the place its `offered_again` names).
+    FromSetting,
+}
+
+/// 0.5.2 G33 (PAT-OSP): whether a request shows `entry`'s sheet again
+/// after the user said Not now to it (`said_not_now`): always from its
+/// setting, and at a use only for an entry offered again at its next use.
+/// Never by itself: a watch's Watch or a reminder's Set after Not now to
+/// notifications asks nothing more.
+#[must_use]
+pub fn asks_again(entry: &Entry, from: Asked, said_not_now: bool) -> bool {
+    !said_not_now || from == Asked::FromSetting || entry.again == registry::Again::NextUse
 }
 
 /// Core of [`os_prompt_request`].
@@ -692,7 +920,11 @@ pub async fn os_prompt_request(
 /// # Errors
 ///
 /// An entry built never to be shown.
-pub fn request_impl(state: &Arc<AppState>, entry: &Entry) -> AppResult<OsPromptOutcomeInfo> {
+pub fn request_impl(
+    state: &Arc<AppState>,
+    entry: &Entry,
+    from: Asked,
+) -> AppResult<OsPromptOutcomeInfo> {
     let entry = helper_entry_now(entry);
     let status = status_of(state, entry.prompt);
     if os_prompt::gate().primed(entry.prompt.id)
@@ -704,7 +936,21 @@ pub fn request_impl(state: &Arc<AppState>, entry: &Entry) -> AppResult<OsPromptO
             &Outcome::of(entry.prompt.kind, Some(status)),
         ));
     }
-    prime_call(state, entry, os_prompt::user())
+    // 0.5.2 G33 (PAT-OSP): Not now is remembered for an entry offered
+    // again from its setting; a use elsewhere goes on without asking.
+    if !asks_again(entry, from, said_not_now(state, entry.prompt.id)) {
+        return Ok(OsPromptOutcomeInfo {
+            id: entry.prompt.id.to_owned(),
+            result: "not_now".to_owned(),
+            status: status.as_str().to_owned(),
+            words: not_now_words(entry.prompt.id),
+        });
+    }
+    let outcome = prime_call(state, entry, os_prompt::user())?;
+    if outcome.result == "not_now" {
+        remember_not_now(state, entry.prompt.id);
+    }
+    Ok(outcome)
 }
 
 /// The sheet's answer: Continue (`go`) or Not now, for the entry `id`.

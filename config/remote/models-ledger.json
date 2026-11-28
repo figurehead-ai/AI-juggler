@@ -24,12 +24,12 @@
       "basis": "round3_after_fix_floor",
       "jobs": {
         "feed": {
-          "verdict": "not_yet",
-          "note": "The plain line reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "verdict": "beta",
+          "note": "Beta: preferred in 69 % of blind checks, but about 1 line in 5 got something wrong.",
+          "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "d8c3c2194"
         },
         "review": {
           "verdict": "beta",
@@ -56,20 +56,20 @@
           "commit": "c8b4ec881"
         },
         "digest": {
-          "verdict": "not_yet",
-          "note": "The plain roundup reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "verdict": "beta",
+          "note": "Preferred over the plain roundup in 64 % of blind checks.",
+          "evidence": "docs/qa/evidence/AJ-E3709/v6-results/review-opus.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-26",
+          "commit": "529f3859f"
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 70 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -95,11 +95,11 @@
       "jobs": {
         "feed": {
           "verdict": "not_yet",
-          "note": "The plain line reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Not yet: in testing the line got the outcome wrong too often, so the plain line stays.",
+          "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e249b088e"
         },
         "review": {
           "verdict": "beta",
@@ -135,11 +135,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 81 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -204,11 +204,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 85 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -233,11 +233,11 @@
       "jobs": {
         "feed": {
           "verdict": "not_yet",
-          "note": "The plain line reads better for now.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Not yet: in testing the line got the outcome wrong too often, so the plain line stays.",
+          "evidence": "docs/qa/evidence/AJ-E3831/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e249b088e"
         },
         "review": {
           "verdict": "beta",
@@ -273,11 +273,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 85 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -336,11 +336,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 89 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {
@@ -405,11 +405,11 @@
         },
         "watches": {
           "verdict": "not_yet",
-          "note": "Drafts matched the request 70 % of the time; we want 95 %.",
-          "evidence": "docs/qa/evidence/AJ-E3709/v5-final.md",
+          "note": "Fills in what it understands from your words; you check the form and save.",
+          "evidence": "docs/qa/evidence/AJ-E3830/manifest.md",
           "confirmed_by": "opus",
-          "date": "2026-11-18",
-          "commit": "c8b4ec881"
+          "date": "2026-11-27",
+          "commit": "e923067e2"
         }
       },
       "memory": {

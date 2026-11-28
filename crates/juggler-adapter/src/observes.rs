@@ -70,6 +70,17 @@ impl Observes {
     /// A command-line session whose tool reports a usage limit reached and
     /// the account's room, though not each turn's end.
     pub const TERMINAL_LIMITS: Self = Self::TERMINAL.union(Self::LIMIT_HITS).union(Self::RUNWAY);
+
+    /// 0.5.2 G45: what AI Juggler sees of a session it didn't start (one
+    /// the user started in their own terminal, or another app runs), from
+    /// the conversation index's live look ([`ToolObserves::seen_by`]): its
+    /// state (working, idle, asking), so a turn's end (working, then idle),
+    /// and its process starting and ending. Never the processes it leaves
+    /// or a restart: AI Juggler runs neither.
+    pub const SEEN: Self = Self::STATES
+        .union(Self::ASKS)
+        .union(Self::TURN_ENDS)
+        .union(Self::LIFECYCLE);
 }
 
 /// A tool's declared observations, per kind of App.
@@ -160,6 +171,20 @@ impl ToolObserves {
         }
     }
 
+    /// 0.5.2 G45: what a tool's sessions AI Juggler didn't start report,
+    /// desktop or command line alike ([`Observes::SEEN`]): only a tool
+    /// whose records say which process holds a session open
+    /// ([`Capabilities::SESSION_PROCESS_RECORDED`]) is seen open, and so
+    /// in a state, at all; for any other, nothing.
+    #[must_use]
+    pub const fn seen_by(caps: Capabilities) -> Observes {
+        if caps.contains(Capabilities::SESSION_PROCESS_RECORDED) {
+            Observes::SEEN
+        } else {
+            Observes::empty()
+        }
+    }
+
     /// Every kind's set lies inside `other`'s.
     #[must_use]
     pub fn within(&self, other: &Self) -> bool {
@@ -193,6 +218,14 @@ mod tests {
         );
         assert_eq!(app.desktop, Observes::RESTARTS | Observes::RUNWAY);
         assert!(app.cli.is_empty());
+    }
+
+    #[test]
+    fn a_session_ai_juggler_didnt_start_is_seen_only_where_its_process_is_recorded() {
+        let seen = ToolObserves::seen_by(Capabilities::SESSION_PROCESS_RECORDED);
+        assert!(seen.contains(Observes::STATES | Observes::TURN_ENDS | Observes::LIFECYCLE));
+        assert!(!seen.intersects(Observes::PROCESSES | Observes::RESTARTS));
+        assert!(ToolObserves::seen_by(Capabilities::RESUME).is_empty());
     }
 
     #[test]

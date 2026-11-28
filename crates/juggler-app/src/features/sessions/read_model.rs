@@ -326,6 +326,23 @@ pub fn session_infos_snapshot(storage: &Storage) -> AppResult<Vec<InstanceInfo>>
     )
 }
 
+/// 0.5.2 G73: whether a session is working now as the rail reads it
+/// (`sessionItem`, `sessionState`): open (starting or running), needing
+/// nothing by Home's one rule (`needs::session_kind`), and its tool's own
+/// word, when it says a state the rail knows, "working". A running session whose turn ended
+/// (its hooks or transcript say idle, or done) isn't: Home's Running chip
+/// counted it while the rail read it Idle.
+#[must_use]
+pub fn working_now(row: &InstanceInfo) -> bool {
+    matches!(row.status.as_str(), "starting" | "running")
+        && crate::features::notifications::needs::session_kind(row).is_none()
+        && row
+            .runtime
+            .as_ref()
+            .and_then(|runtime| runtime.state.as_deref())
+            .is_none_or(|state| !matches!(state, "idle" | "done_review" | "asks_you" | "ended"))
+}
+
 /// account id → (label, provider).
 pub(crate) type AccountIndex = std::collections::BTreeMap<String, (String, String)>;
 

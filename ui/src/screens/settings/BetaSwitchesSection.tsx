@@ -8,6 +8,7 @@ import { useEffect, useState, type JSX } from "react";
 import { errorText } from "../../lib/bridge";
 import { appSettingGet, appSettingSet } from "../../lib/ipc/settings";
 import { PaneSection, SwitchRow } from "./parts";
+import { IconFlask } from "../../components/icons-settings";
 
 /** The setting (the backend's `features::validation::BETA_SWITCHES_KEY`). */
 export const BETA_SWITCHES_KEY = "switching.beta";
@@ -24,7 +25,7 @@ export function BetaSwitchesSection(): JSX.Element {
   return (
     <PaneSection id="beta" title="Beta" footer="Accounts lists which switches are tested and how far each one is.">
       {on !== null && (
-        <SwitchRow
+        <SwitchRow icon={IconFlask}
           title="Show switches still in beta"
           description="Switches AI Juggler is still testing with these tools. Each one is marked Beta and says what it carries; some parts may not carry yet."
           checked={on}

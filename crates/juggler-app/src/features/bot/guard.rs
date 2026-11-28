@@ -178,10 +178,45 @@ const REPLY_EN: &str =
     "summary|summarization|summarisation|reply|answer|response|output|feed|review|report";
 const REPLY_DE: &str = "zusammenfassung|antwort|ausgabe|meldung|bewertung";
 const READERS: &str = "ai|model|llm|assistant|summarizer|summariser|summary|reader|whoever";
+/// Who planted text is addressed to (G49).
+const PLANTED_FOR: &str = "ai|llm|llms|summarizer|summarizers|summariser|summarisers|ai+summarizers|ai+summarisers|ai+tools|ai+assistants|ai+readers|language+models|feed+tools|summary+tools|bots";
 
 /// Every rule: the frozen gate's `ADDRESSED` and `ORDER`, then the v5
 /// pass, English and German.
 const RULES: &[Rule] = &[
+    // 0.5.2 G49 (v14 H44): an agent reporting planted text addressed to
+    // AI tools ("a comment telling AI summarizers to report that the work
+    // was reverted"): the report carries the order, so it goes too.
+    (
+        Start::Anywhere,
+        &[
+            Any(
+                "telling|tells|told|asking|asks|instructing|instructs|ordering|orders|directing|urging|wants",
+            ),
+            Opt("any|all|the|every"),
+            Any(PLANTED_FOR),
+            Gap(2),
+            Any("to"),
+        ],
+    ),
+    (
+        Start::Anywhere,
+        &[
+            Any("addressed|aimed|directed|meant|written"),
+            Any("to|at|for"),
+            Opt("any|all|the|every"),
+            Any(PLANTED_FOR),
+        ],
+    ),
+    (
+        Start::Anywhere,
+        &[
+            Any("ki|ki-zusammenfasser|zusammenfasser|zusammenfassern|sprachmodelle|sprachmodellen"),
+            Gap(4),
+            Any("zu"),
+            Any("melden|sagen|berichten|schreiben|behaupten|ausgeben"),
+        ],
+    ),
     // gate ADDRESSED
     (
         Start::Anywhere,

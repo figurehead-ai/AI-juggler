@@ -672,3 +672,5 @@ fn retrieval_ranks_by_words_priority_and_recency() {
 mod forget;
 /// A feature's own event committed with its record; reads by kind and subject (AJ-E3814).
 mod logged;
+/// Bot's world model on this store: its gate, its forget, its copies (ADR-0038).
+mod world;

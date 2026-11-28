@@ -28,8 +28,12 @@ pub fn subject_key(end_ms: i64) -> String {
 pub enum Why {
     /// The job's flag is off.
     FlagOff,
-    /// The flag is on, and no model writer is built for it.
-    NoWriter,
+    /// The flag is on, and the job's verdict keeps the rollup (D-149:
+    /// not yet preferred in the blind checks).
+    Verdict,
+    /// Its calm agents' lines were picked by the model, the digest
+    /// assembled by code (D-149's map and reduce).
+    Mapped,
 }
 
 impl Why {
@@ -38,7 +42,8 @@ impl Why {
     pub const fn code(self) -> &'static str {
         match self {
             Self::FlagOff => "flag_off",
-            Self::NoWriter => "no_writer",
+            Self::Verdict => "verdict",
+            Self::Mapped => "mapped",
         }
     }
 }

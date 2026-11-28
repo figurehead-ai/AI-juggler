@@ -4,17 +4,26 @@
 //! code, links every row to its source, says "I don't know" rather than
 //! answering a nearby question, and acts only through a confirm card.
 
+pub mod answer;
 pub mod check;
+pub mod clause;
 pub mod commands;
 pub mod dto;
+pub mod general;
 pub mod guard;
 pub mod history;
 pub mod lookup;
 pub mod memory;
+pub mod model;
 pub mod question;
 pub mod search;
+pub mod watch_draft;
 pub mod world;
 pub mod written;
 
+#[cfg(test)]
+pub(crate) mod fake;
+#[cfg(test)]
+mod real_model_tests;
 #[cfg(test)]
 mod tests;

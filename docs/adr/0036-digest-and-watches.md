@@ -191,7 +191,7 @@ Each condition maps to observations AI Juggler already makes; nothing here needs
 | `AsksYou` | it asks a question or for an approval | `WaitingUser`; `ApprovalRequested`, `QuestionAsked`; `asks_you`; the need kind `asks` | `after_min` 0–120 (default: the user's wait setting) | session, App, project, pool, any |
 | `Fails` | a turn or the session fails | `TurnEnd::Failed`; `SessionStatus::Failed`; endings `Error`, `Crashed`; the need kind `failed` | — | session, App, project, pool, any |
 | `Stuck` | it looks stuck and stays so | `SessionStatus::Stuck` held | `for_min` 0–240 (0: as soon as it looks stuck; the heuristic trips after `stuck_after_minutes`) | session, App, project, any |
-| `IdleFor` | no activity while it's open | the last observation for that session, by a deadline (§2.3) | `min` 5–480 | session, App, project, any |
+| `IdleFor` | no activity while it's open; on an App, a project or any session: a session in it (0.5.2 G32, below) | the last observation for that session, by a deadline (§2.3) | `min` 5–480 | session, App, project, any |
 | `HitsLimit` | it reaches a usage limit | `SessionStatus::QuotaBlocked`; `ErrorCategory::RateLimit`; the need kind `limit` | — | session, App, account, any |
 | `RunwayBelow` | an account's room crosses below a share | the quota alert's phase changes and runway crossings (AJ-E3704) | `percent` 5–95 | account, App (its account), any |
 | `RunwayResets` | an account has room again | `Kind::Reset` | — | account, any |
@@ -201,6 +201,8 @@ Each condition maps to observations AI Juggler already makes; nothing here needs
 | `TaskChanges` | a task moves to a state | `task_events` | `to`: done, blocked or in review | pool, project |
 | `Commits` | a commit lands in the project | the git journal (AJ-E3706, F3) | — | session, project; offered once F3's journal exists |
 | `Starts` | a new session starts | `RuntimeEvent::Started`; a new conversation in the index | — | App, project, any |
+
+**`IdleFor` on a group target (0.5.2 G32, the builder's call by this table and D-127).** The table reads it per session ("the last observation for that session"), and a group target includes sessions that start later (§2.3), so on an App, a project or any session it means *a session in it stays idle that long*. It keeps that meaning only from an open session: each session open when the watch starts is armed from the start, as a session target is (one already idle sends nothing, so before G32 it was never armed and the watch never fired), and one that starts later is armed by its first observation. With no session open in the target nothing can be idle, so the Watches form doesn't offer it there (D-127: never an option that can't be met as offered), and a new watch's default condition follows its target ("A new session starts" for a group with none open, a limit for an account, a turn ending otherwise). The alternative, one deadline for the whole group counted from the watch's start ("nothing in docs happens for 5 minutes"), needs a group-level member the per-session engine doesn't have and reads as a different condition; not taken.
 
 **Not in the set** (each answered by §2.4's nearest option): what an agent says ("when it mentions the database"), test results by name ("when the tests pass"; nearest: `Finishes` or `Fails`), pull requests merged or reviewed, deploys, money in dollars (nearest: `RunwayBelow`), clock reminders ("at 5 pm"), anything on another Mac (Fleet watches are not in 0.5), and anything that acts ("and then restart it").
 

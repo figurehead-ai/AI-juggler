@@ -12,6 +12,7 @@ import { useMoves } from "../../components/switch/MovesDoor";
 import { MovesPanel } from "../../components/switch/MovesBackups";
 import { appSettingGet, appSettingSet } from "../../lib/ipc/settings";
 import { PaneSection, SettingRow } from "./parts";
+import { IconClock } from "../../components/icons-menu";
 
 /** The setting's key and its choices, in days. */
 export const KEEP_KEY = "moves.keep_backups";
@@ -36,7 +37,7 @@ function KeepRow({ onChange }: { onChange: () => void }): JSX.Element {
     void appSettingSet(KEEP_KEY, value).then(onChange, () => {});
   };
   return (
-    <SettingRow
+    <SettingRow icon={IconClock}
       title="Keep move backups for"
       description="Undo restores a move from its backup. Moves AI Juggler stopped part way keep theirs until you finish or undo them."
       testId="moves-keep"

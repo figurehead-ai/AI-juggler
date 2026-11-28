@@ -54,7 +54,7 @@ export interface ModelActions {
 
 /** Turns on each of `model`'s Beta jobs that is off (`only`: of these). */
 async function turnOnBetas(model: CatalogModel, jobs: readonly AiJobInfo[] | null, only?: readonly AiJob[]): Promise<void> {
-  for (const job of betaJobs(model).filter((one) => !only || only.includes(one))) {
+  for (const job of betaJobs(model, jobs).filter((one) => !only || only.includes(one))) {
     if (!jobs?.find((info) => info.job === job)?.beta_on) await aiBetaSet(job, true);
   }
 }
@@ -107,8 +107,9 @@ export function useModelActions(jobs: readonly AiJobInfo[] | null): ModelActions
         try {
           // AJ-E1547: the check may start Bot's AI helper the first time:
           // the gate's sheet first (nothing when it's set up already).
-          // Not now checks nothing; the next click asks again.
-          if ((await osPromptRequest(BOT_HELPER)).result === "not_now") return;
+          // This is the helper's setting (its "offered again" place), so
+          // it asks again after an earlier Not now (0.5.2 G33).
+          if ((await osPromptRequest(BOT_HELPER, { fromSetting: true })).result === "not_now") return;
           await aiEnginesCheck();
         } finally {
           setChecking(false);

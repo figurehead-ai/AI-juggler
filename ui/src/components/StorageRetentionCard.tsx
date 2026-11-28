@@ -15,7 +15,8 @@ import type { AccountStorageInfo } from "../types/generated/AccountStorageInfo";
 import type { RetentionPreviewInfo } from "../types/generated/RetentionPreviewInfo";
 import { CardTitle } from "./CardTitle";
 import { byteSize } from "../lib/compact";
-import { Picker } from "./controls";
+import { Picker, RowChip } from "./controls";
+import { IconStorage } from "./icons-settings";
 import { useFolderAppName } from "../lib/apps";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
 
@@ -60,8 +61,11 @@ export function StorageRetentionCard(): JSX.Element {
             className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-2 px-3 py-2 text-label"
             data-testid="storage-row"
           >
-            <span className="min-w-0 flex-1 truncate font-medium text-ink">{folderAppName(row.account_id, row.label)}</span>
-            <span className="order-last w-full text-muted" data-testid="storage-usage">
+            {/* AJ-E1558 (D-126): the row's chip, the accent's soft step once
+                a retention is set. */}
+            <RowChip icon={IconStorage} on={row.retention_days !== null} />
+            <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{folderAppName(row.account_id, row.label)}</span>
+            <span className="order-last w-full pl-[42px] text-muted" data-testid="storage-usage">
               {/* The 0.2 walk (F18): AI Juggler's own records, not the
                   sessions History lists from the tools' files. */}
               AI Juggler's own records: {row.instances} {row.instances === 1 ? "session it started" : "sessions it started"} · {row.history_events.toLocaleString("en-US")} events ·{" "}
@@ -150,28 +154,28 @@ function RetentionDryRun({
         bodyClassName="flex flex-col gap-3 px-5 pt-3 pb-3"
         footerClassName="px-5 pt-3 pb-5"
         header={
-          <h3 id="dry-run-title" className="text-sm font-semibold">
+          <h3 id="dry-run-title" className="type-section">
             Dry run — {label}, older than {preview.retention_days} days
           </h3>
         }
         footer={
           <div className="flex justify-end gap-2">
-            <button type="button" autoFocus onClick={() => onClose(null)} className="rounded-lg border border-hairline px-3 py-1.5 text-xs text-ink">
+            <Button size="sm" variant="ghost" autoFocus onClick={() => onClose(null)}>
               Cancel
-            </button>
+            </Button>
             {preview.token && (
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="danger"
                 onClick={() =>
                   void retentionApply(preview.account_id, preview.token!)
                     .then((deleted) => onClose(deleted))
                     .catch((cause) => setError(errorText(cause)))
                 }
-                className="rounded-lg border border-danger/60 px-3 py-1.5 text-xs text-ink hover:border-danger"
                 data-testid="dry-run-apply"
               >
                 Remove {n} {n === 1 ? "record" : "records"}
-              </button>
+              </Button>
             )}
           </div>
         }

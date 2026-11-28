@@ -1,0 +1,135 @@
+{
+ "family": "apple",
+ "job": "watch7",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "R11-W04",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('fails', None), ('starts', None)] != [('restarted', None)]",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W07",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: sits",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W12",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Egal was sonst läuft",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W19",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: nur Bescheid, wenn die Sensordaten-Sitzung",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W20",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W24",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Whatever else is running",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W28",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Fahrplan-Import-Sitzung",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W30",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('ends', None), ('leaves_processes', None)] != [('leaves_processes', None)]",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W38",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W40",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: new sessions starting",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W43",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W47",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W49",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W50",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W54",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch11"
+  },
+  {
+   "id": "R11-W56",
+   "class": "omission",
+   "detector": "false_unsupported",
+   "detail": "model labels: Terminvergabe-Sitzung",
+   "stage": "shown",
+   "corpus": "watch11"
+  }
+ ]
+}

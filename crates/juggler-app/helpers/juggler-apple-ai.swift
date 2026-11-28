@@ -8,7 +8,8 @@
 //   connection, so the App Sandbox with no network entitlement is enough (checked by hand, AJ-E3813);
 // - SystemLanguageModel.default only (the on-device model), never the cloud model;
 // - guided output through DynamicGenerationSchema (the Command Line Tools ship no @Generable macro plugin);
-// - temperature 0, greedy; one retry with the permissive guardrails on a refusal (ADR-0033 §4.1);
+// - temperature 0, greedy; one retry with the permissive guardrails on a refusal (ADR-0033 §4.1); a job's retry after a
+//   failed check may send "sampling" {temperature_milli, seed}: a seeded sample, top-k 40 (D-149, harness v6's values);
 // - utility quality of service; exits when stdin closes, and after 60 s with nothing to do.
 //
 // Protocol 2: one JSON object per line each way.
@@ -63,6 +64,14 @@ func state(_ availability: SystemLanguageModel.Availability) -> String {
     }
 }
 
+/// A shape as the protocol allows it: an object (`{"type":"integer",…}`) or a bare word (`"string"`, `"bool"`). A bare
+/// "bool" read as an object fell back to a string field, so the model wrote "False" (AJ-E3829).
+func shapeOf(_ any: Any?) -> [String: Any] {
+    if let object = any as? [String: Any] { return object }
+    if let word = any as? String { return ["type": word] }
+    return ["type": "string"]
+}
+
 @available(macOS 26.0, *)
 func shape(_ json: [String: Any], _ name: String) -> DynamicGenerationSchema {
     switch json["type"] as? String ?? "string" {
@@ -75,14 +84,14 @@ func shape(_ json: [String: Any], _ name: String) -> DynamicGenerationSchema {
         let low = json["min"] as? Int ?? 0, high = json["max"] as? Int ?? 1000
         return DynamicGenerationSchema(type: Int.self, guides: [.range(low...max(low, high))])
     case "array":
-        let items = json["items"] as? [String: Any] ?? ["type": "string"]
+        let items = shapeOf(json["items"])
         return DynamicGenerationSchema(arrayOf: shape(items, name + "Item"), minimumElements: json["min"] as? Int,
                                        maximumElements: json["max"] as? Int)
     case "object":
         let properties = (json["properties"] as? [[String: Any]] ?? []).map { property -> DynamicGenerationSchema.Property in
             let field = property["name"] as? String ?? "field"
             return DynamicGenerationSchema.Property(name: field, description: property["description"] as? String,
-                                                    schema: shape(property["schema"] as? [String: Any] ?? ["type": "string"],
+                                                    schema: shape(shapeOf(property["schema"]),
                                                                   name + "_" + field))
         }
         return DynamicGenerationSchema(name: json["name"] as? String ?? name, description: json["description"] as? String,
@@ -92,6 +101,47 @@ func shape(_ json: [String: Any], _ name: String) -> DynamicGenerationSchema {
     }
 }
 
+/// Guided output's `jsonString` writes some typed fields as strings (a Bool as "False", an Int as "3"): each field is
+/// given back the type its shape asked for, so the app reads `false`, not "False" (the 0.5.1 Nightly's Bot read every
+/// guided reply as unreadable, AJ-E3829). Anything that isn't that type stays as written.
+func typed(_ value: Any, _ json: [String: Any]) -> Any {
+    switch json["type"] as? String ?? "string" {
+    case "bool":
+        if let text = value as? String {
+            switch text.lowercased() {
+            case "true": return true
+            case "false": return false
+            default: return value
+            }
+        }
+        return value
+    case "integer":
+        if let text = value as? String, let number = Int(text.trimmingCharacters(in: .whitespaces)) { return number }
+        return value
+    case "array":
+        let items = shapeOf(json["items"])
+        return (value as? [Any])?.map { typed($0, items) } ?? value
+    case "object":
+        guard var object = value as? [String: Any] else { return value }
+        for property in json["properties"] as? [[String: Any]] ?? [] {
+            if let field = property["name"] as? String, let inner = object[field] {
+                object[field] = typed(inner, shapeOf(property["schema"]))
+            }
+        }
+        return object
+    default:
+        return value
+    }
+}
+
+/// `text` (guided output's JSON) with every field in the type its shape asked for.
+func typedJSON(_ text: String, _ root: [String: Any]) -> String {
+    guard let data = text.data(using: .utf8), let parsed = try? JSONSerialization.jsonObject(with: data),
+          let out = try? JSONSerialization.data(withJSONObject: typed(parsed, root), options: [.sortedKeys]),
+          let string = String(data: out, encoding: .utf8) else { return text }
+    return string
+}
+
 @available(macOS 26.0, *)
 func generate(_ request: [String: Any], permissive: Bool) async throws -> (String, String) {
     let model = permissive ? SystemLanguageModel(guardrails: .permissiveContentTransformations) : SystemLanguageModel.default
@@ -99,17 +149,25 @@ func generate(_ request: [String: Any], permissive: Bool) async throws -> (Strin
     let limit = max(1, request["max_tokens"] as? Int ?? 60)
     // Built against both SDKs: FoundationModels 2.x (macOS 27's SDK) calls it `samplingMode:`, 1.x (macOS 26's, which
     // CI's runners build with) `sampling:`. The same greedy sampling either way, and either build runs on macOS 26.
+    // D-149: a job's retry samples, seeded, so a rejected draft isn't written again word for word.
+    let sampled = request["sampling"] as? [String: Any]
+    let heat = Double(min(max(sampled?["temperature_milli"] as? Int ?? 0, 0), 2000)) / 1000
+    let seed = UInt64(max(sampled?["seed"] as? Int ?? 0, 0))
     #if canImport(FoundationModels, _version: 2.0)
-    let options = GenerationOptions(samplingMode: .greedy, temperature: 0, maximumResponseTokens: limit)
+    let options = sampled == nil
+        ? GenerationOptions(samplingMode: .greedy, temperature: 0, maximumResponseTokens: limit)
+        : GenerationOptions(samplingMode: .random(top: 40, seed: seed), temperature: heat, maximumResponseTokens: limit)
     #else
-    let options = GenerationOptions(sampling: .greedy, temperature: 0, maximumResponseTokens: limit)
+    let options = sampled == nil
+        ? GenerationOptions(sampling: .greedy, temperature: 0, maximumResponseTokens: limit)
+        : GenerationOptions(sampling: .random(top: 40, seed: seed), temperature: heat, maximumResponseTokens: limit)
     #endif
     let prompt = request["prompt"] as? String ?? ""
     if let root = request["schema"] as? [String: Any] {
         let schema = try GenerationSchema(root: shape(root, root["name"] as? String ?? "Answer"), dependencies: [])
         let response = try await session.respond(to: prompt, schema: schema, includeSchemaInPrompt: true, options: options)
         // Guided output that decoded is whole: a cut one fails to decode (decodingFailure, sent as "length").
-        return (response.content.jsonString, "stop")
+        return (typedJSON(response.content.jsonString, root), "stop")
     }
     #if canImport(FoundationModels, _version: 2.0)
     if #available(macOS 27.0, *) {

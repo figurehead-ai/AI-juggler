@@ -171,7 +171,8 @@ test("notifications and your menu — every state, both themes", gate("96-notifi
     await shoot(page, "centre-empty", theme);
     await show(page, { theme, notices: { ...POPULATED, quiet_until: "09:00" } });
     await page.getByTestId("notification-bell").click();
-    await expect(page.getByTestId("notices-muted")).toContainText("Muted until 09:00 — Needs you still tracks");
+    // 0.5.2 G52: the end by the system's clock ("9:00 AM", or "09:00").
+    await expect(page.getByTestId("notices-muted")).toContainText(/^Muted until (9:00\s?AM|09:00) — Needs you still tracks/u);
     await shoot(page, "centre-muted", theme);
 
     // D-87: an account almost out of room shows on a session's page only

@@ -13,6 +13,7 @@ import { HomeScreen, needOf, needWords, placeOf, toReview } from "./Home";
 import { renderWithNeeds } from "../test/needs-kit";
 import { endingItem } from "../preview/feed";
 import { EMPTY_FEED } from "../lib/feed-words";
+import { feedLeans, forgetFeedLeans } from "../lib/feed-leans";
 import { runwayOf } from "../components/AccountRunway";
 import { quotaDisplay } from "../lib/wire";
 import type { AccountInfo } from "../types/generated/AccountInfo";
@@ -384,7 +385,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     // within 2 h roll up into one).
     const ended = Array.from({ length: 5 }, (_, n) => mk(`e-${n}`, { status: "finished", last_activity_ms: NOW - (n + 1) * 3 * 3_600_000 }));
     seedFeed(ended);
-    const { findAllByTestId, getAllByRole, getByRole, getByTestId, findByTestId } = renderHome([...ended, mk("old", { status: "finished", lifecycle: "reviewed" })], { onChanged: () => changed++ });
+    const { findAllByTestId, getAllByRole, getByTestId, findByTestId } = renderHome([...ended, mk("old", { status: "finished", lifecycle: "reviewed" })], { onChanged: () => changed++ });
     await waitFor(async () => expect(await findAllByTestId("feed-card")).toHaveLength(5));
     await act(async () => {
       fireEvent.click(getAllByRole("button", { name: /^Mark reviewed/ })[0]!);
@@ -392,7 +393,7 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     expect(calls()).toEqual(["reviewed:e-0"]);
     expect(changed).toBe(1);
     // The Finished filter's ⋯ marks every one still to review at once.
-    fireEvent.click(getByRole("radio", { name: "Finished" }));
+    fireEvent.click(getByTestId("feed-state-finished"));
     fireEvent.click(getByTestId("feed-more"));
     expect((await findByTestId("feed-review-all-label")).textContent).toBe("Mark all 5 reviewed");
   });
@@ -454,6 +455,26 @@ describe("AJ-E1021 Home as the morning triage (from AJ-E1005)", () => {
     markFirst.focus();
     await user.keyboard("j");
     expect(document.activeElement).toBe(container.querySelectorAll<HTMLElement>("[data-home-row]")[1]);
+  });
+
+  it("AJ-E3713 R7: l and m lean the focused post (More / Less like this), J/K moving between posts", async () => {
+    const user = userEvent.setup();
+    forgetFeedLeans();
+    const done = [mk("d1", { status: "finished" }), mk("d2", { status: "finished", last_activity_ms: NOW - 3 * 3_600_000 })];
+    seedFeed(done);
+    const { container, findAllByTestId } = renderHome(done);
+    await findAllByTestId("feed-card");
+    const rows = () => Array.from(container.querySelectorAll<HTMLElement>("[data-home-row]"));
+    rows()[0]!.focus();
+    await user.keyboard("m");
+    await waitFor(async () => expect((await feedLeans()).map((one) => one.lean)).toEqual(["less"]));
+    const card = rows()[0]!.closest<HTMLElement>("[data-testid='feed-card']")!;
+    expect(within(card).getByTestId("feed-less-like").getAttribute("aria-pressed")).toBe("true");
+    await user.keyboard("l");
+    await waitFor(async () => expect((await feedLeans()).map((one) => one.lean)).toEqual(["more"]));
+    await user.keyboard("j");
+    expect(document.activeElement).toBe(rows()[1]);
+    forgetFeedLeans();
   });
 
   it("keys still work after focus fell to <body> while Home is shown", async () => {

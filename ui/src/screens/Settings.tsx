@@ -71,7 +71,7 @@ function NavRows({ panes, pane, dim, onPick }: { panes: PaneSpec[]; pane: PaneId
           <li key={entry.id}>
             {group && opensGroup && (
               <button type="button" onClick={() => onPick(group.opens)} className={rowLook(false, false) + (inGroup ? " font-semibold" : "")} data-group={group.id}>
-                <PaneTile tone={group.tone}>
+                <PaneTile current={inGroup === true}>
                   <PaneIcon pane={group.opens} />
                 </PaneTile>
                 {group.label}
@@ -86,7 +86,7 @@ function NavRows({ panes, pane, dim, onPick }: { panes: PaneSpec[]; pane: PaneId
               data-dimmed={pane !== entry.id && dim(entry.id) ? "true" : undefined}
             >
               {!group && (
-                <PaneTile tone={entry.tone}>
+                <PaneTile current={pane === entry.id}>
                   <PaneIcon pane={entry.id} />
                 </PaneTile>
               )}

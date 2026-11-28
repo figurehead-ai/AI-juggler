@@ -144,6 +144,18 @@ pub const fn folder_id(folder: Folder) -> &'static str {
     }
 }
 
+/// Where an entry is offered again after Not now (0.5.2 G33, PAT-OSP).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Again {
+    /// From its setting (its `offered_again` names the place): Not now is
+    /// remembered, so a use elsewhere (a watch's Watch, a reminder's Set)
+    /// asks nothing more; only that setting asks again.
+    Setting,
+    /// At the next use that needs it (its `offered_again` says which):
+    /// that use asks again.
+    NextUse,
+}
+
 /// One entry of the registry.
 pub struct Entry {
     /// The gate's prompt (its short, stable id and kind).
@@ -157,6 +169,12 @@ pub struct Entry {
     /// After Not now on the sheet: where (or when) AI Juggler offers it
     /// again, one sentence (0.5.1 F28).
     pub offered_again: &'static str,
+    /// Whether Not now is remembered until its setting asks again
+    /// ([`Again::Setting`]) or its next use asks ([`Again::NextUse`]).
+    pub again: Again,
+    /// AJ-E1555: what works now that it went through, one sentence (the
+    /// sheet's body after Continue: never a state word like "Asked.").
+    pub after: &'static str,
     /// What background work does while it isn't primed.
     pub background: &'static str,
     /// Every code path that can make the system ask (`file:function`).
@@ -177,6 +195,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Brings the exact window of a session to the front when you open it. AI Juggler never types, clicks or reads your screen with it.",
         if_declined: "Opening a session still brings its app forward; you pick the window yourself.",
         offered_again: "You can turn this on later in Settings › Desktop apps.",
+        again: Again::Setting,
+        after: "Opening a session brings its own window to the front.",
         background: WAITS,
         triggers: &[
             "crates/juggler-app/src/os_access.rs:os_access_request_impl",
@@ -191,6 +211,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Asks the system which windows an app has, so the right one comes forward. Nothing else is controlled.",
         if_declined: "Opening a session brings its app forward without picking the window.",
         offered_again: "You can turn this on later in Settings › Desktop apps.",
+        again: Again::Setting,
+        after: "Opening a session finds its window among its app's windows.",
         background: WAITS,
         triggers: &[
             "crates/juggler-app/src/os_access.rs:os_access_request_impl",
@@ -206,6 +228,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Picks the tab a session runs in when you open it. AI Juggler only selects the tab.",
         if_declined: "Terminal comes forward; you pick the tab yourself.",
         offered_again: "It asks again the next time you open a session that runs in Terminal.",
+        again: Again::NextUse,
+        after: "Opening a session selects its tab in Terminal.",
         background: WAITS,
         triggers: &[
             "crates/juggler-app/src/features/conversations/goto.rs:go",
@@ -220,6 +244,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Picks the tab a session runs in when you open it. AI Juggler only selects the tab.",
         if_declined: "iTerm comes forward; you pick the tab yourself.",
         offered_again: "It asks again the next time you open a session that runs in iTerm.",
+        again: Again::NextUse,
+        after: "Opening a session selects its tab in iTerm.",
         background: WAITS,
         triggers: &[
             "crates/juggler-app/src/features/conversations/goto.rs:go",
@@ -234,6 +260,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Sends the app that keeps a session its own link, so the session itself opens, in the right profile. The system asks once per app.",
         if_declined: "The app comes forward; you pick the session in its sidebar.",
         offered_again: "It asks again the next time you open a session in its app.",
+        again: Again::NextUse,
+        after: "A session's link opens it in its desktop app.",
         background: "Never asks: links sent without you are sent quietly or not at all.",
         triggers: &[
             "crates/juggler-app/src/features/conversations/goto.rs:send_link_to",
@@ -250,6 +278,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Shows a notification when a session waits for you, finishes or hits a limit, never while AI Juggler is in front.",
         if_declined: "Everything still shows in the bell and Needs you inside AI Juggler.",
         offered_again: "You can turn this on later in Settings › Notifications.",
+        again: Again::Setting,
+        after: "AI Juggler tells you when a session needs you.",
         background: "Waits: no notification is shown (so the system never asks) until you've said go.",
         triggers: &[
             "crates/juggler-app/src/os_prompts/notify.rs:connect",
@@ -265,6 +295,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Keeps your sessions watched from the moment you log in. The system shows a short notice that an item was added.",
         if_declined: "Nothing to decline: turn it off here or in the system's Login Items any time.",
         offered_again: "You can turn this on later in Settings › Sessions.",
+        again: Again::Setting,
+        after: "AI Juggler opens when you log in.",
         background: "Never: only your click turns it on.",
         triggers: &["crates/juggler-app/src/features/app/login_item.rs:app_login_item_set"],
         never_shown: false,
@@ -276,6 +308,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Shows a session's window inside AI Juggler, on this computer only; nothing is recorded or sent.",
         if_declined: "Sessions show without a live picture of their window.",
         offered_again: "You can turn this on later in Settings › Desktop apps.",
+        again: Again::Setting,
+        after: "Each session shows a live preview of its window.",
         background: "Waits: the preview reads nothing until it's allowed.",
         triggers: &[
             "crates/juggler-app/src/os_access.rs:os_access_request_impl",
@@ -290,6 +324,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Link finds and pairs your other computers running AI Juggler on the same network. Nothing leaves your network.",
         if_declined: "Link pairs by address only; computers on this network aren't listed.",
         offered_again: "It asks again the next time you turn on Link.",
+        again: Again::NextUse,
+        after: "AI Juggler finds your other computers on this network.",
         background: "Waits: Link resumes at launch only once you've said go.",
         triggers: &[
             "crates/juggler-app/src/link.rs:link_set_enabled_impl",
@@ -304,6 +340,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Reads a project's git status (branch, changes) for sessions in your Documents folder. Nothing is changed or sent.",
         if_declined: "Those projects show without their git status.",
         offered_again: "It asks again the next time you open a project in Documents.",
+        again: Again::NextUse,
+        after: "AI Juggler reads your projects in Documents.",
         background: "Waits: nothing in Documents is read until you've said go.",
         triggers: &[
             "crates/juggler-app/src/worktree.rs:git",
@@ -318,6 +356,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Reads a project's git status (branch, changes) for sessions on your Desktop. Nothing is changed or sent.",
         if_declined: "Those projects show without their git status.",
         offered_again: "It asks again the next time you open a project on the Desktop.",
+        again: Again::NextUse,
+        after: "AI Juggler reads your projects on the Desktop.",
         background: "Waits: nothing on the Desktop is read until you've said go.",
         triggers: &[
             "crates/juggler-app/src/worktree.rs:git",
@@ -332,6 +372,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Reads a project's git status (branch, changes) for sessions in your Downloads folder. Nothing is changed or sent.",
         if_declined: "Those projects show without their git status.",
         offered_again: "It asks again the next time you open a project in Downloads.",
+        again: Again::NextUse,
+        after: "AI Juggler reads your projects in Downloads.",
         background: "Waits: nothing in Downloads is read until you've said go.",
         triggers: &[
             "crates/juggler-app/src/worktree.rs:git",
@@ -346,6 +388,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Some apps keep their sessions in a folder the system guards for them. No tool AI Juggler supports does today.",
         if_declined: "That tool's sessions aren't read.",
         offered_again: "It asks again the next time a tool's sessions are read from there.",
+        again: Again::NextUse,
+        after: "AI Juggler reads the tool's data in its app's folder.",
         background: "Waits: such a folder is read only once you've said go.",
         triggers: &["crates/juggler-platform/src/os_prompt/mod.rs:may_read"],
         never_shown: false,
@@ -357,6 +401,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "Bot's answers are written by AI on this computer, through a small helper inside AI Juggler. It starts the first time you check or choose Apple's AI (or a downloaded one) in Bot's setup guide.",
         if_declined: "Bot stays on its setup guide (Set up Bot) until its AI can start; nothing else changes.",
         offered_again: "You can turn this on later: check this computer in Settings › AI › Models.",
+        again: Again::Setting,
+        after: "Bot's AI helper started: Bot answers with the AI you chose.",
         background: "Waits: no helper starts until you've checked or chosen Bot's AI once.",
         triggers: &[
             "crates/juggler-app/src/features/ai/engines/helper.rs:launch_checked",
@@ -368,10 +414,12 @@ pub const ENTRIES: &[Entry] = &[
     Entry {
         prompt: HELPER_CHANGED,
         title: "Start Bot's AI helper after this update",
-        why: "This update changed the name test builds give Bot's helper. A test build ran on this computer, so the system may ask once whether to open the helper: it's AI Juggler's own, signed. It starts when you next check this computer for Bot.",
+        why: "Bot's AI helper changed on disk since it last ran here (an update replaced it), so the system may ask once whether to open it: it's AI Juggler's own, signed.",
         if_declined: "Bot stays on its setup guide (Set up Bot) until its AI can start; nothing else changes.",
         offered_again: "You can turn this on later: check this computer in Settings › AI › Models.",
-        background: "Waits: the helper doesn't start after this update until you've checked this computer once.",
+        again: Again::Setting,
+        after: "Bot's AI helper started again after the update: Bot answers as before.",
+        background: "Waits: the changed helper doesn't start until you've said go.",
         triggers: &[
             "crates/juggler-app/src/features/ai/engines/helper.rs:launch_checked",
             "crates/juggler-app/src/os_prompts/mod.rs:prime_call",
@@ -385,6 +433,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "AI Juggler's own secrets (the Figurehead device token among them) and the tools' sign-in checks use the keychain with its dialogs turned off: a call that would ask (an item saved by an earlier build with another signature) is left out, never shown.",
         if_declined: "Nothing is asked. A secret the keychain would only give after asking reads as missing: Figurehead asks you to link again. If the dialog ever appears, it's a bug; Always Allow keeps it from coming back.",
         offered_again: "Nothing to turn on: nothing ever asks.",
+        again: Again::NextUse,
+        after: "Nothing to do: the keychain never asks.",
         background: "Never asks.",
         triggers: &[
             "crates/juggler-account/src/secrets.rs:quietly",
@@ -402,6 +452,8 @@ pub const ENTRIES: &[Entry] = &[
         why: "AI Juggler never opens an app downloaded from the internet that you haven't opened yourself, so the system's check never comes from us.",
         if_declined: "Open the app yourself once; AI Juggler can start it after that.",
         offered_again: "Open the app yourself once; nothing else to turn on.",
+        again: Again::NextUse,
+        after: "Nothing to do: AI Juggler doesn't start apps you downloaded.",
         background: "Never asks: the start is refused and says why.",
         triggers: &["crates/juggler-platform/src/apps.rs:open_app"],
         never_shown: true,

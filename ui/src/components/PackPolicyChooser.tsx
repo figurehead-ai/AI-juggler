@@ -6,12 +6,19 @@
  * `value === null` renders every radio unchecked, and "Decide later"
  * is a real, un-shamed option that writes nothing.
  */
+import type { ControlIcon } from "./controls";
+import { IconShield } from "./icons";
+import { IconKey } from "./icons-actions";
+import { IconAsk, IconClock } from "./icons-menu";
 
 /** The stored policy words (AJ-E208 wire). */
 export type PackPolicyWire = "strip" | "keep" | "ask";
 
 /** A first-run answer: a stored policy, or an explicit "later". */
 export type PackPolicyChoice = PackPolicyWire | "decide_later";
+
+/** AJ-E1558 (D-126): each choice's icon: hidden, left in, asked, later. */
+export const PACK_POLICY_ICONS: Record<PackPolicyChoice, ControlIcon> = { strip: IconShield, keep: IconKey, ask: IconAsk, decide_later: IconClock };
 
 export const PACK_POLICY_OPTIONS: {
   value: PackPolicyChoice;

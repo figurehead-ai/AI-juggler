@@ -21,7 +21,7 @@ use juggler_core::storage::memory::{
 };
 use serde::Serialize;
 
-use super::dto::{BotMemoryInfo, BotRowKind};
+use super::dto::{BotMemoryInfo, BotRowInfo, BotRowKind};
 use super::world::World;
 use crate::error::{AppError, AppResult};
 use crate::features::ai::memory::{FORGET_AND_BACKUPS, RedactionSecrets, memory_error};
@@ -114,6 +114,29 @@ fn note_key(words: &str) -> String {
     format!("note:{hash:016x}")
 }
 
+/// "call X Y" (or "nenn X Y"): the record X names and Y, the user's name
+/// for it, when X is a record's name and Y a name that can be kept.
+fn alias_in<'n>(records: &'n [Named], words: &str) -> Option<(&'n Named, SettingLabel)> {
+    let rest = ["call ", "nenn ", "nenne "]
+        .iter()
+        .find_map(|cue| strip_prefix_ci(words.trim(), cue))?;
+    records.iter().find_map(|named| {
+        let alias = strip_prefix_ci(rest, &named.name).filter(|a| a.starts_with(' '))?;
+        let alias = alias.trim().trim_matches(['"', '“', '”', '.']).trim();
+        SettingLabel::new(alias).map(|label| (named, label))
+    })
+}
+
+/// 0.5.2 G29 (RW1 F6): "call api the payments agent", said without
+/// "Remember", names a record the user's way: it is kept as "Remember …"
+/// is, by code with its echo card (ADR-0037 §2.3), never sent to the model
+/// as a question. Only when "api" is a record's name ("call me when it's
+/// done" stays a question).
+#[must_use]
+pub fn names_alias(world: &World, text: &str) -> bool {
+    alias_in(&named_records(world), text).is_some()
+}
+
 /// What "Remember …" keeps, before it is written.
 fn record_for(world: &World, words: &str, turn: &str, now_ms: i64) -> NewRecord {
     let base = |kind: Kind,
@@ -139,27 +162,17 @@ fn record_for(world: &World, words: &str, turn: &str, now_ms: i64) -> NewRecord 
         entities,
     };
     let records = named_records(world);
-    let call = ["call ", "nenn ", "nenne "]
-        .iter()
-        .find_map(|cue| strip_prefix_ci(words, cue));
-    if let Some(rest) = call {
-        for named in &records {
-            if let Some(alias) = strip_prefix_ci(rest, &named.name).filter(|a| a.starts_with(' ')) {
-                let alias = alias.trim().trim_matches(['"', '“', '”', '.']).trim();
-                if let Some(label) = SettingLabel::new(alias) {
-                    return base(
-                        Kind::Preference,
-                        format!("alias:{}:{}", named.kind.as_str(), named.id),
-                        RecordText::Setting(label),
-                        vec![EntityRef {
-                            kind: named.kind,
-                            id: named.id.clone(),
-                        }],
-                        serde_json::json!({ "slot": "alias", "about": named.name }),
-                    );
-                }
-            }
-        }
+    if let Some((named, label)) = alias_in(&records, words) {
+        return base(
+            Kind::Preference,
+            format!("alias:{}:{}", named.kind.as_str(), named.id),
+            RecordText::Setting(label),
+            vec![EntityRef {
+                kind: named.kind,
+                id: named.id.clone(),
+            }],
+            serde_json::json!({ "slot": "alias", "about": named.name }),
+        );
     }
     let lower = words.to_lowercase();
     for cue in [
@@ -240,9 +253,10 @@ pub fn remember(
     turn: &str,
 ) -> AppResult<Option<BotMemoryInfo>> {
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+    let graph = state.world.graph();
     state
         .memory_writers
-        .with_memory(|writer| remember_in(&storage, writer, world, words, turn))
+        .with_memory(|writer| remember_linked_in(&storage, writer, world, words, turn, graph))
         .ok_or_else(|| AppError::Validation {
             subject: "memory",
             message: "unavailable".to_owned(),
@@ -261,12 +275,64 @@ pub fn remember_in(
     words: &str,
     turn: &str,
 ) -> AppResult<Option<BotMemoryInfo>> {
+    remember_linked_in(storage, writer, world, words, turn, None)
+}
+
+/// [`remember_in`], the record's node and links in Bot's world model
+/// written in the same transaction (ADR-0038 §1) when `graph` is given and
+/// its tables are there: a `memory` node, its alias the user's own name for
+/// the record, `about` each entity it names.
+///
+/// # Errors
+///
+/// As [`remember`].
+pub fn remember_linked_in(
+    storage: &juggler_core::storage::Storage,
+    writer: &juggler_core::storage::memory::KindWriter,
+    world: &World,
+    words: &str,
+    turn: &str,
+    graph: Option<&gyrus::Graph>,
+) -> AppResult<Option<BotMemoryInfo>> {
     if RedactionSecrets.finds_secret(words) {
         return Ok(None);
     }
     let record = record_for(world, words, turn, world.now_ms);
     let store = storage.memory();
-    match store.remember(writer, &RedactionSecrets, &record, world.now_ms) {
+    let linked = graph.filter(|_| storage.world().installed());
+    let written = match linked {
+        Some(graph) => {
+            let alias = (record.kind == Kind::Preference
+                && record.subject_key.starts_with("alias:"))
+            .then(|| record.text.as_str().to_owned());
+            let link = |w: &juggler_core::storage::memory::Remembered| {
+                crate::features::ai::world::link::record_batch(
+                    &crate::features::ai::world::link::MemoryFacts {
+                        subject_id: &w.subject_id,
+                        kind: record.kind,
+                        tier: record.tier,
+                        priority: record.priority.as_i64(),
+                        authority: record.authority,
+                        untrusted: record.text.is_untrusted(),
+                        as_of_ms: record.as_of_ms,
+                        alias: alias.as_deref(),
+                        entities: &record.entities,
+                    },
+                )
+                .unwrap_or_default()
+            };
+            store.remember_linked(
+                writer,
+                &RedactionSecrets,
+                &record,
+                graph,
+                &link,
+                world.now_ms,
+            )
+        }
+        None => store.remember(writer, &RedactionSecrets, &record, world.now_ms),
+    };
+    match written {
         Ok(_) => {}
         Err(MemoryError::Refused(
             Refusal::Secret | Refusal::TextBounds | Refusal::PreferenceShape,
@@ -316,17 +382,8 @@ pub fn with_aliases(
                 .iter()
                 .find(|r| r.id == id)
                 .map(|r| r.title.clone()),
-            "project" => world
-                .sessions
-                .iter()
-                .chain(&world.tasks)
-                .find(|r| r.project_id.as_deref() == Some(id))
-                .and_then(|r| r.project.clone()),
-            "pool" => world
-                .tasks
-                .iter()
-                .find(|r| r.pool_id.as_deref() == Some(id))
-                .and_then(|r| r.pool.clone()),
+            "project" => world.project_name(id),
+            "pool" => world.pool_name(id),
             _ => None,
         };
         let Some(name) = name else {
@@ -345,15 +402,86 @@ pub fn with_aliases(
     (text, used)
 }
 
-/// A memory as it stands now, by its subject key (`None`: forgotten).
+/// The words that ask what Bot was told to remember (AJ-E3832 G9).
+const RECALL_CUES: &[&str] = &[
+    "remember",
+    "told you",
+    "asked you",
+    "what do i call",
+    "what did i call",
+    "my name for",
+    "merken",
+    "gemerkt",
+    "gesagt",
+    "wie nenne ich",
+];
+
+/// The question asks what the user told Bot (not a "Remember …" itself).
+#[must_use]
+pub fn asks_about_memory(question: &str) -> bool {
+    let lower = question.to_lowercase();
+    RECALL_CUES.iter().any(|cue| lower.contains(cue))
+}
+
+/// The most memories offered as records for one question.
+const MEMORY_ROWS: usize = 5;
+
+/// A memory as a citable record (AJ-E3832 G9): its id the subject's
+/// random id, its words the user's own.
+#[must_use]
+pub fn row_of(record: &Record) -> BotRowInfo {
+    let info = info_of(record, 0);
+    BotRowInfo {
+        at_ms: Some(record.as_of_ms),
+        about: info.about,
+        memory_key: Some(record.subject_key.clone()),
+        ..super::world::empty_row(BotRowKind::Memory, record.subject_id.clone(), info.text)
+    }
+}
+
+/// The memories a question about memory rests on, through ADR-0037's read
+/// path: the ones the world model linked to it (`keys`), else the newest
+/// the user stated; the user's own words only (never agent text), at most
+/// a handful.
+#[must_use]
+pub fn rows_for(storage: &juggler_core::storage::Storage, keys: &[String]) -> Vec<BotRowInfo> {
+    let store = storage.memory();
+    let mut records: Vec<Record> = keys
+        .iter()
+        .filter_map(|key| store.current(key).ok().flatten())
+        .collect();
+    if records.is_empty() {
+        for kind in [Kind::Preference, Kind::Note] {
+            records.extend(
+                store
+                    .current_of_kind(kind, None, LISTED)
+                    .unwrap_or_default(),
+            );
+        }
+        records.sort_by_key(|r| std::cmp::Reverse(r.as_of_ms));
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    records
+        .into_iter()
+        .filter(|r| !r.untrusted && matches!(r.kind, Kind::Preference | Kind::Note))
+        .filter(|r| seen.insert(r.subject_id.clone()))
+        .take(MEMORY_ROWS)
+        .map(|r| row_of(&r))
+        .collect()
+}
+
+/// A memory as it stands now, by its subject key, or by its random subject
+/// id written `subject:<id>` (a kept turn's memory row); `None`: forgotten.
 #[must_use]
 pub fn current(storage: &juggler_core::storage::Storage, key: &str) -> Option<BotMemoryInfo> {
-    storage
-        .memory()
-        .current(key)
-        .ok()
-        .flatten()
-        .map(|record| info_of(&record, 0))
+    let store = storage.memory();
+    match key.strip_prefix("subject:") {
+        Some(subject) => store.current_by_subject(subject),
+        None => store.current(key),
+    }
+    .ok()
+    .flatten()
+    .map(|record| info_of(&record, 0))
 }
 
 /// Every memory the user stated, for "What Bot remembers".
@@ -387,13 +515,19 @@ pub fn list(state: &Arc<AppState>) -> AppResult<BotMemoriesInfo> {
     })
 }
 
-/// Forgets one memory, every version of it (ADR-0037 §1.5).
+/// The keys "What Bot remembers" may forget: what the user stated to Bot
+/// (an alias, a focus, a note) and the feed's More or Less like this
+/// (`feed:`, AJ-E3713: the user's own preference, kept from Home's feed).
+const FORGETTABLE: &[&str] = &["alias:", "focus:", "note:", "feed:"];
+
+/// Forgets one memory, every version of it (ADR-0037 §1.5), through the
+/// store's one forget.
 ///
 /// # Errors
 ///
 /// Not a memory the user stated; the store's refusal; storage.
 pub fn forget(state: &Arc<AppState>, key: &str) -> AppResult<()> {
-    if !(key.starts_with("alias:") || key.starts_with("focus:") || key.starts_with("note:")) {
+    if !FORGETTABLE.iter().any(|prefix| key.starts_with(prefix)) {
         return Err(AppError::Validation {
             subject: "memory",
             message: "not_a_memory".to_owned(),

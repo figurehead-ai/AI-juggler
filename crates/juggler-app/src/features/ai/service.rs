@@ -22,7 +22,7 @@ use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use super::dto::{AiJob, AiJobInfo};
+use super::dto::{AiJob, AiJobInfo, AiJobWhy};
 use super::engines::Registry;
 use super::jobs::{self, JobSpec};
 use super::models::recommend::{MacFacts, Recommendation, recommend};
@@ -42,6 +42,8 @@ pub struct Service {
     engines: Registry,
     probed: Mutex<Option<(Instant, MacFacts)>>,
     last: Mutex<Option<Vec<AiJobInfo>>>,
+    /// Bot's engine as started and used (AJ-E3825, [`super::run`]).
+    pub(crate) run: Mutex<super::run::RunState>,
 }
 
 /// Whether an answer may ask the engines again first.
@@ -64,6 +66,7 @@ impl Service {
             engines,
             probed: Mutex::new(None),
             last: Mutex::new(None),
+            run: Mutex::new(super::run::RunState::new()),
         }
     }
 
@@ -104,6 +107,15 @@ impl Service {
             changed
         });
         (jobs, changed)
+    }
+
+    /// Probes once, when nothing was ever probed (AJ-E3825: Bot's engine
+    /// status and start never route on a card no one has asked about).
+    pub fn ensure_probed(&self, data_dir: &Path) {
+        let never = self.probed.lock().is_ok_and(|probed| probed.is_none());
+        if never {
+            let _ = self.mac_facts(data_dir, Probe::IfStale);
+        }
     }
 
     /// This Mac's facts, probing first when `probe` says so.
@@ -191,8 +203,17 @@ pub fn answer_for(
                 |card| cards.get(card).map(|card| card.model.clone()),
                 |id| offered.iter().find(|m| m.id == id).map(|m| m.name.clone()),
             );
+            // AJ-E3826 (D-149): a job whose flag is off by default isn't
+            // built in this version yet, and Models says so; one stopped
+            // by the remote file is just off.
+            let why = if route == router::Route::Off && !spec.flag.default {
+                Some(AiJobWhy::NotBuilt)
+            } else {
+                info.why
+            };
             Some(AiJobInfo {
                 pick: picks.get(&spec.job).cloned(),
+                why,
                 ..info
             })
         })
@@ -204,6 +225,13 @@ static SERVICE: OnceLock<Service> = OnceLock::new();
 /// The app's service, made at the first query.
 fn service() -> &'static Service {
     SERVICE.get_or_init(|| Service::new(Registry::new()))
+}
+
+/// The app's one service (AJ-E3825: Bot's engine runs on it; a test
+/// makes its own over fake helpers).
+#[must_use]
+pub fn shared() -> &'static Service {
+    service()
 }
 
 /// A job's Beta switch as stored (`1` is on).
@@ -239,7 +267,47 @@ fn answer_now(state: &AppState, probe: Probe) -> AppResult<(Vec<AiJobInfo>, bool
     let picks = picks(state)?;
     let beta = |job: Job| switches.get(&job).copied().unwrap_or(false);
     let snapshot = crate::features::remote_config::current();
-    Ok(service().answer(&snapshot, &beta, &picks, &state.data_dir, probe))
+    let (mut jobs, changed) = service().answer(&snapshot, &beta, &picks, &state.data_dir, probe);
+    with_covers(state, &mut jobs);
+    with_watch_help(&mut jobs);
+    Ok((jobs, changed))
+}
+
+/// AJ-E3830 (0.5.2): Bot pre-fills the Watches form on Bot's own model,
+/// whatever the Watches verdict (it stays `not_yet`: Bot doesn't draft a
+/// whole watch by default), so the Watches row says Bot's state and model;
+/// its Beta switch is Bot's confirm card, offered while Bot's AI runs. A
+/// Watches job switched off by an update stays off.
+fn with_watch_help(jobs: &mut [AiJobInfo]) {
+    let Some(bot) = jobs.iter().find(|info| info.job == AiJob::Bot).cloned() else {
+        return;
+    };
+    for info in jobs.iter_mut().filter(|info| info.job == AiJob::Watches) {
+        if info.state == super::dto::AiJobState::Off {
+            continue;
+        }
+        info.state = bot.state;
+        info.model_id.clone_from(&bot.model_id);
+        info.model_name.clone_from(&bot.model_name);
+        info.why = bot.why;
+        info.pick = None;
+        info.beta = matches!(
+            bot.state,
+            super::dto::AiJobState::Ready | super::dto::AiJobState::Waiting
+        );
+    }
+}
+
+/// AJ-E3820 R5: the query says which turns the review covers (only those
+/// whose end AI Juggler sees), so no surface promises one it can't write;
+/// the feed's summaries (AJ-E3831, D-154) read the same turns.
+fn with_covers(state: &AppState, jobs: &mut [AiJobInfo]) {
+    for info in jobs
+        .iter_mut()
+        .filter(|info| matches!(info.job, AiJob::Review | AiJob::Feed))
+    {
+        info.covers = crate::features::review::read::covered_tools(state);
+    }
 }
 
 /// This Mac's facts as the recommendation reads them, probing the
@@ -370,27 +438,39 @@ pub fn recheck(state: &AppState) -> Option<Vec<AiJobInfo>> {
 #[path = "service_tests.rs"]
 mod tests;
 
-/// One generation for `job` on the card the router picks now, with the
-/// model's display name (ADR-0034 §3: one engine, never a chain). The
-/// job's flag, its Beta switch and the user's pick hold as they do for
-/// the query: a job that isn't `Run` doesn't run.
+/// The card the router picks now for `job`, with its model's display
+/// name and engine (ADR-0034 §3: one engine, never a chain). The job's
+/// flag, its Beta switch and the user's pick hold as they do for the
+/// query: a job that isn't `Run` doesn't run.
+#[derive(Debug, Clone)]
+pub struct Routed {
+    /// The card.
+    pub card: super::engine::Card,
+    /// Its model's display name.
+    pub name: String,
+    /// Its model's short name (Bot's header).
+    pub short_name: String,
+    /// The engine that runs it, when its model is listed.
+    pub engine: Option<models::Engine>,
+}
+
+/// See [`Routed`].
 ///
 /// # Errors
 ///
-/// [`super::engine::EngineError::NotHere`] when the job doesn't run now; the engine's
-/// own error otherwise.
-pub fn respond_for(
+/// [`super::engine::EngineError::NotHere`] with why the job doesn't run
+/// now (the card's reason when it waits or can't serve);
+/// [`super::engine::EngineError::Unsupported`] when no AI is chosen for it.
+pub fn route_on(
+    service: &Service,
     state: &AppState,
     job: Job,
-    request: &super::engine::Request,
-    stop: &super::engine::Stop,
-) -> Result<(super::engine::Draft, String), super::engine::EngineError> {
+) -> Result<Routed, super::engine::EngineError> {
     use super::engine::{EngineError, Reason};
     let not_here = EngineError::NotHere(Reason::Unknown);
     let switches = beta_switches(state).map_err(|_| not_here)?;
     let picks = picks(state).map_err(|_| not_here)?;
     let snapshot = crate::features::remote_config::current();
-    let service = service();
     let mac = service.mac_facts(&state.data_dir, Probe::Never);
     let listing = models::listing(&snapshot.lists);
     let offered = models::offered(&listing);
@@ -418,14 +498,42 @@ pub fn respond_for(
         on: flags::on_in(&snapshot.effective, spec.flag),
         beta: switches.get(&job).copied().unwrap_or(false),
     };
-    let router::Route::Run { card, .. } = router::route(spec, on, &inputs) else {
-        return Err(not_here);
+    let card = match router::route(spec, on, &inputs) {
+        router::Route::Run { card, .. } => card,
+        router::Route::Waiting { why, .. } | router::Route::NoEngine(Some(why)) => {
+            return Err(EngineError::NotHere(why));
+        }
+        // No AI chosen for the job (its flag or Beta off, nothing that
+        // could serve it): not a failure.
+        router::Route::Off | router::Route::BetaOff | router::Route::NoEngine(None) => {
+            return Err(EngineError::Unsupported);
+        }
     };
-    let card = cards.get(card).ok_or(not_here)?;
-    let draft = service.engines.respond(card, request, stop)?;
-    let name = usable
-        .iter()
-        .find(|m| m.id == card.model)
-        .map_or_else(|| card.model.clone(), |m| m.name.clone());
-    Ok((draft, name))
+    let card = cards.get(card).ok_or(not_here)?.clone();
+    let entry = usable.iter().find(|m| m.id == card.model);
+    Ok(Routed {
+        name: entry.map_or_else(|| card.model.clone(), |m| m.name.clone()),
+        short_name: entry.map_or_else(|| card.model.clone(), ModelEntry::short_name),
+        engine: entry.map(|m| m.engine),
+        card,
+    })
+}
+
+/// One generation for `job` on the card the router picks now, with the
+/// model's display name.
+///
+/// # Errors
+///
+/// [`super::engine::EngineError::NotHere`] when the job doesn't run now; the engine's
+/// own error otherwise.
+pub fn respond_for(
+    state: &AppState,
+    job: Job,
+    request: &super::engine::Request,
+    stop: &super::engine::Stop,
+) -> Result<(super::engine::Draft, String), super::engine::EngineError> {
+    let service = service();
+    let routed = route_on(service, state, job)?;
+    let draft = service.engines.respond(&routed.card, request, stop)?;
+    Ok((draft, routed.name))
 }

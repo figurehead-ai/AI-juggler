@@ -22,6 +22,7 @@ import {
   type CapturePreviewInfo,
   type CaptureStatusInfo,
 } from "../lib/ipc/capture";
+import { IconGauge } from "../components/bot/bot-icons";
 
 /** What turning it off did, in words. */
 const OFF_WORDS: Record<string, string> = {
@@ -121,7 +122,7 @@ function TerminalCapture({ accountId }: { accountId: string }): JSX.Element | nu
         )}
       </div>
       {preview && (
-        <Modal
+        <Modal icon={IconGauge}
           title="Measure limits for terminal sessions"
           onClose={() => setPreview(null)}
           wide

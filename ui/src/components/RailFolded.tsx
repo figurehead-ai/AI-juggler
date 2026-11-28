@@ -47,12 +47,13 @@ import { useRailOrder } from "../lib/rail-order-store";
 import { arrangeGroups, rankOf, sortRows } from "../lib/rail-order";
 import { groupItems } from "../lib/rail-places";
 import { STATE_TONE, itemsOf, needWord, openNow, type RailItem } from "../lib/rail-items";
-import { appTone, brokenOf, brokenParts, counted, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
+import { appTone, brokenOf, brokenParts, counted, hasStateMark, highest, itemLevel, levelTone, noticeLevel } from "../lib/attention";
 import { isSnoozed, type SnoozeState } from "../lib/railview";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { SELECTED_FILL } from "./controls/selected";
 import { TipButton } from "./NameTip";
+import { besideTop, keyboardFocus, useTip } from "./WhyTip";
 
 /** "4 things need you", as the bell says it. */
 export function needsYouWords(count: number): string {
@@ -180,55 +181,68 @@ function FoldedRow({ item, selected, onSelect }: { item: RailItem; selected: boo
   const tone = STATE_TONE[item.state];
   // AI Juggler's own sessions keep their fuller summary (I-01..I-11).
   const more = item.session ? ariaSummary(item.session) : where;
+  // Hover and focus: the words, never a bare icon. AJ-E1556: the app's
+  // one tip, drawn over the page beside the icon (the rail's scroller cut
+  // the card it drew inside it), the title whole and wrapping.
+  const words = (
+    <>
+      <span className="block text-meta font-medium text-ink">{item.title}</span>
+      <span className={"flex items-center gap-1.5 " + (needs ? "font-medium text-ink-2" : "text-muted")}>
+        {needs && <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
+        {word}
+      </span>
+      <span className="mt-0.5 block leading-relaxed text-muted">{more}</span>
+    </>
+  );
+  const { ref, show, hide, tip } = useTip<HTMLButtonElement>(words, "rail-folded-tip", besideTop, "presentation");
   return (
-    <button
-      type="button"
-      data-rail-item={item.key}
-      data-instance-id={item.session?.id}
-      data-conversation-id={item.conversation?.id}
-      aria-current={selected ? "true" : undefined}
-      data-rail-selected={selected ? "true" : undefined}
-      aria-describedby={describedId}
-      onClick={primary}
-      className={
-        "tone-host group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
-        (selected ? SELECTED_FILL : "hover:bg-surface")
-      }
-    >
-      <span id={describedId} hidden>
-        {more}
-      </span>
-      {/* WCAG 2.5.3: an icon-only button's name, in words, state first. */}
-      <span className="sr-only">
-        {word}, {item.title}, {where}
-      </span>
-      {/* D-117: muted at rest; in full colour at L2/L3, when current, on hover or focus. */}
-      <span aria-hidden="true" className={"flex " + appTone(needs || selected)}>
-        {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
-      </span>
-      {/* AJ-E3603 R5: one quiet mark per need. A need's is its level's
-          small mark at the corner (an amber dot, a ring for a guess, a red
-          ✕) on a calm backing, never a filled badge, and it is the icon's
-          only mark; a calm session keeps its state's dot (a static calm
-          dot while working, faint when idle). Decoration: its name leads
-          with the word. */}
-      {needs ? (
-        <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className="absolute right-0 top-0 flex size-3 items-center justify-center rounded-full bg-canvas">
-          <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />
+    <>
+      <button
+        type="button"
+        ref={ref}
+        data-rail-item={item.key}
+        data-instance-id={item.session?.id}
+        data-conversation-id={item.conversation?.id}
+        aria-current={selected ? "true" : undefined}
+        data-rail-selected={selected ? "true" : undefined}
+        aria-describedby={describedId}
+        onPointerEnter={show}
+        onPointerLeave={hide}
+        onFocus={(event) => keyboardFocus(event.currentTarget) && show()}
+        onBlur={hide}
+        onClick={primary}
+        className={
+          "tone-host group relative flex size-9 shrink-0 items-center justify-center rounded-lg outline-none transition-colors focus-visible:ring-1 focus-visible:ring-accent/60 " +
+          (selected ? SELECTED_FILL : "hover:bg-surface")
+        }
+      >
+        <span id={describedId} hidden>
+          {more}
         </span>
-      ) : (
-        <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
-      )}
-      {/* Hover and focus: the words, never a bare icon. */}
-      <span aria-hidden="true" className="pointer-events-none absolute left-full top-0 z-30 ml-2 hidden w-56 rounded-lg border border-hairline bg-surface p-2.5 text-left shadow-card group-hover:block group-focus-visible:block">
-        <span className="block truncate text-meta font-medium text-ink">{item.title}</span>
-        <span className={"flex items-center gap-1.5 text-label " + (needs ? "font-medium text-ink-2" : "text-muted")}>
-          {needs && <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />}
-          {word}
+        {/* WCAG 2.5.3: an icon-only button's name, in words, state first. */}
+        <span className="sr-only">
+          {word}, {item.title}, {where}
         </span>
-        <span className="mt-0.5 block text-label leading-relaxed text-muted">{more}</span>
-      </span>
-    </button>
+        {/* D-117: muted at rest; in full colour at L2/L3, when current, on hover or focus. */}
+        <span aria-hidden="true" className={"flex " + appTone(needs || selected)}>
+          {item.session ? <OwnMark tool={item.tool} app={item.place.key} profile={item.accountLabel} /> : <PlaceMark place={item.place} profile={item.accountLabel} size={22} />}
+        </span>
+        {/* AJ-E3603 R5: one quiet mark per need. A need's is its level's
+            small mark at the corner (an amber dot, a ring for a guess, a red
+            ✕) on a calm backing, never a filled badge, and it is the icon's
+            only mark; a working session keeps its state's dot (static,
+            calm), and an idle or ended one has none (no bullets). Decoration:
+            its name leads with the word. */}
+        {needs ? (
+          <span aria-hidden="true" data-testid="rail-folded-needs" data-level={level} className="absolute right-0 top-0 flex size-3 items-center justify-center rounded-full bg-canvas">
+            <span className="level-mark" data-level={level} data-probably={level === 2 && item.probably ? "true" : undefined} />
+          </span>
+        ) : (
+          hasStateMark(item, level) && <span aria-hidden="true" data-state-dot={item.state} className={"absolute bottom-0.5 left-0.5 size-1.5 rounded-full ring-2 ring-canvas " + tone.dot} />
+        )}
+      </button>
+      {tip}
+    </>
   );
 }
 

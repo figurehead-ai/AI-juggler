@@ -11,6 +11,11 @@ use crate::features::conversations::places::{HostRegistry, host_of};
 use crate::features::conversations::procs::{Proc, Table};
 use crate::features::conversations::scan::Place;
 
+// 0.5.2 G56: the stand-in app below is made whole, never a bare program in
+// a hand-made `.app` (macOS then called "Claude" damaged on the screen).
+#[path = "../../../../juggler-supervisor/tests/fixtures/stand_in_app.rs"]
+mod stand_in_app;
+
 const HOME: &str = "/Users/you";
 const CLAUDE: &str = "/Applications/Claude.app/Contents/MacOS/Claude";
 const CLAUDE_CODE_IN_APP: &str = "/Users/you/Library/Application Support/Claude/claude-code/2.1.0/claude.app/Contents/MacOS/claude";
@@ -397,9 +402,10 @@ proptest! {
 }
 
 /// ADR-0032 amendment 4: an app's launch and quit reach the window within
-/// the bound. A stand-in `Claude.app` (a copy of `bash` in a bundle of
-/// that name under a temporary folder, with its own `--user-data-dir`,
-/// waiting on its own `read -t 30`) starts and stops; a forced look (what `NSWorkspace`'s notification
+/// the bound. A stand-in `Claude.app` (a copy of `bash` as the program of
+/// a whole, signed bundle of that name under a temporary folder, 0.5.2
+/// G56: [`stand_in_app::make`]; with its own `--user-data-dir`, waiting on
+/// its own `read -t 30`) starts and stops; a forced look (what `NSWorkspace`'s notification
 /// runs) sees each at once, and the timed look never waits longer than
 /// `RECONCILE_EVERY_MS`. Bounded: the stand-in waits 30 s at most and is
 /// stopped and reaped here.
@@ -410,10 +416,12 @@ fn a_launch_and_a_quit_show_within_the_bound() {
     let root = tempfile::tempdir().unwrap();
     let state =
         std::sync::Arc::new(crate::state::AppState::init(root.path().join("data")).unwrap());
-    let bundle = root.path().join("Claude.app/Contents/MacOS");
-    std::fs::create_dir_all(&bundle).unwrap();
-    let exe = bundle.join("Claude");
-    std::fs::copy("/bin/bash", &exe).unwrap();
+    let exe = stand_in_app::make(
+        &root.path().join("Claude.app"),
+        "Claude",
+        Path::new("/bin/bash"),
+        None,
+    );
     let now = crate::commands::now_millis();
     reconcile(&state, now, true);
     // `read -t 30` is bash's own: no child process, so the stand-in is

@@ -1,6 +1,7 @@
 /**
  * AJ-E3816 — the Watches screen in the shell: the page given this Mac's
- * targets (sessions, Apps, projects, pools, accounts), where Go to leads
+ * targets (sessions, the ones AI Juggler didn't start too (0.5.2 G45),
+ * Apps, projects, pools, accounts), where Go to leads
  * for each kind, Bot's panel as the second way in (only when Bot has a
  * route, D-127), and Settings › Notifications for quiet hours. Its own chunk,
  * loaded when the page is first opened.
@@ -12,6 +13,7 @@ import { openAccount } from "../lib/accounts-page";
 import { openBot } from "../lib/bot-store";
 import { usePools } from "../lib/pools";
 import { useApps, type AppModel } from "../lib/apps";
+import { useConversations } from "../lib/conversations";
 import type { AccountInfo } from "../types/generated/AccountInfo";
 import type { InstanceInfo } from "../types/generated/InstanceInfo";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
@@ -42,9 +44,11 @@ export function WatchesScreen({
   // Apps by their App id, as the rail and the App pages have them.
   const apps = useApps(accounts) ?? NO_APPS;
   const bot = useAiJob("chat");
+  // 0.5.2 G45: the sessions AI Juggler didn't start, as the rail has them.
+  const conversations = useConversations().all;
   // A project's own pool is the project itself: watch the project.
   const own = useMemo(() => (pools?.pools ?? []).filter((pool) => pool.kind !== "default"), [pools]);
-  const sources = useMemo(() => ({ sessions, apps, projects, pools: own, accounts, now }), [sessions, apps, projects, own, accounts, now]);
+  const sources = useMemo(() => ({ sessions, conversations, apps, projects, pools: own, accounts, now }), [sessions, conversations, apps, projects, own, accounts, now]);
   const goTo = (target: WatchTarget) => {
     if (target.kind === "session") onOpenSession(target.id);
     else if (target.kind === "project") onOpenProject(target.id);

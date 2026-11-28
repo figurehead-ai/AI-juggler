@@ -7,7 +7,7 @@
 use std::sync::Arc;
 
 use super::commands::{
-    bot_ask_impl, bot_clear_impl, bot_count_impl, bot_find_impl, bot_new_topic_impl, bot_page_impl,
+    bot_clear_impl, bot_count_impl, bot_find_impl, bot_new_topic_impl, bot_page_impl,
     bot_wrong_impl,
 };
 use super::dto::{
@@ -144,6 +144,134 @@ fn time_and_kind_words_narrow_the_rows() {
     assert_eq!(found.looked.reach, "accounts");
 }
 
+/// 0.5.2 G58 (RW1 F-RW2-11): the look-up's bound keeps each tool: with
+/// four of AI Juggler's Claude Code sessions newer than two Codex threads,
+/// "what are my sessions" (and the nearest records, nothing open) still
+/// names a Codex thread; the open one first, the newest of the rest.
+#[test]
+fn the_bound_keeps_each_tool() {
+    let tool = |mut row: BotRowInfo, provider: &str| {
+        row.provider = Some(provider.into());
+        row
+    };
+    let own = |id: &str, title: &str, state: BotState, ago: i64| {
+        tool(
+            session(id, title, state, "web", NOW - ago * MIN),
+            "claude-code",
+        )
+    };
+    let codex = |id: &str, title: &str, ago: i64| {
+        tool(
+            session(id, title, BotState::Ended, "api", NOW - ago * MIN),
+            "codex",
+        )
+    };
+    let world = |open: bool| World {
+        now_ms: NOW,
+        sessions: [
+            open.then(|| own("c-notebook", "Update the summary cell", BotState::Idle, 2)),
+            Some(own("s-question", "Add retries", BotState::Finished, 12)),
+            Some(own(
+                "s-fail",
+                "Rewrite the date parser",
+                BotState::Failed,
+                30,
+            )),
+            Some(own(
+                "s-revert",
+                "Change the date format",
+                BotState::Finished,
+                34,
+            )),
+            Some(own(
+                "s-edits",
+                "Split the cart total",
+                BotState::Finished,
+                40,
+            )),
+            Some(codex("x-patch", "Add a retry helper", 50)),
+            Some(codex("x-delete", "Remove the old handlers", 55)),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+        ..World::default()
+    };
+    let found = look_up(&read("what are my sessions"), &world(true), None);
+    assert_eq!(
+        titles(&found.rows),
+        [
+            "Update the summary cell",
+            "Add retries",
+            "Rewrite the date parser",
+            "Add a retry helper"
+        ]
+    );
+    let near = super::lookup::nearest(&read("what are my sessions"), &world(false), None).unwrap();
+    assert_eq!(
+        titles(&near.rows),
+        [
+            "Rewrite the date parser",
+            "Add retries",
+            "Add a retry helper"
+        ],
+        "the failure first, then each tool"
+    );
+}
+
+/// The chip on session `id`, named as its id.
+pub(super) fn session_chip(id: &str) -> BotScope {
+    BotScope {
+        kind: BotScopeKind::Session,
+        id: id.into(),
+        name: id.into(),
+        sessions: Vec::new(),
+    }
+}
+
+/// 0.5.2 G59 (RW1 R14): a chip on one record (Ask Bot on a post: its
+/// session, by its key) is what the question is about: the question's
+/// words never leave it out ("did it finish cleanly?" found nothing).
+#[test]
+fn a_chip_on_one_record_is_that_record_whatever_the_words() {
+    let world = World {
+        now_ms: NOW,
+        sessions: vec![
+            session(
+                "s-revert",
+                "Change the date format",
+                BotState::Finished,
+                "api",
+                NOW,
+            ),
+            session(
+                "s-web",
+                "Split the cart total",
+                BotState::Finished,
+                "web",
+                NOW,
+            ),
+        ],
+        ..World::default()
+    };
+    let post = session_chip("s-revert");
+    let asked = read(super::question::after_post(
+        "About this post: \u{201c}Claude Code CLI changed the date format in api.\u{201d} did it finish cleanly?",
+    ));
+    let found = look_up(&asked, &world, Some(&post));
+    assert_eq!(titles(&found.rows), ["Change the date format"]);
+    assert_eq!(found.unknown, None);
+    // A chip on a project still matches its records by the words.
+    let api = BotScope {
+        kind: BotScopeKind::Project,
+        id: "p-api".into(),
+        name: "api".into(),
+        sessions: Vec::new(),
+    };
+    let found = look_up(&read("is the parser done?"), &world, Some(&api));
+    assert_eq!(found.unknown, Some(BotUnknown::NothingFound));
+}
+
 /// D-136 point 3: with the chip, only the scope is looked at; without
 /// it (× pressed), everything.
 #[test]
@@ -224,36 +352,85 @@ fn a_named_record_answers_with_its_own_state() {
     );
 }
 
-fn state() -> (tempfile::TempDir, Arc<AppState>) {
+pub(super) fn state() -> (tempfile::TempDir, Arc<AppState>) {
     let dir = tempfile::tempdir().unwrap();
     let state = crate::test_support::bare_state(dir.path().to_path_buf());
     (dir, state)
 }
 
+/// 0.5.2 G37: a pool "Team" holding these tasks (id, title, status).
+pub(super) fn seed_tasks(
+    state: &Arc<AppState>,
+    tasks: &[(&str, &str, juggler_core::tasks::TaskStatus)],
+) {
+    use juggler_core::storage::{NewTask, TASK_USER};
+    use juggler_core::tasks::{Priority, TaskKind};
+    let storage = state.storage.lock().unwrap();
+    let pool = storage.pools().create("Team", None).unwrap().id;
+    for &(id, title, status) in tasks {
+        storage
+            .tasks()
+            .create(&NewTask {
+                id,
+                pool_id: &pool,
+                kind: TaskKind::Task,
+                parent_id: None,
+                title,
+                body: "",
+                acceptance: "",
+                priority: Priority::Normal,
+                status,
+                assignee: None,
+                created_by: TASK_USER,
+                created_by_name: "You",
+                external_url: None,
+                blocked_by: &[],
+                project: None,
+            })
+            .unwrap();
+    }
+}
+
+/// AJ-E3825: every question goes to the model; the tests' model is the
+/// fake ([`super::fake`]).
 fn ask(state: &Arc<AppState>, question: &str) -> super::dto::BotTurnInfo {
-    bot_ask_impl(
+    super::commands::bot_ask_with(
         state,
         &BotAskInput {
             question: question.into(),
             scope: None,
             again: None,
         },
+        &super::fake::Fake::new(),
     )
     .unwrap()
 }
 
-/// AJ-E3807: with no model, look-ups still answer; AJ-E3808: the turns
-/// stay on this Mac, are paged, found and cleared whole.
+/// AJ-E3808: the turns stay on this Mac, are paged, found and cleared
+/// whole. AJ-E3825: each is the model's (a greeting, code work and a
+/// question no record matched get its general answer).
 #[test]
 fn asking_keeps_turns_that_page_find_and_clear() {
     let (_dir, state) = state();
     let hi = ask(&state, "hello");
-    assert_eq!(hi.outcome, BotOutcome::Help);
+    assert_eq!(hi.outcome, BotOutcome::General);
+    assert!(
+        !hi.general.as_ref().unwrap().off_topic,
+        "a greeting is Bot's own"
+    );
     let none = ask(&state, "Did the deploy to staging work?");
-    assert_eq!(none.outcome, BotOutcome::DontKnow);
-    assert!(none.written.is_none(), "no model: never a written answer");
+    assert_eq!(
+        none.outcome,
+        BotOutcome::General,
+        "no record matched: the model's own answer"
+    );
+    assert!(none.rows.is_empty(), "nothing found: no record stands in");
     let code = ask(&state, "Write me a function that sorts dates");
-    assert_eq!(code.outcome, BotOutcome::OutOfScope);
+    assert_eq!(code.outcome, BotOutcome::General);
+    assert!(
+        code.general.as_ref().unwrap().off_topic,
+        "D-148's scope line"
+    );
     bot_new_topic_impl(&state).unwrap();
     ask(&state, "What needs me?");
     let page = bot_page_impl(&state, None, 2).unwrap();
@@ -399,7 +576,24 @@ fn a_stated_name_is_kept_used_and_forgotten() {
 
 /// One running session named by its folder `name`, on `branch` (a fixture
 /// `.git` only: never a real repository).
-fn seed_session(state: &Arc<AppState>, dir: &std::path::Path, id: &str, name: &str, branch: &str) {
+pub(super) fn seed_session(
+    state: &Arc<AppState>,
+    dir: &std::path::Path,
+    id: &str,
+    name: &str,
+    branch: &str,
+) {
+    seed_session_at(state, dir, (id, name, branch), None);
+}
+
+/// [`seed_session`], started at `started_ms` (and active a minute later)
+/// when given, else at the fixture's fixed time.
+pub(super) fn seed_session_at(
+    state: &Arc<AppState>,
+    dir: &std::path::Path,
+    (id, name, branch): (&str, &str, &str),
+    started_ms: Option<i64>,
+) {
     let cwd = dir.join(name);
     std::fs::create_dir_all(cwd.join(".git")).unwrap();
     std::fs::write(
@@ -425,15 +619,22 @@ fn seed_session(state: &Arc<AppState>, dir: &std::path::Path, id: &str, name: &s
             ))
             .unwrap();
     }
-    storage
-        .sessions()
-        .insert(&crate::test_support::instance(
-            id,
-            "rec-1",
-            juggler_core::model::SessionStatus::Running,
-            cwd,
-        ))
-        .unwrap();
+    // A repository is a project, as the window makes one for it (0.5.2
+    // G57: an untitled session is named by its facts, "api · started …",
+    // and its project by its own name).
+    let project = storage.projects().ensure(&cwd).unwrap().id;
+    let mut record = crate::test_support::instance(
+        id,
+        "rec-1",
+        juggler_core::model::SessionStatus::Running,
+        cwd,
+    );
+    record.project = Some(project);
+    if let Some(at) = started_ms {
+        record.started_at = juggler_core::model::Timestamp::from_millis(at);
+        record.last_activity = Some(juggler_core::model::Timestamp::from_millis(at + 60_000));
+    }
+    storage.sessions().insert(&record).unwrap();
 }
 
 /// The Bot review's H1: a forgotten memory's words are gone from every
@@ -562,17 +763,281 @@ fn this_is_wrong_marks_the_answer_undo_clears_it_and_ask_again_asks_once_more() 
     bot_wrong_impl(&state, &asked.id, false).unwrap();
     assert!(!flagged(&state), "Undo");
     bot_wrong_impl(&state, &asked.id, true).unwrap();
-    let again = bot_ask_impl(
+    let again = super::commands::bot_ask_with(
         &state,
         &BotAskInput {
             question: asked.question.clone(),
             scope: None,
             again: Some(asked.id.clone()),
         },
+        &super::fake::Fake::new(),
     )
     .unwrap();
     assert_eq!(again.question, asked.question);
     assert_ne!(again.id, asked.id);
     assert!(flagged(&state), "the first stays marked wrong");
     assert!(bot_wrong_impl(&state, "no-such-turn", true).is_err());
+}
+
+/// AJ-E3713: Forget in "What Bot remembers" takes the feed's More or Less
+/// like this (a `feed:` preference from Home's feed) through the same
+/// forget as Bot's own memories; other kinds stay refused.
+#[test]
+fn forget_takes_a_feed_preference_through_the_same_gate() {
+    use crate::features::feed::commands::prefs::{FeedLeanAsk, prefer_in};
+    let (_dir, state) = state();
+    let ask = FeedLeanAsk {
+        lean: "less".to_owned(),
+        group: "switch".to_owned(),
+        folder: None,
+        project: None,
+        about: None,
+    };
+    let kept = {
+        let storage = state.storage.lock().unwrap();
+        state
+            .memory_writers
+            .with_memory(|writer| prefer_in(&storage, writer, &ask, NOW))
+            .expect("a memory writer")
+            .unwrap()
+            .expect("kept")
+    };
+    assert!(kept.key.starts_with("feed:"));
+    super::memory::forget(&state, &kept.key).unwrap();
+    let storage = state.storage.lock().unwrap();
+    assert!(
+        storage.memory().current(&kept.key).unwrap().is_none(),
+        "forgotten"
+    );
+    drop(storage);
+    assert!(
+        super::memory::forget(&state, "watch:w1").is_err(),
+        "a watch is still not a memory here"
+    );
+}
+
+/// AJ-E3832 R6: the question's own words ("app", "remember", "running")
+/// never become part of the name looked up, so "which app is web running
+/// in?" finds web, and "what did I ask you to remember about api?" finds api.
+#[test]
+fn question_words_are_never_taken_for_a_records_name() {
+    for (q, name) in [
+        ("which app is web running in?", "web"),
+        ("what did I ask you to remember about api?", "api"),
+    ] {
+        let r = read(q);
+        assert_eq!(r.subject, [name], "{q}");
+        assert!(
+            !look_up(&r, &world(), None).rows.is_empty(),
+            "{q}: nothing found"
+        );
+    }
+}
+
+/// 0.5.2 G31 (RW1 F-RW1-12): the chip's scope stuck across asks (a
+/// reminder drafted about the chip's post long after). It is the ask's
+/// own: a question that refers back keeps the topic's last scope, any
+/// other asks about everything, and a New topic none.
+#[test]
+fn a_scope_goes_with_its_ask_and_a_follow_up_that_refers_back() {
+    use super::dto::{BotScope, BotScopeKind};
+    let (_dir, state) = state();
+    let scope = BotScope {
+        kind: BotScopeKind::Session,
+        id: "s-api".into(),
+        name: "api".into(),
+        sessions: Vec::new(),
+    };
+    let scoped = super::commands::bot_ask_with(
+        &state,
+        &BotAskInput {
+            question: "What did api change today?".into(),
+            scope: Some(scope.clone()),
+            again: None,
+        },
+        &super::fake::Fake::new(),
+    )
+    .unwrap();
+    assert_eq!(scoped.scope.as_ref(), Some(&scope));
+    let follow = ask(&state, "And why did it stop?");
+    assert_eq!(follow.scope.as_ref(), Some(&scope), "refers back: kept");
+    let other = ask(&state, "What needs me?");
+    assert_eq!(other.scope, None, "its own words: everything");
+    let _ = super::commands::bot_ask_with(
+        &state,
+        &BotAskInput {
+            question: "What did api change today?".into(),
+            scope: Some(scope),
+            again: None,
+        },
+        &super::fake::Fake::new(),
+    )
+    .unwrap();
+    super::commands::bot_new_topic_impl(&state).unwrap();
+    let fresh = ask(&state, "And what about it?");
+    assert_eq!(fresh.scope, None, "a New topic asks about everything");
+}
+
+/// 0.5.2 G45 (RW1 W3, G15's bound): "what are my sessions" names the open
+/// ones first (an idle one is open), then the most recent others, a few;
+/// with none open, none (G15's nearest records answer instead).
+#[test]
+fn what_are_my_sessions_names_the_open_ones_first_then_the_recent_ones() {
+    let world = World {
+        now_ms: NOW,
+        offset_hours: 0,
+        sessions: vec![
+            session(
+                "s-cart",
+                "Split the cart total",
+                BotState::Finished,
+                "web",
+                NOW - 20 * MIN,
+            ),
+            session(
+                "conversation:a:c1",
+                "Update the summary cell",
+                BotState::Idle,
+                "docs",
+                NOW - MIN,
+            ),
+            session(
+                "conversation:b:x1",
+                "Add a retry helper",
+                BotState::Ended,
+                "web",
+                NOW - 90 * MIN,
+            ),
+            session(
+                "conversation:b:x2",
+                "Remove the old handlers module",
+                BotState::Ended,
+                "api",
+                NOW - 240 * MIN,
+            ),
+            session(
+                "s-old",
+                "Old work",
+                BotState::Finished,
+                "web",
+                NOW - 30 * 60 * MIN,
+            ),
+        ],
+        tasks: Vec::new(),
+        accounts: Vec::new(),
+        removed: Vec::new(),
+    };
+    let mine = look_up(&read("what are my sessions"), &world, None);
+    assert_eq!(
+        titles(&mine.rows),
+        [
+            "Update the summary cell",
+            "Split the cart total",
+            "Add a retry helper",
+            "Remove the old handlers module"
+        ]
+    );
+    let mut closed = world.clone();
+    closed.sessions.retain(|r| r.state != Some(BotState::Idle));
+    assert!(
+        look_up(&read("what are my sessions"), &closed, None)
+            .rows
+            .is_empty()
+    );
+    // "Nothing is running or waiting" is never true beside an open one.
+    let absent = super::answer::absent(&world);
+    assert!(!absent.states.contains(&BotState::Idle));
+}
+
+/// 0.5.2 G45 (RW1 W3): Bot's records hold the sessions AI Juggler didn't
+/// start (one in the user's own terminal, open and idle; two closed Codex
+/// threads), each by its key where a session id goes, in its rail state
+/// and project, beside AI Juggler's own; an own session between turns
+/// reads Idle by its tool's own word, never "working" by its status.
+#[test]
+fn the_records_hold_the_sessions_ai_juggler_didnt_start_in_their_rail_state() {
+    use crate::features::conversations::scan::State;
+    let dir = tempfile::tempdir().unwrap();
+    let state = crate::test_support::bare_state(dir.path().join("data"));
+    seed_session(&state, dir.path(), "s-web", "web", "main");
+    let docs = dir.path().join("docs");
+    std::fs::create_dir_all(docs.join(".git")).unwrap();
+    {
+        let storage = state.storage.lock().unwrap();
+        storage
+            .accounts()
+            .insert(&crate::test_support::account(
+                "acc-codex",
+                "codex",
+                "Codex",
+                dir.path().join("codex"),
+            ))
+            .unwrap();
+        storage.projects().ensure(&docs).unwrap();
+    }
+    let now = crate::commands::now_millis();
+    let outside = |account: &str, tool: &str, id: &str, title: &str, at: i64| {
+        crate::test_support::outside_conversation(&state, (account, tool), id, title, &docs, at);
+    };
+    outside(
+        "acc-1",
+        "claude-code",
+        "c-docs",
+        "Update the summary cell in the report notebook",
+        now - MIN,
+    );
+    outside(
+        "acc-codex",
+        "codex",
+        "x-retry",
+        "Add a retry helper to the API client",
+        now - 90 * MIN,
+    );
+    outside(
+        "acc-codex",
+        "codex",
+        "x-old",
+        "Remove the old handlers module",
+        now - 240 * MIN,
+    );
+    crate::test_support::live_look(&state, &[("acc-1", "claude-code", "c-docs", State::Idle)]);
+    let world = super::world::gather(&state).unwrap();
+    let by_id = |id: &str| world.sessions.iter().find(|r| r.id == id).cloned();
+    let docs_row = by_id("conversation:acc-1:c-docs").expect("the outside session");
+    assert_eq!(docs_row.state, Some(BotState::Idle));
+    assert_eq!(
+        docs_row.title,
+        "Update the summary cell in the report notebook"
+    );
+    assert!(docs_row.project_id.is_some());
+    assert_eq!(docs_row.app_id.as_deref(), Some("cli:acc-1"));
+    for id in [
+        "conversation:acc-codex:x-retry",
+        "conversation:acc-codex:x-old",
+    ] {
+        assert_eq!(
+            by_id(id).map(|r| r.state),
+            Some(Some(BotState::Ended)),
+            "{id}"
+        );
+    }
+    assert!(by_id("s-web").is_some(), "AI Juggler's own beside them");
+    // An own session between turns: Idle by its tool's word.
+    let mut row = {
+        let storage = state.storage.lock().unwrap();
+        crate::features::sessions::read_model::session_infos_snapshot(&storage)
+            .unwrap()
+            .into_iter()
+            .find(|r| r.id == "s-web")
+            .unwrap()
+    };
+    let read = |row: &crate::features::sessions::dto::InstanceInfo| {
+        super::world::session_row(row, &std::collections::HashMap::new(), 0, &mut Vec::new()).state
+    };
+    assert_eq!(read(&row), Some(BotState::Working), "running, nothing said");
+    row.runtime = Some(crate::features::runtime::dto::RuntimeInfo {
+        state: Some("idle".into()),
+        ..Default::default()
+    });
+    assert_eq!(read(&row), Some(BotState::Idle));
 }

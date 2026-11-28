@@ -794,7 +794,7 @@
   "knip:types": 1
  },
  "ui/src/components/icons-places.tsx": {
-  "knip:exports": 2
+  "knip:exports": 1
  },
  "ui/src/components/indicator.tsx": {
   "knip:exports": 2
@@ -1132,9 +1132,6 @@
   "knip:exports": 1
  },
  "ui/src/screens/settings/LocalCacheSection.tsx": {
-  "knip:exports": 1
- },
- "ui/src/screens/settings/pane-icons.tsx": {
   "knip:exports": 1
  },
  "ui/src/screens/settings/settings-index.ts": {

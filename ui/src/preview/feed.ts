@@ -15,6 +15,7 @@ import type { Page } from "../types/generated/Page";
 import type { PageRequest } from "../types/generated/PageRequest";
 import { MOCK_SESSIONS, seeded } from "./fixtures";
 import { folderName } from "../lib/session-titles";
+import { inState, inTab } from "../lib/feed-chips";
 
 /** A seeded list, as far as the stand-in reads one (the seam's own). */
 function isItems(value: unknown): value is FeedItemInfo[] {
@@ -56,6 +57,14 @@ export function feedItem(over: Omit<Partial<FeedItemInfo>, "facts" | "target"> &
   };
 }
 
+/** AJ-E3713 R6a: what the preview's finished sessions' last turns
+ * changed, as the backend reads it from their transcripts' edit and write
+ * calls (one counted, one a notebook's: files only). */
+const CHANGED: Record<string, FeedItemInfo["facts"]["changes"] | undefined> = {
+  "sess-done-1": { turn: "sess-done-1:0", files: 6, names: ["webhooks/stripe.ts", "webhooks/router.ts", "webhooks/verify.ts", "billing/events.ts", "tests/stripe.test.ts", "tests/router.test.ts"], added: 184, removed: 52 },
+  "sess-done-2": { turn: "sess-done-2:0", files: 2, names: ["sync/retry.ts", "notebooks/backoff.ipynb"], added: null, removed: null },
+};
+
 const ENDED: Record<string, [string, number] | undefined> = { finished: ["finished", 1], failed: ["failed", 3], stopped: ["stopped", 0] };
 
 /** A preview session's ending as the backend's item for it (tests seed
@@ -72,7 +81,7 @@ export function endingItem(session: InstanceInfo): FeedItemInfo | null {
     coalesce: `s:${session.id}`, rollup: kind === "failed" ? null : `v:${kind}:${session.account_id}:${session.project_id ?? "-"}:L${level}`, rollup_window_ms: 7_200_000,
     scope: `f:${session.account_id}`, subject: session.label ?? session.title ?? (folderName(session.cwd) || "A session"),
     author: { kind: "app", name: null, provider: session.provider, folder: session.account_id, folder_label: session.account_label, desktop: session.kind === "desktop" },
-    facts: { ...NO_FACTS, project_id: session.project_id, cwd: session.cwd ?? null, duration_ms: at - session.started_at_ms },
+    facts: { ...NO_FACTS, project_id: session.project_id, cwd: session.cwd ?? null, duration_ms: at - session.started_at_ms, changes: CHANGED[session.id] ?? null },
     target: { ...EMPTY_TARGET, session_id: session.id, project_id: session.project_id },
   });
 }
@@ -91,9 +100,17 @@ export function feedItems(): FeedItemInfo[] {
   return [...all].sort((a, b) => b.at_ms - a.at_ms || (a.id < b.id ? 1 : -1));
 }
 
+/** The sessions running now, as the backend's Running chip reads them. */
+function running(): Set<string> {
+  return new Set((seeded.sessions ?? MOCK_SESSIONS).filter((one) => one.status === "running" || one.status === "starting").map((one) => one.id));
+}
+
 function keeps(item: FeedItemInfo, filters: FeedFiltersInfo): boolean {
   if (item.mine && !filters.include_mine) return false;
-  if (filters.category && filters.category !== "all" && item.category !== filters.category) return false;
+  // AJ-E3713 R5: the tabs and state chips by the backend's rules.
+  if (filters.category && filters.category !== "all" && !inTab(item, filters.category)) return false;
+  if (filters.state === "running" && !(item.target.session_id && running().has(item.target.session_id))) return false;
+  if (filters.state && filters.state !== "running" && !inState(item.kind, filters.state)) return false;
   if (filters.project && item.facts.project_id !== filters.project && item.target.project_id !== filters.project) return false;
   if (filters.pool && item.facts.pool_id !== filters.pool) return false;
   if (filters.folders && !filters.folders.includes(item.author.folder ?? "")) return false;

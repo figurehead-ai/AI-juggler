@@ -46,7 +46,7 @@ export function keptFilters(): FeedFiltersInfo {
   const kept = record(parsed(FILTERS));
   if (!kept) return { include_mine: false };
   const folders = Array.isArray(kept.folders) ? kept.folders.filter((one): one is string => typeof one === "string") : null;
-  return { category: text(kept.category), project: text(kept.project), pool: text(kept.pool), folders: folders && folders.length > 0 ? folders : null, include_mine: kept.include_mine === true };
+  return { category: text(kept.category), state: text(kept.state), project: text(kept.project), pool: text(kept.pool), folders: folders && folders.length > 0 ? folders : null, include_mine: kept.include_mine === true };
 }
 
 /** The feeds drawn now, told when the filters are set from elsewhere
@@ -77,7 +77,7 @@ export function showInFeed(category: string): void {
 
 /** Whether `filters` narrow the feed (the "Filtered: … ×" line). */
 export function filtered(filters: FeedFiltersInfo): boolean {
-  return Boolean((filters.category && filters.category !== "all") || filters.project || filters.pool || filters.folders);
+  return Boolean((filters.category && filters.category !== "all") || filters.state || filters.project || filters.pool || filters.folders);
 }
 
 /** A section's fold (open by default), remembered per viewer. */

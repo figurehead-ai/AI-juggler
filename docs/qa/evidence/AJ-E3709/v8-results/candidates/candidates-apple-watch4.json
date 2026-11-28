@@ -1,0 +1,127 @@
+{
+ "family": "apple",
+ "job": "watch4",
+ "note": "script flags: candidates for Opus to confirm by eye, never verdicts",
+ "candidates": [
+  {
+   "id": "V8-W13",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W23",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-ka')] != ('session', 's-ka')",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W24",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) once != today",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W25",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "conditions [('stuck', 60)] != [('stuck', 90)]",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W27",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “any session” looks stuck for 30 minutes. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W28",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W32",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-bet')] != ('session', 's-bet')",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W34",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W36",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown form",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W38",
+   "class": "omission",
+   "detector": "no_watch",
+   "detail": "shown not_a_watch",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W45",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-lf')] != ('session', 's-hz')",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W48",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-cou')] != ('session', 's-cou'); conditions [('finishes', None), ('starts', None)] != [('finishes', None)]; lifetime (unsaid; ADR-0036's default) today != once",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W54",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “form-kit” asks you. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W58",
+   "class": "mismatch",
+   "detector": "rule_mismatch",
+   "detail": "target [('project', 'p-pie')] != ('session', 's-kio')",
+   "stage": "shown",
+   "corpus": "watch8"
+  },
+  {
+   "id": "V8-W60",
+   "class": "critical",
+   "detector": "unsupported_claimed",
+   "detail": "Tell you when “any session” hits a usage limit. Until midnight today.",
+   "stage": "shown",
+   "corpus": "watch8"
+  }
+ ]
+}

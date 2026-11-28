@@ -10,6 +10,7 @@ import type { ModelJob } from "../../../types/generated/ModelJob";
 import type { ModelSpeed } from "../../../types/generated/ModelSpeed";
 import type { ModelVerdict } from "../../../types/generated/ModelVerdict";
 import type { StartRefusal } from "../../../types/generated/StartRefusal";
+import type { AiJobWhy } from "../../../types/generated/AiJobWhy";
 import { MACHINE_WORD, SYSTEM_NAME, THIS_MACHINE, THIS_MACHINE_IN_TEXT } from "../../../lib/machine-words";
 
 const GB = 1_000_000_000;
@@ -38,7 +39,7 @@ export const JOB_NAMES: Record<ModelJob, string> = {
   // AJ-E1548 #6: the one name Bot and Settings both use.
   chat: "Bot’s AI",
   attention: "Attention hints",
-  feed: "Feed lines",
+  feed: "AI summaries in the feed",
   digest: "Digest",
   watches: "Watches",
 };
@@ -83,7 +84,7 @@ export const RECOMMENDED = {
   notYet: (count: number) => `${count} not yet`,
   adopt: "Use it",
   adoptLine: (jobs: string) => `Turns on ${jobs} as Beta, on this model. Off again any time below.`,
-  downloadLine: (jobs: string) => `Stays on ${THIS_MACHINE_IN_TEXT}. Then ${jobs} start as Beta; off again any time below.`,
+  downloadLine: (jobs: string) => `Stays on ${THIS_MACHINE_IN_TEXT}. Then ${jobs} ${jobs.includes(" and ") ? "start" : "starts"} as Beta; off again any time below.`,
   inUse: "In use",
   inUseLine: "Automatic sends every job it passes here.",
   tipAppleLead: `${THIS_MACHINE} can also run`,
@@ -249,35 +250,75 @@ export const APPROVAL = {
   close: "Close",
 };
 
+const NOT_BUILT = "Not built yet";
+
 export const JOBS = {
   title: "Each job uses",
   help: "Automatic follows the recommendation. Pick a model only if you want a different one.",
-  paneTitle: "Jobs",
-  paneLead: "What each AI job does, whether it's on, and which model it uses.",
   beta: "Beta",
   automatic: "Automatic",
   automaticHint: (model: string | null) => (model ? `Uses the recommended model: ${model}` : "Uses the recommended model"),
   pickerLabel: (job: string) => `Model for ${job}`,
   pickerHeading: (job: string) => `Installed and passed for ${job}`,
-  noModelNeeded: "No model needed",
-  notYet: "Not yet",
-  noModel: "No model yet",
-  /** AJ-E1548 #3: one quiet line for the jobs no model passes yet. */
-  moreSoon: "More jobs come as models pass our tests.",
-  descriptions: {
-    review: "Writes a short review when an agent's turn ends",
-    chat: "Writes Bot’s answers from AI Juggler’s records",
-    attention: "Built from the facts, so it needs no model",
-    feed: "Plain lines for now. No model passes yet",
-    digest: "Plain roundup for now. No model passes yet",
-    watches: "The Watches form for now. No model passes yet",
-  } satisfies Record<ModelJob, string>,
-  off: (what: string) => `Off. ${what}`,
+  /** AJ-E3826 (D-149): each row's one line, its state and why. */
   on: "On",
-  onWith: (model: string) => `On · Beta with ${model}`,
-  onPicked: (model: string) => `On · your pick, ${model}`,
+  offLine: "Off",
+  /** Attention hints: code, never a model. */
+  attention: "Built from the facts, so it needs no model",
+  onWith: (model: string) => `Beta with ${model}`,
+  onPicked: (model: string) => `Beta, your pick: ${model}`,
+  onShips: (model: string) => `with ${model}`,
+  gettingReady: (model: string) => `getting ${model} ready`,
   needsModel: "Needs a model: download one above",
+  /** A job switched off by AI Juggler's own update (the remote file). */
+  paused: "Paused for now by an AI Juggler update",
+  /** A job this version doesn't have yet (its flag off by default). */
+  notBuilt: NOT_BUILT,
+  why: {
+    not_built: NOT_BUILT,
+    turned_off: "Apple Intelligence is off",
+    getting_ready: "The model is getting ready",
+    helper_missing: "Part of AI Juggler is missing: reinstall it",
+    unhealthy: "It failed three times in the last hour",
+    not_this_system: `${THIS_MACHINE} can’t run its model`,
+    not_this_computer: `${THIS_MACHINE} can’t run its model`,
+    unknown: "Its state couldn’t be read",
+  } as Partial<Record<AiJobWhy, string>>,
   pickHint: (verdict: string, note: string | null) => (note ? `${verdict} · ${note}` : verdict),
   pickGone: "no longer listed",
   switchLabel: (job: string) => `${job} Beta`,
+  /** AJ-E3820 R5: a job that covers only some tools (the turn review:
+   * turns whose end AI Juggler sees). */
+  covers: (tools: string) => `For ${tools} in the terminal, whose turn ends AI Juggler sees`,
+  /** AJ-E3830 (0.5.2): Watches uses Bot's AI; its Beta is Bot's card. */
+  watchesNeedBot: "Uses Bot’s AI: turn it on above",
+  /** 0.5.2 G72: the Beta's state, said (it read the same on and off). */
+  watchesBetaOn: "Beta with Bot’s own card",
+  watchesCard: "Beta off: Bot opens the Watches form for you to check. Turn it on and, when Bot understands every part of a request, it asks you to confirm in its own card instead",
+  watchesCardOn: "Beta on: when Bot understands every part of a request, it asks you to confirm in its own card instead of the form",
 };
+
+/** AJ-E3826 — Bot's AI: which model writes Bot's answers, whether it
+ * runs, and today's use (the started engine's status, AJ-E3825). */
+export const BOT_AI = {
+  title: "Bot’s AI",
+  help: "Which AI writes Bot’s answers, and whether it’s running",
+  label: "Bot’s AI",
+  automatic: "Automatic",
+  automaticHint: (model: string | null) => (model ? `Follows the recommendation: ${model}` : "Follows the recommendation"),
+  running: "Running",
+  answering: "Answering…",
+  starting: "Starting…",
+  idle: "Idle",
+  idleHow: "starts when you ask Bot",
+  answered: (ago: string) => `answered ${ago}`,
+  notRunning: "Not running",
+  off: "Off",
+  offHow: "turn on Bot’s AI under Each job uses",
+  today: "Today",
+  noAnswers: "no answers yet",
+  answers: (n: number) => (n === 1 ? "1 answer" : `${n} answers`),
+  tokensIn: (count: string) => `${count} tokens in`,
+  tokensOut: (count: string) => `${count} out`,
+};
+

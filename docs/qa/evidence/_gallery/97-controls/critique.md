@@ -1,4 +1,4 @@
-<!-- captures: 7c0537ce7790 -->
+<!-- captures: e22bc241d333 -->
 # 97-controls: the shared controls and the rail's View
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -66,3 +66,23 @@ Re-captured on 0.5.1; only the shared chrome changed in these screens. The rail'
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-25, AJ-E1558, Opus side-by-side, both themes)
+
+Re-captured on the host from a clean export of HEAD (the shared tree held another agent's unbuilt Bot work), both themes, every changed capture diffed (changed-pixel count and box) and looked at old beside new in contact sheets; the ones named below also opened at full size. Mock-ups: `d126-rich-ui/kit-dark.png` and `notif-dark.png` (rich mode), `calm-ui/mock-r2-*.png` (the rail). Captures: Every control state at 1024×700 and 1280×800, both themes (old beside new in the contact sheets; picker-open-history dark also at full size before the change).
+
+**What changed.** General's theme and session-list cards each lead with an icon chip and the chosen one is a fill with its chip lit; a picker's or menu's chosen line (the View menu's Account › All, History's Project › All) is now a fill as well as its ✓, never the mark alone; the rail's Needs you rows lose their App dot (AJ-E1557's amendment), the level's mark staying before why.
+
+**Judged.** Dark and light side by side: in dark the chips and the accent's soft step read clearly against the cards; in light the soft step is paler but the lit chip's violet glyph, the switch's accent fill and the chosen fill still mark what is on (two cues each, never colour alone). No outline came back (PAT-SURF): separation is the card's tone and spacing. Text keeps the type roles (14 px titles, 13 px help), AA in both themes (the gate's contrast spec). Matches the kit's RadioCard and menu choice lines.
+
+| # | Line | Score | Note |
+|---|---|---|---|
+| 4 | Mode | 4 | Rich, the kit's dials: icons on every row and choice, the accent for on and chosen. |
+| 6 | Areas | 4 | Tone, not outlines; no box in a box. |
+| 7 | Colour | 4 | The accent means on, chosen, recommended or navigation; status keeps its hue (amber words on neutral, never a fill). |
+| 14 | Consistency | 4 | The kit's own pieces (RowChip, the switch, ChoiceOption cards, SELECTED_FILL, Modal's icon tile). |
+| 19 | Rich-mode colour | 4 | Before (42aab7661): 2, monochrome rows, bare checkboxes, a dot or a ✓ alone for chosen. Now every row and choice its icon, on and chosen in the accent's soft step, chosen a fill. |
+
+The other lines are as the 0.5.1 critique scored them (unchanged by this work; lowest 4).
+
+0.5.2 G2 (2026-11-26, Opus): at 1024 wide the choice cards stack one per row (a container query on the group, `@xl:grid-cols-3`), so no radio overlaps a title and no description wraps a word per line; the group's action ("Reset my order") stays on one line. 1280 unchanged. Line 19 (rich-mode colour) still 4.

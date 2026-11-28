@@ -113,7 +113,11 @@ async function loadNewest(): Promise<void> {
   set({ loading: true, error: null });
   try {
     const page = await botPage(null);
-    set({ turns: [...page.turns].reverse(), topics: merge([], page.topics), more: page.more, loaded: true, loading: false });
+    // 0.5.2 G31: a New topic with nothing asked yet opens empty, as it
+    // started; Earlier reads the turns before it.
+    const newest = page.turns[0];
+    const fresh = newest !== undefined && page.topics.some((t) => !t.first && t.started_ms > newest.at_ms);
+    set({ turns: fresh ? [] : [...page.turns].reverse(), topics: merge([], page.topics), more: fresh || page.more, loaded: true, loading: false });
   } catch (cause) {
     set({ loading: false, error: errorText(cause) });
   }
@@ -122,10 +126,11 @@ async function loadNewest(): Promise<void> {
 /** The page above the oldest turn shown. */
 export async function loadEarlier(): Promise<void> {
   const oldest = state.turns[0];
-  if (!oldest || !state.more || state.loading) return;
+  if (!state.more || state.loading) return;
   set({ loading: true });
   try {
-    const page = await botPage({ atMs: oldest.at_ms, id: oldest.id });
+    // A New topic shows none at first: Earlier reads the newest kept.
+    const page = await botPage(oldest ? { atMs: oldest.at_ms, id: oldest.id } : null);
     set({ turns: [...[...page.turns].reverse(), ...state.turns], topics: merge(state.topics, page.topics), more: page.more, loading: false });
   } catch (cause) {
     set({ loading: false, error: errorText(cause) });
@@ -226,7 +231,11 @@ export async function ask(question?: string, again?: AskAgain): Promise<BotTurnI
   set({ asking: true, error: null, draft: question === undefined ? "" : state.draft });
   try {
     const turn = await botAsk(again ? { question: words, scope: again.scope, again: again.turn } : { question: words, scope: state.scope });
-    set({ turns: [...state.turns, turn], asking: false, loaded: true });
+    // 0.5.2 G31: the chip goes with this ask (the turn keeps it); a
+    // follow-up that refers back keeps it on the backend's side, any other
+    // question asks about everything (a reminder was drafted about the
+    // chip's post long after it was set).
+    set({ turns: [...state.turns, turn], asking: false, loaded: true, scope: null });
     // "What Bot remembers" reads again at once (the 0.5 walk's N-03: it
     // said 0 beside a note just kept until the tab was opened).
     if (turn.memory) window.dispatchEvent(new Event(MEMORY_CHANGED));
@@ -242,11 +251,14 @@ export function markWrong(id: string, flagged: boolean): void {
   set({ turns: state.turns.map((turn) => (turn.id === id ? { ...turn, flagged } : turn)) });
 }
 
-/** New topic: follow-ups start fresh; nothing is deleted. */
+/** New topic: follow-ups start fresh; nothing is deleted. 0.5.2 G31: it
+ * starts empty (the earlier turns, their cards and Set buttons with them,
+ * leave the view; Earlier reads them back as kept) and asks about
+ * everything (the chip goes). */
 export async function newTopic(): Promise<void> {
   try {
     const topic = await botNewTopic();
-    set({ topics: merge(state.topics, [topic]), focusKey: state.focusKey + 1 });
+    set({ topics: merge(state.topics, [topic]), turns: [], more: state.more || state.turns.length > 0, anchor: null, find: null, scope: null, focusKey: state.focusKey + 1 });
   } catch (cause) {
     set({ error: errorText(cause) });
   }

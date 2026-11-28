@@ -9,6 +9,7 @@ import type { AccountQualityInfo } from "./AccountQualityInfo";
 import type { AccountRemovedInfo } from "./AccountRemovedInfo";
 import type { AccountStorageInfo } from "./AccountStorageInfo";
 import type { AgentBridgeInfo } from "./AgentBridgeInfo";
+import type { AiEngineStatusInfo } from "./AiEngineStatusInfo";
 import type { AiJob } from "./AiJob";
 import type { AiJobInfo } from "./AiJobInfo";
 import type { AlertEventInfo } from "./AlertEventInfo";
@@ -25,6 +26,7 @@ import type { BotFoundInfo } from "./BotFoundInfo";
 import type { BotMemoriesInfo } from "./BotMemoriesInfo";
 import type { BotPageInfo } from "./BotPageInfo";
 import type { BotTopicInfo } from "./BotTopicInfo";
+import type { BotTopicUsageInfo } from "./BotTopicUsageInfo";
 import type { BotTurnInfo } from "./BotTurnInfo";
 import type { BudgetInfo } from "./BudgetInfo";
 import type { BudgetInput } from "./BudgetInput";
@@ -74,6 +76,9 @@ import type { ExpertSetupInfo } from "./ExpertSetupInfo";
 import type { FacetFilters } from "./FacetFilters";
 import type { FeedFiltersInfo } from "./FeedFiltersInfo";
 import type { FeedItemInfo } from "./FeedItemInfo";
+import type { FeedLeanAsk } from "./FeedLeanAsk";
+import type { FeedLeanInfo } from "./FeedLeanInfo";
+import type { FeedLineInfo } from "./FeedLineInfo";
 import type { FigureheadStatusInfo } from "./FigureheadStatusInfo";
 import type { FindProfilesInfo } from "./FindProfilesInfo";
 import type { FleetPeerInfo } from "./FleetPeerInfo";
@@ -183,6 +188,7 @@ import type { RecoverySummaryInfo } from "./RecoverySummaryInfo";
 import type { RedactionPolicyInfo } from "./RedactionPolicyInfo";
 import type { RelatedIdsInfo } from "./RelatedIdsInfo";
 import type { RelationCountsInfo } from "./RelationCountsInfo";
+import type { RemindRequest } from "./RemindRequest";
 import type { RemoteAboutInfo } from "./RemoteAboutInfo";
 import type { RemoteCommandOutcomeInfo } from "./RemoteCommandOutcomeInfo";
 import type { RemoteMachineInfo } from "./RemoteMachineInfo";
@@ -196,6 +202,7 @@ import type { ResetQueueInfo } from "./ResetQueueInfo";
 import type { RestorePlanInfo } from "./RestorePlanInfo";
 import type { RestoreResultInfo } from "./RestoreResultInfo";
 import type { RetentionPreviewInfo } from "./RetentionPreviewInfo";
+import type { ReviewAsk } from "./ReviewAsk";
 import type { ReviewedAllInfo } from "./ReviewedAllInfo";
 import type { RulePreviewInfo } from "./RulePreviewInfo";
 import type { RulesDiffInfo } from "./RulesDiffInfo";
@@ -204,6 +211,9 @@ import type { RuntimeChoicesInfo } from "./RuntimeChoicesInfo";
 import type { RuntimeViewInfo } from "./RuntimeViewInfo";
 import type { SavedHandoverInfo } from "./SavedHandoverInfo";
 import type { ScanReportInfo } from "./ScanReportInfo";
+import type { ScheduleInfo } from "./ScheduleInfo";
+import type { ScheduleListWhich } from "./ScheduleListWhich";
+import type { SchedulesSummary } from "./SchedulesSummary";
 import type { SearchRecordsInfo } from "./SearchRecordsInfo";
 import type { ServersSyncInfo } from "./ServersSyncInfo";
 import type { ServiceAccountRequest } from "./ServiceAccountRequest";
@@ -256,6 +266,7 @@ import type { ToolSpecInfo } from "./ToolSpecInfo";
 import type { ToolUpdateInfo } from "./ToolUpdateInfo";
 import type { TranscriptHitInfo } from "./TranscriptHitInfo";
 import type { TurnOnInfo } from "./TurnOnInfo";
+import type { TurnReviewInfo } from "./TurnReviewInfo";
 import type { UninstallPrepInfo } from "./UninstallPrepInfo";
 import type { UpdateStatusInfo } from "./UpdateStatusInfo";
 import type { UsageCostCutsInfo } from "./UsageCostCutsInfo";
@@ -327,6 +338,10 @@ export interface Commands {
   agent_bridge_set: { args: { scope: string; id: string; on: boolean }; result: AgentBridgeInfo };
   /** Write features::ai::commands::ai_beta_set */
   ai_beta_set: { args: { job: AiJob; on: boolean }; result: AiJobInfo[] };
+  /** Write features::ai::commands::ai_engine_start */
+  ai_engine_start: { args: { job: AiJob }; result: AiEngineStatusInfo };
+  /** Read features::ai::commands::ai_engine_status */
+  ai_engine_status: { args: { job: AiJob }; result: AiEngineStatusInfo };
   /** Read features::ai::models::commands::ai_engines_check */
   ai_engines_check: { args: Record<string, never>; result: ModelsCatalog };
   /** Write features::ai::commands::ai_job_pick_set */
@@ -433,6 +448,8 @@ export interface Commands {
   bot_page: { args: { beforeMs?: number | null; beforeId?: string | null; limit?: number | null }; result: BotPageInfo };
   /** Read features::bot::search::bot_search */
   bot_search: { args: { text: string }; result: SearchRecordsInfo };
+  /** Read features::bot::commands::bot_topic_usage */
+  bot_topic_usage: { args: Record<string, never>; result: BotTopicUsageInfo };
   /** Write features::bot::commands::bot_wrong */
   bot_wrong: { args: { turn: string; wrong?: boolean | null }; result: void };
   /** Read features::budgets::commands::budgets_list */
@@ -559,8 +576,18 @@ export interface Commands {
   expert_reveal: { args: { provider: string; accountId?: string | null }; result: void };
   /** Write features::expert::commands::expert_setup_info */
   expert_setup_info: { args: { provider: string; accountId?: string | null; recipeId?: string | null }; result: ExpertSetupInfo };
+  /** Write features::feed::commands::prefs::feed_lean */
+  feed_lean: { args: { ask: FeedLeanAsk }; result: FeedLeanInfo | null };
+  /** Read features::feed::commands::prefs::feed_leans */
+  feed_leans: { args: Record<string, never>; result: FeedLeanInfo[] };
+  /** Read features::feed::summary::feed_line */
+  feed_line: { args: { ask: ReviewAsk }; result: FeedLineInfo };
+  /** Write features::feed::summary::feed_line_wrong */
+  feed_line_wrong: { args: { turn: string; line: string; wrong?: boolean | null }; result: void };
   /** Read features::feed::commands::feed_page */
   feed_page: { args: { request: PageRequest; filters: FeedFiltersInfo }; result: Page<FeedItemInfo> };
+  /** Write features::feed::commands::prefs::feed_unlean */
+  feed_unlean: { args: { key: string }; result: void };
   /** Write figurehead::figurehead_claim */
   figurehead_claim: { args: { code: string; name?: string | null }; result: FigureheadStatusInfo };
   /** Write figurehead::figurehead_dismiss_notice */
@@ -812,7 +839,7 @@ export interface Commands {
   /** Write os_prompts::os_prompt_prime */
   os_prompt_prime: { args: { id: string }; result: OsPromptOutcomeInfo };
   /** Write os_prompts::os_prompt_request */
-  os_prompt_request: { args: { id: string }; result: OsPromptOutcomeInfo };
+  os_prompt_request: { args: { id: string; fromSetting?: boolean | null }; result: OsPromptOutcomeInfo };
   /** Read os_prompts::os_prompt_status */
   os_prompt_status: { args: { id: string }; result: OsPromptInfo };
   /** Read os_prompts::os_prompts_list */
@@ -1083,6 +1110,12 @@ export interface Commands {
   retention_preview: { args: { accountId: string }; result: RetentionPreviewInfo };
   /** Write history::retention_set */
   retention_set: { args: { accountId: string; days?: number | null }; result: void };
+  /** Read features::review::commands::review_turn */
+  review_turn: { args: { ask: ReviewAsk }; result: TurnReviewInfo };
+  /** Read features::review::commands::review_turn_ai */
+  review_turn_ai: { args: { ask: ReviewAsk }; result: TurnReviewInfo };
+  /** Write features::review::commands::review_wrong */
+  review_wrong: { args: { turn: string; lines: string; wrong?: boolean | null }; result: void };
   /** Write features::runtime::commands::runtime_answer */
   runtime_answer: { args: { sessionId: string; askId: string; answer: AnswerInput }; result: void };
   /** Read features::runtime::commands::runtime_asks */
@@ -1111,6 +1144,20 @@ export interface Commands {
   runtime_trust_choose: { args: { profileId: string; cwd?: string | null; trusted: boolean }; result: FolderTrustInfo | null };
   /** Write features::environment::commands::scan_cancel */
   scan_cancel: { args: Record<string, never>; result: void };
+  /** Read features::schedule::commands::schedule_list */
+  schedule_list: { args: { request: PageRequest; which?: ScheduleListWhich | null }; result: Page<ScheduleInfo> };
+  /** Write features::schedule::commands::schedule_pause */
+  schedule_pause: { args: { id: string; paused: boolean }; result: ScheduleInfo };
+  /** Write features::schedule::commands::schedule_pause_all */
+  schedule_pause_all: { args: { paused: boolean }; result: SchedulesSummary };
+  /** Write features::schedule::commands::schedule_remind */
+  schedule_remind: { args: { request: RemindRequest }; result: ScheduleInfo };
+  /** Write features::schedule::commands::schedule_remove */
+  schedule_remove: { args: { id: string }; result: void };
+  /** Read features::schedule::commands::schedule_summary */
+  schedule_summary: { args: Record<string, never>; result: SchedulesSummary };
+  /** Write features::schedule::commands::schedule_update */
+  schedule_update: { args: { id: string; atMs: number; title: string }; result: ScheduleInfo };
   /** Write features::service_accounts::commands::service_accounts_add */
   service_accounts_add: { args: { request: ServiceAccountRequest }; result: AccountInfo[] };
   /** Read features::service_accounts::commands::service_accounts_catalog */

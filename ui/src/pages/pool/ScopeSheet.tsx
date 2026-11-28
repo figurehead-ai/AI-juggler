@@ -16,6 +16,8 @@ import type { ProjectInfo } from "../../types/generated/ProjectInfo";
 import { poolSetScope } from "../../lib/ipc/pool-model";
 import type { PoolInfo } from "../../lib/ipc/pools";
 import { setPools } from "../../lib/pools";
+import { IconProjects, IconSessions } from "../../components/icons";
+import { IconFolderOpen } from "../../components/icons-actions";
 
 export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; projects: ProjectInfo[]; open: ReadonlySet<string>; onClose: () => void }): JSX.Element {
   const [every, setEvery] = useState(pool.scope_all);
@@ -35,7 +37,7 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
     }
   };
   return (
-    <Modal title="Where it works" subtitle="Agents see only this pool's projects. An App, Account or Tool brings in only its sessions here." onClose={onClose} wide testId="scope-sheet"
+    <Modal title="Where it works" icon={IconProjects} subtitle="Agents see only this pool's projects. An App, Account or Tool brings in only its sessions here." onClose={onClose} wide testId="scope-sheet"
       footer={
         <>
             <Button variant="ghost" onClick={onClose}>
@@ -52,8 +54,8 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
           label="Where it works"
           value={every ? "every" : "these"}
           segments={[
-            { value: "every", label: "Every project" },
-            { value: "these", label: "These projects" },
+            { value: "every", label: "Every project", icon: IconProjects },
+            { value: "these", label: "These projects", icon: IconFolderOpen },
           ]}
           onChange={(value) => setEvery(value === "every")}
           className="self-start"
@@ -62,7 +64,8 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
         {!every && (
           <div className="flex flex-wrap items-center gap-1.5">
             {picked.map((id) => (
-              <span key={id ?? "none"} className="inline-flex items-center gap-1 rounded-full border border-hairline bg-surface-2 py-0.5 pl-2.5 pr-1 text-meta text-ink">
+              <span key={id ?? "none"} className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft py-0.5 pl-2 pr-1 text-meta text-ink">
+                <IconProjects aria-hidden="true" width={13} height={13} className="shrink-0 text-accent-hi" />
                 {name(id)}
                 <button type="button" aria-label={`Take ${name(id)} out`} className="rounded-full px-1 text-muted hover:text-ink" onClick={() => setPicked(picked.filter((one) => one !== id))}>
                   ×
@@ -78,7 +81,7 @@ export function ScopeSheet({ pool, projects, open, onClose }: { pool: PoolInfo; 
               groups={[{ label: "Open now", values: addable.filter((one) => open.has(one.id)).map((one) => one.id) }]}
               allHeading="All projects"
               searchLabel="Search projects"
-              options={[...projectChoices(addable), ...(picked.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project" }])]}
+              options={[...projectChoices(addable).map((one) => ({ ...one, icon: IconProjects })), ...(picked.includes(null) ? [] : [{ value: "__none", label: "Sessions with no project", icon: IconSessions }])]}
               onChange={(value) => setPicked([...picked, value === "__none" ? null : value])}
               testId="scope-sheet-add"
             />

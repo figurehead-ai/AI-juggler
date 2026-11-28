@@ -33,8 +33,8 @@ if [ "${1:-}" = "--selftest" ]; then
   out="$(AI_JUGGLER_CLAUDE_BIN=/tmp/aij-lab-x/.aij-lab-bin/claude "$0" /usr/bin/env)"
   echo "$out" | grep -q '^AI_JUGGLER_CLAUDE_BIN=/tmp/aij-lab-x/.aij-lab-bin/claude$' || { echo "lab_env selftest: the stand-in's path was dropped" >&2; exit 1; }
   # 0.5.1 F96: the Dev bundle lab_scenario.sh opens is named through it.
-  out="$(AIJ_DEV_APP="/tmp/aij-lab-dev/AI Juggler Dev.app" "$0" /usr/bin/env)"
-  echo "$out" | grep -q '^AIJ_DEV_APP=/tmp/aij-lab-dev/AI Juggler Dev.app$' || { echo "lab_env selftest: AIJ_DEV_APP was dropped" >&2; exit 1; }
+  out="$(AIJ_DEV_APP="/Users/x/Dev/AIJuggler-shared-target/lab-dev/AI Juggler Dev.app" "$0" /usr/bin/env)"
+  echo "$out" | grep -q '^AIJ_DEV_APP=/Users/x/Dev/AIJuggler-shared-target/lab-dev/AI Juggler Dev.app$' || { echo "lab_env selftest: AIJ_DEV_APP was dropped" >&2; exit 1; }
   echo "lab_env selftest: ok"; exit 0
 fi
 keep=(HOME CFFIXED_USER_HOME PATH USER LOGNAME SHELL TMPDIR LANG LC_ALL TERM RUSTFLAGS RUSTC_WRAPPER AJ_LAB_OUT)

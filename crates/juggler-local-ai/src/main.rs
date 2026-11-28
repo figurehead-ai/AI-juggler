@@ -101,7 +101,9 @@ impl Shared {
         self.cancel.store(true, Ordering::SeqCst);
     }
 
-    /// The worker answered: the next request may come.
+    /// The worker is done with a request: the next one may come. Called
+    /// before its answer is sent, so a client that sends on reading the
+    /// answer (the app does) is never told `busy` (PR #257's CI).
     pub fn done(&self) {
         self.running.store(0, Ordering::SeqCst);
         self.busy.store(false, Ordering::SeqCst);

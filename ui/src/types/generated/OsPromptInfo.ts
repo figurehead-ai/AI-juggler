@@ -61,4 +61,11 @@ never_shown: boolean,
 /**
  * The system's dialog, for the picture the sheet and cards draw.
  */
-dialog: OsPromptDialogInfo | null, };
+dialog: OsPromptDialogInfo | null, 
+/**
+ * 0.5.2 G36: whether the system shows a dialog after Continue. Bot's
+ * helper's first start brings none (macOS asks only when the helper
+ * on disk changed since it last opened, `helper-changed`), so its
+ * sheet never says "macOS will ask next" and draws no dialog.
+ */
+dialog_follows: boolean, };

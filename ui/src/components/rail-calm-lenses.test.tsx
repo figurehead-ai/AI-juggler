@@ -111,9 +111,11 @@ describe("every lens's rail is the App lens's calm rail (D-117)", () => {
     expect(calm.querySelector("svg")).toBeNull();
     // Its App's icon muted at rest; lit where it needs you.
     expect(calm.querySelector("[data-testid='app-icon']")!.className).toMatch(/app-tone(?! is-lit)/);
-    // Its Needs you row: the App's dot lit, the ring of a guess.
+    // Its Needs you row: no App dot before it (AJ-E1558: no bullet-like
+    // dots), the ring of a guess; the App is named on its place line.
     const stuck = section.querySelector<HTMLElement>("[data-need='stuck']")!;
-    expect(stuck.querySelector("[data-testid='place-mark'] .is-lit")).toBeTruthy();
+    expect(stuck.querySelector("[data-testid='place-mark']")).toBeNull();
+    expect(stuck.querySelector("[data-testid='row-gutter']")!.textContent).toBe("");
     expect(stuck.querySelector(".level-mark[data-probably='true']")).toBeTruthy();
     // Every collapsible keeps its chevron.
     expect(head.querySelector("[data-testid='fold-chevron']")).toBeTruthy();

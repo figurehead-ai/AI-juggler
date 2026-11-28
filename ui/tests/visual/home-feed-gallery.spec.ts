@@ -17,7 +17,10 @@ import { resolve } from "node:path";
 import type { FixtureSet } from "../../src/preview/fixtures";
 import { placesConversations } from "../../src/preview/places";
 import { allStatuses } from "./fixtures";
-import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome } from "./fixtures/home-feed";
+import { STATES as BOT } from "../../src/preview/bot";
+import { feedItem } from "../../src/preview/feed";
+import { jobs as modelJobs } from "../../src/preview/ai-models";
+import { away, BUSY_AWAY, busyFeed, digestFeed, manyFeed, MOCK_T0, mockHome, releaseWalkFeed, STORY_T0, storyHome } from "./fixtures/home-feed";
 
 const OUT = resolve(process.cwd(), "../docs/qa/evidence/_gallery/68-home-feed");
 const T0 = 1_728_800_000_000;
@@ -247,7 +250,8 @@ async function toolbarBoxes(page: Page) {
       return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
     };
     const at = (id: string) => bar.querySelector(`[data-testid="${id}"]`)!;
-    const parts = [...bar.querySelectorAll('[data-testid^="feed-chip-"]'), at("feed-facet"), at("feed-more")];
+    // AJ-E3713: Showing: sits on the state chips' row under the tabs now.
+    const parts = [...bar.querySelectorAll('[data-testid^="feed-chip-"]'), at("feed-more")];
     const edge = box(bar);
     const cut = parts
       .filter((node) => {
@@ -347,3 +351,168 @@ test.describe("the mock-up's data", () => {
     });
   }
 });
+
+/**
+ * AJ-E3713: the approved story-feed mock's data ("story" state, 1280 by
+ * the mock's own 1560 height, both themes), for side-by-sides with
+ * `AIJuggler-design-refs/story-feed/mock-story-feed-<theme>.png`: Less
+ * like this on the switch post (its why open), the pool post followed,
+ * and the first post's More like this hovered (its tip). Capture only this:
+ *   playwright test home-feed-gallery -g "the story mock's data"
+ */
+test.describe("the story mock's data", () => {
+  test.use({ locale: "en-US", timezoneId: "UTC" });
+  for (const theme of ["dark", "light"] as const) {
+    test(`home feed — story — 1280 — ${theme}`, gate("68-home-feed"), async ({ page }) => {
+      const story = storyHome(STORY_T0);
+      await seed(page, story.fixture, theme, { width: 1280, height: 1560 }, {
+        feed: story.feed,
+        summary: story.summary,
+        now: STORY_T0,
+        globals: { __AIJ_QUOTA_DISPLAY__: story.quota, __AIJ_PLACES__: story.places, __AIJ_MESSAGES__: story.messages, __AIJ_NOTICES__: story.notices, __AIJ_WATCH_VIEW__: story.watchView, __AIJ_AI_JOBS__: BOT.empty!.jobs },
+      });
+      await expect(page.getByTestId("home")).toHaveAttribute("data-layout", "columns");
+      const posts = page.getByTestId("feed-card");
+      await expect(posts).toHaveCount(5);
+      // The thread under the first post; the pool post followed.
+      await expect(posts.nth(0).getByTestId("feed-followup")).toHaveText(/^↳ 2 min later · Login refactor finished/);
+      await expect(posts.nth(3).getByTestId("feed-follow")).toHaveText("Following");
+      // Bot's AI is ready here (Ask Bot shows); the scheduler answers, so
+      // a post about something offers Remind me (AJ-E2027).
+      await expect(posts.nth(0).getByTestId("feed-ask-bot")).toBeVisible();
+      await expect(posts.nth(0).getByTestId("feed-remind")).toBeVisible();
+      // Less like this on the switch: kept, its why open, the post in place.
+      await posts.nth(1).getByTestId("feed-less-like").click();
+      await expect(posts.nth(1).getByTestId("feed-why")).toContainText("You'll see fewer switch posts.");
+      await expect(page.getByTestId("feed-day")).toHaveText(["Today", "This morning"]);
+      await axeClean(page, "home feed story");
+      await posts.nth(0).getByTestId("feed-more-like").hover();
+      await expect(page.getByTestId("feed-gesture-tip")).toHaveText("More like this");
+      await page.screenshot({ path: resolve(OUT, `story-1280-${theme}.png`) });
+    });
+  }
+});
+
+/**
+ * 0.5.2 (the RW1 walk): the digest beside the finished post it tells,
+ * its sessions named as the rail names them in their state now (G21); a
+ * diff stat's names shown by keyboard focus (G22); a Codex thread leaned
+ * less, folded once its why closed, its App's thread in another project
+ * left alone (G24).
+ */
+for (const theme of ["dark", "light"] as const) {
+  test(`home feed — 0.5.2 the digest beside its posts, a diff stat's names, a lean — 1280 — ${theme}`, async ({ page }) => {
+    await seed(page, allStatuses, theme, { width: 1280, height: 1000 }, { feed: releaseWalkFeed(T0) });
+    const digest = page.getByTestId("feed-digest");
+    await expect(digest).toBeVisible();
+    await expect(digest.getByTestId("digest-line")).toHaveText(["Add retries to the sync job · ended", "Fix the flaky login test · working", "docs · finished"]);
+    // The finished post stays a post, its diff stat with it.
+    const post = page.locator('[data-testid="feed-card"][data-session-id="sess-6"]');
+    await expect(post.getByTestId("feed-changes")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `g21-digest-beside-posts-1280-${theme}.png`) });
+    await axeClean(page, `the digest beside its posts ${theme}`);
+    // G22: the names by keyboard.
+    await post.getByTestId("feed-changes").focus();
+    await page.keyboard.press("Shift+Tab");
+    await page.keyboard.press("Tab");
+    await expect(page.getByTestId("feed-changes-tip")).toBeVisible();
+    await expect(page.getByTestId("feed-changes-names")).toHaveText(/src\/sync\/retry\.ts/);
+    // The post and the tip under its stat (the tip is drawn over the page).
+    const box = (await post.boundingBox())!;
+    await page.screenshot({ path: resolve(OUT, `g22-diff-stat-names-${theme}.png`), clip: { x: box.x, y: box.y, width: box.width, height: box.height + 40 } });
+    // G24: less on the delete thread, its why closed: it folds; the patch
+    // thread (another project) stays.
+    const del = page.locator('[data-testid="feed-card"]').filter({ hasText: "Remove the old handlers module" });
+    await del.getByTestId("feed-less-like").click();
+    await expect(del.getByTestId("feed-why")).toBeVisible();
+    await del.getByTestId("feed-less-like").click();
+    await expect(page.getByTestId("feed-folded")).toHaveText("1 post shown less · Show");
+    await expect(page.locator('[data-testid="feed-card"]').filter({ hasText: "Add a retry helper to the API client" })).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `g24-less-folded-1280-${theme}.png`) });
+    await axeClean(page, `a post leaned less, folded ${theme}`);
+  });
+}
+
+/**
+ * AJ-E3831 (D-154): the feed's AI summary, its opt-in Beta on: a finished
+ * turn's post with the summary tagged AI (whose, Beta, the agent's own
+ * words one tap away, This is wrong), the words opened, and a post whose
+ * every draft was refused showing the agent's words in the line's place.
+ */
+for (const theme of ["dark", "light"] as const) {
+  test(`home feed — the AI summary of a turn (Beta) — 1280 — ${theme}`, async ({ page }) => {
+    const cli = { kind: "app", name: null, provider: "claude-code", folder: "claude-work", folder_label: "Work Max", desktop: false } as const;
+    const post = (id: string, ago: number, subject: string, project: string) =>
+      feedItem({ id: `l:${id}`, at_ms: T0 - ago, kind: "finished", category: "finished", level: 1, coalesce: `s:${id}`, subject, author: cli, facts: { project, duration_ms: 14 * 60_000 }, target: { session_id: id } });
+    const ready = { state: "ready", beta: true, beta_on: true, model_id: "apple-on-device", model_name: "Apple’s built-in AI", why: "recommended" } as const;
+    await seed(page, allStatuses, theme, { width: 1280, height: 900 }, {
+      feed: [post("sum-1", 3 * 60_000, "Add priorities and calendar sync", "kestrel"), post("sum-2", 25 * 60_000, "Fix the cron range end", "fennel")],
+      globals: {
+        __AIJ_AI_JOBS__: modelJobs({ feed: ready, chat: ready }),
+        __AIJ_FEED_LINES__: {
+          "sum-1": { state: "shown", turn: "t-sum-1", line: "Partly done: added the priority option and due-date checks · open: calendar sync · 6 tests pass", excerpt: "Two of the three are done, and the 6 tests pass. I haven't done the calendar sync.", model: "Apple’s built-in AI" },
+          "sum-2": { state: "plain", turn: "t-sum-2", line: null, excerpt: "I fixed the bug, but I couldn't run the tests.", model: null },
+        },
+      },
+    });
+    await expect(page.getByTestId("feed-summary-line")).toHaveText(/Partly done: added the priority option/);
+    await expect(page.getByTestId("feed-summary-plain")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `ai-summary-1280-${theme}.png`) });
+    await axeClean(page, `the AI summary ${theme}`);
+    await page.getByTestId("feed-summary-words-toggle").click();
+    await expect(page.getByTestId("feed-summary").getByTestId("feed-summary-words")).toBeVisible();
+    await page.mouse.move(0, 0);
+    await page.getByTestId("feed").screenshot({ path: resolve(OUT, `ai-summary-words-1280-${theme}.png`) });
+    await axeClean(page, `the AI summary, its words open ${theme}`);
+  });
+}
+
+/**
+ * 0.5.2 G63 (RW1 F-RW2-9): new items arrive while the reader is scrolled
+ * down: the "↑ 1 new update" pill rides a band of the page's colour at
+ * the column's top, the post sliding under it, never its words beside
+ * the pill.
+ */
+for (const theme of ["dark", "light"] as const) {
+  test(`home feed — 0.5.2 the new-update pill over a scrolled feed — 1280 — ${theme}`, async ({ page }) => {
+    // One unread earlier notice: the bell's Read all tells the model's
+    // change (the stand-in's), which reads the feed's first page again.
+    const unread = { id: 40, kind: "renewal", needs: false, title: "Renews in 6 days", detail: "", project_id: null, project: null, target: { session_id: null, conversation_id: null, account_id: null, project_id: null, page: null, task_id: null, pool_id: null }, facts: { window: null, resets_at_ms: null, sessions: null, version: null, channel: null, attempt: null, tries: null, account: null }, action: null, meter: null, created_ms: T0 - 3_600_000, unread: true, snoozed_until_ms: null, muted: false, dismissed: false };
+    await seed(page, allStatuses, theme, { width: 1280, height: 800 }, { feed: [...releaseWalkFeed(T0), ...manyFeed(T0 - 6 * 3_600_000, 12)], globals: { __AIJ_NOTICES__: { earlier: [unread] } } });
+    await expect(page.getByTestId("feed-card").first()).toBeVisible();
+    const column = page.getByTestId("home-main");
+    // Scrolled so a post's header sits at the column's top, where the pill goes.
+    await column.evaluate((box) => {
+      const cards = [...box.querySelectorAll<HTMLElement>("[data-testid=feed-card]")];
+      const second = cards[1] ?? cards[0]!;
+      box.scrollTop = second.offsetTop - 6;
+      box.dispatchEvent(new Event("scroll"));
+    });
+    expect(await column.evaluate((box) => box.scrollTop)).toBeGreaterThan(4);
+    const arrived = { ...manyFeed(T0 + 60_000, 1)[0]!, id: "l:g63", coalesce: "s:g63", subject: "Bump the lockfile" };
+    await page.evaluate((item) => {
+      const w = window as unknown as { __AIJ_FEED__: unknown[] };
+      w.__AIJ_FEED__ = [item, ...w.__AIJ_FEED__];
+    }, arrived);
+    await page.getByTestId("notification-bell").click({ timeout: 5_000 });
+    await page.getByTestId("notices-read-all").click({ timeout: 5_000 });
+    await expect(async () => {
+      await page.getByTestId("notification-centre").press("Escape", { timeout: 1_000 }).catch(() => undefined);
+      await expect(page.getByTestId("notification-centre")).toHaveCount(0, { timeout: 1_000 });
+    }).toPass({ timeout: 8_000 });
+    const pill = page.getByTestId("feed-new-pill");
+    await expect(pill).toBeVisible({ timeout: 10_000 });
+    await expect(pill).toHaveText("↑ 1 new update");
+    // Nothing of a post's text shows beside the pill: the band covers the row.
+    const band = (await page.getByTestId("feed-new-band").boundingBox())!;
+    const pillBox = (await pill.boundingBox())!;
+    expect(band.y).toBeLessThanOrEqual(pillBox.y);
+    await page.mouse.move(0, 0);
+    const box = (await column.boundingBox())!;
+    await page.screenshot({ path: resolve(OUT, `g63-new-pill-scrolled-1280-${theme}.png`), clip: { x: box.x, y: box.y, width: Math.min(box.width, 760), height: 240 } });
+    await axeClean(page, `the new-update pill ${theme}`);
+  });
+}

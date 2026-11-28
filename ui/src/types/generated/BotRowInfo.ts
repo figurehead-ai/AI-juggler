@@ -107,4 +107,12 @@ then_state: BotState | null,
 /**
  * History: it no longer exists.
  */
-gone: boolean, };
+gone: boolean, 
+/**
+ * A memory: the record it names (a name the user gave to "api").
+ */
+about?: string | null, 
+/**
+ * A memory: its key in What Bot remembers (never kept with a turn).
+ */
+memory_key?: string | null, };

@@ -1066,6 +1066,18 @@ jobs:
       # a real picture; a runner without a GPU says so and stops).
       - name: The Floor on Metal
         run: cargo test -p juggler-floor-render
+      # ADR-0038 §3 (AJ-E3832): Bot's world model, the gyrus crate, keeps
+      # each operation's p95 within its budget at 10k, 100k and 1M links,
+      # in an optimised build on Apple silicon; past a budget the build fails.
+      # The budgets are the reference Mac's: GitHub's shared runner measured
+      # up to 4x them (PR #257: seed 16.2 ms against 5 at 100k links), so CI
+      # gates at that stated factor and a gross regression still fails; the
+      # exact budgets run on the reference Mac (`just gyrus-budgets`, a step
+      # of `scripts/preflight.sh --full`; ADR-0038 §3, amended 2026-11-27).
+      - name: The world model's budgets (gyrus, 10k/100k/1M links)
+        env:
+          AIJ_BUDGET_FACTOR: "4"
+        run: cargo test -p gyrus --release --test budgets -- --include-ignored --nocapture --test-threads=1
       # D-131 (ADR-0033 §4.2): the local-model helper is its own workspace
       # (llama.cpp's C++ never builds in the app's), so its own lints and
       # tests run here: the real binary against its protocol with no model.

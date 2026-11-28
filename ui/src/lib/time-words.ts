@@ -100,6 +100,13 @@ export function clock(ms: number): string {
   return new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+/** A whole hour of the day (0–23, as quiet hours are stored) by the same
+ * clock: "10:00 PM" (or "22:00"). Every quiet-hours time is written by it
+ * (0.5.2 G51, G52: the card and Settings said "22:00" beside "10:00 PM"). */
+export function hourWords(hour: number): string {
+  return clock(new Date(2026, 0, 1, hour, 0, 0, 0).getTime());
+}
+
 /** Words with each clock kept on one line where they wrap: the space
  * after an "h:mm" before a word ("10:00 AM", "10:00 a.m.") becomes a
  * no-break space, as wide, so a wrapped line never parts the time from

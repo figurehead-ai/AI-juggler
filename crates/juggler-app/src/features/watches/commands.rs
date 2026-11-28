@@ -24,7 +24,7 @@ use crate::paging::{Page, PageRequest, SortKey};
 use crate::state::AppState;
 
 /// A watch as the user makes it: the lifetime as chosen, not yet fixed.
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, ts_rs::TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "../../../ui/src/types/generated/")]
 pub struct WatchDraftInfo {
@@ -142,6 +142,21 @@ fn names_for<'t>(
     } else {
         std::collections::BTreeMap::new()
     };
+    // 0.5.2 G45: a session AI Juggler didn't start, named as its rail row
+    // names it (the one rule), read before the storage lock.
+    let now_ms = crate::commands::now_millis();
+    for (key, row) in crate::features::sessions::seen::outside_of(
+        state,
+        targets.iter().filter_map(|t| match t {
+            WatchTarget::Session(id) => Some(id.as_str()),
+            _ => None,
+        }),
+    ) {
+        book.0.insert(
+            WatchTarget::Session(key),
+            crate::features::notifications::needs::conversation_name(&row, now_ms),
+        );
+    }
     let Ok(storage) = state.storage.lock() else {
         return book;
     };
@@ -474,14 +489,29 @@ pub fn watches_catalogue_impl(
     lang: Lang,
 ) -> AppResult<Vec<CatalogueEntry>> {
     let registry = Registry::shipped();
+    // 0.5.2 G45: a group's open sessions count those AI Juggler didn't
+    // start (read before the store's lock).
+    let outside = if matches!(target, WatchTarget::Session(_)) {
+        Vec::new()
+    } else {
+        crate::features::sessions::seen::outside_open(state)
+    };
     let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
-    let observed = Facts::new(&storage, state).observes(target);
-    Ok(catalogue::catalogue(
-        &registry,
-        target.kind(),
-        observed,
-        lang,
-    ))
+    let facts = Facts::new(&storage, state).with_outside(outside);
+    let observed = facts.observes(target);
+    let mut offered = catalogue::catalogue(&registry, target.kind(), observed, lang);
+    // 0.5.2 G32 (D-127): "Is idle for" on an App, a project or any session
+    // means a session in it stays idle for that long; it counts from an
+    // open session, so with none open it can't be met and isn't offered.
+    if !matches!(target, WatchTarget::Session(_))
+        && !facts
+            .open_subjects()
+            .iter()
+            .any(|subject| super::engine::covers(target, subject))
+    {
+        offered.retain(|entry| !catalogue::counts_from_open(&registry, &entry.code));
+    }
+    Ok(offered)
 }
 
 /// A draft checked against the closed set and its targets' Apps, and put
@@ -562,11 +592,29 @@ fn write(
         )?
     };
     let ended = info.state == WatchStateInfo::Ended;
+    // 0.5.2 G32: a group target's open sessions, armed from now for what
+    // counts from the start (idle for).
+    let open = if stored
+        .watch
+        .targets
+        .iter()
+        .any(|target| !matches!(target, WatchTarget::Session(_)))
+    {
+        // 0.5.2 G45: with the open sessions AI Juggler didn't start.
+        let outside = crate::features::sessions::seen::outside_open(state);
+        let storage = state.storage.lock().map_err(|_| AppError::StatePoisoned)?;
+        Facts::new(&storage, state)
+            .with_outside(outside)
+            .open_subjects()
+    } else {
+        Vec::new()
+    };
     runtime::with_engine(state, now.now_ms, |engine| {
         if stored.removed || ended {
             engine.remove(&stored.watch.id);
         } else {
             engine.add(stored.watch.clone(), now.now_ms);
+            engine.arm_open(&stored.watch.id, &open, now.now_ms);
         }
     });
     runtime::changed(state);

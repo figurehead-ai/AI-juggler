@@ -8,6 +8,8 @@ import { errorText } from "../lib/bridge";
 import type { ProjectInfo } from "../types/generated/ProjectInfo";
 import { projectSyncServers, projectSyncServersApply, type ServerCopyInfo, type ServersSyncInfo } from "../lib/ipc/projectSync";
 import { DoneLine, SYNC_HEADING, type Done } from "./SyncDoneLine";
+import { RowChip } from "./controls";
+import { IconConnect } from "./icons-menu";
 
 export function ServersSection({ project }: { project: ProjectInfo }) {
   const [servers, setServers] = useState<ServersSyncInfo | null>(null);
@@ -64,7 +66,8 @@ export function ServersSection({ project }: { project: ProjectInfo }) {
       {servers.copies.length > 0 && (
         <ul className="flex flex-col gap-1.5">
           {servers.copies.map((offer) => (
-            <li key={`${offer.offer}|${offer.to}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-hairline px-3 py-2 text-xs">
+            <li key={`${offer.offer}|${offer.to}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-surface-2 px-3 py-2 text-meta">
+              <RowChip icon={IconConnect} />
               <span className="text-ink">
                 <span className="font-mono">{offer.server}</span> for {offer.to_label}
                 <span className="text-muted"> · from {offer.from_label}</span>

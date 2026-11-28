@@ -1,0 +1,1841 @@
+{
+ "meta": {
+  "harness": "v6",
+  "prompt_version": 6,
+  "harness_today": "2026-11-18",
+  "engine": "Apple on-device Foundation Model via apple_probe.swift",
+  "hello": "{\"hello\":true,\"protocol\":3,\"available\":\"available\",\"guided\":true,\"extensions\":[\"fields\",\"sampling\"],\"os\":\"Version 27.0.1 (Build 26A434)\"}",
+  "family": "apple",
+  "model_label": "apple",
+  "sampling_name": "greedy",
+  "sampling": {
+   "mode": "greedy",
+   "temperature": 0
+  },
+  "retry_sampling": {
+   "temperature": 0.6,
+   "top_k (Apple)": 40,
+   "seed": "per item and attempt"
+  },
+  "sampling_source": "v4 sweep (v4-sweep.md): greedy, pinned; datamark on chosen",
+  "datamark": "on",
+  "retries": 2,
+  "jobs": [
+   "feed_pick2"
+  ],
+  "prompt_sha256": {
+   "feed_pick2": "f47f38bbc1d1901ae00bb029c5d93a816a2c4951b8cbacb1e1c83f975984659f"
+  },
+  "code_sha256": {
+   "core6.py": "7caaa386d816a58b327426da9ca37cc82dc638ad7e47dfaf0185c417db365074",
+   "pick.py": "d31f86a17948c7e31ad835319d77e59456665d2fdda7ef9db89592007464e861",
+   "digest_mr.py": "455a39359a905da9794dfa13c8c1a4a52c806ff856c4332b93528f4e170ce4bc",
+   "watch2.py": "910a6b52891703cbe8ab1d7e7376f4b7c74a327895b890aab28e10db49b49c6b",
+   "v5/core.py": "e39b246e58f3c9399030b7df3de556a34c9660ee3f80bb0bd3c63886823765c0",
+   "v5/turns.py": "4b61545864a184a118546f9f6007a9eb24844413f9fdbe81fd93f0e30f4cad9f",
+   "v5/digest.py": "e31c18f5cfbeb9142e63d0f011d458f1d0add116305f8b5ee18475b29e18b105",
+   "v5/watch.py": "93f36c4d78c338ad7325a4b5975bfa3c86a8266f145b587e6aa211dabff30835",
+   "v5/claims_v5.py": "e7ee0e6386f84cbd7ff5a8050f9279eb62d3df14dc2e7081499927188a9f667e",
+   "v5/severity.py": "dfdad60f671c5f5cf258b19a6cbbcbb53725e2c6941d0caaf3768d1376eaba99"
+  },
+  "gate_py_sha256": "22152d013af518c34237464f53fd92dbdc83b8b1fa21b1cff8588f5d08735a68",
+  "frozen_gate_commit": "7acec4f50",
+  "repeats": 1,
+  "limit": null,
+  "corpora": [
+   {
+    "label": "turns7",
+    "file": "turns-v7.json",
+    "sha256": "92ebe5b7d42653a3e5a99f79eefdb6fb884946913ab8ee4ce9aaddd81d0e124e",
+    "items_in_file": 50,
+    "items_run": 50
+   }
+  ],
+  "calls": 38,
+  "wall_s": 42.7,
+  "machine": {
+   "macos": "27.0.1",
+   "macos_build": "26A434",
+   "arch": "arm64",
+   "model": "Mac17,15",
+   "chip": "Apple M5 Ultra",
+   "ram_gb": 96.0,
+   "cpus": 30
+  },
+  "load_avg_start": [
+   7.3,
+   7.1,
+   7.5
+  ],
+  "load_avg_end": [
+   5.4,
+   6.6,
+   7.3
+  ],
+  "helper_cpu_s": 0.88,
+  "cpu_deltas": [
+   {
+    "name": "modelmanagerd",
+    "cpu_s": 2.42
+   },
+   {
+    "name": "modelcatalogd",
+    "cpu_s": 2.26
+   },
+   {
+    "name": "apple_probe",
+    "cpu_s": 0.87
+   },
+   {
+    "name": "GenerativeExperiencesSafetyInferenceProvider",
+    "cpu_s": 0.63
+   }
+  ],
+  "watched_rss_mb": {
+   "before": 137.0,
+   "peak": 143.0,
+   "after": 144.6
+  },
+  "started": "2026-11-26 09:30:58"
+ },
+ "results": [
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T01",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"moved\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1119,
+     "gen_ms": 1118.5139417648315,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1849,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Moved the heron-queue retry delay into a config value and also fixed a stale comment above it, 19 passed",
+    "model_text": [
+     "Moved the heron-queue retry delay into a config value and also fixed a stale comment above it, 19 passed"
+    ],
+    "notes": [],
+    "line": "Moved the heron-queue retry delay into a config value and also fixed a stale comment above it, 19 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "moved",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T02",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"renamed\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1160,
+     "gen_ms": 1159.932017326355,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1868,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Renamed two CSS classes for consistency; tests were not run",
+    "model_text": [
+     "Renamed two CSS classes for consistency; tests were not run"
+    ],
+    "notes": [],
+    "line": "Renamed two CSS classes for consistency; tests were not run",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "renamed",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T03",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1157,
+     "gen_ms": 1156.511902809143,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1857,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "The pebble-cli export command now writes UTF-8 with a byte order mark only when --excel is set, 8 passed",
+    "model_text": [
+     "The pebble-cli export command now writes UTF-8 with a byte order mark only when --excel is set, 8 passed"
+    ],
+    "notes": [],
+    "line": "The pebble-cli export command now writes UTF-8 with a byte order mark only when --excel is set, 8 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T04",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"regenerated\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1090,
+     "gen_ms": 1089.3139839172363,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1810,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Regenerated the fixtures; tests were not run",
+    "model_text": [
+     "Regenerated the fixtures; tests were not run"
+    ],
+    "notes": [],
+    "line": "Regenerated the fixtures; tests were not run",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "regenerated",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T05",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"added\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1115,
+     "gen_ms": 1114.650011062622,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1871,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Added a /health endpoint to the larch-gateway, plus a README paragraph about it, 41 passed",
+    "model_text": [
+     "Added a /health endpoint to the larch-gateway, plus a README paragraph about it, 41 passed"
+    ],
+    "notes": [],
+    "line": "Added a /health endpoint to the larch-gateway, plus a README paragraph about it, 41 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "added",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T06",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1100,
+     "gen_ms": 1100.2719402313232,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1854,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "The sedge-mail attachment preview now supports PDF first pages, 27 passed",
+    "model_text": [
+     "The sedge-mail attachment preview now supports PDF first pages, 27 passed"
+    ],
+    "notes": [],
+    "line": "The sedge-mail attachment preview now supports PDF first pages, 27 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T07",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"moved\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1071,
+     "gen_ms": 1070.89102268219,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1856,
+     "retry_note": false,
+     "errors": [
+      "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"verb\": \"moved\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1160,
+     "gen_ms": 1159.348964691162,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1949,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"verb\": \"moved\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1170,
+     "gen_ms": 1169.8939800262451,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1949,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: outcome: a finished turn; the line states a failure with no word of resolution (the problem, not the outcome)"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Moved the quail-worker queue from polling every 5 seconds to a push notification.\nNot tested on the staging broker, which I cannot reach.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T08",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"fixed\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1068,
+     "gen_ms": 1067.5650835037231,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1825,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Fixed the off-by-one in the loon-grid column counter, 12 passed",
+    "model_text": [
+     "Fixed the off-by-one in the loon-grid column counter, 12 passed"
+    ],
+    "notes": [],
+    "line": "Fixed the off-by-one in the loon-grid column counter, 12 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "fixed",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T09",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"added\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1074,
+     "gen_ms": 1074.2790699005127,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1830,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Added aria-required on them, 31 passed",
+    "model_text": [
+     "Added aria-required on them, 31 passed"
+    ],
+    "notes": [],
+    "line": "Added aria-required on them, 31 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "added",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T10",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"updated\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1071,
+     "gen_ms": 1070.5190896987915,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1802,
+     "retry_note": false,
+     "errors": [
+      "composer: caveat kept by the composer: has not started; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"verb\": \"updated\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1096,
+     "gen_ms": 1096.3189601898193,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1896,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: has not started; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"verb\": \"updated\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1116,
+     "gen_ms": 1115.5859231948853,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1896,
+     "retry_note": true,
+     "errors": [
+      "composer: caveat kept by the composer: has not started; does not fit 20 words / 160 characters with its caveat: A's excerpt"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Updated the Node version in the shale-ci workflow from 18 to 20 and the matching Dockerfile base image.\nThe pipeline run is queued but has not started, so I have no result yet.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T11",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"implemented\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1051,
+     "gen_ms": 1051.0269403457642,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1835,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Implemented the CSV import dry run in the marten-hr tool, 9 passed",
+    "model_text": [
+     "Implemented the CSV import dry run in the marten-hr tool, 9 passed"
+    ],
+    "notes": [],
+    "line": "Implemented the CSV import dry run in the marten-hr tool, 9 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "implemented",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T12",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"wrote\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1143,
+     "gen_ms": 1142.4980163574219,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1824,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Wrote the first draft of the migration guide for plover-db v3; tests were not run",
+    "model_text": [
+     "Wrote the first draft of the migration guide for plover-db v3; tests were not run"
+    ],
+    "notes": [],
+    "line": "Wrote the first draft of the migration guide for plover-db v3; tests were not run",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "wrote",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T13",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “The linden-search ranking rewrite is done and everything works.”\nTests: 83 passed, 5 failed (per AI Juggler)\nFailed: FAILED tests/test_rank.py::test_ties - AssertionError\nFailed: FAILED tests/test_rank.py::test_boost\nFailed: FAILED tests/test_rank.py::test_recency\nFailed: FAILED tests/test_rank.py::test_empty\nFailed: FAILED tests/test_rank.py::test_phrase",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T14",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The build stops with a missing header error in the vendored amalgamation, and I did not find a quick way around it.\nFailed: fatal error: sqlite3ext.h: No such file or directory",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T15",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Deploy script for the rook-stage environment ran to the last step and then timed out waiting for the load balancer.\nFailed: Error: timeout waiting for load balancer health (300s)",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T16",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "2 tests in the sync package still fail on a nil pointer, which I think comes from the other branch, not from my edit.\nFailed: --- FAIL: TestMergeEmpty (nil pointer dereference)\nFailed: --- FAIL: TestMergeOrder (nil pointer dereference)",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T17",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Der Agent sagt: „Die Datenbank-Migration für das birkenhof-Archiv lief bis Schritt 4 von 6 und brach dann mit einem Deadlock ab.“\nFehlgeschlagen: ERROR: deadlock detected, step 4 of 6",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T18",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The icon sprite generator for the finch-ui kit now outputs SVG, but 3 of the 24 golden image checks differ by more than the allowed tolerance.\nFailed: golden: sprite-arrow differs 4.1%\nFailed: golden: sprite-gear differs 3.8%\nFailed: golden: sprite-bell differs 5.0%",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T19",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Pushed the heath-api auth fix.\nFailed: remote: error: GH006: Protected branch update failed",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T20",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The build, however, now fails in the docs step because a doc example no longer compiles.\nFailed: error[E0432]: unresolved import in docs/example.rs",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T21",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Before I add the rate limit: should an account be locked after 5 tries or 10?\nQuestion: Should an account be locked after 5 tries or 10?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T22",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "I can build the newsletter export either as a plain CSV or as a ready-made HTML file for the mail service, and I would like Priya to pick one.\nQuestion: Pick CSV or HTML as the export format.",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T23",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Soll sie standardmäßig die letzten 7 oder die letzten 30 Tage zeigen?\nFrage: Soll sie standardmäßig die letzten 7 oder die letzten 30 Tage zeigen?\nFrage: Soll die Legende links oder rechts stehen?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T24",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Do you want me to also delete the legacy export route in cedar-api, or keep it for the old clients?\nQuestion: Do you want me to also delete the legacy export route, or keep it for the old clients?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T25",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "One open point I cannot judge: when the drain takes longer than 30 seconds, should it drop the rest or keep waiting?\nQuestion: When the drain takes longer than 30 seconds, drop the rest or keep waiting?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T26",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "I started wiring the thrush-pay refund screen.\nQuestion: Provide the refund policy wording from legal.",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T27",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1126,
+     "gen_ms": 1125.3759860992432,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1794,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept bench/queue_bench.rs (new, +44 -0); reverted cache/queue.rs\nI dropped the change with git checkout, 6 passed",
+    "model_text": [
+     "I dropped the change with git checkout, 6 passed"
+    ],
+    "notes": [],
+    "line": "I dropped the change with git checkout, 6 passed",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T28",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1119,
+     "gen_ms": 1119.197964668274,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1803,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "git: kept tests/legacy_urls.test.ts (new, +28 -0); reverted src/router.ts, src/routes/index.ts\n5 tests pass",
+    "model_text": [
+     "5 tests pass"
+    ],
+    "notes": [],
+    "line": "5 tests pass",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T29",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1085,
+     "gen_ms": 1084.354043006897,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1795,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "git: behalten CHANGES.md (+3 -0); zurückgenommen src/i18n/loader.ts\nGeblieben ist nur ein neuer Eintrag in der Änderungsliste",
+    "model_text": [
+     "Geblieben ist nur ein neuer Eintrag in der Änderungsliste"
+    ],
+    "notes": [],
+    "line": "Geblieben ist nur ein neuer Eintrag in der Änderungsliste",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T30",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1097,
+     "gen_ms": 1097.2139835357666,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1818,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "git: kept src/layout/Footer.tsx (+1 -1); reverted src/theme/dark.ts\nThe only thing left is a fix for a typo in the footer text, 9 passed",
+    "model_text": [
+     "The only thing left is a fix for a typo in the footer text, 9 passed"
+    ],
+    "notes": [],
+    "line": "The only thing left is a fix for a typo in the footer text, 9 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T31",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"kept\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1074,
+     "gen_ms": 1073.984980583191,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1791,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept parser/classes.py (+16 -5); reverted parser_rs/lib.rs\nKept one small improvement, 20 passed",
+    "model_text": [
+     "Kept one small improvement, 20 passed"
+    ],
+    "notes": [],
+    "line": "Kept one small improvement, 20 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "kept",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T32",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1131,
+     "gen_ms": 1130.3750276565552,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1869,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "The new column and the backfill script, 5 passed",
+    "model_text": [
+     "The new column and the backfill script, 5 passed"
+    ],
+    "notes": [],
+    "line": "The new column and the backfill script, 5 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T33",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1056,
+     "gen_ms": 1056.0410022735596,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1823,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Looked at why the cormorant-tts voice cache is slow; tests were not run; I have not changed any code yet",
+    "model_text": [
+     "Looked at why the cormorant-tts voice cache is slow; tests were not run; I have not changed any code yet"
+    ],
+    "notes": [
+     "caveat kept by the composer: I have not changed any code yet"
+    ],
+    "line": "Looked at why the cormorant-tts voice cache is slow; tests were not run; I have not changed any code yet",
+    "pick": {
+     "fact": "1",
+     "kind": "action",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T34",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1082,
+     "gen_ms": 1081.3229084014893,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1784,
+     "retry_note": false,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run; text: not run)"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1106,
+     "gen_ms": 1105.468988418579,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1861,
+     "retry_note": true,
+     "errors": [
+      "composer: action or object empty"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"verb\": \"none\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1071,
+     "gen_ms": 1071.2840557098389,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1851,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run; text: not run)"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Es gibt nichts zu tun: Die Option, die du im kranich-Konfigurationsparser vermisst hast, existiert bereits unter dem Namen timeout_ms.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T35",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1059,
+     "gen_ms": 1059.2559576034546,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1774,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "Explained how the egret-scheduler picks the next job; tests were not run",
+    "model_text": [
+     "Explained how the egret-scheduler picks the next job; tests were not run"
+    ],
+    "notes": [],
+    "line": "Explained how the egret-scheduler picks the next job; tests were not run",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T36",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1123,
+     "gen_ms": 1122.5839853286743,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1835,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "13 tests pass for the finished formats; ogg and the cover art are not done",
+    "model_text": [
+     "13 tests pass for the finished formats; ogg and the cover art are not done"
+    ],
+    "notes": [
+     "caveat kept by the composer: Ogg and the cover art are not done"
+    ],
+    "line": "13 tests pass for the finished formats; ogg and the cover art are not done",
+    "pick": {
+     "fact": "2",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T37",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1102,
+     "gen_ms": 1101.9760370254517,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1831,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "The rowan-kit CLI help text is being rewritten; tests were not run",
+    "model_text": [
+     "The rowan-kit CLI help text is being rewritten; tests were not run"
+    ],
+    "notes": [],
+    "line": "The rowan-kit CLI help text is being rewritten; tests were not run",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T38",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Updated the lint rules of the stork-front repository and fixed the 7 warnings they produced.",
+    "model_text": [],
+    "notes": [
+     "the guard removed a sentence: no written line (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T39",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt",
+    "shown": "The plum-calendar export now includes time zones.",
+    "model_text": [],
+    "notes": [
+     "the guard removed a sentence: no written line (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T40",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Tatsächlich habe ich eine Frage: Soll der Zähler auch gelöschte Beiträge zählen?\nFrage: Soll der Zähler auch gelöschte Beiträge zählen?",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T41",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Fixed the typo in the lupin-site contact page.",
+    "model_text": [],
+    "notes": [
+     "the guard removed a sentence: no written line (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T42",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "The agent says: “The reed-stats chart export is finished and lint is clean.”\nFailed: export.js:41 error no-unused-vars",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T43",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1102,
+     "gen_ms": 1101.8149852752686,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1810,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Git status still shows uncommitted edits in two files, the config loader and its test",
+    "model_text": [
+     "Git status still shows uncommitted edits in two files, the config loader and its test"
+    ],
+    "notes": [],
+    "line": "Git status still shows uncommitted edits in two files, the config loader and its test",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T44",
+   "rep": 0,
+   "model_called": true,
+   "used": "fallback",
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"korrigiert\", \"fact\": \"3\"}",
+     "finish": "stop",
+     "latency_ms": 1171,
+     "gen_ms": 1171.2199449539185,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1863,
+     "retry_note": false,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run; text: not run)"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 1,
+     "text": "{\"verb\": \"korrigiert\", \"fact\": \"3\"}",
+     "finish": "stop",
+     "latency_ms": 1235,
+     "gen_ms": 1235.0679636001587,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1941,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run; text: not run)"
+     ],
+     "ok": false
+    },
+    {
+     "step": "pick",
+     "attempt": 2,
+     "text": "{\"verb\": \"korrigiert\", \"fact\": \"3\"}",
+     "finish": "stop",
+     "latency_ms": 1217,
+     "gen_ms": 1217.0380353927612,
+     "out_tokens": 19,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1941,
+     "retry_note": true,
+     "errors": [
+      "gate step 3: caveat: dropped (facts: tests not run; text: not run)"
+     ],
+     "ok": false
+    }
+   ],
+   "final": {
+    "kind": "excerpt",
+    "shown": "Die Erinnerungsfunktion in der kiefer-App sendet jetzt eine Benachrichtigung 10 Minuten vorher.\nIch habe sie auf dem Simulator ausprobiert; die automatischen Tests konnte ich nicht starten, weil das Gerät fehlt.",
+    "model_text": [],
+    "notes": [
+     "every attempt failed its checks: A's excerpt"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T45",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"wrote\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1058,
+     "gen_ms": 1057.4311017990112,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1823,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Wrote the retry wrapper for the lark-http client with exponential backoff, 6 passed",
+    "model_text": [
+     "Wrote the retry wrapper for the lark-http client with exponential backoff, 6 passed"
+    ],
+    "notes": [],
+    "line": "Wrote the retry wrapper for the lark-http client with exponential backoff, 6 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "wrote",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T46",
+   "rep": 0,
+   "model_called": false,
+   "used": "code",
+   "attempts": [],
+   "final": {
+    "kind": "excerpt_routed",
+    "shown": "Das Hochladen großer Dateien im lerche-Portal bricht bei etwa 2 GB ab.\nFehlgeschlagen: Upload abgebrochen bei 2 GB (HTTP 413)",
+    "model_text": [],
+    "notes": [
+     "a question, a failure or loud facts: the agent's own words (no call)"
+    ],
+    "line": null
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T47",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1077,
+     "gen_ms": 1076.3909816741943,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1805,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "I rotated the log files in the vole-ops scripts and started the job; 3 of 8 hosts done",
+    "model_text": [
+     "I rotated the log files in the vole-ops scripts and started the job; 3 of 8 hosts done"
+    ],
+    "notes": [
+     "caveat kept by the composer: 3 of 8 hosts done"
+    ],
+    "line": "I rotated the log files in the vole-ops scripts and started the job; 3 of 8 hosts done",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T48",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"renamed\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1175,
+     "gen_ms": 1175.1599311828613,
+     "out_tokens": 17,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1855,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "Renamed the function parseCfg to parseConfig across the snipe-lib package (31 call sites), updated the docs, 52 passed",
+    "model_text": [
+     "Renamed the function parseCfg to parseConfig across the snipe-lib package (31 call sites), updated the docs, 52 passed"
+    ],
+    "notes": [],
+    "line": "Renamed the function parseCfg to parseConfig across the snipe-lib package (31 call sites), updated the docs, 52 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "renamed",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T49",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"split\", \"fact\": \"2\"}",
+     "finish": "stop",
+     "latency_ms": 1123,
+     "gen_ms": 1122.4089860916138,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1890,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "written",
+    "shown": "git: kept webpack.config.js (+18 -4); src/admin/index.ts (+12 -6); package.json (+0 -2); reverted src/fonts/icons.css\nSplit the admin screens into a lazy chunk, 37 passed",
+    "model_text": [
+     "Split the admin screens into a lazy chunk, 37 passed"
+    ],
+    "notes": [],
+    "line": "Split the admin screens into a lazy chunk, 37 passed",
+    "pick": {
+     "fact": "2",
+     "kind": "action",
+     "verb": "split",
+     "rank": 2
+    }
+   }
+  },
+  {
+   "corpus": "turns7",
+   "job": "feed_pick2",
+   "setting": "main",
+   "id": "V7T50",
+   "rep": 0,
+   "model_called": true,
+   "used": 0,
+   "attempts": [
+    {
+     "step": "pick",
+     "attempt": 0,
+     "text": "{\"verb\": \"none\", \"fact\": \"1\"}",
+     "finish": "stop",
+     "latency_ms": 1086,
+     "gen_ms": 1085.6260061264038,
+     "out_tokens": 15,
+     "error": "",
+     "refused": false,
+     "est_tokens": 1823,
+     "retry_note": false,
+     "errors": [],
+     "ok": true
+    }
+   ],
+   "final": {
+    "kind": "quoted",
+    "shown": "git: behalten rechnung/summe.py (+17 -9); zurückgenommen notizen.txt\nHier die Lage beim tulpen-Rechnungsmodul; ich habe 2 von 40 Tests ausgelassen",
+    "model_text": [
+     "Hier die Lage beim tulpen-Rechnungsmodul; ich habe 2 von 40 Tests ausgelassen"
+    ],
+    "notes": [
+     "caveat kept by the composer: ich habe 2 von 40 Tests ausgelassen"
+    ],
+    "line": "Hier die Lage beim tulpen-Rechnungsmodul; ich habe 2 von 40 Tests ausgelassen",
+    "pick": {
+     "fact": "1",
+     "kind": "statement",
+     "verb": "none",
+     "rank": 1
+    }
+   }
+  }
+ ]
+}

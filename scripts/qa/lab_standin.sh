@@ -45,6 +45,32 @@
 # Working; the seeded `open_turn` session (picked up, no hooks) is the one
 # its "may be stuck" rule judges.
 #
+# A turn that edits (0.5.2 RW1: the feed's diff stat, AJ-E3713 R6a, and
+# the turn review, AJ-E3820): a line `lab: KIND` at its prompt plays one
+# whole turn as Claude Code writes it: UserPromptSubmit, then the turn's
+# lines appended to its transcript in Claude Code's own format
+# (`<folder>/projects/<cwd as a folder name>/<session>.jsonl`, compact
+# JSON: an ask, the edit and write calls with their results, the reply),
+# then Stop, every hook naming the transcript (`transcript_path`, as
+# Claude Code's do) once the file exists. Nothing in the project is
+# written. KIND:
+#   edits     Edit src/checkout/cart.ts (+3 −1), Write two new files
+#             (totals.ts +5, totals.test.ts +9): 3 files +17 −1; "The tests
+#             pass: 12 passed, 0 failed."
+#   revert    Edit src/format.ts (+1 −1), Edit src/locale.ts and Edit it
+#             back (+2 −2): 2 files +3 −3; the reply says it reverted
+#             locale.ts and hasn't run the tests
+#   question  Edit src/sync/retry.ts (+4 −1); the reply ends on a question
+#   fail      MultiEdit src/parse/dates.ts (+5 −3); "The tests fail: 3
+#             failed…"; then it exits 1 on its own (an error, as a crashed
+#             Claude Code ends)
+#   notebook  NotebookEdit notebooks/report.ipynb: 1 file, no line counts
+#             (files only)
+# Any other line still asks (Bash: npm test), as before.
+# `--lab-turn=KIND` plays that turn once at the start (a session started
+# outside AI Juggler, from a lab terminal, with no terminal input), then
+# idles at its prompt.
+#
 # Like Claude Code it records its session in its folder while it runs
 # (`<CLAUDE_CONFIG_DIR or ~/.claude>/sessions/<pid>.json`: its pid, id,
 # folder and status, `waiting` while it asks), and runs the hooks AI
@@ -111,6 +137,13 @@ if [ "${1:-}" = "--selftest" ]; then
   for _ in $(seq 50); do [ -f "$tmp/hook-Stop.json" ] && grep -q '"status":"idle"' "$record" && break; sleep 0.1; done
   [ -f "$tmp/hook-Stop.json" ] || fail "no Stop"
   grep -q '"status":"idle"' "$record" || fail "answered, it isn't idle again"
+  # G20: after a quiet stretch (a timed-out read), a typed line is read at
+  # once, not after a 5 s nap (bash 3.2 returns 1 for a timeout too).
+  rm -f "$tmp/hook-UserPromptSubmit.json"
+  sleep 6
+  echo "and the lint" >&4
+  for _ in $(seq 10); do [ -f "$tmp/hook-UserPromptSubmit.json" ] && break; sleep 0.1; done
+  [ -f "$tmp/hook-UserPromptSubmit.json" ] || fail "a line after 6 quiet seconds wasn't read within 1 s"
   kill "$pid"
   for _ in $(seq 30); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
   kill -0 "$pid" 2>/dev/null && fail "still running"
@@ -126,6 +159,37 @@ if [ "${1:-}" = "--selftest" ]; then
   [ "$(cat "$tmp/code5")" = 0 ] || fail "/exit ended it with $(cat "$tmp/code5")"
   grep -q '"reason":"prompt_input_exit"' "$tmp/hook-SessionEnd.json" 2>/dev/null || fail "/exit: no SessionEnd"
   [ -z "$(ls "$tmp/home/.claude/sessions/" 2>/dev/null)" ] || fail "/exit left its record"
+  # RW1: `lab: edits` plays a whole turn into its transcript, in Claude
+  # Code's compact format, every hook after it naming the file; `lab: fail`
+  # plays one and ends it with 1.
+  rm -f "$tmp"/hook-*.json
+  (cd "$tmp/home/repo" || exit 1
+   env -u CLAUDE_CONFIG_DIR HOME="$tmp/home" AIJ_LAB_STANDIN_SECS=30 "$tmp/claude" --settings "$tmp/settings.json" \
+     --session-id 22222222-2222-4333-8444-555555555555 < <(sleep 1; echo "lab: edits"; sleep 11; echo /exit) > "$tmp/out7" 2>&1; echo $? > "$tmp/code7")
+  turn="$(ls "$tmp"/home/.claude/projects/*/22222222-2222-4333-8444-555555555555.jsonl 2>/dev/null)"
+  [ -f "$turn" ] || fail "lab: edits wrote no transcript"
+  [ "$(grep -c '"type":"tool_use"' "$turn")" = 3 ] || fail "lab: edits: not three calls"
+  grep -q '"type":"create"' "$turn" && grep -q '"type":"user"' "$turn" || fail "lab: edits: not Claude Code's compact lines"
+  grep -q "\"transcript_path\":\"$turn\"" "$tmp/hook-Stop.json" || fail "lab: edits: Stop doesn't name the transcript"
+  grep -q 'The tests pass' "$tmp/out7" || fail "lab: edits: no reply shown"
+  [ "$(cat "$tmp/code7")" = 0 ] || fail "lab: edits then /exit ended with $(cat "$tmp/code7")"
+  (cd "$tmp/home/repo" || exit 1
+   env -u CLAUDE_CONFIG_DIR HOME="$tmp/home" AIJ_LAB_STANDIN_SECS=30 "$tmp/claude" --settings "$tmp/settings.json" \
+     < <(sleep 1; echo "lab: fail"; sleep 12) > "$tmp/out8" 2>&1; echo $? > "$tmp/code8")
+  [ "$(cat "$tmp/code8")" = 1 ] || fail "lab: fail ended with $(cat "$tmp/code8"), not 1"
+  # The re-walk's G12: `--lab-turn=edits` with no terminal plays the turn
+  # once at the start, then idles at its prompt in its folder.
+  (cd "$tmp/home/repo" || exit 1
+   HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/.claude-out" AIJ_LAB_STANDIN_SECS=20 "$tmp/claude" --lab-idle --lab-turn=edits \
+     --session-id 33333333-2222-4333-8444-555555555555 < /dev/null > "$tmp/out9" 2>&1 &
+   echo $! > "$tmp/pid9")
+  pid9="$(cat "$tmp/pid9")"
+  for _ in $(seq 150); do grep -q 'The tests pass' "$tmp/out9" 2>/dev/null && break; sleep 0.1; done
+  ls "$tmp"/home/.claude-out/projects/*/33333333-2222-4333-8444-555555555555.jsonl > /dev/null 2>&1 || fail "--lab-turn wrote no transcript"
+  for _ in $(seq 50); do grep -q '"status":"idle"' "$tmp/home/.claude-out/sessions/$pid9.json" 2>/dev/null && break; sleep 0.1; done
+  grep -q '"status":"idle"' "$tmp/home/.claude-out/sessions/$pid9.json" || fail "--lab-turn: not idle after its turn"
+  kill "$pid9"
+  grep -q 'The tests fail' "$tmp/out8" || fail "lab: fail: no reply shown"
   # Asking at start (K3), with no terminal at all.
   mkdir -p "$tmp/home/.aij-lab-bin" && touch "$tmp/home/.aij-lab-bin/asks-at-start"
   (cd "$tmp/home/repo" || exit 1
@@ -214,12 +278,15 @@ asks=0
 [ -e "$HOME/.aij-lab-bin/asks-at-start" ] && asks=1
 session=""
 settings=""
+transcript=""
+start_turn=""
 prev=""
 for arg in "$@"; do
   case "$arg" in
     --lab-idle) asks=0 ;;
     --lab-ask) asks=1 ;;
     --lab-open-turn) asks=2 ;;
+    --lab-turn=*) start_turn="${arg#--lab-turn=}" ;;
     --resume=*) session="${arg#--resume=}" ;;
   esac
   case "$prev" in
@@ -240,6 +307,8 @@ if [ "$name" != codex ]; then
   mkdir -p "$folder/sessions"
   record="$folder/sessions/$$.json"
 fi
+# Its transcript, where Claude Code keeps it (a lab turn writes it).
+[ "$name" != codex ] && transcript="$folder/projects/$(printf '%s' "$PWD" | tr -c 'A-Za-z0-9' '-')/$session.jsonl"
 
 # Its session record, as Claude Code keeps one while it runs.
 note() {
@@ -252,10 +321,12 @@ note() {
 # Code hands a hook its input on stdin; whatever it prints is dropped.
 hook() {
   [ -n "$settings" ] && [ -f "$settings" ] || return 0
-  local cmd
+  local cmd at=""
   cmd="$(plutil -extract "hooks.$1.0.hooks.0.command" raw -o - "$settings" 2>/dev/null)" || return 0
   [ -n "$cmd" ] || return 0
-  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"%s"%s}' "$session" "$PWD" "$1" "${2:-}" \
+  # The transcript, as Claude Code names it, once a lab turn wrote it.
+  [ -n "$transcript" ] && [ -f "$transcript" ] && at=",\"transcript_path\":\"$transcript\""
+  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"%s"%s%s}' "$session" "$PWD" "$1" "$at" "${2:-}" \
     | /bin/sh -c "$cmd" > /dev/null 2>&1 || true
 }
 
@@ -265,7 +336,93 @@ finish() {
   pkill -P $$ 2>/dev/null
   hook SessionEnd ",\"reason\":\"${1:-other}\""
   [ -n "$record" ] && rm -f "$record"
-  exit 0
+  exit "${2:-0}"
+}
+
+# A lab turn's lines (see the header), appended to the transcript; the
+# screen's lines printed. Exit 3: no such kind.
+LAB_TURN_PY='import datetime as dt, json, os, sys, uuid
+kind, path, session, cwd = sys.argv[1:5]
+TURNS = {
+ "edits": ("Split the cart total into its own module and test it", [
+   ("Edit", {"file_path": "src/checkout/cart.ts", "old_string": "export function total(items) {\n  return items.reduce((s, i) => s + i.price, 0);\n}", "new_string": "import { sumPrices } from \"./totals\";\n\nexport function total(items) {\n  return sumPrices(items);\n}"}, None, "Updated src/checkout/cart.ts with 3 additions and 1 removal"),
+   ("Write", {"file_path": "src/checkout/totals.ts", "content": "export function sumPrices(items) {\n  let sum = 0;\n  for (const item of items) sum += item.price;\n  return sum;\n}"}, "create", "Wrote 5 lines to src/checkout/totals.ts"),
+   ("Write", {"file_path": "src/checkout/totals.test.ts", "content": "import { sumPrices } from \"./totals\";\n\ntest(\"an empty cart is 0\", () => {\n  expect(sumPrices([])).toBe(0);\n});\n\ntest(\"prices add up\", () => {\n  expect(sumPrices([{ price: 2 }, { price: 3 }])).toBe(5);\n});"}, "create", "Wrote 9 lines to src/checkout/totals.test.ts")],
+   "I moved the price sum out of cart.ts into a new totals.ts and added totals.test.ts for it. The tests pass: 12 passed, 0 failed."),
+ "revert": ("Change the date format in the API responses to ISO 8601", [
+   ("Edit", {"file_path": "src/format.ts", "old_string": "  return d.toLocaleDateString();", "new_string": "  return d.toISOString();"}, None, "Updated src/format.ts with 1 addition and 1 removal"),
+   ("Edit", {"file_path": "src/locale.ts", "old_string": "const FORMAT = \"DD.MM.YYYY\";", "new_string": "const FORMAT = \"YYYY-MM-DD\";"}, None, "Updated src/locale.ts with 1 addition and 1 removal"),
+   ("Edit", {"file_path": "src/locale.ts", "old_string": "const FORMAT = \"YYYY-MM-DD\";", "new_string": "const FORMAT = \"DD.MM.YYYY\";"}, None, "Updated src/locale.ts with 1 addition and 1 removal")],
+   "I switched the API dates to ISO 8601 in format.ts. I reverted the change to locale.ts because the German invoices still need their own format. I have not run the tests yet."),
+ "question": ("Add retries to the sync client", [
+   ("Edit", {"file_path": "src/sync/retry.ts", "old_string": "  return send(req);", "new_string": "  for (let tries = 0; tries < 5; tries++) {\n    try { return await send(req); } catch (e) { await wait(2 ** tries * 100); }\n  }\n  throw new Error(\"sync failed after 5 tries\");"}, None, "Updated src/sync/retry.ts with 4 additions and 1 removal")],
+   "I added a retry with backoff to the sync client in retry.ts. The tests pass. Should it stop after five tries, or keep trying until the server answers?"),
+ "fail": ("Rewrite the date parser to accept two-digit years", [
+   ("MultiEdit", {"file_path": "src/parse/dates.ts", "edits": [
+      {"old_string": "const YEAR = /^\\d{4}$/;\nconst SEP = \"-\";", "new_string": "const YEAR = /^\\d{2}(\\d{2})?$/;\nconst SEP = /[-.\\/]/;\nconst PIVOT = 70;"},
+      {"old_string": "  const year = Number(parts[0]);\n  return new Date(year, month, day);", "new_string": "  let year = Number(parts[0]);\n  if (year < 100) year += year < PIVOT ? 2000 : 1900;\n  return new Date(year, month, day);"}]}, None, "Applied 2 edits to src/parse/dates.ts")],
+   "I rewrote the date parser in dates.ts to accept two-digit years. The tests fail: 3 failed in dates.test.ts, all on years before 1970."),
+ "notebook": ("Update the summary cell in the report notebook", [
+   ("NotebookEdit", {"notebook_path": "notebooks/report.ipynb", "cell_id": "cell-3", "new_source": "summary = orders.groupby(\"week\").total.sum()", "edit_mode": "replace"}, None, "Updated cell cell-3")],
+   "I updated the summary cell in report.ipynb. I did not run the notebook."),
+}
+if kind not in TURNS:
+    sys.exit(3)
+ask, calls, reply = TURNS[kind]
+at = dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=4)
+parent = None
+try:
+    with open(path) as f:
+        kept = [l for l in f.read().splitlines() if l.strip()]
+    parent = json.loads(kept[-1]).get("uuid") if kept else None
+except (OSError, ValueError):
+    pass
+out = []
+def line(kind_, message, extra=None):
+    global at, parent
+    at += dt.timedelta(milliseconds=600)
+    uid = str(uuid.uuid4())
+    value = {"parentUuid": parent, "isSidechain": False, "userType": "external", "cwd": cwd, "sessionId": session,
+             "version": "2.1.296", "gitBranch": "main", "entrypoint": "cli", "type": kind_, "message": message,
+             "uuid": uid, "timestamp": at.strftime("%Y-%m-%dT%H:%M:%S.") + "%03dZ" % (at.microsecond // 1000)}
+    value.update(extra or {})
+    parent = uid
+    out.append(json.dumps(value, separators=(",", ":"), ensure_ascii=False))
+def said(content, stop):
+    return {"id": "msg_" + uuid.uuid4().hex[:12], "type": "message", "role": "assistant", "model": "claude-sonnet-4-5",
+            "content": content, "stop_reason": stop,
+            "usage": {"input_tokens": 1200, "cache_read_input_tokens": 8000, "output_tokens": 300, "service_tier": "standard"}}
+line("user", {"role": "user", "content": ask})
+print(" > " + ask)
+for name, given, result, words in calls:
+    given = dict(given)
+    for key in ("file_path", "notebook_path"):
+        if key in given:
+            given[key] = cwd + "/" + given[key]
+    tid = "toolu_" + uuid.uuid4().hex[:20]
+    line("assistant", said([{"type": "tool_use", "id": tid, "name": name, "input": given}], "tool_use"))
+    shown = given.get("file_path") or given.get("notebook_path")
+    extra = {"toolUseResult": {"type": "create", "filePath": shown, "content": given["content"], "structuredPatch": []}} if result == "create" else {}
+    line("user", {"role": "user", "content": [{"tool_use_id": tid, "type": "tool_result", "content": words}]}, extra)
+    print(" ⏺ %s(%s)\n   ⎿  %s" % ("Update" if name in ("Edit", "MultiEdit") else name, shown[len(cwd) + 1:], words))
+line("assistant", said([{"type": "text", "text": reply}], "end_turn"))
+print("\n ⏺ " + reply)
+os.makedirs(os.path.dirname(path), exist_ok=True)
+with open(path, "a") as f:
+    f.write("\n".join(out) + "\n")'
+
+lab_turn() {
+  local shown
+  [ -n "$transcript" ] || return 3
+  hook UserPromptSubmit ',"prompt":"(lab)"'
+  note busy
+  printf '\n ✻ Working… (lab stand-in)\n'
+  # Long enough to see it Working (its hooks said so) before Stop.
+  sleep 8 & wait $!
+  shown="$(/usr/bin/python3 -I -c "$LAB_TURN_PY" "$1" "$transcript" "$session" "$PWD")" || return 3
+  printf '%s\n' "$shown"
+  hook Stop ',"stop_hook_active":false'
+  return 0
 }
 trap finish TERM INT HUP
 
@@ -328,6 +485,12 @@ else
   printf '\n ✻ Welcome to Claude Code (lab stand-in)\n\n   cwd: %s\n' "$PWD"
 fi
 asking=0
+# RW1's re-walk (G12): a session started outside AI Juggler, in a lab
+# terminal, plays its one lab turn at the start (`--lab-turn KIND`), so
+# it has a conversation AI Juggler lists, then idles at its prompt.
+if [ -n "$start_turn" ] && [ -n "$transcript" ]; then
+  lab_turn "$start_turn" || printf '\n   (a lab stand-in: no lab turn named %s)\n' "$start_turn"
+fi
 if [ "$asks" = 2 ]; then
   # A hung turn: asked, a tool call started, never a result or Stop.
   hook UserPromptSubmit ',"prompt":"(lab)"'
@@ -341,6 +504,7 @@ elif [ "$asks" = 1 ]; then ask; asking=1; else prompt; fi
 # prompt. With no terminal (the seeder's), it only waits.
 deadline=$((SECONDS + secs))
 while [ "$SECONDS" -lt "$deadline" ]; do
+  t=$SECONDS
   if IFS= read -r -t 5 line; then
     if [ "$asking" = 2 ]; then
       :  # a hung turn takes nothing in
@@ -352,12 +516,28 @@ while [ "$SECONDS" -lt "$deadline" ]; do
     elif [ "${line// /}" = /exit ] || [ "${line// /}" = /quit ]; then
       # Ended at its prompt, as Claude Code's /exit ends: on its own, 0.
       finish prompt_input_exit
+    elif [[ "$line" =~ ^[[:space:]]*lab:[[:space:]]*([a-z]+)[[:space:]]*$ ]] && [ -n "$transcript" ]; then
+      # A lab turn (see the header); an unknown kind says so.
+      if lab_turn "${BASH_REMATCH[1]}"; then
+        if [ "${BASH_REMATCH[1]}" = fail ]; then
+          printf '\n   ⎿  API Error (lab stand-in): the session ends with an error\n'
+          finish other 1
+        fi
+      else
+        printf '\n   (a lab stand-in: no lab turn named %s; edits, revert, question, fail, notebook)\n' "${BASH_REMATCH[1]}"
+        hook Stop ',"stop_hook_active":false'
+      fi
+      prompt
     elif [ -n "${line// /}" ]; then
       hook UserPromptSubmit ',"prompt":"(lab)"'
       ask
       asking=1
     fi
-  elif [ $? -le 128 ]; then
+  elif [ $((SECONDS - t)) -lt 4 ]; then
+    # End of input came back at once: wait before reading again. macOS's
+    # /bin/bash 3.2 returns 1 for a timed-out read too, the same as end of
+    # input, so only the time it took tells them apart (G20): a quiet
+    # 5 s is a timeout, and the next line is read straight away.
     sleep 5 &
     wait $!
   fi

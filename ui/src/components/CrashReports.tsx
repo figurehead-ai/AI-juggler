@@ -12,8 +12,9 @@ import { Button } from "./primitives";
 import { crashAnswer, crashInfo, crashSet } from "../lib/ipc/crash";
 import { errorText } from "../lib/bridge";
 import type { CrashInfo } from "../types/generated/CrashInfo";
-import { Picker } from "./controls";
+import { Picker, RowChip } from "./controls";
 import { DialogFrame, DialogOverlay } from "./DialogFrame";
+import { IconBug } from "./icons-settings";
 
 const OPTIONS: { value: "never" | "ask" | "always"; label: string }[] = [
   { value: "never", label: "Never" },
@@ -30,8 +31,10 @@ export function CrashReportsSetting(): JSX.Element | null {
   if (!info) return null;
   const locked = info.reason !== null;
   return (
-    <div className="flex flex-col gap-1.5 border-t border-hairline pt-3" data-testid="privacy-crash-reports">
-      <div className="flex flex-wrap items-center gap-2 text-label text-ink">
+    // AJ-E1558 (D-126, PAT-SURF): the kit's row, its chip; spacing, not a rule.
+    <div className="flex flex-col gap-1.5 pt-2" data-testid="privacy-crash-reports">
+      <div className="flex flex-wrap items-center gap-3 text-body text-ink">
+        <RowChip icon={IconBug} on={!locked && info.setting !== "never"} />
         <span className="font-medium">Crash reports</span>
         <Picker choice
           size="sm"
@@ -44,7 +47,7 @@ export function CrashReportsSetting(): JSX.Element | null {
           options={OPTIONS}
         />
       </div>
-      <p className="text-label text-muted">
+      <p className="pl-[42px] text-label text-muted">
         {info.reason
           ? `${info.reason}.`
           : "Separate from usage statistics. Reports go to Sentry, the crash-report service AI Juggler uses, only as you choose here. Each is scrubbed on this computer first: your home folder becomes ~, and your user name, links and anything that looks like a key are removed."}

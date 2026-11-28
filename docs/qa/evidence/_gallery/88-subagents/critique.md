@@ -1,4 +1,4 @@
-<!-- captures: 7ea624f12987 -->
+<!-- captures: 6c0046d4df92 -->
 # 88-subagents: a session's Subagents tab and a subagent's page
 
 Design critique (D-57, AJ-E2814) against the reference screens: the row menus (77-menus), the rail's order menu, Usage and Processes. The baseline note says what changed on purpose; this says whether it is good.
@@ -119,3 +119,7 @@ Nothing broken (checked both themes).
 ## 0.5.1 final round (2026-11-24)
 
 Re-captured once on the release HEAD after the last fixes. What changed: Needs you's cards are tone fills with their level's mark (a stopped one in the broken tone), the most urgent first (F53, F66, F80). Every state was compared with its last capture (the sweep's pixel diff, a Sonnet checker opening base, head and diff; Opus checked each suspect: none broken). Scores unchanged.
+
+## 0.5.2 (2026-11-25, AJ-E1557, AJ-E1556)
+
+Re-captured every state, both themes. What changed: the subagents counts in the rail (the Work Max header's "3" and the row "Fix the flaky login test 3") draw the helpers glyph, a small cluster of agents at 12 px, in place of the git branch the 0.5.1 Nightly read as git (AJ-E1557). Checked at 3× zoom in both themes: three heads, the front one larger; it reads as a group, never as a branch; in light theme it is muted and small but distinct. `row-count`'s Home also shows Needs you now's one tinted block for what broke (0.5.1's a11y batch), which HEAD already drew. Each re-captured state was diffed against its last capture (pixel counts per region: the rail, the top bar, the content) and opened by eye, old and new side by side, both themes. Nothing broken. Scores unchanged; the rail is calmer: the eye goes to the four marked states.

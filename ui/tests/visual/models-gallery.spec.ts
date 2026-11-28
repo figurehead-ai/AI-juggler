@@ -1,9 +1,9 @@
 /**
  * AJ-E3812 ("Visual testing"): Settings › AI › Models in every state of
- * the approved mock-up — Apple recommended, a download recommended,
+ * the approved mock-up — (AJ-E3826) Bot's AI in use and failed, Apple recommended, a download recommended,
  * downloading, the second-model approval, not enough free disk, the list
  * unread (offline), installed with a withdrawn model (its Remove
- * confirmation and the Chat picker open), and no list on a Mac with
+ * confirmation and the Digest picker open), and no list on a Mac with
  * nothing to recommend — both themes, at 1280 and at a narrow 900, each
  * frame tall enough to hold the whole page; then axe on each (0 critical
  * or serious). Mocked data only: nothing is downloaded.
@@ -33,6 +33,7 @@ async function open(page: Page, state: ModelsState, theme: "dark" | "light", wid
       w.__AIJ_AI_CATALOG__ = s.catalog;
       w.__AIJ_AI_MODELS__ = s.models;
       w.__AIJ_AI_JOBS__ = s.jobs;
+      if (s.engine) w.__AIJ_AI_ENGINE__ = s.engine;
       if (s.start) w.__AIJ_AI_START__ = s.start;
       localStorage.setItem("aij.theme", t);
       localStorage.setItem("aij.onboarding.dismissed", "1");
@@ -87,7 +88,9 @@ const BEFORE: Record<string, (page: Page) => Promise<void>> = {
  * the window it opens in). */
 const AFTER: Record<string, (page: Page) => Promise<void>> = {
   installed: async (page) => {
-    await page.getByTestId("models-pick-chat").click();
+    // AJ-E3826: Bot's model is the card's choice; a job's picker (its
+    // options with their icons, M1) is the digest's.
+    await page.getByTestId("models-pick-digest").click();
   },
 };
 

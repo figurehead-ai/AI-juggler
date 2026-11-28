@@ -221,6 +221,10 @@
 | AJ-E1552 | Nothing loads forever: one loading primitive (loading, ready, empty, error, stale), a deadline on every resource, an empty state wherever there is a skeleton | E15-spec-gaps.md | P0 | M | AJ-E2327 |
 | AJ-E1553 | A sign-in finishes itself: AI Juggler sees it succeed, says so, and clears its entry; one that ends early says so and keeps its last lines | E15-spec-gaps.md | P1 | M | AJ-E1545 |
 | AJ-E1554 | The rail's rows hold still on hover, and every group says quietly what more there is, one click from it | E15-spec-gaps.md | P1 | M | AJ-E1550, AJ-E2327 |
+| AJ-E1555 | Prime only a system prompt that can appear, and every priming sheet says something real | E15-spec-gaps.md | P0 | M | AJ-E1547 |
+| AJ-E1556 | No tooltip or tip is clipped, and nothing overlaps one | E15-spec-gaps.md | P1 | S | — |
+| AJ-E1557 | The rail is calm: no bullet before a session, a state mark only when there is one, and a subagents icon that reads as helpers | E15-spec-gaps.md | P1 | S | AJ-E1554 |
+| AJ-E1558 | Settings, edit and selection pages in rich mode and colour (D-126, PAT-COLOR), audited, fixed and enforced | E15-spec-gaps.md | P0 | L | AJ-E1550 |
 | AJ-E1601 | Accounts on a compatible endpoint: OpenCode Go and Kimi on Claude Code and Codex | E16-more-tools.md | P0 | S | AJ-E1521 |
 | AJ-E1602 | OpenCode CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
 | AJ-E1603 | Kimi Code CLI | E16-more-tools.md | P0 | M | AJ-E1521 |
@@ -278,6 +282,8 @@
 | AJ-E2023 | Remote configuration, step 4: flags (remote: OffOnly, OnOff or Rollout) and notices, with their UI through the D-126 Alert (ADR-0035, D-129) | E20-engineering-and-security.md | P1 | M | AJ-E2021 |
 | AJ-E2024 | Numbers the window can't hold: a 64-bit value reaches the UI only below 2^53 | E20-engineering-and-security.md | P1 | S | — |
 | AJ-E2025 | 0.4.6's deferred architecture findings: turn-end codes into the adapter; an external-terminal session placed by its process | E20-engineering-and-security.md | P1 | M | — |
+| AJ-E2026 | Durable commits on macOS: SQLite's full fsync at checkpoints, and on the critical write paths | E20-engineering-and-security.md | P1 | S | — |
+| AJ-E2027 | One scheduler for everything time-based (ADR-0039, D-151) | E20-engineering-and-security.md | P0 | XL | ADR-0037, ADR-0036 |
 | AJ-E2101 | Live sessions from the apps' own files | E21-desktop-first.md | P0 | L | — |
 | AJ-E2102 | Go to it | E21-desktop-first.md | P0 | M | AJ-E2101 |
 | AJ-E2103 | Open first: the rail's order | E21-desktop-first.md | P0 | S | AJ-E2101 |
@@ -492,6 +498,7 @@
 | AJ-E3710 | On-device summary lines: the design, an ADR for a pluggable SummaryEngine (B design) | E37-home-activity-feed.md | P0 | M | AJ-E3709 |
 | AJ-E3711 | On-device summary lines: detection, the three tiers, the automatic fetch, the notice and the Settings switch (B build) | E37-home-activity-feed.md | P0 | XL | AJ-E3710 |
 | AJ-E3712 | The digest: a cross-agent scheduler, the feed's digest item, consolidated notifications and the non-AI rollup | E37-home-activity-feed.md | P0 | XL | AJ-E3702, AJ-E3708, AJ-E3802, AJ-E3819 |
+| AJ-E3713 | Home's feed tells the story: posts with a gesture bar, threads instead of rows, a feed that learns from more and less | E37-home-activity-feed.md | P0 | L | AJ-E3701, AJ-E3831, ADR-0037 |
 | AJ-E3801 | The AI-jobs router: the ADR (jobs, engines, capabilities) | E38-chat.md | P0 | M | AJ-E3710 |
 | AJ-E3802 | The router and the seam: jobs, engines, capabilities, hidden when no engine | E38-chat.md | P0 | L | AJ-E3801, AJ-E3708 |
 | AJ-E3803 | Disk rules: one downloaded model, approval for more, Settings total and Remove, free-disk margin | E38-chat.md | P0 | M | AJ-E3802 |
@@ -516,5 +523,13 @@
 | AJ-E3822 | Helpers never share an identifier across identities, and every one names itself: no "(null) differs from previously opened versions" prompt | E38-chat.md | P1 | S | AJ-E3802 |
 | AJ-E3823 | One engine-setup guide for Bot: what this Mac can do, Apple's AI first, Qwen named and explained, never a bare "Download · 1.8 GB" | E38-chat.md | P0 | M | AJ-E3822, AJ-E1545, AJ-E1547 |
 | AJ-E3824 | Search (⌘K) takes over everything the no-AI Bot did: record look-ups, the "go straight to" shortcuts, and Watch a session | E38-chat.md | P0 | M | AJ-E3823 |
-Total: 514 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
+| AJ-E3825 | Bot is a conversation through the real model: every question reaches it, the engine is started and checked, its name is shown, a failure is said with its fix | E38-chat.md | P0 | L | AJ-E3806, AJ-E3823 |
+| AJ-E3826 | Settings › AI › Models says what Bot uses and whether it runs, in plain words | E38-chat.md | P1 | M | AJ-E3825 |
+| AJ-E3827 | Research note: getting turn reviews, feed lines, the digest and watches to pass on Apple's model | E38-chat.md | P1 | M | AJ-E3826 |
+| AJ-E3829 | Bot's real-model check on the reference Mac, in the release gate for any AI change | E38-chat.md | P0 | M | AJ-E3825 |
+| AJ-E3830 | Bot fills the Watches form: a one-target draft with an enum for what can't be watched, two small calls, sampled retries | E38-chat.md | P1 | M | AJ-E3709, AJ-E3825 |
+| AJ-E3831 | Feed line ("pick, don't write") and digest (map and reduce): one harness round each, on only if preferred | E38-chat.md | P1 | M | AJ-E3709 |
+| AJ-E3832 | Bot's world model: the `gyrus` crate, a typed graph in memory over SQLite (ADR-0038, D-150) | E38-chat.md | P0 | XL | ADR-0037, ADR-0038 |
+| AJ-E3833 | 0.5.2's walk polish carried to 0.5.3: Bot's found rows, the form's reply, a small untitled window, the edits turn's review lines | E38-chat.md | P2 | S | AJ-E3820, AJ-E3830 |
+Total: 529 tasks. Regenerate/verify: `grep -h '^### AJ-' docs/tasks/E*.md | wc -l` must equal this count.
 Status of every task at generation: TODO. The epic files are canonical; this catalog is an index, never edited to claim progress.

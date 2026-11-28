@@ -319,6 +319,24 @@ pub(crate) fn seven_sessions(dir: &std::path::Path) -> std::sync::Arc<crate::sta
     state
 }
 
+/// [`seven_sessions`]' sessions named as a user names them (each by its
+/// folder's word: `s1` "api" … `s7` "cli"): what every list says of them
+/// by the one short-name rule (0.5.2 G27; untitled, they're named by their
+/// facts, "api · started 9:41 AM").
+pub(crate) fn name_seven(state: &crate::state::AppState) {
+    const NAMES: [&str; 7] = ["api", "web", "docs", "infra", "ui", "db", "cli"];
+    let storage = state.storage.lock().unwrap();
+    for (i, name) in NAMES.iter().enumerate() {
+        storage
+            .sessions()
+            .set_label(
+                &juggler_core::model::SessionId::new(format!("s{}", i + 1)),
+                Some(name),
+            )
+            .unwrap();
+    }
+}
+
 /// A Claude app profile AI Juggler knows, on folder `dir`, run from the
 /// app in `/Applications` (the process-tree and ownership fixtures).
 pub(crate) fn claude_profile(dir: &str) -> crate::features::places::book::KnownPlace {
@@ -402,4 +420,105 @@ pub(crate) fn work_and_home(root: &std::path::Path, native: &str) -> WorkAndHome
         work_recipe: work_recipe.id,
         home_recipe: home_recipe.id,
     }
+}
+
+/// 0.5.2 G45: conversation `id` of `tool` on `account`'s folder in the
+/// index of `state`, as a pass reads it from its file, run in `cwd` and
+/// last active at `last_ms` (a minute after it started); no AI Juggler
+/// session is on it (one started in the user's own terminal, or by
+/// another app).
+pub(crate) fn outside_conversation(
+    state: &std::sync::Arc<crate::state::AppState>,
+    (account, tool): (&str, &str),
+    id: &str,
+    title: &str,
+    cwd: &std::path::Path,
+    last_ms: i64,
+) {
+    state
+        .conversations
+        .put_for_test(crate::features::conversations::Conversation {
+            summary: juggler_adapter::conversation::ConversationSummary {
+                id: id.into(),
+                cwd: Some(cwd.to_path_buf()),
+                title: Some(title.into()),
+                started_ms: Some(last_ms - 60_000),
+                last_ms: Some(last_ms),
+                ..Default::default()
+            },
+            account_id: account.into(),
+            tool: tool.into(),
+            path: cwd.join(".lab-transcripts").join(format!("{id}.jsonl")),
+            folder: Some(cwd.to_path_buf()),
+        });
+}
+
+/// 0.5.2 G45: one live look, as the live thread makes one: these
+/// conversations open in a terminal (`(account, tool, id, state)`, each on
+/// its own made-up pid), every other one closed.
+pub(crate) fn live_look(
+    state: &std::sync::Arc<crate::state::AppState>,
+    open: &[(
+        &str,
+        &str,
+        &str,
+        crate::features::conversations::scan::State,
+    )],
+) {
+    use crate::features::conversations::scan::{LiveEntry, LiveModel, Place};
+    let entries = open
+        .iter()
+        .zip(990_201_u32..)
+        .map(|(&(account, tool, id, state), pid)| LiveEntry {
+            tool: tool.into(),
+            account_id: Some(account.into()),
+            session_id: id.into(),
+            places: vec![Place {
+                pid,
+                start: None,
+                host: None,
+                profile: None,
+                app_session: None,
+            }],
+            state: Some(state),
+            probably: false,
+            viewed_ms: None,
+            app_title: None,
+            background: false,
+        })
+        .collect();
+    crate::features::conversations::ConversationIndex::look_for_test(
+        state,
+        LiveModel {
+            entries,
+            ..LiveModel::default()
+        },
+    )
+    .expect("a live look");
+}
+
+/// 0.5.2 (PR #257 CI): the name an untitled session takes by its facts
+/// (D-96, the rail's one rule) as this system says it: "<folder> ·
+/// started <time>" where the system's clock gives the words (macOS), the
+/// folder alone where it can't (`juggler_platform::clock::started_words`
+/// is `None` there). Built from the same platform words the naming uses,
+/// so a test holds on every system.
+pub(crate) fn facts_name(folder: &str, started_ms: i64, now_ms: i64) -> String {
+    juggler_platform::clock::started_words(started_ms, now_ms)
+        .map_or_else(|| folder.to_owned(), |words| format!("{folder} · {words}"))
+}
+
+/// [`facts_name`] for session `id` as storage holds it (its own start),
+/// now.
+pub(crate) fn facts_name_of(state: &crate::state::AppState, id: &str, folder: &str) -> String {
+    let started = state
+        .storage
+        .lock()
+        .unwrap()
+        .sessions()
+        .get(&juggler_core::model::SessionId::new(id))
+        .unwrap()
+        .started_at
+        .millis();
+    facts_name(folder, started, crate::commands::now_millis())
 }

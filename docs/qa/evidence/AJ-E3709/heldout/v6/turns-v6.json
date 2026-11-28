@@ -1,0 +1,2680 @@
+[
+ {
+  "id": "V6T01",
+  "source": "Added pagination to the heron-feed timeline endpoint: 20 items per page with a cursor. All 18 tests in the timeline package pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 18,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/timeline/handler.rs",
+     "added": 44,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "src/timeline/cursor.rs",
+     "added": 61,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "tests/timeline_test.rs",
+     "added": 38,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "pagination",
+    "18"
+   ],
+   "review_changed": [
+    "src/timeline/handler.rs",
+    "src/timeline/cursor.rs",
+    "tests/timeline_test.rs"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "finished, tests pass",
+   "forbidden": [
+    "tests failing",
+    "needs your decision"
+   ]
+  },
+  "notes": "Plain success, Rust."
+ },
+ {
+  "id": "V6T02",
+  "source": "Der Export im reed-lager nutzt jetzt UTF-8 mit BOM, damit Excel die Umlaute richtig zeigt. Ich habe die Tests nicht ausgeführt, weil die Datenbank lokal nicht lief.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "lib/export/csv_writer.py",
+     "added": 12,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "utf-8",
+    "not run"
+   ],
+   "review_changed": [
+    "lib/export/csv_writer.py"
+   ],
+   "review_not_changed": [],
+   "left": "tests were not run",
+   "needs_user": true,
+   "why": "change made but tests not run",
+   "forbidden": [
+    "tests pass",
+    "all tests"
+   ]
+  },
+  "notes": "German source, tests not run; needs_user since verification missing."
+ },
+ {
+  "id": "V6T03",
+  "source": "Fixed the race in the pebble-queue worker shutdown. The full suite ran: 52 passed, 3 failed, all three in the retry module. I did not touch those, they look unrelated.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 52,
+    "failed": 3
+   },
+   "questions": [],
+   "failures": [
+    "FAIL TestRetryBackoff",
+    "FAIL TestRetryJitter",
+    "FAIL TestRetryCap"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "worker/shutdown.go",
+     "added": 27,
+     "removed": 11,
+     "status": "M"
+    },
+    {
+     "path": "worker/shutdown_test.go",
+     "added": 30,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "3",
+    "fail",
+    "retry"
+   ],
+   "review_changed": [
+    "worker/shutdown.go"
+   ],
+   "review_not_changed": [],
+   "left": "three retry tests fail",
+   "needs_user": true,
+   "why": "suite has 3 failures",
+   "forbidden": [
+    "all tests pass",
+    "unrelated and fine"
+   ]
+  },
+  "notes": "Failure admitted; agent dismisses them."
+ },
+ {
+  "id": "V6T04",
+  "source": "I rewrote the sparrow-mail settings page in React hooks. Everything works and the tests pass.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 5
+   },
+   "questions": [],
+   "failures": [
+    "FAIL Page.test.tsx > saves draft",
+    "FAIL Page.test.tsx > shows error banner",
+    "FAIL Page.test.tsx > resets on cancel",
+    "FAIL Page.test.tsx > keyboard order",
+    "FAIL Page.test.tsx > theme toggle"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/settings/Page.tsx",
+     "added": 120,
+     "removed": 98,
+     "status": "M"
+    },
+    {
+     "path": "src/settings/Page.test.tsx",
+     "added": 30,
+     "removed": 22,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "5",
+    "fail"
+   ],
+   "review_changed": [
+    "src/settings/Page.tsx"
+   ],
+   "review_not_changed": [],
+   "left": "five tests still fail",
+   "needs_user": true,
+   "why": "agent claims pass, five fail",
+   "forbidden": [
+    "tests pass",
+    "everything works"
+   ]
+  },
+  "notes": "Claim contradicted by facts."
+ },
+ {
+  "id": "V6T05",
+  "source": "Before I rename the birch-ledger tables I need to know whether the old names are used by the reporting team's scripts. Should I keep views with the old names?",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Should I keep views with the old table names?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "migrations/0042_rename.sql",
+     "added": 18,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "old names",
+    "views"
+   ],
+   "review_changed": [
+    "migrations/0042_rename.sql"
+   ],
+   "review_not_changed": [],
+   "left": "decision on keeping old-name views",
+   "needs_user": true,
+   "why": "agent asks whether to keep views",
+   "forbidden": [
+    "renamed",
+    "migration applied"
+   ]
+  },
+  "notes": "Question; migration drafted not applied."
+ },
+ {
+  "id": "V6T06",
+  "source": "Tried a new caching layer for the dune-search results. It made the p95 latency worse, so I threw the change away and went back to the original code. Nothing else changed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [
+    {
+     "path": "src/search/cache.ts",
+     "note": "the caching layer was rolled back"
+    },
+    {
+     "path": "src/search/index.ts",
+     "note": "the cache wiring was rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD"
+   ],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "cach",
+    "reverted"
+   ],
+   "review_changed": [],
+   "review_not_changed": [
+    "cache",
+    "src/search/cache.ts"
+   ],
+   "left": "caching idea was abandoned",
+   "needs_user": false,
+   "why": "change discarded, no net change",
+   "forbidden": [
+    "cache added",
+    "latency improved"
+   ]
+  },
+  "notes": "Change thrown away, empty diff."
+ },
+ {
+  "id": "V6T07",
+  "source": "La page d'accueil de lotus-shop affiche maintenant les trois derniers articles vus. 12 tests passent, aucun ne échoue.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/home/recent.js",
+     "added": 33,
+     "removed": 5,
+     "status": "M"
+    },
+    {
+     "path": "src/home/recent.test.js",
+     "added": 25,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "12",
+    "home"
+   ],
+   "review_changed": [
+    "src/home/recent.js",
+    "src/home/recent.test.js"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "finished, tests pass",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "French source."
+ },
+ {
+  "id": "V6T08",
+  "source": "Updated 14 files across the cedar-platform monorepo to the new logger interface. Type check passes. I ran only the unit tests of the core package (66 pass); the other packages' tests were not run.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 66,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "packages/core/src/log.ts",
+     "added": 40,
+     "removed": 31,
+     "status": "M"
+    },
+    {
+     "path": "packages/core/src/index.ts",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    },
+    {
+     "path": "packages/auth/src/session.ts",
+     "added": 9,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "packages/auth/src/token.ts",
+     "added": 7,
+     "removed": 7,
+     "status": "M"
+    },
+    {
+     "path": "packages/billing/src/invoice.ts",
+     "added": 12,
+     "removed": 10,
+     "status": "M"
+    },
+    {
+     "path": "packages/billing/src/refund.ts",
+     "added": 6,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "packages/web/src/app.tsx",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    },
+    {
+     "path": "packages/web/src/routes.tsx",
+     "added": 8,
+     "removed": 8,
+     "status": "M"
+    },
+    {
+     "path": "packages/jobs/src/runner.ts",
+     "added": 15,
+     "removed": 13,
+     "status": "M"
+    },
+    {
+     "path": "packages/jobs/src/cron.ts",
+     "added": 4,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "packages/mail/src/send.ts",
+     "added": 6,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "packages/mail/src/queue.ts",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    },
+    {
+     "path": "packages/cli/src/main.ts",
+     "added": 9,
+     "removed": 7,
+     "status": "M"
+    },
+    {
+     "path": "packages/cli/src/flags.ts",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "14",
+    "logger",
+    "66"
+   ],
+   "review_changed": [
+    "packages/core/src/log.ts",
+    "packages/billing/src/invoice.ts",
+    "packages/jobs/src/runner.ts"
+   ],
+   "review_not_changed": [],
+   "left": "tests of the other packages were not run",
+   "needs_user": true,
+   "why": "large change, only core tests run",
+   "forbidden": [
+    "all tests pass",
+    "every package tested"
+   ]
+  },
+  "notes": "Long turn, many files, partial tests."
+ },
+ {
+  "id": "V6T09",
+  "source": "Ich habe den Fehler in der Datumsberechnung der wiese-agenda behoben (Sommerzeit). Alle 27 Tests laufen durch.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 27,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "agenda/dates.py",
+     "added": 14,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_dates.py",
+     "added": 22,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "sommerzeit",
+    "27"
+   ],
+   "review_changed": [
+    "agenda/dates.py",
+    "tests/test_dates.py"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "fixed, tests pass",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "German success."
+ },
+ {
+  "id": "V6T10",
+  "source": "I could not finish the oak-sync conflict resolver. The merge test keeps failing with a stack overflow in resolve_tree and I ran out of ideas. 9 of 10 tests pass.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 1
+   },
+   "questions": [],
+   "failures": [
+    "test merge_deep_tree ... FAILED: thread 'main' has overflowed its stack"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/resolver.rs",
+     "added": 58,
+     "removed": 12,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "gold": {
+   "feed_must": [
+    "stack overflow",
+    "1"
+   ],
+   "review_changed": [
+    "src/resolver.rs"
+   ],
+   "review_not_changed": [],
+   "left": "one merge test fails with a stack overflow",
+   "needs_user": true,
+   "why": "agent stuck on a failing test",
+   "forbidden": [
+    "finished",
+    "all tests pass"
+   ]
+  },
+  "notes": "Honest failure."
+ },
+ {
+  "id": "V6T11",
+  "source": "I reverted my change to the mint-pay webhook signature check. It broke the sandbox replay, and I could not find a safe alternative. The old check is back; I only added a TODO comment.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/webhook/verify.ts",
+     "added": 1,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/webhook/verify.ts",
+     "note": "signature rewrite rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~2"
+   ],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "revert",
+    "todo"
+   ],
+   "review_changed": [
+    "src/webhook/verify.ts"
+   ],
+   "review_not_changed": [
+    "signature check",
+    "rewrite"
+   ],
+   "left": "signature check change not done",
+   "needs_user": true,
+   "why": "change rolled back, only a comment remains",
+   "forbidden": [
+    "signature check updated",
+    "fixed"
+   ]
+  },
+  "notes": "Mostly reverted."
+ },
+ {
+  "id": "V6T12",
+  "source": "Aggiunto il filtro per data nell'elenco ordini di mela-gestione. I test non sono stati eseguiti perché il runner non è installato su questa macchina.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "app/orders/filter.rb",
+     "added": 28,
+     "removed": 4,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "filtro",
+    "not run"
+   ],
+   "review_changed": [
+    "app/orders/filter.rb"
+   ],
+   "review_not_changed": [],
+   "left": "tests were not run",
+   "needs_user": true,
+   "why": "change made, tests missing",
+   "forbidden": [
+    "tests pass"
+   ]
+  },
+  "notes": "Italian, tests not run."
+ },
+ {
+  "id": "V6T13",
+  "source": "Which database should the thistle-notes search use, SQLite FTS or an external index? SQLite is simpler but caps out around a million notes. I have only scaffolded the module.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "SQLite FTS or an external index for note search?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "search/mod.rs",
+     "added": 20,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "search/README.md",
+     "added": 9,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "sqlite",
+    "external index"
+   ],
+   "review_changed": [
+    "search/mod.rs"
+   ],
+   "review_not_changed": [],
+   "left": "decision between SQLite FTS and an external index",
+   "needs_user": true,
+   "why": "architecture question",
+   "forbidden": [
+    "search works",
+    "implemented"
+   ]
+  },
+  "notes": "Question, scaffold only."
+ },
+ {
+  "id": "V6T14",
+  "source": "Todo bien con el cambio de moneda en la tienda cobre-web: ejecuté las 31 pruebas y pasan 31.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 31,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/moneda.js",
+     "added": 19,
+     "removed": 7,
+     "status": "M"
+    },
+    {
+     "path": "src/moneda.test.js",
+     "added": 21,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "31",
+    "moneda"
+   ],
+   "review_changed": [
+    "src/moneda.js"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "done, tests pass",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Spanish."
+ },
+ {
+  "id": "V6T15",
+  "source": "The nightly import for the quail-stats project now retries three times with backoff. I ran the importer tests: 8 pass, 0 fail. I also deleted the old cron script since nothing referenced it.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 8,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "import/retry.py",
+     "added": 36,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "import/tests/test_retry.py",
+     "added": 29,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "ops/nightly.sh",
+     "added": 0,
+     "removed": 22,
+     "status": "D"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "retries",
+    "8",
+    "deleted"
+   ],
+   "review_changed": [
+    "import/retry.py",
+    "ops/nightly.sh"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "done, one file deleted",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Includes a deletion."
+ },
+ {
+  "id": "V6T16",
+  "source": "I migrated the wren-board auth to the new token format. Tests: no results were produced; the runner crashed on startup before any test ran.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "unknown",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": [
+    "runner exited with code 134 before running tests"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "auth/tokens.ts",
+     "added": 52,
+     "removed": 40,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "token",
+    "crash"
+   ],
+   "review_changed": [
+    "auth/tokens.ts"
+   ],
+   "review_not_changed": [],
+   "left": "unknown whether tests pass",
+   "needs_user": true,
+   "why": "runner crashed, no test results",
+   "forbidden": [
+    "tests pass",
+    "verified"
+   ]
+  },
+  "notes": "Test state unknown."
+ },
+ {
+  "id": "V6T17",
+  "source": "Added dark mode to the bramble-ui button set. All 44 snapshot tests pass after I updated 12 snapshots.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 44,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/button/theme.css",
+     "added": 65,
+     "removed": 10,
+     "status": "M"
+    },
+    {
+     "path": "src/button/__snapshots__/button.snap",
+     "added": 210,
+     "removed": 180,
+     "status": "M"
+    },
+    {
+     "path": "src/button/Button.tsx",
+     "added": 11,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "dark mode",
+    "snapshot"
+   ],
+   "review_changed": [
+    "src/button/theme.css",
+    "src/button/Button.tsx"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "done, snapshots updated",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Snapshots updated is worth a mention."
+ },
+ {
+  "id": "V6T18",
+  "source": "Ich habe die Anmeldung der kuckuck-app auf OAuth umgestellt. Zwei Integrationstests schlagen noch fehl, weil der Testserver die Weiterleitung nicht kennt.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 23,
+    "failed": 2
+   },
+   "questions": [],
+   "failures": [
+    "FAIL oauth.test.ts > redirect after login",
+    "FAIL oauth.test.ts > state mismatch"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/auth/oauth.ts",
+     "added": 90,
+     "removed": 34,
+     "status": "M"
+    },
+    {
+     "path": "src/auth/oauth.test.ts",
+     "added": 40,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "oauth",
+    "2"
+   ],
+   "review_changed": [
+    "src/auth/oauth.ts"
+   ],
+   "review_not_changed": [],
+   "left": "two integration tests fail",
+   "needs_user": true,
+   "why": "two tests fail",
+   "forbidden": [
+    "alle Tests bestehen",
+    "fertig"
+   ]
+  },
+  "notes": "German failure."
+ },
+ {
+  "id": "V6T19",
+  "source": "Renamed the config key `timeout` to `request_timeout_ms` across the pine-gateway docs and code. 2 doc files and 1 source file touched. The 9 config tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "docs/config.md",
+     "added": 6,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "docs/migration.md",
+     "added": 10,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "src/config.go",
+     "added": 3,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "request_timeout_ms",
+    "9"
+   ],
+   "review_changed": [
+    "src/config.go",
+    "docs/config.md"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "renamed, tests pass",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Rename."
+ },
+ {
+  "id": "V6T20",
+  "source": "I stopped halfway: the acorn-sync schema change needs a downtime window. Do you want me to write the migration as online (slow, no downtime) or offline (fast, 10 minutes down)?",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Online (slow, no downtime) or offline (fast, 10 minutes down) migration?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/schema.sql",
+     "added": 24,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "gold": {
+   "feed_must": [
+    "online",
+    "offline"
+   ],
+   "review_changed": [
+    "db/schema.sql"
+   ],
+   "review_not_changed": [],
+   "left": "decision between online and offline migration",
+   "needs_user": true,
+   "why": "asks migration mode",
+   "forbidden": [
+    "migration written",
+    "applied"
+   ]
+  },
+  "notes": "Question with uncommitted work."
+ },
+ {
+  "id": "V6T21",
+  "source": "Rewrote the quill-editor paste handler. It passes the 15 paste tests, but I noticed the clipboard tests in the Firefox suite were skipped, so I cannot say it works there.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 15,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "editor/paste.ts",
+     "added": 70,
+     "removed": 44,
+     "status": "M"
+    },
+    {
+     "path": "editor/paste.test.ts",
+     "added": 33,
+     "removed": 3,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "15",
+    "firefox"
+   ],
+   "review_changed": [
+    "editor/paste.ts"
+   ],
+   "review_not_changed": [],
+   "left": "Firefox clipboard tests were skipped",
+   "needs_user": true,
+   "why": "Chrome-side tests pass, Firefox unchecked",
+   "forbidden": [
+    "works in all browsers",
+    "firefox verified"
+   ]
+  },
+  "notes": "Caveat in source."
+ },
+ {
+  "id": "V6T22",
+  "source": "Added a --dry-run flag to the marsh-deploy CLI. No tests exist for the CLI entry point, so I tried it by hand on a sample config and it printed the plan without applying it.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "cmd/deploy/main.go",
+     "added": 31,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "cmd/deploy/flags.go",
+     "added": 14,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "dry-run",
+    "by hand"
+   ],
+   "review_changed": [
+    "cmd/deploy/main.go",
+    "cmd/deploy/flags.go"
+   ],
+   "review_not_changed": [],
+   "left": "no automated tests for the flag",
+   "needs_user": false,
+   "why": "manual check only",
+   "forbidden": [
+    "tests pass",
+    "automated tests"
+   ]
+  },
+  "notes": "Manual verification; tests not run."
+ },
+ {
+  "id": "V6T23",
+  "source": "Tried switching the lark-render pipeline to the GPU path. Benchmarks regressed 18 percent, so I undid it with git reset and left the CPU path as it was. I also fixed a typo in the README.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "README.md",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "render/gpu_path.cpp",
+     "note": "the GPU pipeline was rolled back"
+    },
+    {
+     "path": "render/pipeline.cpp",
+     "note": "pipeline switch rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~3"
+   ],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "typo",
+    "gpu"
+   ],
+   "review_changed": [
+    "README.md"
+   ],
+   "review_not_changed": [
+    "gpu_path.cpp",
+    "pipeline switch"
+   ],
+   "left": "GPU path not adopted",
+   "needs_user": false,
+   "why": "experiment dropped, only a typo fixed",
+   "forbidden": [
+    "gpu path enabled",
+    "faster"
+   ]
+  },
+  "notes": "Experiment undone."
+ },
+ {
+  "id": "V6T24",
+  "source": "Le calcul de la TVA dans fougère-facture arrondit maintenant par ligne. J'ai lancé les tests : 40 passent, 1 échoue (test_rounding_total), je pense que le test est faux.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 40,
+    "failed": 1
+   },
+   "questions": [],
+   "failures": [
+    "FAILED tests/test_tva.py::test_rounding_total - assert 10.01 == 10.00"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "lib/tva.py",
+     "added": 18,
+     "removed": 9,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_tva.py",
+     "added": 12,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "1",
+    "test_rounding_total"
+   ],
+   "review_changed": [
+    "lib/tva.py"
+   ],
+   "review_not_changed": [],
+   "left": "one test fails and may be wrong",
+   "needs_user": true,
+   "why": "agent believes the failing test is incorrect",
+   "forbidden": [
+    "tous les tests passent"
+   ]
+  },
+  "notes": "French failure; claim of wrong test."
+ },
+ {
+  "id": "V6T25",
+  "source": "Updated the dependency versions in the sedge-cli lockfile. The build succeeds and all 61 tests pass. One transitive package now emits a deprecation warning.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 61,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "Cargo.lock",
+     "added": 140,
+     "removed": 128,
+     "status": "M"
+    },
+    {
+     "path": "Cargo.toml",
+     "added": 4,
+     "removed": 4,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "61",
+    "deprecation"
+   ],
+   "review_changed": [
+    "Cargo.toml"
+   ],
+   "review_not_changed": [],
+   "left": "a deprecation warning remains",
+   "needs_user": false,
+   "why": "updated, warning left",
+   "forbidden": [
+    "tests failing",
+    "no warnings"
+   ]
+  },
+  "notes": "Success with warning."
+ },
+ {
+  "id": "V6T26",
+  "source": "Zwischenstand: Ich habe die Suche in der tanne-bibliothek um Tippfehler-Toleranz erweitert. Soll ich die Schwelle bei 2 Zeichen Abstand lassen? Tests habe ich noch nicht laufen lassen.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Soll die Schwelle bei 2 Zeichen Abstand bleiben?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "suche/fuzzy.js",
+     "added": 47,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "suche/index.js",
+     "added": 5,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "2 zeichen",
+    "fuzzy"
+   ],
+   "review_changed": [
+    "suche/fuzzy.js"
+   ],
+   "review_not_changed": [],
+   "left": "decision on the distance threshold",
+   "needs_user": true,
+   "why": "agent asks about threshold",
+   "forbidden": [
+    "tests bestehen"
+   ]
+  },
+  "notes": "German question, tests not run."
+ },
+ {
+  "id": "V6T27",
+  "source": "I wrote a script to backfill the missing created_at values in the cinder-orders table. I did not run it on real data, only on a copy. The dry run reported 2,310 rows it would update.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "scripts/backfill_created_at.sql",
+     "added": 26,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "2,310",
+    "copy"
+   ],
+   "review_changed": [
+    "scripts/backfill_created_at.sql"
+   ],
+   "review_not_changed": [],
+   "left": "backfill not run on real data",
+   "needs_user": true,
+   "why": "script written, not applied",
+   "forbidden": [
+    "backfilled",
+    "rows updated"
+   ]
+  },
+  "notes": "Dry run only."
+ },
+ {
+  "id": "V6T28",
+  "source": "Fixed the memory leak in the clover-agent poller: the timer was recreated on every reconnect. Leak test passes, 4 of 4.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 4,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "agent/poller.js",
+     "added": 15,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "agent/poller.test.js",
+     "added": 28,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "leak",
+    "4"
+   ],
+   "review_changed": [
+    "agent/poller.js"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "fixed",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Plain."
+ },
+ {
+  "id": "V6T29",
+  "source": "Migrei o painel do jade-admin para a nova biblioteca de gráficos. Os 20 testes passam, mas o gráfico de pizza ainda aparece sem legenda, ficou para depois.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 20,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/painel/charts.tsx",
+     "added": 96,
+     "removed": 71,
+     "status": "M"
+    },
+    {
+     "path": "package.json",
+     "added": 2,
+     "removed": 2,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "20",
+    "legenda"
+   ],
+   "review_changed": [
+    "src/painel/charts.tsx"
+   ],
+   "review_not_changed": [],
+   "left": "pie chart still lacks a legend",
+   "needs_user": true,
+   "why": "migrated, one visual gap",
+   "forbidden": [
+    "gráfico de pizza com legenda"
+   ]
+  },
+  "notes": "Portuguese, known gap."
+ },
+ {
+  "id": "V6T30",
+  "source": "I ran into a permission error: the agent cannot write to /Users/someone/Library/shared-cache in this sandbox. The sandy-build cache step could not be completed. Nothing was changed.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": [
+    "EACCES: permission denied, open '/Users/someone/Library/shared-cache/index'"
+   ]
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "permission",
+    "cache"
+   ],
+   "review_changed": [],
+   "review_not_changed": [],
+   "left": "cache step blocked by a permission error",
+   "needs_user": true,
+   "why": "blocked, nothing changed",
+   "forbidden": [
+    "cache configured",
+    "fixed"
+   ]
+  },
+  "notes": "Blocked by permission."
+ },
+ {
+  "id": "V6T31",
+  "source": "Added input validation for the poppy-signup form: email format, password length at least 10, and a clear error under each field. 19 tests pass, 0 fail.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 19,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "web/signup/validate.js",
+     "added": 58,
+     "removed": 6,
+     "status": "M"
+    },
+    {
+     "path": "web/signup/form.html",
+     "added": 14,
+     "removed": 4,
+     "status": "M"
+    },
+    {
+     "path": "web/signup/validate.test.js",
+     "added": 70,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "validation",
+    "19"
+   ],
+   "review_changed": [
+    "web/signup/validate.js",
+    "web/signup/form.html"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "done",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Plain."
+ },
+ {
+  "id": "V6T32",
+  "source": "Die Migration der erle-daten auf PostgreSQL 16 ist durch. Die Tests liefen, aber ich habe nur die Hälfte (60 von 120) ausgewählt, weil der Rest zu lange dauert. Alle 60 bestehen.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 60,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "db/migrate_pg16.sql",
+     "added": 88,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "docker-compose.yml",
+     "added": 4,
+     "removed": 4,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "60",
+    "120"
+   ],
+   "review_changed": [
+    "db/migrate_pg16.sql"
+   ],
+   "review_not_changed": [],
+   "left": "only half of the tests were run",
+   "needs_user": true,
+   "why": "partial test run",
+   "forbidden": [
+    "alle 120",
+    "vollständig getestet"
+   ]
+  },
+  "notes": "Partial run."
+ },
+ {
+  "id": "V6T33",
+  "source": "I changed my mind midway: first I rewrote the ivy-parser tokenizer, then I restored the old file because the new one was slower, and finally I only added two missing test cases for empty input. Both pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 11,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "tests/tokenizer_test.py",
+     "added": 26,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "ivy/tokenizer.py",
+     "note": "the new tokenizer was restored to the old version"
+    }
+   ],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "2",
+    "empty input"
+   ],
+   "review_changed": [
+    "tests/tokenizer_test.py"
+   ],
+   "review_not_changed": [
+    "tokenizer rewritten",
+    "ivy/tokenizer.py"
+   ],
+   "left": "tokenizer rewrite was dropped",
+   "needs_user": false,
+   "why": "only tests added",
+   "forbidden": [
+    "tokenizer rewritten",
+    "faster"
+   ]
+  },
+  "notes": "Rewrite discarded; only tests added."
+ },
+ {
+  "id": "V6T34",
+  "source": "Should the mulberry-bank statement export hide pending transactions? I can do either in an hour, I just want to match what your accountant expects.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Should the statement export hide pending transactions?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "pending",
+    "statement"
+   ],
+   "review_changed": [],
+   "review_not_changed": [],
+   "left": "decision on pending transactions in exports",
+   "needs_user": true,
+   "why": "asks product question, no code yet",
+   "forbidden": [
+    "export updated"
+   ]
+  },
+  "notes": "Question, no code at all."
+ },
+ {
+  "id": "V6T35",
+  "source": "Das Upgrade von ahorn-web auf die neue Router-Version ist fertig. Der Build klappt, 74 Tests grün, 0 rot. Ich habe außerdem 3 veraltete Routen gelöscht.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 74,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/router.ts",
+     "added": 44,
+     "removed": 39,
+     "status": "M"
+    },
+    {
+     "path": "src/routes/old-a.ts",
+     "added": 0,
+     "removed": 12,
+     "status": "D"
+    },
+    {
+     "path": "src/routes/old-b.ts",
+     "added": 0,
+     "removed": 9,
+     "status": "D"
+    },
+    {
+     "path": "src/routes/old-c.ts",
+     "added": 0,
+     "removed": 15,
+     "status": "D"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "74",
+    "routen"
+   ],
+   "review_changed": [
+    "src/router.ts",
+    "src/routes/old-a.ts"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "done, 3 files deleted",
+   "forbidden": [
+    "tests rot"
+   ]
+  },
+  "notes": "German, deletions."
+ },
+ {
+  "id": "V6T36",
+  "source": "Implemented the retry-after parsing in the stork-http client. Unit tests: 6 pass, 2 fail, because the HTTP-date format is parsed in the wrong timezone. I will fix this next turn.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 6,
+    "failed": 2
+   },
+   "questions": [],
+   "failures": [
+    "--- FAIL: TestRetryAfterHTTPDate",
+    "--- FAIL: TestRetryAfterHTTPDateGMT"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "client/retry_after.go",
+     "added": 33,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "client/retry_after_test.go",
+     "added": 40,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "2",
+    "timezone"
+   ],
+   "review_changed": [
+    "client/retry_after.go"
+   ],
+   "review_not_changed": [],
+   "left": "two tests fail on HTTP-date timezone",
+   "needs_user": true,
+   "why": "work in progress with failing tests",
+   "forbidden": [
+    "finished",
+    "all pass"
+   ]
+  },
+  "notes": "Admits failure."
+ },
+ {
+  "id": "V6T37",
+  "source": "Cleaned up unused CSS in the crane-site stylesheet: removed 340 lines. I checked the 5 key pages by eye and they look the same. No automated tests exist for the styles.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "static/site.css",
+     "added": 3,
+     "removed": 340,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "340",
+    "css"
+   ],
+   "review_changed": [
+    "static/site.css"
+   ],
+   "review_not_changed": [],
+   "left": "visual check was manual",
+   "needs_user": false,
+   "why": "cleanup, manual check",
+   "forbidden": [
+    "tests pass",
+    "visual tests pass"
+   ]
+  },
+  "notes": "CSS cleanup."
+ },
+ {
+  "id": "V6T38",
+  "source": "The cypress-login test is flaky: it passed twice and failed once with a timeout on the same code. I added a wait and it passed 5 times in a row, 12 total tests passing.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 12,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "e2e/login.spec.ts",
+     "added": 6,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "flaky",
+    "wait"
+   ],
+   "review_changed": [
+    "e2e/login.spec.ts"
+   ],
+   "review_not_changed": [],
+   "left": "flakiness may remain",
+   "needs_user": true,
+   "why": "flaky test patched with a wait",
+   "forbidden": [
+    "flakiness eliminated",
+    "fixed for good"
+   ]
+  },
+  "notes": "Hedged claim."
+ },
+ {
+  "id": "V6T39",
+  "source": "Wir haben den Alarm für den Speicherverbrauch im lupine-monitor auf 85 Prozent gesetzt. Die Konfiguration ist noch nicht ausgerollt und lokal nicht getestet.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "alerts/memory.yaml",
+     "added": 5,
+     "removed": 5,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "85",
+    "nicht ausgerollt"
+   ],
+   "review_changed": [
+    "alerts/memory.yaml"
+   ],
+   "review_not_changed": [],
+   "left": "config not rolled out or tested",
+   "needs_user": true,
+   "why": "not deployed",
+   "forbidden": [
+    "ausgerollt",
+    "getestet"
+   ]
+  },
+  "notes": "German; not deployed."
+ },
+ {
+  "id": "V6T40",
+  "source": "Added a CHANGELOG entry and bumped the version to 2.4.0 in the finch-lib package. Nothing else changed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "CHANGELOG.md",
+     "added": 8,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "package.json",
+     "added": 1,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "2.4.0",
+    "changelog"
+   ],
+   "review_changed": [
+    "CHANGELOG.md",
+    "package.json"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "version bump only",
+   "forbidden": [
+    "feature added"
+   ]
+  },
+  "notes": "Tiny docs change, tests not run is fine."
+ },
+ {
+  "id": "V6T41",
+  "source": "I got stuck: the tamarack-ci pipeline fails in the lint step with a rule I cannot reproduce locally. I tried three fixes, none worked, and the last two were rolled back.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": [
+    "lint: rule no-implicit-any violated in src/api/types.ts:12"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "ci/lint.yml",
+     "added": 3,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [
+    {
+     "path": "src/api/types.ts",
+     "note": "two attempted fixes were rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~2"
+   ],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "lint",
+    "rolled back"
+   ],
+   "review_changed": [
+    "ci/lint.yml"
+   ],
+   "review_not_changed": [],
+   "left": "lint step still failing",
+   "needs_user": true,
+   "why": "agent could not fix CI",
+   "forbidden": [
+    "lint passes",
+    "fixed"
+   ]
+  },
+  "notes": "Failure with rollbacks."
+ },
+ {
+  "id": "V6T42",
+  "source": "Added the Italian and Polish translations to the plum-app welcome screen. The 9 locale tests pass.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 9,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "locales/it.json",
+     "added": 42,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "locales/pl.json",
+     "added": 42,
+     "removed": 0,
+     "status": "A"
+    },
+    {
+     "path": "src/welcome/i18n.ts",
+     "added": 4,
+     "removed": 1,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "italian",
+    "polish"
+   ],
+   "review_changed": [
+    "locales/it.json",
+    "locales/pl.json"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "translations added",
+   "forbidden": [
+    "tests failing"
+   ]
+  },
+  "notes": "Plain."
+ },
+ {
+  "id": "V6T43",
+  "source": "The reed-tracker export now streams rows instead of loading everything in memory. I ran the export test: 7 pass. I did not check large files, so I cannot confirm the memory limit is fixed.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 7,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "export/stream.js",
+     "added": 39,
+     "removed": 18,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "stream",
+    "7"
+   ],
+   "review_changed": [
+    "export/stream.js"
+   ],
+   "review_not_changed": [],
+   "left": "large-file behaviour unverified",
+   "needs_user": true,
+   "why": "works on small files only",
+   "forbidden": [
+    "memory limit fixed",
+    "large files work"
+   ]
+  },
+  "notes": "Hedged."
+ },
+ {
+  "id": "V6T44",
+  "source": "Je n'ai pas pu terminer la migration de roseau-api vers Node 22 : le paquet native-cairo ne compile pas. J'ai annulé toutes les modifications et laissé le dépôt propre.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": [
+    "gyp ERR! build error: native-cairo"
+   ]
+  },
+  "git": {
+   "changed": [],
+   "reverted": [
+    {
+     "path": "package.json",
+     "note": "the Node 22 engines change was rolled back"
+    },
+    {
+     "path": "package-lock.json",
+     "note": "the lockfile change was rolled back"
+    }
+   ],
+   "reflog": [
+    "reset: moving to HEAD~1"
+   ],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "node 22",
+    "cairo"
+   ],
+   "review_changed": [],
+   "review_not_changed": [
+    "package.json",
+    "node 22 en place"
+   ],
+   "left": "Node 22 migration not possible yet",
+   "needs_user": true,
+   "why": "migration blocked, all rolled back",
+   "forbidden": [
+    "migration terminée",
+    "node 22 en place"
+   ]
+  },
+  "notes": "French; all rolled back."
+ },
+ {
+  "id": "V6T45",
+  "source": "Implemented soft delete for the basil-recipes API. All 48 tests pass; I also added 6 new ones. Existing hard-delete callers were left on the old endpoint.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 48,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "api/recipes/delete.py",
+     "added": 51,
+     "removed": 12,
+     "status": "M"
+    },
+    {
+     "path": "api/recipes/models.py",
+     "added": 9,
+     "removed": 2,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_delete.py",
+     "added": 88,
+     "removed": 0,
+     "status": "M"
+    },
+    {
+     "path": "migrations/0017_soft_delete.py",
+     "added": 20,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "soft delete",
+    "48"
+   ],
+   "review_changed": [
+    "api/recipes/delete.py",
+    "migrations/0017_soft_delete.py"
+   ],
+   "review_not_changed": [],
+   "left": "old hard-delete callers not migrated",
+   "needs_user": false,
+   "why": "done with a note",
+   "forbidden": [
+    "hard delete removed",
+    "tests failing"
+   ]
+  },
+  "notes": "Plain with note."
+ },
+ {
+  "id": "V6T46",
+  "source": "I kept the willet-chat message ordering as it was; the reported bug was a client clock issue, not our code. No code changes needed. I added a comment explaining this.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "server/order.js",
+     "added": 4,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "no code",
+    "clock"
+   ],
+   "review_changed": [
+    "server/order.js"
+   ],
+   "review_not_changed": [],
+   "left": "nothing",
+   "needs_user": false,
+   "why": "no fix needed, a comment added",
+   "forbidden": [
+    "bug fixed",
+    "ordering changed"
+   ]
+  },
+  "notes": "Investigation, comment only."
+ },
+ {
+  "id": "V6T47",
+  "source": "Ich bin mit dem Umbau der Dateiauswahl in der buche-docs fast fertig, aber die Tests sind noch rot: 3 Fehler, 28 grün. Ich habe die Änderungen noch nicht committet.",
+  "facts": {
+   "outcome": "failure",
+   "level": "L3",
+   "tests": {
+    "state": "ran",
+    "passed": 28,
+    "failed": 3
+   },
+   "questions": [],
+   "failures": [
+    "FAIL picker.spec.js > multi select",
+    "FAIL picker.spec.js > drag drop",
+    "FAIL picker.spec.js > keyboard"
+   ]
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "src/picker/Picker.vue",
+     "added": 120,
+     "removed": 85,
+     "status": "M"
+    },
+    {
+     "path": "src/picker/picker.spec.js",
+     "added": 44,
+     "removed": 10,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": true
+  },
+  "gold": {
+   "feed_must": [
+    "3",
+    "nicht committet"
+   ],
+   "review_changed": [
+    "src/picker/Picker.vue"
+   ],
+   "review_not_changed": [],
+   "left": "three failing tests, work uncommitted",
+   "needs_user": true,
+   "why": "in progress, failing, uncommitted",
+   "forbidden": [
+    "fertig",
+    "alle grün"
+   ]
+  },
+  "notes": "German; uncommitted."
+ },
+ {
+  "id": "V6T48",
+  "source": "Replaced the home-grown date parser in the vetch-calendar app with the standard library. 90 tests pass. The only visible difference is that weeks now start on Monday in the German locale, which I think is correct.",
+  "facts": {
+   "outcome": "success",
+   "level": "L1",
+   "tests": {
+    "state": "ran",
+    "passed": 90,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "app/dates.py",
+     "added": 12,
+     "removed": 64,
+     "status": "M"
+    },
+    {
+     "path": "tests/test_dates.py",
+     "added": 26,
+     "removed": 40,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "90",
+    "monday"
+   ],
+   "review_changed": [
+    "app/dates.py"
+   ],
+   "review_not_changed": [],
+   "left": "week start behaviour changed for the German locale",
+   "needs_user": true,
+   "why": "done with a behaviour change",
+   "forbidden": [
+    "no behaviour change",
+    "identical"
+   ]
+  },
+  "notes": "Behaviour change disclosed."
+ },
+ {
+  "id": "V6T49",
+  "source": "Created a first draft of the dandelion-tools onboarding doc. It has no code and no tests. Please read it; I am not sure the tone fits your team.",
+  "facts": {
+   "outcome": "question",
+   "level": "L2",
+   "tests": {
+    "state": "not_run",
+    "passed": 0,
+    "failed": 0
+   },
+   "questions": [
+    "Does the tone of the onboarding doc fit the team?"
+   ],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "docs/onboarding.md",
+     "added": 96,
+     "removed": 0,
+     "status": "A"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "onboarding",
+    "tone"
+   ],
+   "review_changed": [
+    "docs/onboarding.md"
+   ],
+   "review_not_changed": [],
+   "left": "review of the draft tone",
+   "needs_user": true,
+   "why": "asks for review",
+   "forbidden": [
+    "published",
+    "approved"
+   ]
+  },
+  "notes": "Doc draft, soft question."
+ },
+ {
+  "id": "V6T50",
+  "source": "Kicked off the full regression run for the swift-courier router. It is still running, 212 of 600 tests done, 0 failures so far. I will report when it ends.",
+  "facts": {
+   "outcome": "none",
+   "level": "L0",
+   "tests": {
+    "state": "unknown",
+    "passed": 212,
+    "failed": 0
+   },
+   "questions": [],
+   "failures": []
+  },
+  "git": {
+   "changed": [
+    {
+     "path": "tests/regression_list.txt",
+     "added": 3,
+     "removed": 0,
+     "status": "M"
+    }
+   ],
+   "reverted": [],
+   "reflog": [],
+   "uncommitted": false
+  },
+  "gold": {
+   "feed_must": [
+    "212",
+    "600"
+   ],
+   "review_changed": [
+    "tests/regression_list.txt"
+   ],
+   "review_not_changed": [],
+   "left": "regression run still in progress",
+   "needs_user": false,
+   "why": "run not finished",
+   "forbidden": [
+    "all tests pass",
+    "finished",
+    "done"
+   ]
+  },
+  "notes": "Still running; tests unknown."
+ }
+]

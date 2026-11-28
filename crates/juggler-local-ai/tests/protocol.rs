@@ -383,6 +383,26 @@ fn the_fixture_model_loads_generates_and_cancels() {
     assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
 }
 
+/// A client that sends its next request the moment it reads an answer (as
+/// the app does) is never told `busy`: the helper frees itself before the
+/// answer goes out (PR #257's CI: a generate sent on the last answer got
+/// `busy` on a slow runner).
+#[test]
+fn a_request_sent_on_reading_an_answer_is_never_busy() {
+    let dir = TempDir::new();
+    let (mut helper, _) = Running::start(dir.path());
+    load_fixture(&mut helper, dir.path());
+    for id in 100..160 {
+        let answer = helper.ask(&format!(
+            r#"{{"op":"generate","id":{id},"instructions":"a","prompt":"b","max_tokens":1,"timeout_ms":60000}}"#
+        ));
+        assert_eq!(answer["kind"], "text", "{answer}");
+        assert_eq!(answer["id"], id, "{answer}");
+    }
+    helper.send(r#"{"op":"quit"}"#);
+    assert_eq!(helper.exit_code(Duration::from_secs(10)), Some(0));
+}
+
 /// `program` as the app starts the helper (engines/local `Local::command`):
 /// `sandbox-exec` with the profile, then `taskpolicy` with the memory cap
 /// (`cap_mib`) and utility QoS, then the program; the cache in the test's

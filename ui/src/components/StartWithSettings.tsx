@@ -11,7 +11,8 @@ import type { AccountInfo } from "../types/generated/AccountInfo";
 import { accountSettingsCheck } from "../lib/ipc/accountSettings";
 import type { SetupCheckInfo } from "../lib/ipc/switchSetup";
 import { SwitchSetupList } from "./SwitchSetupList";
-import { Checkbox, Picker } from "./controls";
+import { Checkbox, Picker, RowChip } from "./controls";
+import { IconCopy } from "./icons-actions";
 import { useSuggested } from "../lib/suggested";
 
 /** What to copy, once the account is made; `null` for nothing. While
@@ -94,8 +95,10 @@ export function StartWithSettings({
       return next;
     });
   return (
-    <div className="flex max-w-xl flex-col gap-2 text-sm" data-testid="start-with-settings">
+    <div className="flex max-w-xl flex-col gap-2 text-body" data-testid="start-with-settings">
+      {/* AJ-E1558 (D-126): the row's chip, the accent's soft step while ticked. */}
       <div className="flex flex-wrap items-center gap-2">
+        <RowChip icon={IconCopy} on={on} />
         <label className="flex items-center gap-2">
           <Checkbox
             checked={on}

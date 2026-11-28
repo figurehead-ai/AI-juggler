@@ -92,6 +92,12 @@ verify-tests:
     just dev-bridge-check
     just floor-harness-check
 
+# ADR-0038 §3: the world model's exact budgets (factor 1) at 10k, 100k and
+# 1M links, in a release build, one size at a time, on the reference Mac.
+# CI runs the same at a stated runner factor (AIJ_BUDGET_FACTOR=4).
+gyrus-budgets:
+    AIJ_BUDGET_FACTOR=1 cargo test -p gyrus --release --test budgets -- --include-ignored --nocapture --test-threads=1
+
 # The test bridge's own tests (docs/qa/DEV-BRIDGE.md), read-only and with
 # the lab write mode (ADR-0027).
 dev-bridge-tests:
@@ -226,7 +232,8 @@ evidence:
 # Terminology gate (AJ-E108): legacy user-facing nouns cannot creep back;
 # AJ-E1535: nor can developer words on screen (its allowlist only shrinks);
 # AJ-E2801: nor a system select, checkbox or radio outside the shared controls;
-# AJ-E1550: nor a bright line outside focus, hover or attention (PAT-SURF).
+# AJ-E1550: nor a bright line outside focus, hover or attention (PAT-SURF);
+# AJ-E1558: nor a Settings, edit or picker choice built from neutral tokens alone (D-126).
 terminology:
     ./scripts/terminology_lint.sh
     python3 scripts/plain_words_lint.py --selftest
@@ -235,6 +242,8 @@ terminology:
     python3 scripts/native_controls_lint.py
     python3 scripts/design_tokens_lint.py --selftest
     python3 scripts/design_tokens_lint.py
+    python3 scripts/rich_mode_lint.py --selftest
+    python3 scripts/rich_mode_lint.py
     python3 scripts/text_input_lint.py --selftest
     python3 scripts/text_input_lint.py
     python3 scripts/private_data_lint.py --selftest
@@ -269,6 +278,8 @@ platform:
     python3 scripts/keychain_lint.py
     python3 scripts/os_prompt_lint.py --selftest
     python3 scripts/os_prompt_lint.py
+    python3 scripts/stand_in_app_lint.py --selftest
+    python3 scripts/stand_in_app_lint.py
 
 # AJ-E2011 (ENGINEERING-GUIDE A1/A6, A3/T1/I3/I4, C.10): the crate graph,
 # the IPC rules and the size budget; and no new direct read of the
@@ -439,6 +450,7 @@ qa-kit:
     python3 -I scripts/qa/account_oracle.py --selftest
     python3 -I scripts/qa/pairwise.py --selftest
     python3 -I scripts/qa/pairwise.py check
+    python3 -I scripts/qa/lab_dev_place.py --selftest
 
 # AJ-E3301: a scenario's lab: setup | open | teardown, e.g. `just lab-scenario setup P3`.
 lab-scenario cmd id:

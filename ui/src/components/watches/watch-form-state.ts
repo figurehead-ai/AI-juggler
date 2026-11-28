@@ -12,10 +12,13 @@ import type { Matching } from "../../types/generated/Matching";
 import type { Param } from "../../types/generated/Param";
 import type { WatchDraftInfo } from "../../types/generated/WatchDraftInfo";
 import type { WatchTarget } from "../../types/generated/WatchTarget";
+import type { PrefillField } from "../../types/generated/PrefillField";
+import type { PrefillWhy } from "../../types/generated/PrefillWhy";
+import type { WatchPrefill } from "../../types/generated/WatchPrefill";
 import { whenWords } from "../../lib/time-words";
 import type { PreviewFacts } from "./WatchPreview";
 import { optionOf, suggestedLifetime, type TargetOption } from "./watches-view";
-import { NOUN, PREVIEW } from "./watches-words";
+import { BOT_FILL, NOUN, PREVIEW } from "./watches-words";
 
 export type LifeKind = "once" | "until_ends" | "today" | "until" | "always";
 
@@ -32,6 +35,115 @@ export interface FormState {
   untilDay: string | null;
   untilTime: string | null;
   quiet: boolean;
+  /** 0.5.2 G32: the condition is the form's default, not the user's
+   * pick: it follows the targets (a project with no session open starts
+   * with "A new session starts", an account with its limit) until the
+   * user picks one. */
+  auto?: boolean;
+  /** AJ-E3830 (0.5.2): Bot pre-filled the form: the fields still left
+   * for the user (each leaves once the user sets it), the nearest
+   * condition offered beside the cards, and the words it couldn't read. */
+  bot?: BotFill;
+}
+
+interface BotFill {
+  /** The fields Bot left, as it opened the form. */
+  left: PrefillField[];
+  /** 0.5.2 G68: the fields the user has set since (what is left now is
+   * worked out from these and the form: [`leftNow`]). */
+  set: PrefillField[];
+  why: PrefillWhy;
+  nearest: string | null;
+  asked: string | null;
+  /** 0.5.2 G60: what the request's names match, the target left: the
+   * picker opens on them (none is chosen for the user). */
+  choices: WatchTarget[];
+}
+
+/** Bot's pre-fill as the form's state: its draft, with what it left. */
+export function stateFromPrefill(prefill: WatchPrefill, now: number): FormState {
+  return { ...stateFrom(prefill.draft, now), bot: { left: [...prefill.left], set: [], why: prefill.why, nearest: prefill.nearest ?? null, asked: prefill.asked ?? null, choices: [...(prefill.choices ?? [])] } };
+}
+
+/** The change, with each field it sets marked as the user's. */
+export function touched(was: FormState, change: Partial<FormState>): FormState {
+  const next = { ...was, ...change };
+  if (!was.bot) return next;
+  const set: PrefillField[] = [];
+  if (change.targets) set.push("target");
+  if (change.codes || change.params) set.push("condition");
+  if (change.life !== undefined || change.untilDay !== undefined || change.untilTime !== undefined) set.push("lifetime");
+  if (change.quiet !== undefined) set.push("quiet_hours");
+  return { ...next, bot: { ...was.bot, set: [...new Set([...was.bot.set, ...set])] } };
+}
+
+const FIELDS: readonly PrefillField[] = ["target", "condition", "lifetime", "quiet_hours"];
+
+/** 0.5.2 G68 (RW1 S10): what is left for the user now, from the form as
+ * it stands: what to watch and what for while empty (removing the pick
+ * Bot couldn't make leaves it again; the note said "Bot read every part"
+ * over an empty field), how long while Bot left it and none is chosen,
+ * quiet hours while Bot left them and the user hasn't set them. */
+export function leftNow(state: FormState): PrefillField[] {
+  const bot = state.bot;
+  if (!bot) return [];
+  const open: Record<PrefillField, boolean> = {
+    target: state.targets.length === 0,
+    condition: state.codes.length === 0,
+    lifetime: bot.left.includes("lifetime") && state.life === null,
+    quiet_hours: bot.left.includes("quiet_hours") && !bot.set.includes("quiet_hours"),
+  };
+  return FIELDS.filter((field) => open[field] && (bot.left.includes(field) || bot.set.includes(field)));
+}
+
+/** Bot left `field` (or the user emptied it) and it is still to be set. */
+export function botLeft(state: FormState, field: PrefillField): boolean {
+  return leftNow(state).includes(field);
+}
+
+/** How long is still to be picked: Bot couldn't read it, so no choice is
+ * made for the user (Watch waits for one). */
+export function lifeAsked(state: FormState): boolean {
+  return state.life === null && botLeft(state, "lifetime");
+}
+
+/** 0.5.2 G60 (RW1 R31): Bot left what to watch or what for, and how long
+ * is unsaid: the form's suggestion follows them (Once for a session that
+ * finishes, Today for a project), so none is shown chosen until both are
+ * picked; a chosen-looking "Today" read as Bot's fill and changed under
+ * the user once they picked the session. The field still to pick, or
+ * null when the suggestion stands. */
+export function lifeWaits(state: FormState): "target" | "condition" | null {
+  if (state.bot === undefined || state.life !== null || lifeAsked(state)) return null;
+  if (state.targets.length === 0) return "target";
+  return state.codes.length === 0 ? "condition" : null;
+}
+
+/** 0.5.2 G32: the default condition for these targets, among what they
+ * can all report (`offered`): what the first target's kind is most often
+ * watched for, and for an App, a project or any session with none open,
+ * a session starting (nothing in it can end a turn or be idle yet). */
+export function defaultCode(targets: readonly WatchTarget[], offered: readonly CatalogueEntry[], book: Map<string, TargetOption>): string | null {
+  const first = targets[0];
+  const option = first ? optionOf(book, first) : null;
+  const group = option !== null && (option.kind === "app" || option.kind === "project" || option.kind === "any");
+  const order =
+    option?.kind === "account" ? ["hits_limit", "runway_below", "runway_resets"] : option?.kind === "pool" ? ["finishes", "pool_message", "asks_you"] : group && (option.openSessions ?? 0) === 0 ? ["starts", "finishes"] : ["finishes", "asks_you"];
+  return order.find((code) => offered.some((entry) => entry.code === code)) ?? offered[0]?.code ?? null;
+}
+
+/** The conditions the form holds now: what is still on offer for its
+ * targets (D-127: one no longer offered leaves, never shown as
+ * unsupported), or, until the user picks one, the targets' default
+ * (`auto`, 0.5.2 G32) with that card's entry for its parameter. */
+export function codesNow(state: FormState, offered: readonly CatalogueEntry[], loading: boolean, book: Map<string, TargetOption>): { codes: string[]; entry: CatalogueEntry | undefined } {
+  const ready = !loading && state.targets.length > 0;
+  if (state.auto === true) {
+    if (!ready) return { codes: state.codes, entry: undefined };
+    const code = defaultCode(state.targets, offered, book);
+    return { codes: code ? [code] : [], entry: offered.find((e) => e.code === code) };
+  }
+  return { codes: ready ? state.codes.filter((code) => offered.some((e) => e.code === code)) : state.codes, entry: undefined };
 }
 
 /** A parameter's default when its card is picked (the mock's, and none
@@ -149,5 +261,10 @@ export function previewFacts(input: { state: FormState; offered: readonly Catalo
   // read as no time at all); only an "Until…" without one ends tonight.
   const ends =
     life === "once" ? PREVIEW.onceEnds : life === "until_ends" ? PREVIEW.untilEnds(state.targets.length) : life === "until" && at !== null ? PREVIEW.untilEndsAt(whenWords(at, input.now)) : life === "today" || life === "until" ? PREVIEW.todayEnds : PREVIEW.alwaysEnds;
+  // AJ-E3830: how long is the user's to pick (Bot couldn't read it): the
+  // preview says no lifetime for them.
+  if (lifeAsked(state)) return { echo: input.echo ? { ...input.echo, lifetime: "" } : null, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends: BOT_FILL.lifePick, endsKind: life };
+  const waits = lifeWaits(state);
+  if (waits) return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends: BOT_FILL.lifeFollows(waits), endsKind: life };
   return { echo: input.echo, was: input.was, title, line, shows, quiet, quietWakes: state.quiet, ends, endsKind: life };
 }

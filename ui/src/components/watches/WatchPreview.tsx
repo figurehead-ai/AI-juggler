@@ -60,7 +60,8 @@ export function WatchPreview({ facts }: { facts: PreviewFacts }): JSX.Element {
         <p className="text-[15px] leading-normal text-ink-2" aria-live="polite" data-testid="watch-preview-echo">
           {facts.echo ? (
             <>
-              <EchoHead spans={facts.echo.head} /> {facts.echo.lifetime}
+              <EchoHead spans={facts.echo.head} />
+              {facts.echo.lifetime && ` ${facts.echo.lifetime}`}
               {facts.echo.quiet && ` ${facts.echo.quiet}`}
             </>
           ) : (

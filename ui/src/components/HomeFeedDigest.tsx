@@ -13,11 +13,24 @@
  * Calm (D-126): normal ink, no amber or red, even for a need (its loud
  * copy is the pinned zone's, D-117). Each name opens its session. The
  * words are `feed-words.ts`'s; the rollup's facts are the backend's.
+ *
+ * 0.5.2 G21 (the RW1 walk): a session the app holds is named as the rail
+ * names it and said in its state now (`live`), never by its folder with a
+ * counter ("web (1)") or the state it had when the digest was made ("web
+ * (2) · working" for one that had finished); the digest's own words are
+ * the fallback for one the rail no longer lists.
  */
 import { useState, type JSX } from "react";
 import { CliAppMark } from "./PlaceMarks";
 import { IconJuggler } from "./icons";
+import { POST } from "./HomeFeedParts";
 import { digestHeader, digestLineWords, digestMoreWords, exactWhen } from "../lib/feed-words";
+
+/** AJ-E3713 R4: the digest's header as its story's first line. */
+function digestStory(digest: DigestInfo): string {
+  const count = digest.lines.length;
+  return count === 0 ? "Nothing changed in your sessions." : `${digestHeader(digest)} changed:`;
+}
 import { tellApart } from "../lib/session-titles";
 import type { FeedItemInfo } from "../lib/ipc/feed";
 import type { DigestInfo } from "../types/generated/DigestInfo";
@@ -31,8 +44,15 @@ function Mark({ line }: { line: DigestLineInfo }): JSX.Element {
   return <span aria-hidden="true" className="size-3.5 shrink-0 rounded-full bg-surface-3" />;
 }
 
-function Line({ line, name, onOpen }: { line: DigestLineInfo; name: string; onOpen: (sessionId: string) => void }): JSX.Element {
+/** A session as the rail says it now: its name and its state's words. */
+export interface LiveSession {
+  name: string;
+  state: string;
+}
+
+function Line({ line, name, now, onOpen }: { line: DigestLineInfo; name: string; now: LiveSession | null; onOpen: (sessionId: string) => void }): JSX.Element {
   const words = digestLineWords(line);
+  if (now) words.state = ` · ${now.state.charAt(0).toLowerCase()}${now.state.slice(1)}`;
   return (
     <li className="flex min-w-0 items-baseline gap-2 text-meta text-ink-2" data-testid="digest-line" data-level={line.level}>
       <Mark line={line} />
@@ -48,33 +68,38 @@ function Line({ line, name, onOpen }: { line: DigestLineInfo; name: string; onOp
 }
 
 /** The digest's body: its header, its first lines, the rest folded. */
-export function HomeFeedDigest({ item, digest, when, onOpen }: { item: FeedItemInfo; digest: DigestInfo; when: string; onOpen: (sessionId: string) => void }): JSX.Element {
+export function HomeFeedDigest({ item, digest, when, pos, onOpen, live = () => null }: { item: FeedItemInfo; digest: DigestInfo; when: string; pos?: number; onOpen: (sessionId: string) => void; /** The rail's name and state now of a session it holds. */ live?: (sessionId: string) => LiveSession | null }): JSX.Element {
   const [all, setAll] = useState(false);
   const shown = all ? digest.lines : digest.lines.slice(0, digest.shown);
   const more = digestMoreWords(all ? 0 : digest.lines.length - digest.shown, digest.quiet);
   const id = `feed-${item.id.replace(/[^a-zA-Z0-9_-]/g, "_")}`;
-  // AJ-E1548 #20: twins told apart as everywhere else ("api (1)", "api (2)").
-  const names = tellApart(digest.lines, (line) => line.name, (line) => [line.at_ms, line.session_id]);
+  const now = new Map(digest.lines.map((line) => [line, live(line.session_id)] as const));
+  // AJ-E1548 #20: twins the rail doesn't name told apart as everywhere
+  // else ("api (1)", "api (2)"); the rail's own names are its own.
+  const names = tellApart(digest.lines.filter((line) => !now.get(line)), (line) => line.name, (line) => [line.at_ms, line.session_id]);
   return (
     <article
       aria-labelledby={`${id}-who ${id}-what`}
+      aria-posinset={pos}
+      aria-setsize={pos === undefined ? undefined : -1}
       tabIndex={-1}
       data-feed-item
       data-home-item
       data-testid="feed-digest"
       data-kind={item.kind}
       data-feed-ids={item.id}
-      className="group/card tone-host relative flex min-w-0 gap-3 rounded-lg px-3 py-2.5 outline-none hover:bg-surface/70 focus-within:bg-surface/70 focus-visible:ring-1 focus-visible:ring-accent/60"
+      className={POST + " pb-3"}
     >
-      <span aria-hidden="true" className="app-tone mt-0.5 flex size-5 shrink-0 items-center justify-center text-muted"><IconJuggler width={16} height={16} /></span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="flex min-w-0 items-baseline gap-1.5 text-meta">
-          <span id={`${id}-who`} className="truncate font-medium text-ink-2">AI Juggler · Digest</span>
-          <time className="ml-auto shrink-0 pl-2 text-label text-muted" dateTime={new Date(item.at_ms).toISOString()} title={exactWhen(item.at_ms)} aria-label={exactWhen(item.at_ms)}>{when}</time>
+      {/* AJ-E3713: AI Juggler's own post, its mark on its tile. */}
+      <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-[11px] bg-surface-3"><IconJuggler width={26} height={26} /></span>
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <p className="flex min-w-0 items-baseline gap-1.5 text-meta text-muted">
+          <span id={`${id}-who`} className="truncate"><b className="font-semibold text-ink">AI Juggler</b> · Digest</span>
+          <time className="shrink-0" dateTime={new Date(item.at_ms).toISOString()} title={exactWhen(item.at_ms)} aria-label={exactWhen(item.at_ms)}>· {when}</time>
         </p>
-        <p id={`${id}-what`} className="text-[0.84375rem] leading-snug text-ink" data-testid="digest-header">{digestHeader(digest)}</p>
+        <p id={`${id}-what`} className="mt-[3px] text-body leading-normal text-ink" data-testid="digest-header">{digestStory(digest)}</p>
         <ul className="mt-1 flex flex-col gap-1" data-testid="digest-lines">
-          {shown.map((line) => <Line key={line.session_id} line={line} name={names.get(line) ?? line.name} onOpen={onOpen} />)}
+          {shown.map((line) => <Line key={line.session_id} line={line} name={now.get(line)?.name ?? names.get(line) ?? line.name} now={now.get(line) ?? null} onOpen={onOpen} />)}
         </ul>
         {more && (
           digest.lines.length > digest.shown && !all ? (

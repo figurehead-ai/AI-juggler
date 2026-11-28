@@ -190,12 +190,16 @@ pub struct AppState {
     pub folder_accounts: crate::features::subscriptions::LastRead,
     /// ADR-0037 §1.1: the memory store's writers, taken at start.
     pub memory_writers: crate::features::ai::memory::MemoryWriters,
+    /// ADR-0038 (AJ-E3832): Bot's world model, its index built lazily.
+    pub world: crate::features::ai::world::WorldModel,
     /// AJ-E3814: the watches at run time (the engine on the observation
     /// bus, and what fired for the notification path).
     pub watches: crate::features::watches::Watches,
     /// AJ-E3712: the agent digest at run time (its scheduler on the
     /// observation bus, its thread started on the first observation).
     pub digests: crate::features::digest::Digests,
+    /// AJ-E2027 (ADR-0039): the one scheduler at run time.
+    pub schedules: crate::features::schedule::Scheduler,
 }
 
 impl Drop for AppState {
@@ -534,8 +538,10 @@ impl AppState {
             watchdog: std::sync::Mutex::default(),
             notifier: crate::features::notifications::Notifier::default(),
             memory_writers: crate::features::ai::memory::MemoryWriters::taken_at_start(),
+            world: crate::features::ai::world::WorldModel::new(),
             watches: crate::features::watches::Watches::default(),
             digests: crate::features::digest::Digests::default(),
+            schedules: crate::features::schedule::Scheduler::default(),
             service_keys: crate::features::service_accounts::ServiceKeys::default(),
             folder_accounts: crate::features::subscriptions::LastRead::default(),
             preview: Mutex::new(None),

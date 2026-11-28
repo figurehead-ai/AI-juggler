@@ -1,0 +1,13 @@
+# AJ-E1558 (D-126 rich mode, PAT-COLOR): per file of a Settings, edit or
+# create sheet or picker surface, `path count`: how many of its components
+# build a choice from neutral tokens alone. Only shrinks
+# (scripts/rich_mode_lint.py; --print gives today's counts).
+#
+# Kept, reviewed 2026-11-25 (AJ-E1558's audit, docs/qa/0.5.2-rich-mode-audit.md):
+#   WatchForm: ParamControl (a condition's number, drawn inside its
+#     CheckCard, whose chip is the condition's icon) and Matching (two
+#     words in a step whose head carries the step's mark): sub-choices of a
+#     row that already leads with its icon.
+#   (ai/ModelsJobs left 2026-11-26: AJ-E3826 gave the model picker's
+#     options their icons, M1.)
+ui/src/components/watches/WatchForm.tsx 2

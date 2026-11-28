@@ -3843,3 +3843,92 @@ Every session and agent brief carries this rule.
 - **Follow-up:** the maintainer's first real Move or Repair ownership after 0.5.1 ships is the final check; the coordinating session reads its Claude-app log lines (recycled, write-guard, reaped) with the maintainer. R6(b), the source's cleanup sweep (I9), is covered by `claude_move_matrix`'s sweep case, with the same follow-up.
 - **Never:** a keychain is never created in a lab (`security create-keychain` can change the user's keychain search list); the lab sign-in request is withdrawn.
 - Sources: the coordinating session's message, 2026-11-24, quoting the maintainer's pick.
+
+### D-148 — Bot answers general questions briefly, marked as general, and says what it is for (2026-11-25)
+
+With an AI ready, a question with no AI Juggler records in it ("what is 3+5") gets a short model answer marked "General answer, not from your records" and one line that Bot is here for your AI apps and sessions. Refusing read as broken on the 0.5.1 Nightly ("nothing matches" for 3+5); a general answer can't pass the records check, so it is its own labelled kind, outside that check. Record answers keep the citation check. "Which model are you" is answered from the engine's own name. Decided by the 0.5.2 builder (Opus) on usability, AJ-E3825.
+
+### D-149 — The four AI jobs still off: "All four, as recommended" (amends D-131) (2026-11-25)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-25, on `docs/qa/0.5.2-ai-jobs-note.md`): "All four, as recommended."
+1. **Turn reviews** ship in 0.5.2 as an opt-in Beta on Apple's model: AJ-E3820 (the review written at a turn's end and where it shows) is built, with the real-model check (AJ-E3829).
+2. **Watches from Bot:** the draft's schema gets an enum for what can't be watched and exactly one target; two small calls (the session, then the condition); sampled retries, not greedy. Re-measured on the real harness with the fixed code. Shipped as "Bot fills the Watches form" at ≥ 90 % exact, each watch confirmed by the user's click. Below 90 %, reported to the coordinator before anything ships. This replaces D-131's 95 % bar for drafts the user confirms.
+3. **Feed line:** "pick, don't write" (the model chooses the turn's most telling fact and the verb; code renders the line). **Digest:** map and reduce (a line per session from the model; code assembles). One harness round each on fresh blind sets; each is switched on only if preferred over the plain text in the blind checks, otherwise it stays plain and the UI says why in one line.
+4. **Settings › AI › Models** shows each job's real state in plain words (on, Beta, or off and why), never a bare "not yet".
+- **Amends** D-131's "not yet" rows and its 95 % watch bar for confirmed drafts. Built in 0.5.2 under AJ-E3820, AJ-E3830, AJ-E3831 and AJ-E3826.
+
+### D-150 — Bot's world model is our own engine on SQLite, the `gyrus` crate (ADR-0038) — ACCEPTED (2026-11-26, the maintainer)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-26): ADR-0038 accepted. The world model is a typed graph kept in memory over SQLite, built as its own crate `gyrus` (MIT OR Apache-2.0); AJ-E3832 is built in 0.5.2. This is a feature in a patch release by the maintainer's explicit ask (2026-11-25), overriding the patch-only habit.
+- **The engine:** SQLite (AI Juggler's database, the next migration in its chain) is the record; a typed in-memory index holds the links both ways, per type, sorted by weight, with kind specs and reasoning questions; written through after each commit, rebuilt at start, readers on an atomic copy per committed batch; started lazily after first paint (ADR-0037's keyword retrieval until it is ready). No other graph engine (the research: `docs/research/2026-11-25-graph-memory-research.md`).
+- **Vectors** are blobs in SQLite with an exact cosine scan in Rust: no new crate dependency (no sqlite-vec, no HNSW crate); one that seems needed is asked first.
+- **Entity nodes** for sessions, Apps, profiles, projects are pointers; live state is read from the owning modules at assembly (ADR-0037 §3).
+- **A fixed set of operations** (seed, expand, matches, as_of, rank, touch, dream, forget, explain) with p95 budgets and a benchmark at 10k, 100k and 1M links in CI; tiers (immediate plus ADR-0037's short, mid, long); forget extends ADR-0037 §1.5 (secure_delete, FTS rebuild, WAL truncate, then the in-memory removal).
+- **The crate** is generic (`crates/gyrus`, its own README, tests, bench; a lint forbids any juggler-* dependency); AI Juggler's kind pack is `features/ai/world/`. It goes public as its own repository only after it works inside Bot (the maintainer's step).
+- Supersedes ADR-0037's "no graph store" line; extends ADR-0037, not replaces it. Built under AJ-E3832.
+
+### D-149 amendment — watches and the feed line keep being fixed in 0.5.2 (2026-11-26)
+
+- **Ruling** (the coordinating session, 2026-11-26, on the v6 round's results: watches 63.5 % exact vs 90 %, the feed line 34 % pooled vs 60 %): option (b), keep fixing both in 0.5.2, as many rounds as it takes; no deferral to 0.6 and no relaxed bar (D-149's bars are the maintainer's; the standing rule fixes in the same version until it ships).
+- **Watches:** code builds the target candidates (the user's own names and aliases and entity matches; negation and exclusion handled by code first); the model picks one candidate id or none; one resolver (gyrus's `seed` once it lands). The condition a guided enum with one-line definitions, code pre-selecting on cue words; idle and stuck merged only if they are the same state. The no-draft cases each diagnosed; unsupported requests always get the nearest option.
+- **Feed line:** code pre-ranks the turn's checked clauses (outcome and decision first; file diffs and side details last or excluded); the model picks from the top 3 only; re-judged blind with the pooled method.
+- **Digest:** Beta (64 % pooled); G7 (a reverted turn keeps the plain words) fixed in 0.5.2.
+- Each round on a fresh blind set (v7 onwards), judged once.
+
+### D-151 — One scheduler for everything time-based (ADR-0039), with `jiff` for local time — ACCEPTED (2026-11-26, the maintainer)
+
+- **Ruling** (the maintainer, through the coordinating session, 2026-11-26): ADR-0039 accepted, with §10 (a). Asked for on the feed's "Remind me": "Make sure you build for future, a scheduled and periodic triggers and that kind of capability will be needed generally for all kinds of reasons."
+- **What it decides:** one `features/schedule/` service for every durable or wall-clock trigger (At, Every anchored to the wall clock, Calendar as an RRULE subset, AfterEvent with `unless`, WhenIdle; windows, jitter, lifetimes); schedules in SQLite with a persisted next due and a missed-run policy, recomputed on launch, wake and clock or time-zone change; only registered typed handlers run, agent text never creates one; one user list (edit, pause, delete, Pause all) built for other tools' schedules later; every run in ADR-0037's log; reminders through the bell and notifications, Notifications primed at creation; nothing outside the running app. `ticks.rs`'s sub-minute observation loops stay ticks.
+- **Local time: `jiff` 0.2.38** as a direct dependency of juggler-app (already in Cargo.lock through `serde_with`; Cargo.lock unchanged, built `--offline`). Why: DST-correct future wall times are exactly what not to hand-write; the alternatives were a third audited `unsafe` (libc `mktime`) or our own TZif parser.
+- **Cargo.lock** (the 0.5.2 builder's technical call, 2026-11-26): adding `jiff` as a direct dependency adds one line, ` "jiff",`, to juggler-app's own `dependencies` list in the lock; no package, version or checksum changes and nothing is fetched. That line is allowed; "Cargo.lock unchanged" means nothing new locked or fetched.
+- **The maintainer's standing note (2026-11-26):** library and technical-level calls are the builders' to make on quality, performance and reliability, with the reasoning recorded; only product or scope questions go to the maintainer.
+- Built in 0.5.2 under ADR-0039's Order of work; RemindAt (the feed and Bot) first.
+
+### D-149 amendment 2 — after v8: watches fail closed; the feed line stays plain pending the maintainer; the fabrication gate checks support, not only contradiction (2026-11-26)
+
+- **Ruling** (the coordinating session, 2026-11-26, on v8: watches 75 % exact with 3 unsupported claimed, one the inverse of the request; feed A 42 %, B 7 % with 44 % fabrication):
+1. **Watches fail closed:** code accepts a draft only when the request parses into a shape it fully understands (target, condition, lifetime accounted for); a broad quantifier with a named entity is unsupported unless the entity is clearly the target; a number in a unit no condition takes is refused before the model is called; any leftover meaning-changing word (but, except, skipping, other than, besides, not, without…) makes it unsupported with the nearest option; never widen. The confirm card states the watch in plain words, its target included. A regression test for every miss so far. Round v9 on a fresh blind set.
+2. **The feed line stays the plain excerpt in 0.5.2** until the maintainer chooses (it was a promised 0.5 feature); no more rounds meanwhile.
+3. **The fabrication gate** (D-130): a claimed outcome, benefit, state, count or cause must trace to a checked clause; contradiction alone was a hole. Re-run over the digest's passing v6 outputs and Bot's E3829 answers; a changed digest verdict goes to the coordinating session; Opus verifies by eye.
+
+### D-152 — The feed line redesigned (what the turn came to against the request); one round on three models; plain in 0.5.2 (2026-11-27)
+
+- **Ruling** (the coordinating session, 2026-11-26, relaying the maintainer's standing rule "we do the best we can, and we optimize for later"; amends D-149 §3 and its amendment 2's "no more rounds"):
+  - AJ-E3831's feed line is redesigned as one line per finished turn saying what it came to compared with the user's request. It replaces "pick, don't write".
+  - The round is time-boxed to one well-built round: real context, lab-recorded turns, an aligned judge, on Apple's model and the two local models (Qwen3 1.7B Q8, Granite 4.1 3B, downloaded by the maintainer's yes).
+  - A model whose line passes both bars ships as an opt-in Beta for that engine; otherwise the plain excerpt ships.
+  - Either way, the findings and next optimizations go into AJ-E3831, with no second round in 0.5.2. The safety bars stay hard; the quality bars decide the label and the default.
+- **The builder's design calls** (Opus, recorded in AJ-E3831):
+  - one definition of good shared by the prompt, the gold and the judges;
+  - code narrows a status enum from the facts and renders the line; the model fills four guided fields;
+  - Bot's check gets an own-words mode (`check_own_words`; Bot's default unchanged), and the request is cited by name only;
+  - the line's support rule puts each claim word in one agent sentence with the line's subject words;
+  - an unsupported outcome verb becomes "worked on";
+  - datamarking is per model, chosen on the tuning set.
+- **Result** (v14, e249b088e; `docs/qa/evidence/AJ-E3831/manifest.md`; bars ≥ 60 % preference and ≤ 1 % critical):
+
+  | Model | Pooled preference | Verified critical errors |
+  |---|---|---|
+  | Apple | 67.2 % | 19.4 % |
+  | Qwen | 65.4 % | 30 % |
+  | Granite | 59.1 % | 30.8 % |
+
+  Every feed verdict stays `not_yet` and the plain excerpt ships in 0.5.2. The Models page's note now says why: "the line got the outcome wrong too often", not "the plain line reads better", which the preference no longer supports.
+- **Next:** the six optimizations in AJ-E3831, then one fresh blind round per model in the next release. 14 of the 24 critical errors were the code's own facts, so the first lever is code.
+
+### D-153 — Watches from Bot: Bot fills the Watches form, the user saves; the confirm card an opt-in Beta where code verifies every field (2026-11-27)
+
+- **Ruling** (the coordinating session, 2026-11-26, relaying the maintainer's standing rule "we do the best we can, and we optimize for later"; amends D-149 for watches and supersedes AJ-E3830's R3 "≥ 90 % exact" as a ship bar):
+  - Bot pre-fills the Watches form with only what code and the verified labels understood (target, condition with its parameters, lifetime, quiet hours), and the user checks and saves. Bot never saves a watch.
+  - The safety bar stays hard: never a wrong pre-filled field (0), never anything saved without the user's click.
+  - The quality bar (exact %) decides the label, not shipping: where code verifies every field, Bot may offer its confirm card directly as an opt-in Beta (`ai_beta_watches`, off by default, switched on in Settings › AI › Models).
+  - The "Bot drafts a watch" verdict stays `not_yet`. There are no more watch rounds in 0.5.2.
+- **Result** (e923067e2, d3ccfce2e; `docs/qa/evidence/AJ-E3830/manifest.md` R4): 0 wrong pre-filled fields on Apple's model, Qwen3 1.7B, Granite 4.1 3B and code alone over v13's 38 supported requests (and on v6–v12 on Apple), and over v6–v13's 480 requests against nine lying labellers. The confirm card is offered on 12–15 of 38, of which 11–13 have every field right.
+  - The measurement isn't blind: the builder had read v13's misses. Its reading changes only leave more fields empty, and it added no vocabulary.
+- **Next (0.5.3, in AJ-E3830):** grow the code's vocabulary from the model's labels (v13 showed they are mostly right), then a fresh blind round, a stronger model, and the local models.
+
+### D-154 — The feed line is an AI summary of the turn, like a human watching the agent (2026-11-27)
+
+- **Ruling** (the maintainer, 2026-11-27, relayed and clarified by the coordinating session): the feed line is "a summary of what happened in that time period… written as a tweet… like if I had a real human watching the agent and summarizing to me". That is the AI line AJ-E3831 built and measured in v14 (what the turn came to compared with what was asked), not the plain excerpt.
+- **Supersedes** the earlier reading of the same day ("I want the agent words": the feed line as the agent's own excerpt, no AI line). That reading was a misunderstanding; nothing it implied was committed.
+- **How it ships** ("best now, optimize later"): one re-measure of v14 on HEAD (the code's facts fixed by G48–G50), Apple's model, the same 44 held-out lab turns, prompts and two blind judges. Verified critical errors ≤ 1 %: the AI line is the default feed line on Apple's model, with the agent's own words one tap away. Otherwise an opt-in Beta switch ("AI summaries in the feed"), off by default, with an honest Models note, the agent's words one tap away and "This is wrong" on each line; the plain excerpt stays the default. Either way a refused draft shows the excerpt and the safety guard stays. The result is recorded under AJ-E3831.

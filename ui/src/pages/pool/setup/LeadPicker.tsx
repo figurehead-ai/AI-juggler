@@ -17,6 +17,8 @@ import { SELECTED_FILL } from "../../../components/controls/selected";
 import type { LeadChoice } from "../../../lib/new-pool";
 import { LEAD_WOULD, endedLeadSentence, leadSentence, nextSessionWords } from "../../../lib/pool-words";
 import { StartLeadButton } from "./StartLead";
+import { IconSessions } from "../../../components/icons";
+import { IconInactive, IconPlay } from "../../../components/icons-controls";
 
 export interface LeadSession {
   ref: string;
@@ -80,6 +82,7 @@ export function LeadPicker({
       disabled={disabled || blocked !== null}
       reason={blocked ?? undefined}
       onChange={() => onChange(choice)}
+      icon={kind === "session" ? IconSessions : kind === "next" ? IconPlay : IconInactive}
       label={title}
       hint={detail}
       className={same(choice, value) ? SELECTED_FILL : ""}

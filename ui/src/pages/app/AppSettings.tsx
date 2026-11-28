@@ -19,6 +19,9 @@ import { appsRename } from "../../lib/ipc/apps";
 import type { AppModel } from "../../lib/apps";
 import { useSubscriptions } from "../../lib/subscriptions";
 import { AppTerms, accountForApp } from "./AppTerms";
+import { IconPlay } from "../../components/icons-controls";
+import { IconRename } from "../../components/icons-actions";
+import { IconView } from "../../components/icons-places";
 
 export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; now: number; resetsAtMs?: number | null }): JSX.Element {
   const [renaming, setRenaming] = useState(false);
@@ -27,7 +30,7 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
   return (
     <div className="flex w-full max-w-content flex-col gap-grid" data-testid="app-settings">
       <PaneSection id="app-name" title="Name">
-        <SettingRow
+        <SettingRow icon={IconRename}
           title={app.name}
           description={app.named ? `Your name for ${app.defaultName}.` : "The name AI Juggler gives it: its app, then its profile."}
           testId="app-name-row"
@@ -50,7 +53,7 @@ export function AppSettings({ app, now, resetsAtMs = null }: { app: AppModel; no
       </PaneSection>
       {app.kind === "cli" && (
         <PaneSection id="app-launch" title="Starting it">
-          <SettingRow
+          <SettingRow icon={IconPlay}
             title="Launch settings"
             description="The model, permissions and folder it starts with, saved to start again in one click."
             testId="app-launch-row"
@@ -97,7 +100,7 @@ function RailShownRow({ app }: { app: AppModel }): JSX.Element {
   const [note, setNote] = useState<string | null>(null);
   const shown = !hidden.has(app.id);
   return (
-    <SwitchRow
+    <SwitchRow icon={IconView}
       title="Show in the rail"
       description="Its own group in the rail's list by App. Off, it's left out there; a session of it that needs you still shows, and a search still finds it."
       checked={shown}
