@@ -88,11 +88,13 @@ pub fn serve(backend: &LlamaBackend, dir: &Path, wait: &Wait, shared: &Shared) {
                         continue;
                     }
                 };
+                // Free before the answer is out: a client that sends its
+                // next request on reading it is never told `busy`.
+                shared.done();
                 shared.send(&Answer::Loaded {
                     id,
                     context_tokens: session.n_ctx,
                 });
-                shared.done();
                 next = session.serve(wait, shared);
                 if next.is_none() {
                     return;
@@ -105,11 +107,11 @@ pub fn serve(backend: &LlamaBackend, dir: &Path, wait: &Wait, shared: &Shared) {
 }
 
 fn fail(shared: &Shared, id: u64, error: Fault) {
+    shared.done();
     shared.send(&Answer::Error {
         id: Some(id),
         error,
     });
-    shared.done();
 }
 
 /// The file the app hashed: its size, and its disk and inode.
@@ -243,8 +245,8 @@ impl<'m> Session<'m> {
                             error,
                         },
                     };
-                    shared.send(&answer);
                     shared.done();
+                    shared.send(&answer);
                 }
                 Request::Cancel { .. } | Request::Quit {} => shared.done(),
             }
