@@ -521,7 +521,7 @@ jobs:
         run: |
           cargo fetch --locked
           cargo fetch --locked --manifest-path crates/juggler-local-ai/Cargo.toml
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: nextest-archive
           path: ${{ runner.temp }}
@@ -895,7 +895,7 @@ jobs:
             body="$EVENT_BODY"
           fi
           PR_BODY="$body" python3 scripts/check_baseline_notes.py "$base"
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: always() && env.RAN == 'true'
         with:
           pattern: visual-blob-*
@@ -1018,7 +1018,7 @@ jobs:
         run: |
           [ "$SHARDS" = "success" ] \
             || { echo "::error::an accessibility shard failed ($SHARDS) — see its log and the a11y-shard-* artifacts"; exit 1; }
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         if: env.RAN == 'true'
         with:
           pattern: a11y-shard-*
@@ -1320,11 +1320,11 @@ jobs:
           sparse-checkout: |
             scripts/qa/first_open_window_check.sh
           sparse-checkout-cone-mode: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: rc-build-${{ env.REF }}
           path: ${{ runner.temp }}/rc/
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: rc-v49-${{ env.REF }}
           path: ${{ runner.temp }}/v49/
